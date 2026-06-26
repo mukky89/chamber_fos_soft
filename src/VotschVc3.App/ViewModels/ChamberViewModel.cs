@@ -53,6 +53,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SaveToHistoryCommand = new RelayCommand(SaveToHistory, () => Segments.Count > 0);
         LoadFromHistoryCommand = new RelayCommand(LoadFromHistory, () => SelectedHistoryProfile is not null);
         DeleteFromHistoryCommand = new RelayCommand(DeleteFromHistory, () => SelectedHistoryProfile is not null);
+        ImportProfileCommand = new RelayCommand(ImportProfile);
 
         StartRecordingCommand = new RelayCommand(StartRecording, () => !IsRecording);
         StopRecordingCommand = new RelayCommand(StopRecording, () => IsRecording);
@@ -604,6 +605,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand SaveToHistoryCommand { get; }
     public RelayCommand LoadFromHistoryCommand { get; }
     public RelayCommand DeleteFromHistoryCommand { get; }
+    public RelayCommand ImportProfileCommand { get; }
 
     private void RefreshHistory()
     {
@@ -626,11 +628,44 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private void LoadFromHistory()
     {
-        if (SelectedHistoryProfile is not { } profile)
+        if (SelectedHistoryProfile is { } profile)
+        {
+            ApplyProfile(profile);
+            StatusMessage = $"Profil \"{profile.Name}\" načítaný z histórie.";
+        }
+    }
+
+    private void ImportProfile()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Importovať Vötsch / SIMPATI profil",
+            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json)|*.csv;*.txt;*.dat;*.prg;*.json|Všetky súbory (*.*)|*.*",
+        };
+
+        if (dialog.ShowDialog() != true)
         {
             return;
         }
 
+        try
+        {
+            ProfileImportResult result = ProfileImporter.ImportFile(dialog.FileName, Kind);
+            ApplyProfile(result.Profile);
+
+            string warnings = result.Warnings.Count > 0
+                ? $" · {result.Warnings.Count} upozornení: {string.Join(" ", result.Warnings.Take(2))}"
+                : string.Empty;
+            StatusMessage = $"Importované ({result.FormatDescription}), {result.Profile.Segments.Count} segmentov{warnings}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Import zlyhal: {ex.Message}";
+        }
+    }
+
+    private void ApplyProfile(TestProfile profile)
+    {
         ProfileName = profile.Name;
         Cycles = profile.Cycles;
 
@@ -642,7 +677,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         SelectedSegment = Segments.FirstOrDefault();
         RecalculateTiming();
-        StatusMessage = $"Profil \"{profile.Name}\" načítaný z histórie.";
     }
 
     private void DeleteFromHistory()

@@ -1,0 +1,5 @@
+Name;Dauer [min];Temperatur [°C];Feuchte [%];Art
+Ohrev;30;60,0;80;Rampe
+Plato;60;60,0;80;Halten
+Chladenie;30;25,0;50;Rampe
+Plato;60;25,0;50;Halten

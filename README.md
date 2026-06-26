@@ -154,6 +154,29 @@ odladíš.
 
 ---
 
+## Import originálnych Vötsch / SIMPATI profilov
+
+Tlačidlo **„Importovať Vötsch profil…"** v záložke *Profil* načíta profil zo
+súboru. Keďže natívny SIMPATI program (databáza) nemá verejne dokumentovaný
+formát, import cieli na to, čo sa reálne dá vymeniť:
+
+- **CSV / textový export zo SIMPATI alebo Excelu** (oddeľovač `;`, tab alebo `,`),
+  v dvoch tvaroch, ktoré sa rozpoznajú automaticky:
+  - **tabuľka segmentov** – riadok = krok s trvaním a cieľovou teplotou/vlhkosťou
+    (+ voliteľný stĺpec Rampa/Halten),
+  - **časová os setpointov** – riadok = bod s kumulatívnym časom; medzi bodmi sa
+    vytvoria rampové segmenty.
+- vlastné **`.json`** profily aplikácie (spätný import).
+
+Rozpozná nemecké desatinné čiarky (`60,0`) aj časy `hh:mm:ss`. Pre čisto teplotnú
+komoru sa vlhkosť automaticky ignoruje. Hlavičkové stĺpce sa mapujú podľa
+kľúčových slov (`Dauer/Duration/Zeit/Time`, `Temperatur/Temperature`,
+`Feuchte/Humidity/rF`, `Art/Ramp`). Vzorový súbor:
+[`assets/sample_profile.csv`](assets/sample_profile.csv).
+
+> Tip: v SIMPATI exportuj program/tabuľku do CSV (alebo si ho prepíš do Excelu a
+> ulož ako CSV) – tento súbor potom naimportuješ priamo do editora.
+
 ## Profily (rampy a plata)
 
 Záložka **Profile** umožňuje zadať postupnosť segmentov:
