@@ -1,20 +1,32 @@
-# Vötsch VC3 — riadiaci softvér klimatickej komory
+# Vötsch — riadiaci softvér klimatických komôr
 
-Moderná **WPF (.NET 8) MVVM** aplikácia na ovládanie klimatickej komory
-**Vötsch / Weiss VC3** (kontrolér S!MPAC / SIMPAC) cez **Ethernet** pomocou
-textového **ASCII-2** protokolu.
+Moderná **WPF (.NET 8) MVVM** aplikácia na ovládanie klimatických komôr
+**Vötsch / Weiss** (kontrolér S!MPAC / SIMPAC) cez **Ethernet** pomocou textového
+**ASCII-2** protokolu.
+
+Podporuje **dve komory naraz** (každá s vlastnou IP adresou, obe môžu byť
+pripojené a bežať súčasne):
+
+- **Komora 1** — teplota **+ vlhkosť** (typ VC3),
+- **Komora 2** — **iba teplota** (typ VT3).
 
 Umožňuje:
 
-- pripojiť sa ku komore cez TCP/IP,
+- **home page** s výberom komory, ktorá sa má nastavovať/ovládať,
+- **animovaná vektorová grafika** komory s rotujúcim ventilátorom (podľa VT³ 7060),
+- pripojiť sa ku každej komore cez TCP/IP nezávisle,
 - **čítať** namerané hodnoty (teplota, vlhkosť, digitálne kanály) v reálnom čase,
-- **nastavovať** setpointy teploty a vlhkosti,
+- **nastavovať** setpointy teploty a vlhkosti (vlhkosť len pre komoru, ktorá ju má),
 - ovládať **digitálne kanály** (vrátane štartovacieho „system on"),
-- spúšťať **teplotné/vlhkostné profily** s rampami a platami (plateaus) –
+- **vizuálny editor profilov** – skladanie segmentov (rampy a plata) z prvkov,
   riadené z PC, takže nezávisia od programovej pamäte komory,
+- **história profilov** (ukladanie / načítanie / mazanie, perzistentné v JSON),
+- **viac cyklov naraz** a **výpočet času** (celkové trvanie, odhad konca behu),
 - **zaznamenávať** priebeh do CSV s časovou pečiatkou,
 - posielať **ľubovoľné príkazy** cez surový terminál (na kalibráciu a vendor
   príkazy ako programy či hodiny).
+
+Samostatný vektorový obrázok komory je aj v [`assets/chamber.svg`](assets/chamber.svg).
 
 > ⚠️ **Bezpečnosť:** softvér ovláda reálne zariadenie, ktoré môže dosahovať
 > extrémne teploty. Pred ostrým nasadením si over správanie na bezpečných
@@ -26,21 +38,30 @@ Umožňuje:
 
 ```
 VotschVc3.sln
+├─ assets/
+│  └─ chamber.svg               ← samostatná SVG grafika komory (rotujúci ventilátor)
 ├─ src/
 │  ├─ VotschVc3.Core/           ← jadro, platform-nezávislé (net8.0), testovateľné
 │  │  ├─ Protocol/              Ascii2Protocol, ChamberReading, DigitalChannels
 │  │  ├─ Communication/         ITransport, TcpTransport, ChamberClient, settings
-│  │  ├─ Profiles/              ProfileSegment, TestProfile, ProfileRunner
+│  │  ├─ Profiles/              ProfileSegment, TestProfile, ProfileRunner,
+│  │  │                         ChamberKind, ProfileStore (história)
 │  │  └─ Recording/             CsvRecorder
 │  └─ VotschVc3.App/            ← WPF UI (net8.0-windows), MVVM, tmavá téma
-│     ├─ Mvvm/                  ObservableObject, RelayCommand, AsyncRelayCommand
-│     ├─ ViewModels/            MainViewModel, SegmentViewModel
-│     ├─ Views/                 MainWindow
+│     ├─ Mvvm/                  ObservableObject, RelayCommand(<T>), AsyncRelayCommand
+│     ├─ ViewModels/            ShellViewModel, ChamberViewModel, SegmentViewModel
+│     ├─ Views/                 MainWindow, HomeView, ChamberView, ChamberGraphic
 │     ├─ Themes/                Styles.xaml
 │     └─ Converters/
 └─ tests/
    └─ VotschVc3.Core.Tests/     ← xUnit testy protokolu, profilov a klienta
 ```
+
+`ShellViewModel` hostí dve `ChamberViewModel` inštancie (každá s vlastným
+`ChamberClient` a spojením) a navigáciu medzi **home page** (`HomeView`) a
+**detailom komory** (`ChamberView`). `ChamberGraphic` je škálovateľná vektorová
+grafika s animovaným ventilátorom. História profilov sa ukladá cez `ProfileStore`
+do `Dokumenty/VotschVc3/profiles.json`.
 
 Logika protokolu je oddelená od UI – `VotschVc3.Core` nemá žiadne závislosti na
 WPF, dá sa použiť aj z konzolovej appky, služby alebo testov. Aplikácia nemá

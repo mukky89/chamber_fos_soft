@@ -1,0 +1,127 @@
+<UserControl x:Class="VotschVc3.App.Views.ChamberGraphic"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <Viewbox Stretch="Uniform">
+        <Canvas Width="320" Height="400">
+
+            <!-- ===== Fan spin animation (always alive) ===== -->
+            <Canvas.Triggers>
+                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="FanRotate"
+                                             Storyboard.TargetProperty="Angle"
+                                             From="0" To="360" Duration="0:0:2.4"
+                                             RepeatBehavior="Forever" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Canvas.Triggers>
+
+            <!-- ===== Shadow ===== -->
+            <Ellipse Canvas.Left="46" Canvas.Top="378" Width="228" Height="18" Fill="#22000000" />
+
+            <!-- ===== Cabinet body ===== -->
+            <Rectangle Canvas.Left="40" Canvas.Top="22" Width="240" Height="346" RadiusX="16" RadiusY="16"
+                       Stroke="#C6CAD8" StrokeThickness="2">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#FFFFFF" Offset="0" />
+                        <GradientStop Color="#EDEFF5" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!-- Machine column seam -->
+            <Line X1="250" Y1="40" X2="250" Y2="350" Stroke="#D8DBE6" StrokeThickness="2" />
+
+            <!-- Vents on machine column -->
+            <Rectangle Canvas.Left="256" Canvas.Top="250" Width="18" Height="5" RadiusX="2" RadiusY="2" Fill="#D2D5E1" />
+            <Rectangle Canvas.Left="256" Canvas.Top="260" Width="18" Height="5" RadiusX="2" RadiusY="2" Fill="#D2D5E1" />
+            <Rectangle Canvas.Left="256" Canvas.Top="270" Width="18" Height="5" RadiusX="2" RadiusY="2" Fill="#D2D5E1" />
+
+            <!-- ===== Brand + top display ===== -->
+            <TextBlock Canvas.Left="58" Canvas.Top="32" Text="vötschtechnik" FontFamily="Segoe UI Semibold"
+                       FontSize="13" Foreground="{Binding Accent, ElementName=Root}" />
+            <Rectangle Canvas.Left="206" Canvas.Top="34" Width="50" Height="22" RadiusX="4" RadiusY="4" Fill="#10141F" />
+            <TextBlock Canvas.Left="214" Canvas.Top="36" Text="°C" FontFamily="Consolas" FontSize="13" Foreground="#4FE3C6" />
+
+            <!-- ===== Door window frame (red) ===== -->
+            <Rectangle Canvas.Left="62" Canvas.Top="78" Width="150" Height="156" RadiusX="12" RadiusY="12"
+                       Fill="{Binding Accent, ElementName=Root}" />
+            <!-- Glass -->
+            <Rectangle Canvas.Left="70" Canvas.Top="86" Width="134" Height="140" RadiusX="7" RadiusY="7">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+                        <GradientStop Color="#26304A" Offset="0" />
+                        <GradientStop Color="#10141F" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <!-- Glass reflection -->
+            <Polygon Points="74,90 110,90 80,222 74,222" Fill="#16FFFFFF" />
+
+            <!-- Shelves -->
+            <Line X1="82" Y1="176" X2="192" Y2="176" Stroke="#566080" StrokeThickness="2" Opacity="0.7" />
+            <Line X1="82" Y1="196" X2="192" Y2="196" Stroke="#566080" StrokeThickness="2" Opacity="0.7" />
+            <Line X1="82" Y1="216" X2="192" Y2="216" Stroke="#566080" StrokeThickness="2" Opacity="0.55" />
+
+            <!-- ===== Fan ===== -->
+            <!-- Housing ring -->
+            <Ellipse Canvas.Left="105" Canvas.Top="92" Width="68" Height="68"
+                     Stroke="#6A739A" StrokeThickness="2" Fill="#1A2138" />
+            <!-- Rotating blades -->
+            <Canvas x:Name="FanGroup">
+                <Canvas.RenderTransform>
+                    <RotateTransform x:Name="FanRotate" CenterX="139" CenterY="126" />
+                </Canvas.RenderTransform>
+                <Ellipse Canvas.Left="109" Canvas.Top="119" Width="60" Height="14" Fill="#AEB7D6" Opacity="0.92" />
+                <Ellipse Canvas.Left="109" Canvas.Top="119" Width="60" Height="14" Fill="#AEB7D6" Opacity="0.92">
+                    <Ellipse.RenderTransform>
+                        <RotateTransform Angle="60" CenterX="30" CenterY="7" />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+                <Ellipse Canvas.Left="109" Canvas.Top="119" Width="60" Height="14" Fill="#AEB7D6" Opacity="0.92">
+                    <Ellipse.RenderTransform>
+                        <RotateTransform Angle="120" CenterX="30" CenterY="7" />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+            </Canvas>
+            <!-- Hub -->
+            <Ellipse Canvas.Left="132" Canvas.Top="119" Width="14" Height="14"
+                     Fill="#11141E" Stroke="{Binding Accent, ElementName=Root}" StrokeThickness="2" />
+
+            <!-- ===== Door handle / round knob ===== -->
+            <Rectangle Canvas.Left="236" Canvas.Top="150" Width="9" Height="74" RadiusX="4" RadiusY="4" Fill="#B7BCCC" />
+            <Ellipse Canvas.Left="252" Canvas.Top="120" Width="34" Height="34"
+                     Stroke="#A9AEC0" StrokeThickness="4" Fill="#F2F3F8" />
+            <Ellipse Canvas.Left="265" Canvas.Top="133" Width="8" Height="8" Fill="#8A90A6" />
+
+            <!-- ===== Louvers (bottom, red) ===== -->
+            <Rectangle Canvas.Left="64" Canvas.Top="286" Width="120" Height="7" RadiusX="3" RadiusY="3" Fill="{Binding Accent, ElementName=Root}" Opacity="0.85" />
+            <Rectangle Canvas.Left="64" Canvas.Top="298" Width="120" Height="7" RadiusX="3" RadiusY="3" Fill="{Binding Accent, ElementName=Root}" Opacity="0.85" />
+            <Rectangle Canvas.Left="64" Canvas.Top="310" Width="120" Height="7" RadiusX="3" RadiusY="3" Fill="{Binding Accent, ElementName=Root}" Opacity="0.85" />
+            <Rectangle Canvas.Left="64" Canvas.Top="322" Width="120" Height="7" RadiusX="3" RadiusY="3" Fill="{Binding Accent, ElementName=Root}" Opacity="0.85" />
+            <Rectangle Canvas.Left="64" Canvas.Top="334" Width="120" Height="7" RadiusX="3" RadiusY="3" Fill="{Binding Accent, ElementName=Root}" Opacity="0.85" />
+
+            <!-- Model label -->
+            <TextBlock Canvas.Left="200" Canvas.Top="300" Text="{Binding TitleText, ElementName=Root}"
+                       FontFamily="Segoe UI Semibold" FontSize="13" Foreground="#7C8099" />
+
+            <!-- ===== Pendant control on arm ===== -->
+            <Rectangle Canvas.Left="14" Canvas.Top="250" Width="34" Height="7" RadiusX="3" RadiusY="3" Fill="#C0C4D2" />
+            <Rectangle Canvas.Left="4" Canvas.Top="232" Width="30" Height="36" RadiusX="6" RadiusY="6"
+                       Fill="#0E1B22" Stroke="#2A3340" StrokeThickness="1.5" />
+            <Rectangle Canvas.Left="8" Canvas.Top="237" Width="22" Height="18" RadiusX="3" RadiusY="3" Fill="#1FA39A" Opacity="0.85" />
+
+            <!-- ===== Casters ===== -->
+            <Rectangle Canvas.Left="66" Canvas.Top="362" Width="10" Height="10" Fill="#C2C5D2" />
+            <Rectangle Canvas.Left="244" Canvas.Top="362" Width="10" Height="10" Fill="#C2C5D2" />
+            <Ellipse Canvas.Left="60" Canvas.Top="368" Width="22" Height="22" Fill="#3A3D52" />
+            <Ellipse Canvas.Left="238" Canvas.Top="368" Width="22" Height="22" Fill="#3A3D52" />
+            <Ellipse Canvas.Left="66" Canvas.Top="374" Width="10" Height="10" Fill="#6A6F86" />
+            <Ellipse Canvas.Left="244" Canvas.Top="374" Width="10" Height="10" Fill="#6A6F86" />
+        </Canvas>
+    </Viewbox>
+</UserControl>

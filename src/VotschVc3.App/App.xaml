@@ -12,6 +12,7 @@
             <conv:ValueOrDashConverter x:Key="ValueOrDash" />
             <conv:BoolToBrushConverter x:Key="BoolToBrush" />
             <conv:InverseBooleanConverter x:Key="InverseBoolean" />
+            <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

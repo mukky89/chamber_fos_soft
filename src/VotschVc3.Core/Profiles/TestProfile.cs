@@ -6,8 +6,17 @@ namespace VotschVc3.Core.Profiles;
 /// </summary>
 public sealed class TestProfile
 {
+    /// <summary>Stable identity used by the profile history store.</summary>
+    public Guid Id { get; set; } = Guid.NewGuid();
+
     /// <summary>Display name of the profile.</summary>
     public string Name { get; set; } = "New profile";
+
+    /// <summary>Which chamber type the profile was authored for.</summary>
+    public ChamberKind Kind { get; set; } = ChamberKind.TemperatureHumidity;
+
+    /// <summary>When the profile was created / last saved.</summary>
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
 
     /// <summary>The segments executed in order.</summary>
     public List<ProfileSegment> Segments { get; set; } = new();

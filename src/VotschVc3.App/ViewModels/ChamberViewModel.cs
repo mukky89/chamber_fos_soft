@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Communication;
@@ -10,30 +11,31 @@ using VotschVc3.Core.Recording;
 namespace VotschVc3.App.ViewModels;
 
 /// <summary>
-/// Application view model: owns the chamber connection and exposes connection,
-/// live monitoring, manual set point, profile, recording and raw terminal
-/// features to the WPF views.
+/// View model for a single chamber. Each instance owns its own connection,
+/// polling loop and profile runner, so two chambers can be operated
+/// simultaneously and independently.
 /// </summary>
-public sealed class MainViewModel : ObservableObject, IAsyncDisposable
+public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 {
     private const int MaxTerminalLines = 1000;
 
     private readonly ChamberClient _client = new();
+    private readonly ProfileStore _store;
     private CancellationTokenSource? _pollingCts;
     private CancellationTokenSource? _profileCts;
     private CsvRecorder? _recorder;
+    private DateTime? _profileActualStart;
 
-    public MainViewModel()
+    public ChamberViewModel(string name, ChamberKind kind, string defaultHost, ProfileStore store)
     {
+        Name = name;
+        Kind = kind;
+        _host = defaultHost;
+        _store = store ?? throw new ArgumentNullException(nameof(store));
         _client.FrameExchanged += OnFrameExchanged;
 
-        Segments = new ObservableCollection<SegmentViewModel>
-        {
-            new(new ProfileSegment { Name = "Ramp up", TargetTemperature = 85, Duration = TimeSpan.FromMinutes(30), IsRamp = true }),
-            new(new ProfileSegment { Name = "Plato (hold)", TargetTemperature = 85, Duration = TimeSpan.FromMinutes(60), IsRamp = false }),
-            new(new ProfileSegment { Name = "Ramp down", TargetTemperature = -40, Duration = TimeSpan.FromMinutes(30), IsRamp = true }),
-            new(new ProfileSegment { Name = "Plato (hold)", TargetTemperature = -40, Duration = TimeSpan.FromMinutes(60), IsRamp = false }),
-        };
+        Segments = new ObservableCollection<SegmentViewModel>();
+        Segments.CollectionChanged += OnSegmentsChanged;
 
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, () => !IsConnected, ReportError);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, () => IsConnected, ReportError);
@@ -48,21 +50,46 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         MoveSegmentUpCommand = new RelayCommand(() => MoveSegment(-1), () => SelectedSegment is not null);
         MoveSegmentDownCommand = new RelayCommand(() => MoveSegment(+1), () => SelectedSegment is not null);
 
+        SaveToHistoryCommand = new RelayCommand(SaveToHistory, () => Segments.Count > 0);
+        LoadFromHistoryCommand = new RelayCommand(LoadFromHistory, () => SelectedHistoryProfile is not null);
+        DeleteFromHistoryCommand = new RelayCommand(DeleteFromHistory, () => SelectedHistoryProfile is not null);
+
         StartRecordingCommand = new RelayCommand(StartRecording, () => !IsRecording);
         StopRecordingCommand = new RelayCommand(StopRecording, () => IsRecording);
         BrowseRecordingPathCommand = new RelayCommand(BrowseRecordingPath);
 
         SendTerminalCommand = new AsyncRelayCommand(SendTerminalAsync, () => IsConnected && !string.IsNullOrWhiteSpace(TerminalInput), ReportError);
         ClearTerminalCommand = new RelayCommand(() => TerminalLines.Clear());
+
+        SeedDefaultProfile();
+        RefreshHistory();
+        RecalculateTiming();
     }
+
+    /// <summary>Stable identity (used as a key in the shell).</summary>
+    public Guid Id { get; } = Guid.NewGuid();
+
+    /// <summary>Human readable chamber name shown on the home page and header.</summary>
+    public string Name { get; }
+
+    /// <summary>Chamber capabilities.</summary>
+    public ChamberKind Kind { get; }
+
+    /// <summary><c>true</c> when the chamber supports humidity control.</summary>
+    public bool SupportsHumidity => Kind == ChamberKind.TemperatureHumidity;
+
+    /// <summary>Short capability label for the UI.</summary>
+    public string KindLabel => SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
 
     #region Connection
 
-    private string _host = "192.168.0.1";
-    public string Host { get => _host; set => SetProperty(ref _host, value); }
+    private string _host;
+    public string Host { get => _host; set { if (SetProperty(ref _host, value)) OnPropertyChanged(nameof(Endpoint)); } }
 
     private int _port = 1080;
-    public int Port { get => _port; set => SetProperty(ref _port, value); }
+    public int Port { get => _port; set { if (SetProperty(ref _port, value)) OnPropertyChanged(nameof(Endpoint)); } }
+
+    public string Endpoint => $"{Host}:{Port}";
 
     private int _address = 1;
     public int Address { get => _address; set => SetProperty(ref _address, value); }
@@ -73,7 +100,6 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private int _startChannelIndex;
     public int StartChannelIndex { get => _startChannelIndex; set => SetProperty(ref _startChannelIndex, Math.Clamp(value, 0, DigitalChannels.Count - 1)); }
 
-    /// <summary>Terminator choices offered in the UI.</summary>
     public IReadOnlyList<string> TerminatorOptions { get; } = new[] { "CR (\\r)", "CR LF (\\r\\n)", "LF (\\n)" };
 
     private string _selectedTerminator = "CR (\\r)";
@@ -100,9 +126,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    public string ConnectionState => IsConnected ? $"Connected to {Host}:{Port}" : "Disconnected";
+    public string ConnectionState => IsConnected ? $"Pripojené · {Endpoint}" : "Odpojené";
 
-    private string _statusMessage = "Ready.";
+    private string _statusMessage = "Pripravené.";
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
 
     public AsyncRelayCommand ConnectCommand { get; }
@@ -120,10 +146,10 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             StartChannelIndex = StartChannelIndex,
         };
 
-        StatusMessage = $"Connecting to {Host}:{Port}…";
+        StatusMessage = $"Pripájam sa na {Endpoint}…";
         await _client.ConnectAsync(settings);
         IsConnected = true;
-        StatusMessage = "Connected.";
+        StatusMessage = "Pripojené.";
 
         if (PollingEnabled)
         {
@@ -137,7 +163,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         StopProfile();
         await _client.DisconnectAsync();
         IsConnected = false;
-        StatusMessage = "Disconnected.";
+        StatusMessage = "Odpojené.";
     }
 
     #endregion
@@ -152,14 +178,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _pollingEnabled, value) && IsConnected)
             {
-                if (value)
-                {
-                    StartPolling();
-                }
-                else
-                {
-                    StopPolling();
-                }
+                if (value) StartPolling(); else StopPolling();
             }
         }
     }
@@ -187,11 +206,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     public AsyncRelayCommand ReadOnceCommand { get; }
 
-    private async Task ReadOnceAsync()
-    {
-        ChamberReading reading = await _client.ReadAsync();
-        ApplyReading(reading);
-    }
+    private async Task ReadOnceAsync() => ApplyReading(await _client.ReadAsync());
 
     private void StartPolling()
     {
@@ -209,14 +224,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     private async Task PollLoopAsync(CancellationToken token)
     {
-        // Started from the UI thread; not using ConfigureAwait(false) keeps the
-        // continuations on the dispatcher so property updates are thread safe.
         while (!token.IsCancellationRequested)
         {
             try
             {
-                ChamberReading reading = await _client.ReadAsync(token);
-                ApplyReading(reading);
+                ApplyReading(await _client.ReadAsync(token));
             }
             catch (OperationCanceledException)
             {
@@ -224,7 +236,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Polling error: {ex.Message}";
+                StatusMessage = $"Chyba pollingu: {ex.Message}";
             }
 
             try
@@ -242,8 +254,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         MeasuredTemperature = reading.Temperature;
         MeasuredTemperatureSetpoint = reading.TemperatureSetpoint;
-        MeasuredHumidity = reading.Humidity;
-        MeasuredHumiditySetpoint = reading.HumiditySetpoint;
+        if (SupportsHumidity)
+        {
+            MeasuredHumidity = reading.Humidity;
+            MeasuredHumiditySetpoint = reading.HumiditySetpoint;
+        }
+
         LastRaw = reading.Raw;
         LastUpdate = reading.Timestamp;
 
@@ -256,7 +272,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Recording error: {ex.Message}";
+                StatusMessage = $"Chyba záznamu: {ex.Message}";
                 StopRecording();
             }
         }
@@ -275,8 +291,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private double _manualHumidity = 50;
     public double ManualHumidity { get => _manualHumidity; set => SetProperty(ref _manualHumidity, value); }
 
-    private string _digitalChannelsText = new string('0', DigitalChannels.Count);
-    /// <summary>Advanced editable 32 character digital channel string used by the manual write.</summary>
+    private string _digitalChannelsText = new('0', DigitalChannels.Count);
     public string DigitalChannelsText { get => _digitalChannelsText; set => SetProperty(ref _digitalChannelsText, value); }
 
     public AsyncRelayCommand ApplySetpointCommand { get; }
@@ -288,10 +303,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         digital.StartChannelIndex = StartChannelIndex;
         digital.Start = true;
 
-        var setpoints = new List<double> { ManualTemperature, ControlHumidity ? ManualHumidity : 0d };
+        bool humidity = SupportsHumidity && ControlHumidity;
+        var setpoints = new List<double> { ManualTemperature, humidity ? ManualHumidity : 0d };
         await _client.WriteSetpointsAsync(setpoints, digital);
-        StatusMessage = $"Set point written: {ManualTemperature:0.0} °C" +
-            (ControlHumidity ? $", {ManualHumidity:0.0} %" : string.Empty);
+        StatusMessage = $"Setpoint zapísaný: {ManualTemperature:0.0} °C" +
+            (humidity ? $", {ManualHumidity:0.0} %" : string.Empty);
     }
 
     private async Task StopChamberAsync()
@@ -300,17 +316,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         digital.StartChannelIndex = StartChannelIndex;
         digital.Start = false;
 
-        var setpoints = new List<double> { ManualTemperature, ControlHumidity ? ManualHumidity : 0d };
+        var setpoints = new List<double> { ManualTemperature, 0d };
         await _client.WriteSetpointsAsync(setpoints, digital);
-        StatusMessage = "Chamber stopped (start channel cleared).";
+        StatusMessage = "Komora zastavená (štart kanál vynulovaný).";
     }
 
-    private DigitalChannels ParseDigitalText() =>
-        DigitalChannels.Parse(DigitalChannelsText, StartChannelIndex);
+    private DigitalChannels ParseDigitalText() => DigitalChannels.Parse(DigitalChannelsText, StartChannelIndex);
 
     #endregion
 
-    #region Profile
+    #region Profile editor
 
     public ObservableCollection<SegmentViewModel> Segments { get; }
 
@@ -329,11 +344,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private string _profileName = "Profile 1";
+    private string _profileName = "Profil 1";
     public string ProfileName { get => _profileName; set => SetProperty(ref _profileName, value); }
 
     private int _cycles = 1;
-    public int Cycles { get => _cycles; set => SetProperty(ref _cycles, Math.Max(1, value)); }
+    public int Cycles
+    {
+        get => _cycles;
+        set { if (SetProperty(ref _cycles, Math.Max(1, value))) RecalculateTiming(); }
+    }
 
     private double _profileUpdateIntervalSeconds = 5;
     public double ProfileUpdateIntervalSeconds { get => _profileUpdateIntervalSeconds; set => SetProperty(ref _profileUpdateIntervalSeconds, Math.Max(1, value)); }
@@ -342,21 +361,22 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public bool IsProfileRunning
     {
         get => _isProfileRunning;
-        private set
-        {
-            if (SetProperty(ref _isProfileRunning, value))
-            {
-                RefreshCommands();
-            }
-        }
+        private set { if (SetProperty(ref _isProfileRunning, value)) RefreshCommands(); }
     }
 
-    private string _profileStatus = "Idle.";
+    private string _profileStatus = "Nečinné.";
     public string ProfileStatus { get => _profileStatus; private set => SetProperty(ref _profileStatus, value); }
 
     private double _profileProgress;
-    /// <summary>Overall profile completion in percent (0..100).</summary>
     public double ProfileProgress { get => _profileProgress; private set => SetProperty(ref _profileProgress, value); }
+
+    private string _profileDurationText = "—";
+    /// <summary>Total duration of the profile including cycles.</summary>
+    public string ProfileDurationText { get => _profileDurationText; private set => SetProperty(ref _profileDurationText, value); }
+
+    private string _profileScheduleText = string.Empty;
+    /// <summary>Computed start / end schedule of the profile.</summary>
+    public string ProfileScheduleText { get => _profileScheduleText; private set => SetProperty(ref _profileScheduleText, value); }
 
     public AsyncRelayCommand StartProfileCommand { get; }
     public RelayCommand StopProfileCommand { get; }
@@ -365,60 +385,81 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand MoveSegmentUpCommand { get; }
     public RelayCommand MoveSegmentDownCommand { get; }
 
+    private void SeedDefaultProfile()
+    {
+        if (SupportsHumidity)
+        {
+            Segments.Add(new SegmentViewModel(new ProfileSegment { Name = "Ohrev", TargetTemperature = 60, TargetHumidity = 80, Duration = TimeSpan.FromMinutes(30), IsRamp = true }));
+            Segments.Add(new SegmentViewModel(new ProfileSegment { Name = "Plato", TargetTemperature = 60, TargetHumidity = 80, Duration = TimeSpan.FromMinutes(60), IsRamp = false }));
+            Segments.Add(new SegmentViewModel(new ProfileSegment { Name = "Chladenie", TargetTemperature = 25, TargetHumidity = 50, Duration = TimeSpan.FromMinutes(30), IsRamp = true }));
+        }
+        else
+        {
+            Segments.Add(new SegmentViewModel(new ProfileSegment { Name = "Ohrev", TargetTemperature = 85, Duration = TimeSpan.FromMinutes(30), IsRamp = true }));
+            Segments.Add(new SegmentViewModel(new ProfileSegment { Name = "Plato", TargetTemperature = 85, Duration = TimeSpan.FromMinutes(60), IsRamp = false }));
+            Segments.Add(new SegmentViewModel(new ProfileSegment { Name = "Chladenie", TargetTemperature = -40, Duration = TimeSpan.FromMinutes(30), IsRamp = true }));
+        }
+    }
+
+    private TestProfile BuildProfile() => new()
+    {
+        Name = ProfileName,
+        Kind = Kind,
+        Cycles = Cycles,
+        CreatedAt = DateTimeOffset.Now,
+        Segments = Segments.Select(s => s.ToModel()).ToList(),
+    };
+
     private async Task StartProfileAsync()
     {
-        var profile = new TestProfile
-        {
-            Name = ProfileName,
-            Cycles = Cycles,
-            Segments = Segments.Select(s => s.ToModel()).ToList(),
-        };
+        TestProfile profile = BuildProfile();
 
-        // Start ramps from the current measured value when available.
         double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
-        double? startHum = MeasuredHumidity;
+        double? startHum = SupportsHumidity ? MeasuredHumidity : null;
 
         var runner = new ProfileRunner(_client, TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds));
         double totalSeconds = Math.Max(1, profile.TotalDuration.TotalSeconds);
         double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
 
-        runner.Progress += (_, e) =>
+        runner.Progress += (_, e) => RunOnUi(() =>
         {
-            RunOnUi(() =>
-            {
-                double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
-                double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
-                double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
-                ProfileProgress = Math.Clamp(overallSeconds / totalSeconds * 100d, 0, 100);
-                ProfileStatus =
-                    $"Cycle {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
-                    $"\"{e.Segment.Name}\" · {e.TemperatureSetpoint:0.0} °C" +
-                    (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
-            });
-        };
+            double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
+            double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
+            double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
+            ProfileProgress = Math.Clamp(overallSeconds / totalSeconds * 100d, 0, 100);
+            ProfileStatus =
+                $"Cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
+                $"\"{e.Segment.Name}\" · {e.TemperatureSetpoint:0.0} °C" +
+                (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
+        });
 
         _profileCts = new CancellationTokenSource();
+        _profileActualStart = DateTime.Now;
         IsProfileRunning = true;
-        ProfileStatus = "Profile started.";
-        StatusMessage = $"Running profile \"{ProfileName}\".";
+        ProfileProgress = 0;
+        ProfileStatus = "Profil spustený.";
+        StatusMessage = $"Beží profil \"{ProfileName}\".";
+        RecalculateTiming();
 
         try
         {
             await runner.RunAsync(profile, startTemp, startHum, _profileCts.Token);
             ProfileProgress = 100;
-            ProfileStatus = "Profile finished.";
-            StatusMessage = "Profile finished.";
+            ProfileStatus = "Profil dokončený.";
+            StatusMessage = "Profil dokončený.";
         }
         catch (OperationCanceledException)
         {
-            ProfileStatus = "Profile cancelled.";
-            StatusMessage = "Profile cancelled.";
+            ProfileStatus = "Profil zrušený.";
+            StatusMessage = "Profil zrušený.";
         }
         finally
         {
             IsProfileRunning = false;
+            _profileActualStart = null;
             _profileCts?.Dispose();
             _profileCts = null;
+            RecalculateTiming();
         }
     }
 
@@ -433,10 +474,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         return seconds;
     }
 
-    private void StopProfile()
-    {
-        _profileCts?.Cancel();
-    }
+    private void StopProfile() => _profileCts?.Cancel();
 
     private void AddSegment()
     {
@@ -444,6 +482,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             Name = $"Segment {Segments.Count + 1}",
             TargetTemperature = MeasuredTemperature ?? 25,
+            TargetHumidity = SupportsHumidity ? (MeasuredHumidity ?? 50) : null,
             Duration = TimeSpan.FromMinutes(10),
             IsRamp = true,
         });
@@ -464,6 +503,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         StartProfileCommand.RaiseCanExecuteChanged();
+        SaveToHistoryCommand.RaiseCanExecuteChanged();
     }
 
     private void MoveSegment(int delta)
@@ -482,6 +522,137 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
         Segments.Move(index, target);
         SelectedSegment = segment;
+    }
+
+    private void OnSegmentsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+        {
+            foreach (SegmentViewModel s in e.OldItems)
+            {
+                s.PropertyChanged -= OnSegmentEdited;
+            }
+        }
+
+        if (e.NewItems is not null)
+        {
+            foreach (SegmentViewModel s in e.NewItems)
+            {
+                s.PropertyChanged += OnSegmentEdited;
+            }
+        }
+
+        StartProfileCommand.RaiseCanExecuteChanged();
+        SaveToHistoryCommand.RaiseCanExecuteChanged();
+        RecalculateTiming();
+    }
+
+    private void OnSegmentEdited(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(SegmentViewModel.DurationMinutes))
+        {
+            RecalculateTiming();
+        }
+    }
+
+    private void RecalculateTiming()
+    {
+        double minutes = Segments.Sum(s => s.DurationMinutes) * Math.Max(1, Cycles);
+        var total = TimeSpan.FromMinutes(minutes);
+        ProfileDurationText = FormatDuration(total);
+
+        if (IsProfileRunning && _profileActualStart is { } start)
+        {
+            DateTime end = start + total;
+            ProfileScheduleText = $"Spustené {start:HH:mm:ss} · koniec ~ {end:HH:mm:ss} ({end:d})";
+        }
+        else
+        {
+            DateTime end = DateTime.Now + total;
+            ProfileScheduleText = $"Ak spustíš teraz, koniec ~ {end:HH:mm} ({end:d})";
+        }
+    }
+
+    private static string FormatDuration(TimeSpan t)
+    {
+        if (t.TotalMinutes < 1) return "< 1 min";
+        int days = (int)t.TotalDays;
+        string result = days > 0 ? $"{days} d " : string.Empty;
+        return result + $"{t.Hours} h {t.Minutes} min";
+    }
+
+    #endregion
+
+    #region Profile history
+
+    public ObservableCollection<TestProfile> History { get; } = new();
+
+    private TestProfile? _selectedHistoryProfile;
+    public TestProfile? SelectedHistoryProfile
+    {
+        get => _selectedHistoryProfile;
+        set
+        {
+            if (SetProperty(ref _selectedHistoryProfile, value))
+            {
+                LoadFromHistoryCommand.RaiseCanExecuteChanged();
+                DeleteFromHistoryCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public RelayCommand SaveToHistoryCommand { get; }
+    public RelayCommand LoadFromHistoryCommand { get; }
+    public RelayCommand DeleteFromHistoryCommand { get; }
+
+    private void RefreshHistory()
+    {
+        History.Clear();
+        foreach (TestProfile profile in _store.LoadAll().Where(p => p.Kind == Kind))
+        {
+            History.Add(profile);
+        }
+    }
+
+    private void SaveToHistory()
+    {
+        TestProfile profile = BuildProfile();
+        profile.Id = Guid.NewGuid();
+        _store.Save(profile);
+        RefreshHistory();
+        SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == profile.Id);
+        StatusMessage = $"Profil \"{profile.Name}\" uložený do histórie.";
+    }
+
+    private void LoadFromHistory()
+    {
+        if (SelectedHistoryProfile is not { } profile)
+        {
+            return;
+        }
+
+        ProfileName = profile.Name;
+        Cycles = profile.Cycles;
+
+        Segments.Clear();
+        foreach (ProfileSegment segment in profile.Segments)
+        {
+            Segments.Add(new SegmentViewModel(segment));
+        }
+
+        SelectedSegment = Segments.FirstOrDefault();
+        RecalculateTiming();
+        StatusMessage = $"Profil \"{profile.Name}\" načítaný z histórie.";
+    }
+
+    private void DeleteFromHistory()
+    {
+        if (SelectedHistoryProfile is { } profile)
+        {
+            _store.Delete(profile.Id);
+            RefreshHistory();
+            StatusMessage = $"Profil \"{profile.Name}\" odstránený z histórie.";
+        }
     }
 
     #endregion
@@ -521,11 +692,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             _recorder = new CsvRecorder(RecordingPath);
             RecordedRows = _recorder.RowCount;
             IsRecording = true;
-            StatusMessage = $"Recording to {_recorder.FilePath}.";
+            StatusMessage = $"Zaznamenávam do {_recorder.FilePath}.";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Cannot start recording: {ex.Message}";
+            StatusMessage = $"Nedá sa spustiť záznam: {ex.Message}";
         }
     }
 
@@ -534,15 +705,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _recorder?.Dispose();
         _recorder = null;
         IsRecording = false;
-        StatusMessage = "Recording stopped.";
+        StatusMessage = "Záznam zastavený.";
     }
 
     private void BrowseRecordingPath()
     {
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
-            Title = "Recording file",
-            Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+            Title = "Súbor záznamu",
+            Filter = "CSV súbory (*.csv)|*.csv|Všetky súbory (*.*)|*.*",
             DefaultExt = ".csv",
             FileName = System.IO.Path.GetFileName(RecordingPath),
             InitialDirectory = System.IO.Path.GetDirectoryName(RecordingPath) ?? string.Empty,
@@ -564,33 +735,19 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string TerminalInput
     {
         get => _terminalInput;
-        set
-        {
-            if (SetProperty(ref _terminalInput, value))
-            {
-                SendTerminalCommand.RaiseCanExecuteChanged();
-            }
-        }
+        set { if (SetProperty(ref _terminalInput, value)) SendTerminalCommand.RaiseCanExecuteChanged(); }
     }
 
     public AsyncRelayCommand SendTerminalCommand { get; }
     public RelayCommand ClearTerminalCommand { get; }
 
-    private async Task SendTerminalAsync()
-    {
-        string command = TerminalInput;
-        await _client.SendRawAsync(command);
-        // The response is appended by the FrameExchanged handler.
-    }
+    private async Task SendTerminalAsync() => await _client.SendRawAsync(TerminalInput);
 
-    private void OnFrameExchanged(object? sender, FrameExchangedEventArgs e)
+    private void OnFrameExchanged(object? sender, FrameExchangedEventArgs e) => RunOnUi(() =>
     {
-        RunOnUi(() =>
-        {
-            AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  TX  {Visualise(e.Request)}");
-            AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  RX  {Visualise(e.Response)}");
-        });
-    }
+        AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  TX  {Visualise(e.Request)}");
+        AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  RX  {Visualise(e.Response)}");
+    });
 
     private void AppendTerminal(string line)
     {
@@ -601,8 +758,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private static string Visualise(string frame) =>
-        frame.Replace("\r", "<CR>").Replace("\n", "<LF>");
+    private static string Visualise(string frame) => frame.Replace("\r", "<CR>").Replace("\n", "<LF>");
 
     #endregion
 
@@ -618,9 +774,10 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         StartProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(IsConnected));
     }
 
-    private void ReportError(Exception ex) => StatusMessage = $"Error: {ex.Message}";
+    private void ReportError(Exception ex) => StatusMessage = $"Chyba: {ex.Message}";
 
     private static void RunOnUi(Action action)
     {
