@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Media;
+using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Communication;
 using VotschVc3.Core.Profiles;
@@ -263,6 +265,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         LastRaw = reading.Raw;
         LastUpdate = reading.Timestamp;
+        RecordLive(reading);
 
         if (IsRecording)
         {
@@ -572,6 +575,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             DateTime end = DateTime.Now + total;
             ProfileScheduleText = $"Ak spustíš teraz, koniec ~ {end:HH:mm} ({end:d})";
         }
+
+        BuildPreviewCharts();
     }
 
     private static string FormatDuration(TimeSpan t)
@@ -793,6 +798,144 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     }
 
     private static string Visualise(string frame) => frame.Replace("\r", "<CR>").Replace("\n", "<LF>");
+
+    #endregion
+
+    #region Charting
+
+    private const int LiveWindow = 600;
+    private readonly List<LiveSample> _live = new();
+
+    private static readonly Brush TempBrush = Freeze(0xFF, 0x8A, 0x5C);
+    private static readonly Brush TempSpBrush = Freeze(0xFF, 0xC2, 0xA8);
+    private static readonly Brush HumBrush = Freeze(0x4F, 0xB6, 0xFF);
+    private static readonly Brush HumSpBrush = Freeze(0xA9, 0xDC, 0xFF);
+
+    private IReadOnlyList<ChartSeries> _liveTempSeries = Array.Empty<ChartSeries>();
+    public IReadOnlyList<ChartSeries> LiveTempSeries { get => _liveTempSeries; private set => SetProperty(ref _liveTempSeries, value); }
+
+    private IReadOnlyList<ChartSeries> _liveHumSeries = Array.Empty<ChartSeries>();
+    public IReadOnlyList<ChartSeries> LiveHumSeries { get => _liveHumSeries; private set => SetProperty(ref _liveHumSeries, value); }
+
+    private IReadOnlyList<ChartSeries> _previewTempSeries = Array.Empty<ChartSeries>();
+    public IReadOnlyList<ChartSeries> PreviewTempSeries { get => _previewTempSeries; private set => SetProperty(ref _previewTempSeries, value); }
+
+    private IReadOnlyList<ChartSeries> _previewHumSeries = Array.Empty<ChartSeries>();
+    public IReadOnlyList<ChartSeries> PreviewHumSeries { get => _previewHumSeries; private set => SetProperty(ref _previewHumSeries, value); }
+
+    private void RecordLive(ChamberReading reading)
+    {
+        _live.Add(new LiveSample(reading.Timestamp, reading.Temperature, reading.TemperatureSetpoint,
+            SupportsHumidity ? reading.Humidity : null, SupportsHumidity ? reading.HumiditySetpoint : null));
+        if (_live.Count > LiveWindow)
+        {
+            _live.RemoveRange(0, _live.Count - LiveWindow);
+        }
+
+        BuildLiveCharts();
+    }
+
+    private void BuildLiveCharts()
+    {
+        if (_live.Count == 0)
+        {
+            LiveTempSeries = Array.Empty<ChartSeries>();
+            LiveHumSeries = Array.Empty<ChartSeries>();
+            return;
+        }
+
+        DateTimeOffset t0 = _live[0].Time;
+        double X(LiveSample s) => (s.Time - t0).TotalMinutes;
+
+        var temp = new List<ChartSeries>();
+        AddIf(temp, Line("Teplota", TempBrush, false, _live.Select(s => (X(s), s.Temp))));
+        AddIf(temp, Line("Setpoint", TempSpBrush, true, _live.Select(s => (X(s), s.TempSp))));
+        LiveTempSeries = temp;
+
+        if (SupportsHumidity)
+        {
+            var hum = new List<ChartSeries>();
+            AddIf(hum, Line("Vlhkosť", HumBrush, false, _live.Select(s => (X(s), s.Hum))));
+            AddIf(hum, Line("Setpoint", HumSpBrush, true, _live.Select(s => (X(s), s.HumSp))));
+            LiveHumSeries = hum;
+        }
+    }
+
+    private void BuildPreviewCharts()
+    {
+        if (Segments.Count == 0)
+        {
+            PreviewTempSeries = Array.Empty<ChartSeries>();
+            PreviewHumSeries = Array.Empty<ChartSeries>();
+            return;
+        }
+
+        var tempPts = new List<Point>();
+        var humPts = new List<Point>();
+        double prevT = MeasuredTemperature ?? Segments[0].TargetTemperature;
+        double prevH = MeasuredHumidity ?? (Segments[0].TargetHumidity ?? 50);
+        double t = 0;
+
+        tempPts.Add(new Point(0, prevT));
+        if (SupportsHumidity) humPts.Add(new Point(0, prevH));
+
+        int cycles = Math.Max(1, Cycles);
+        for (int c = 0; c < cycles; c++)
+        {
+            foreach (SegmentViewModel s in Segments)
+            {
+                double dur = Math.Max(0, s.DurationMinutes);
+                double targetT = s.TargetTemperature;
+                double targetH = s.TargetHumidity ?? prevH;
+
+                if (s.IsRamp)
+                {
+                    t += dur;
+                    tempPts.Add(new Point(t, targetT));
+                    if (SupportsHumidity) humPts.Add(new Point(t, targetH));
+                }
+                else
+                {
+                    tempPts.Add(new Point(t, targetT));
+                    if (SupportsHumidity) humPts.Add(new Point(t, targetH));
+                    t += dur;
+                    tempPts.Add(new Point(t, targetT));
+                    if (SupportsHumidity) humPts.Add(new Point(t, targetH));
+                }
+
+                prevT = targetT;
+                prevH = targetH;
+            }
+        }
+
+        PreviewTempSeries = new[] { new ChartSeries("Profil teplota", TempBrush, tempPts) };
+        PreviewHumSeries = SupportsHumidity
+            ? new[] { new ChartSeries("Profil vlhkosť", HumBrush, humPts) }
+            : Array.Empty<ChartSeries>();
+    }
+
+    private static ChartSeries? Line(string name, Brush brush, bool dashed, IEnumerable<(double x, double? y)> points)
+    {
+        var pts = points.Where(p => p.y.HasValue).Select(p => new Point(p.x, p.y!.Value)).ToList();
+        return pts.Count > 0 ? new ChartSeries(name, brush, pts, dashed) : null;
+    }
+
+    private static void AddIf(List<ChartSeries> list, ChartSeries? series)
+    {
+        if (series is not null)
+        {
+            list.Add(series);
+        }
+    }
+
+    private static Brush Freeze(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
+    private readonly record struct LiveSample(DateTimeOffset Time, double? Temp, double? TempSp, double? Hum, double? HumSp);
 
     #endregion
 

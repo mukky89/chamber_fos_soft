@@ -103,6 +103,7 @@
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
@@ -144,16 +145,29 @@
                                     </StackPanel>
                                 </Border>
                             </Grid>
-                            <StackPanel Grid.Row="2">
+
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Priebeh teploty" Style="{StaticResource Label}" Margin="6,0,0,2" />
+                                    <views:ChartView Height="180" Margin="4,0,4,8" Unit=" °C"
+                                                     EmptyText="Čakám na dáta z pollingu…"
+                                                     Series="{Binding LiveTempSeries}" />
+                                    <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Priebeh vlhkosti" Style="{StaticResource Label}" Margin="6,4,0,2" />
+                                        <views:ChartView Height="160" Margin="4,0,4,8" Unit=" %"
+                                                         EmptyText="Čakám na dáta z pollingu…"
+                                                         Series="{Binding LiveHumSeries}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <StackPanel Grid.Row="3">
                                 <TextBlock Style="{StaticResource Caption}" Margin="6,2">
                                     <Run Text="Posledná aktualizácia: " />
                                     <Run Text="{Binding LastUpdate, StringFormat=HH:mm:ss, Mode=OneWay}" />
+                                    <Run Text="   ·   " />
+                                    <Run Text="{Binding LastRaw, Mode=OneWay}" FontFamily="Consolas" />
                                 </TextBlock>
-                                <TextBlock Text="Surový rámec" Style="{StaticResource Label}" Margin="6,8,0,2" />
-                                <Border Style="{StaticResource Card}" Background="{StaticResource BackgroundBrush}" Margin="6,0">
-                                    <TextBlock Text="{Binding LastRaw}" FontFamily="Consolas" FontSize="12"
-                                               TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
-                                </Border>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -203,6 +217,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
@@ -258,6 +273,17 @@
                         </Border>
 
                         <Border Grid.Row="2" Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Náhľad profilu (celý beh vrátane cyklov)" Style="{StaticResource Label}" Margin="0,0,0,4" />
+                                <views:ChartView Height="150" Unit=" °C" EmptyText="Pridaj segmenty…"
+                                                 Series="{Binding PreviewTempSeries}" />
+                                <views:ChartView Height="120" Margin="0,6,0,0" Unit=" %"
+                                                 Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}"
+                                                 Series="{Binding PreviewHumSeries}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="3" Style="{StaticResource Card}">
                             <StackPanel>
                                 <Grid Margin="0,0,0,10">
                                     <StackPanel Orientation="Horizontal">
