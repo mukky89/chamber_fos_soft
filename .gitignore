@@ -1,0 +1,30 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+.vs/
+*.user
+*.suo
+
+# Rider / IDE
+.idea/
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+packages/
+.nuget/
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+*.coverage
+*.trx
+
+# Logs and local recordings
+*.log
+vc3_log_*.csv
