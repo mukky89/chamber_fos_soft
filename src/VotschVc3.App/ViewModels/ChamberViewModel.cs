@@ -141,20 +141,25 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand ConnectCommand { get; }
     public AsyncRelayCommand DisconnectCommand { get; }
 
+    private ChamberConnectionSettings BuildSettings() => new()
+    {
+        Host = Host,
+        Port = Port,
+        Address = Address,
+        Terminator = TerminatorValue,
+        AnalogChannelCount = AnalogChannelCount,
+        StartChannelIndex = StartChannelIndex,
+    };
+
     private async Task ConnectAsync()
     {
-        var settings = new ChamberConnectionSettings
-        {
-            Host = Host,
-            Port = Port,
-            Address = Address,
-            Terminator = TerminatorValue,
-            AnalogChannelCount = AnalogChannelCount,
-            StartChannelIndex = StartChannelIndex,
-        };
+        StopReconnect();
+        _connectionLostHandled = false;
+        _pollFailureCount = 0;
+        ClearAlarm("link");
 
         StatusMessage = $"Pripájam sa na {Endpoint}…";
-        await _client.ConnectAsync(settings);
+        await _client.ConnectAsync(BuildSettings());
         IsConnected = true;
         StatusMessage = "Pripojené.";
 
@@ -166,10 +171,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task DisconnectAsync()
     {
+        StopReconnect();
         StopPolling();
         StopProfile();
         await _client.DisconnectAsync();
         IsConnected = false;
+        _connectionLostHandled = false;
+        ClearAllAlarms();
         StatusMessage = "Odpojené.";
     }
 
@@ -235,7 +243,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             try
             {
-                ApplyReading(await _client.ReadAsync(token));
+                ChamberReading reading = await _client.ReadAsync(token);
+                _pollFailureCount = 0;
+                ApplyReading(reading);
             }
             catch (OperationCanceledException)
             {
@@ -243,7 +253,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Chyba pollingu: {ex.Message}";
+                if (await OnPollFailureAsync(ex))
+                {
+                    break;
+                }
             }
 
             try
@@ -270,6 +283,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         LastRaw = reading.Raw;
         LastUpdate = reading.Timestamp;
         RecordLive(reading);
+        CheckAlarms(reading);
 
         if (IsRecording)
         {
@@ -936,6 +950,223 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     #endregion
 
+    #region Safety / watchdog
+
+    private const int MaxPollFailures = 3;
+    private readonly Dictionary<string, string> _alarms = new();
+    private int _pollFailureCount;
+    private bool _connectionLostHandled;
+    private CancellationTokenSource? _reconnectCts;
+
+    private bool _alarmsEnabled;
+    public bool AlarmsEnabled
+    {
+        get => _alarmsEnabled;
+        set
+        {
+            if (SetProperty(ref _alarmsEnabled, value) && !value)
+            {
+                ClearAlarm("temp");
+                ClearAlarm("hum");
+            }
+        }
+    }
+
+    private double _tempMin = -45;
+    public double TempMin { get => _tempMin; set => SetProperty(ref _tempMin, value); }
+
+    private double _tempMax = 190;
+    public double TempMax { get => _tempMax; set => SetProperty(ref _tempMax, value); }
+
+    private double _humMin;
+    public double HumMin { get => _humMin; set => SetProperty(ref _humMin, value); }
+
+    private double _humMax = 100;
+    public double HumMax { get => _humMax; set => SetProperty(ref _humMax, value); }
+
+    private bool _autoStopOnAlarm = true;
+    /// <summary>Stop a running profile when an alarm or connection loss occurs.</summary>
+    public bool AutoStopOnAlarm { get => _autoStopOnAlarm; set => SetProperty(ref _autoStopOnAlarm, value); }
+
+    private bool _autoReconnect = true;
+    /// <summary>Automatically try to reconnect after a connection loss.</summary>
+    public bool AutoReconnect { get => _autoReconnect; set => SetProperty(ref _autoReconnect, value); }
+
+    private bool _isAlarm;
+    public bool IsAlarm { get => _isAlarm; private set => SetProperty(ref _isAlarm, value); }
+
+    private string _alarmMessage = "Bez alarmu.";
+    public string AlarmMessage { get => _alarmMessage; private set => SetProperty(ref _alarmMessage, value); }
+
+    private void CheckAlarms(ChamberReading reading)
+    {
+        if (!AlarmsEnabled)
+        {
+            return;
+        }
+
+        if (reading.Temperature is { } t)
+        {
+            if (t < TempMin || t > TempMax)
+            {
+                RaiseAlarm("temp", $"Teplota {t:0.0} °C mimo limitu [{TempMin:0.#}; {TempMax:0.#}]");
+            }
+            else
+            {
+                ClearAlarm("temp");
+            }
+        }
+
+        if (SupportsHumidity && reading.Humidity is { } h)
+        {
+            if (h < HumMin || h > HumMax)
+            {
+                RaiseAlarm("hum", $"Vlhkosť {h:0.0} % mimo limitu [{HumMin:0.#}; {HumMax:0.#}]");
+            }
+            else
+            {
+                ClearAlarm("hum");
+            }
+        }
+    }
+
+    private void RaiseAlarm(string key, string message)
+    {
+        bool isNew = !_alarms.ContainsKey(key);
+        _alarms[key] = message;
+        UpdateAlarmState();
+
+        if (isNew)
+        {
+            StatusMessage = $"⚠ ALARM: {message}";
+            _ = SendAlarmEmailAsync(message);
+            if (AutoStopOnAlarm && IsProfileRunning)
+            {
+                StopProfile();
+            }
+        }
+    }
+
+    private void ClearAlarm(string key)
+    {
+        if (_alarms.Remove(key))
+        {
+            UpdateAlarmState();
+        }
+    }
+
+    private void ClearAllAlarms()
+    {
+        if (_alarms.Count > 0)
+        {
+            _alarms.Clear();
+            UpdateAlarmState();
+        }
+    }
+
+    private void UpdateAlarmState()
+    {
+        IsAlarm = _alarms.Count > 0;
+        AlarmMessage = _alarms.Count > 0 ? string.Join(" · ", _alarms.Values) : "Bez alarmu.";
+    }
+
+    private async Task<bool> OnPollFailureAsync(Exception ex)
+    {
+        _pollFailureCount++;
+        StatusMessage = $"Chyba pollingu ({_pollFailureCount}/{MaxPollFailures}): {ex.Message}";
+        if (_pollFailureCount >= MaxPollFailures)
+        {
+            await HandleConnectionLostAsync(ex.Message);
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task HandleConnectionLostAsync(string reason)
+    {
+        if (_connectionLostHandled)
+        {
+            return;
+        }
+
+        _connectionLostHandled = true;
+        StopPolling();
+        await _client.DisconnectAsync();
+        IsConnected = false;
+
+        RaiseAlarm("link", $"Strata spojenia: {reason}");
+
+        if (AutoReconnect)
+        {
+            StartReconnect();
+        }
+    }
+
+    private void StartReconnect()
+    {
+        StopReconnect();
+        _reconnectCts = new CancellationTokenSource();
+        _ = ReconnectLoopAsync(_reconnectCts.Token);
+    }
+
+    private void StopReconnect()
+    {
+        _reconnectCts?.Cancel();
+        _reconnectCts?.Dispose();
+        _reconnectCts = null;
+    }
+
+    private async Task ReconnectLoopAsync(CancellationToken token)
+    {
+        int delaySeconds = 2;
+        while (!token.IsCancellationRequested)
+        {
+            StatusMessage = $"Pokus o opätovné pripojenie o {delaySeconds} s…";
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token);
+                await _client.ConnectAsync(BuildSettings(), token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Opätovné pripojenie zlyhalo: {ex.Message}";
+                delaySeconds = Math.Min(delaySeconds * 2, 30);
+                continue;
+            }
+
+            _connectionLostHandled = false;
+            _pollFailureCount = 0;
+            IsConnected = true;
+            ClearAlarm("link");
+            StatusMessage = "Opätovne pripojené.";
+            if (PollingEnabled)
+            {
+                StartPolling();
+            }
+
+            return;
+        }
+    }
+
+    private Task SendAlarmEmailAsync(string message)
+    {
+        if (!_email.CanSend)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _email.SendAsync(
+            $"⚠ ALARM – {Name}",
+            $"Komora \"{Name}\": {message}\r\nČas: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
+    }
+
+    #endregion
+
     #region Charting
 
     private const int LiveWindow = 600;
@@ -1106,6 +1337,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        StopReconnect();
         StopPolling();
         StopProfile();
         StopRecording();

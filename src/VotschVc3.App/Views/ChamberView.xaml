@@ -27,6 +27,11 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Border Background="{StaticResource DangerBrush}" CornerRadius="6" Padding="9,3" Margin="0,0,12,0"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="{Binding AlarmMessage}" Foreground="White" FontFamily="Segoe UI Semibold" />
+                </Border>
                 <Ellipse Width="12" Height="12" VerticalAlignment="Center"
                          Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
                 <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" />
@@ -400,6 +405,62 @@
                                 <Run Text="{Binding RecordedRows, Mode=OneWay}" />
                             </TextBlock>
                         </StackPanel>
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
+            <!-- ===== Safety ===== -->
+            <TabItem Header="Bezpečnosť">
+                <Border Style="{StaticResource Card}" HorizontalAlignment="Left" VerticalAlignment="Top" Width="580">
+                    <StackPanel>
+                        <TextBlock Text="Alarmy a watchdog" Style="{StaticResource Heading}" />
+                        <CheckBox Content="Zapnúť alarmy (limity teploty/vlhkosti)" IsChecked="{Binding AlarmsEnabled}" />
+
+                        <WrapPanel Margin="0,8,0,0">
+                            <StackPanel Width="130" Margin="0,0,12,8">
+                                <TextBlock Text="Teplota min (°C)" Style="{StaticResource Label}" />
+                                <TextBox Text="{Binding TempMin, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Width="130" Margin="0,0,12,8">
+                                <TextBlock Text="Teplota max (°C)" Style="{StaticResource Label}" />
+                                <TextBox Text="{Binding TempMax, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Width="130" Margin="0,0,12,8"
+                                        Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Vlhkosť min (%)" Style="{StaticResource Label}" />
+                                <TextBox Text="{Binding HumMin, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Width="130" Margin="0,0,12,8"
+                                        Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Vlhkosť max (%)" Style="{StaticResource Label}" />
+                                <TextBox Text="{Binding HumMax, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <CheckBox Content="Pri alarme / strate spojenia zastaviť bežiaci profil"
+                                  IsChecked="{Binding AutoStopOnAlarm}" Margin="0,6,0,0" />
+                        <CheckBox Content="Automaticky sa znovu pripájať po výpadku spojenia"
+                                  IsChecked="{Binding AutoReconnect}" />
+
+                        <Separator Margin="0,14" Background="{StaticResource BorderBrush}" />
+
+                        <TextBlock Text="Stav" Style="{StaticResource Label}" />
+                        <Border CornerRadius="6" Padding="12,9">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAlarm}" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource DangerBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding AlarmMessage}" Foreground="White" FontFamily="Segoe UI Semibold" />
+                        </Border>
+
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
+                                   Text="Watchdog: po 3 neúspešných čítaniach sa spojenie považuje za stratené – spustí sa alarm, voliteľne zastavenie profilu, e-mail a auto-reconnect. E-mail sa odošle aj pri každom novom alarme (ak je nastavený na home page)." />
                     </StackPanel>
                 </Border>
             </TabItem>

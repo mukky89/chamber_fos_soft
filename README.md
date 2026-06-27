@@ -26,6 +26,8 @@ Umožňuje:
 - **viac cyklov naraz**, **odložený štart** (naplánovaný čas) a **výpočet času**
   (celkové trvanie, odhad konca behu),
 - **e-mail upozornenie** po dokončení profilu (SMTP alebo HTTP API),
+- **bezpečnosť**: alarmy na limity teploty/vlhkosti, **watchdog** so stratou
+  spojenia, **auto-stop** profilu a **auto-reconnect**, e-mail pri alarme,
 - **zaznamenávať** priebeh do CSV s časovou pečiatkou,
 - posielať **ľubovoľné príkazy** cez surový terminál (na kalibráciu a vendor
   príkazy ako programy či hodiny).
@@ -198,6 +200,20 @@ kľúčových slov (`Dauer/Duration/Zeit/Time`, `Temperatur/Temperature`,
 
   Po dokončení profilu sa odošle e-mail s názvom komory, profilu a časom.
   Nastavenia sa ukladajú do `Dokumenty/VotschVc3/email.json`.
+
+## Bezpečnosť (alarmy, watchdog, auto-reconnect)
+
+Záložka **Bezpečnosť** na detaile komory:
+
+- **Alarmy na limity** – zadaj min/max teploty (a vlhkosti); pri prekročení sa
+  spustí alarm (červený indikátor v hlavičke + stav), pošle e-mail a voliteľne
+  zastaví bežiaci profil.
+- **Watchdog spojenia** – po 3 neúspešných čítaniach sa spojenie považuje za
+  stratené: alarm, voliteľný auto-stop profilu, e-mail.
+- **Auto-reconnect** – po výpadku sa appka automaticky znovu pripája (exponenciálny
+  backoff do 30 s) a obnoví polling.
+
+E-mail pri alarme sa odošle, ak sú notifikácie nastavené na home page.
 
 ## Profily (rampy a plata)
 
