@@ -38,10 +38,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
         _notifier.Settings = _emailStore.Load();
 
+        Thermometers = new ThermometersViewModel();
+
         Chambers = new ObservableCollection<ChamberViewModel>
         {
-            new("Komora 1 — teplota + vlhkosť", ChamberKind.TemperatureHumidity, "192.168.0.1", _store, _notifier),
-            new("Komora 2 — teplota", ChamberKind.TemperatureOnly, "192.168.0.2", _store, _notifier),
+            new("Komora 1 — teplota + vlhkosť", ChamberKind.TemperatureHumidity, "192.168.0.1", _store, _notifier, Thermometers),
+            new("Komora 2 — teplota", ChamberKind.TemperatureOnly, "192.168.0.2", _store, _notifier, Thermometers),
         };
 
         // Restore saved per-chamber configuration (matched by kind), then watch
@@ -57,8 +59,6 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
             chamber.PropertyChanged += OnChamberPropertyChanged;
         }
-
-        Thermometers = new ThermometersViewModel();
 
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);

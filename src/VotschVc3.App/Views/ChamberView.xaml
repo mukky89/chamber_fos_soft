@@ -167,6 +167,27 @@
                             </ScrollViewer>
 
                             <StackPanel Grid.Row="3">
+                                <StackPanel Orientation="Horizontal" Margin="6,0,0,6">
+                                    <TextBlock Text="Referenčný teplomer:" Style="{StaticResource Caption}"
+                                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox Width="210" ItemsSource="{Binding AvailableThermometers}"
+                                              SelectedItem="{Binding SelectedReferenceThermometer}"
+                                              DisplayMemberPath="Display" />
+                                    <TextBlock VerticalAlignment="Center" Margin="14,0,0,0"
+                                               Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
+                                        <Run Text="Ref: " Foreground="#969BB5" />
+                                        <Run Text="{Binding ReferenceTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}"
+                                             FontFamily="Segoe UI Semibold" />
+                                        <Run Text=" °C" Foreground="#969BB5" />
+                                    </TextBlock>
+                                    <TextBlock VerticalAlignment="Center" Margin="14,0,0,0"
+                                               Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
+                                        <Run Text="Δ (komora − ref): " Foreground="#969BB5" />
+                                        <Run Text="{Binding ReferenceDeviation, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}"
+                                             FontFamily="Segoe UI Semibold" />
+                                        <Run Text=" K" Foreground="#969BB5" />
+                                    </TextBlock>
+                                </StackPanel>
                                 <TextBlock Style="{StaticResource Caption}" Margin="6,2">
                                     <Run Text="Posledná aktualizácia: " />
                                     <Run Text="{Binding LastUpdate, StringFormat=HH:mm:ss, Mode=OneWay}" />

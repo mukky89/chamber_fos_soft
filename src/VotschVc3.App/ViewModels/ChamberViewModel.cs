@@ -25,18 +25,20 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private readonly ChamberClient _client = new();
     private readonly ProfileStore _store;
     private readonly EmailNotifier _email;
+    private readonly ThermometersViewModel _thermometers;
     private CancellationTokenSource? _pollingCts;
     private CancellationTokenSource? _profileCts;
     private CsvRecorder? _recorder;
     private DateTime? _profileActualStart;
 
-    public ChamberViewModel(string name, ChamberKind kind, string defaultHost, ProfileStore store, EmailNotifier email)
+    public ChamberViewModel(string name, ChamberKind kind, string defaultHost, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers)
     {
         Name = name;
         Kind = kind;
         _host = defaultHost;
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _email = email ?? throw new ArgumentNullException(nameof(email));
+        _thermometers = thermometers ?? throw new ArgumentNullException(nameof(thermometers));
         _client.FrameExchanged += OnFrameExchanged;
 
         Segments = new ObservableCollection<SegmentViewModel>();
@@ -282,6 +284,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         LastRaw = reading.Raw;
         LastUpdate = reading.Timestamp;
+        OnPropertyChanged(nameof(ReferenceDeviation));
         RecordLive(reading);
         CheckAlarms(reading);
 
@@ -289,7 +292,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             try
             {
-                _recorder?.Record(reading);
+                _recorder?.Record(reading, ReferenceTemperature);
                 RecordedRows = _recorder?.RowCount ?? 0;
             }
             catch (Exception ex)
@@ -298,6 +301,55 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 StopRecording();
             }
         }
+    }
+
+    #endregion
+
+    #region Reference thermometer
+
+    /// <summary>Thermometers available as an external reference (live collection).</summary>
+    public ObservableCollection<ThermometerDeviceViewModel> AvailableThermometers => _thermometers.Devices;
+
+    private ThermometerDeviceViewModel? _selectedReferenceThermometer;
+    /// <summary>External ASL F100 used as a reference next to the chamber's own probe.</summary>
+    public ThermometerDeviceViewModel? SelectedReferenceThermometer
+    {
+        get => _selectedReferenceThermometer;
+        set
+        {
+            ThermometerDeviceViewModel? old = _selectedReferenceThermometer;
+            if (SetProperty(ref _selectedReferenceThermometer, value))
+            {
+                if (old is not null) old.PropertyChanged -= OnReferenceChanged;
+                if (value is not null) value.PropertyChanged += OnReferenceChanged;
+                RaiseReference();
+            }
+        }
+    }
+
+    /// <summary>The reference thermometer's current temperature, if any.</summary>
+    public double? ReferenceTemperature => SelectedReferenceThermometer?.Temperature;
+
+    /// <summary><c>true</c> when a reference thermometer is selected.</summary>
+    public bool HasReference => SelectedReferenceThermometer is not null;
+
+    /// <summary>Chamber measured temperature minus reference temperature.</summary>
+    public double? ReferenceDeviation =>
+        MeasuredTemperature is { } m && ReferenceTemperature is { } r ? m - r : null;
+
+    private void OnReferenceChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ThermometerDeviceViewModel.Temperature))
+        {
+            RaiseReference();
+        }
+    }
+
+    private void RaiseReference()
+    {
+        OnPropertyChanged(nameof(ReferenceTemperature));
+        OnPropertyChanged(nameof(ReferenceDeviation));
+        OnPropertyChanged(nameof(HasReference));
     }
 
     #endregion
@@ -1385,6 +1437,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopPolling();
         StopProfile();
         StopRecording();
+        if (_selectedReferenceThermometer is not null)
+        {
+            _selectedReferenceThermometer.PropertyChanged -= OnReferenceChanged;
+        }
+
         _client.FrameExchanged -= OnFrameExchanged;
         await _client.DisposeAsync();
     }

@@ -12,7 +12,7 @@ namespace VotschVc3.Core.Recording;
 public sealed class CsvRecorder : IDisposable
 {
     private const string Header =
-        "Timestamp;Temperature;TemperatureSetpoint;Humidity;HumiditySetpoint;Digital;Raw";
+        "Timestamp;Temperature;TemperatureSetpoint;Humidity;HumiditySetpoint;Reference;Deviation;Digital;Raw";
 
     private readonly object _sync = new();
     private readonly StreamWriter _writer;
@@ -43,10 +43,16 @@ public sealed class CsvRecorder : IDisposable
     /// <summary>Number of data rows written by this instance.</summary>
     public long RowCount { get; private set; }
 
-    /// <summary>Appends one reading as a CSV row.</summary>
-    public void Record(ChamberReading reading)
+    /// <summary>
+    /// Appends one reading as a CSV row. An optional <paramref name="referenceTemperature"/>
+    /// (e.g. from an external ASL F100) is recorded together with the deviation
+    /// (chamber measured − reference) for calibration records.
+    /// </summary>
+    public void Record(ChamberReading reading, double? referenceTemperature = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
+
+        double? deviation = reading.Temperature is { } t && referenceTemperature is { } r ? t - r : null;
 
         string row = string.Join(';',
             reading.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
@@ -54,6 +60,8 @@ public sealed class CsvRecorder : IDisposable
             Format(reading.TemperatureSetpoint),
             Format(reading.Humidity),
             Format(reading.HumiditySetpoint),
+            Format(referenceTemperature, "0.000"),
+            Format(deviation, "0.000"),
             reading.DigitalChannels.ToProtocolString(),
             Escape(reading.Raw));
 
@@ -64,8 +72,8 @@ public sealed class CsvRecorder : IDisposable
         }
     }
 
-    private static string Format(double? value) =>
-        value?.ToString("0.0", CultureInfo.InvariantCulture) ?? string.Empty;
+    private static string Format(double? value, string format = "0.0") =>
+        value?.ToString(format, CultureInfo.InvariantCulture) ?? string.Empty;
 
     private static string Escape(string raw)
     {

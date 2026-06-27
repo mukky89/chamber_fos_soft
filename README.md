@@ -6,7 +6,7 @@ Moderná **WPF (.NET 8) MVVM** aplikácia na ovládanie klimatických komôr
 
 Súčasťou je aj **odčítavanie presných teplomerov ASL F100** cez USB.
 
-**Verzia: 1.1.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.2.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Podporuje **dve komory naraz** (každá s vlastnou IP adresou, obe môžu byť
@@ -232,7 +232,11 @@ ako virtuálny COM port**.
 - **Enumerácia portov so sériovým číslom** – keďže máš viac rovnakých kusov,
   každý sa zobrazí ako `COMx · <sériové číslo> (popis)`; vyberáš podľa portu
   alebo S/N. Tlačidlo *Obnoviť zoznam* znova prehľadá USB.
-- **Viacero teplomerov naraz** – každý má vlastné spojenie, živú teplotu a graf.
+- **Viacero teplomerov naraz** – každý má vlastné spojenie, živú teplotu, graf a
+  **CSV záznam**.
+- **Referenčné meranie pri komore** – ku komore priradíš F100 ako externú
+  referenciu; v live zobrazení vidíš referenčnú teplotu a **odchýlku**
+  (komora − referencia), ktorá sa zapíše aj do CSV záznamu komory.
 - **Komunikácia**: 9600 8N1 (voliteľne 4800/19200), príkazy zakončené **CR**,
   1–2 ms medzi znakmi. `*IDN?` na identifikáciu; **príkaz čítania je
   konfigurovateľný** (default `READ?`), lebo sa medzi firmvérmi líši.

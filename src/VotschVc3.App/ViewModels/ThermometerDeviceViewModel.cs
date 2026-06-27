@@ -4,6 +4,7 @@ using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
 using VotschVc3.App.Thermometers;
+using VotschVc3.Core.Recording;
 using VotschVc3.Core.Thermometers;
 
 namespace VotschVc3.App.ViewModels;
@@ -21,10 +22,14 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     private readonly List<(DateTimeOffset time, double value)> _live = new();
     private F100Client? _client;
     private CancellationTokenSource? _pollingCts;
+    private ThermometerCsvRecorder? _recorder;
 
     public ThermometerDeviceViewModel(SerialDeviceInfo info)
     {
         Info = info;
+        _recordingPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            $"f100_{info.PortName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
 
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, () => !IsConnected, ReportError);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, () => IsConnected, ReportError);
@@ -32,6 +37,9 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         ReadOnceCommand = new AsyncRelayCommand(ReadOnceAsync, () => IsConnected, ReportError);
         SendTerminalCommand = new AsyncRelayCommand(SendTerminalAsync, () => IsConnected && !string.IsNullOrWhiteSpace(TerminalInput), ReportError);
         ClearTerminalCommand = new RelayCommand(() => TerminalLines.Clear());
+        StartRecordingCommand = new RelayCommand(StartRecording, () => !IsRecording);
+        StopRecordingCommand = new RelayCommand(StopRecording, () => IsRecording);
+        BrowseRecordingPathCommand = new RelayCommand(BrowseRecordingPath);
     }
 
     public SerialDeviceInfo Info { get; }
@@ -243,6 +251,20 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
 
         LastUpdate = reading.Timestamp;
+
+        if (IsRecording)
+        {
+            try
+            {
+                _recorder?.Record(reading);
+                RecordedRows = _recorder?.RowCount ?? 0;
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Chyba záznamu: {ex.Message}";
+                StopRecording();
+            }
+        }
     }
 
     private void BuildLiveChart()
@@ -288,6 +310,70 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
     }
 
+    private string _recordingPath;
+    public string RecordingPath { get => _recordingPath; set => SetProperty(ref _recordingPath, value); }
+
+    private bool _isRecording;
+    public bool IsRecording
+    {
+        get => _isRecording;
+        private set
+        {
+            if (SetProperty(ref _isRecording, value))
+            {
+                StartRecordingCommand.RaiseCanExecuteChanged();
+                StopRecordingCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    private long _recordedRows;
+    public long RecordedRows { get => _recordedRows; private set => SetProperty(ref _recordedRows, value); }
+
+    public RelayCommand StartRecordingCommand { get; }
+    public RelayCommand StopRecordingCommand { get; }
+    public RelayCommand BrowseRecordingPathCommand { get; }
+
+    private void StartRecording()
+    {
+        try
+        {
+            _recorder = new ThermometerCsvRecorder(RecordingPath);
+            RecordedRows = _recorder.RowCount;
+            IsRecording = true;
+            StatusMessage = $"Zaznamenávam do {_recorder.FilePath}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Nedá sa spustiť záznam: {ex.Message}";
+        }
+    }
+
+    private void StopRecording()
+    {
+        _recorder?.Dispose();
+        _recorder = null;
+        IsRecording = false;
+        StatusMessage = "Záznam zastavený.";
+    }
+
+    private void BrowseRecordingPath()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Súbor záznamu teplomera",
+            Filter = "CSV súbory (*.csv)|*.csv|Všetky súbory (*.*)|*.*",
+            DefaultExt = ".csv",
+            FileName = System.IO.Path.GetFileName(RecordingPath),
+            InitialDirectory = System.IO.Path.GetDirectoryName(RecordingPath) ?? string.Empty,
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            RecordingPath = dialog.FileName;
+        }
+    }
+
     private void ReportError(Exception ex) => StatusMessage = $"Chyba: {ex.Message}";
 
     private static Brush CreateBrush(byte r, byte g, byte b)
@@ -300,6 +386,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     public async ValueTask DisposeAsync()
     {
         StopPolling();
+        StopRecording();
         if (_client is not null)
         {
             await _client.DisposeAsync();
