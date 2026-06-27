@@ -1,0 +1,204 @@
+<UserControl x:Class="VotschVc3.App.Views.ThermometersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:VotschVc3.App.Views">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="6,2,6,8">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="← Domov" Command="{Binding DataContext.GoHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                <StackPanel VerticalAlignment="Center" Margin="6,0,0,0">
+                    <TextBlock Text="Teplomery ASL F100" FontSize="17" FontFamily="Segoe UI Semibold" />
+                    <TextBlock Text="Pripojené cez USB (virtuálny COM port). Viacero kusov sa rozlíši podľa portu / sériového čísla."
+                               Style="{StaticResource Caption}" />
+                </StackPanel>
+            </StackPanel>
+            <Button Content="Obnoviť zoznam" Style="{StaticResource AccentButton}" HorizontalAlignment="Right"
+                    Command="{Binding RefreshCommand}" />
+        </Grid>
+
+        <!-- Master / detail -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Device list -->
+            <Border Grid.Column="0" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Nájdené zariadenia" Style="{StaticResource Heading}" />
+                    <ListBox Grid.Row="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Margin" Value="0,2" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="10,8">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                                     Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
+                                            <TextBlock Text="{Binding PortName}" FontFamily="Segoe UI Semibold" Margin="8,0,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0">
+                                            <Run Text="S/N: " />
+                                            <Run Text="{Binding SerialNumber, Mode=OneWay, TargetNullValue=—}" />
+                                        </TextBlock>
+                                        <TextBlock Margin="0,2,0,0">
+                                            <Run Text="{Binding Temperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}"
+                                                 FontFamily="Segoe UI Semibold" />
+                                            <Run Text="{Binding Unit, Mode=OneWay}" Foreground="#969BB5" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Detail -->
+            <Grid Grid.Column="1" DataContext="{Binding SelectedDevice}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource Card}">
+                    <StackPanel>
+                        <DockPanel LastChildFill="False">
+                            <TextBlock Text="{Binding Display}" FontFamily="Segoe UI Semibold" FontSize="15" DockPanel.Dock="Left" />
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                <Ellipse Width="11" Height="11" VerticalAlignment="Center"
+                                         Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
+                                <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" Style="{StaticResource Caption}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Live temperature -->
+                            <Border Grid.Column="0" Style="{StaticResource Card}" Background="{StaticResource SurfaceAltBrush}"
+                                    Margin="0,0,12,0" Padding="20,14" VerticalAlignment="Top">
+                                <StackPanel>
+                                    <TextBlock Text="TEPLOTA" Style="{StaticResource Caption}" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock FontSize="40" FontFamily="Segoe UI Light"
+                                                   Text="{Binding Temperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
+                                        <TextBlock Text="{Binding Unit}" VerticalAlignment="Bottom" Margin="6,0,0,8"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                    <TextBlock Style="{StaticResource Caption}">
+                                        <Run Text="ID: " />
+                                        <Run Text="{Binding Identity, Mode=OneWay}" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Settings -->
+                            <StackPanel Grid.Column="1">
+                                <WrapPanel>
+                                    <StackPanel Width="110" Margin="0,0,12,8">
+                                        <TextBlock Text="Baud" Style="{StaticResource Label}" />
+                                        <ComboBox ItemsSource="{Binding BaudRates}" SelectedItem="{Binding BaudRate}" />
+                                    </StackPanel>
+                                    <StackPanel Width="150" Margin="0,0,12,8">
+                                        <TextBlock Text="Príkaz čítania" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding ReadCommand, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" />
+                                    </StackPanel>
+                                    <StackPanel Width="110" Margin="0,0,12,8">
+                                        <TextBlock Text="Interval (s)" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding PollIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+                                </WrapPanel>
+                                <CheckBox Content="Automatické čítanie (polling)" IsChecked="{Binding PollingEnabled}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <Button Content="Pripojiť" Style="{StaticResource AccentButton}" Command="{Binding ConnectCommand}" />
+                                    <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
+                                    <Button Content="*IDN?" Command="{Binding IdentifyCommand}" />
+                                    <Button Content="Načítať raz" Command="{Binding ReadOnceCommand}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Chart + terminal -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="360" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Priebeh teploty" Style="{StaticResource Label}" Margin="0,0,0,6" />
+                            <views:ChartView Grid.Row="1" Series="{Binding LiveSeries}" Unit="{Binding Unit}"
+                                             EmptyText="Pripoj a načítaj…" />
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="1" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Terminál (SCPI)" Style="{StaticResource Label}" Margin="0,0,0,6" />
+                            <Border Grid.Row="1" Background="{StaticResource BackgroundBrush}" CornerRadius="8" Padding="6">
+                                <ListBox ItemsSource="{Binding TerminalLines}" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="12"
+                                                       Foreground="{StaticResource TextBrush}" TextWrapping="NoWrap" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            <Grid Grid.Row="2" Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding TerminalInput, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" />
+                                <Button Grid.Column="1" Content="Odoslať" Style="{StaticResource AccentButton}" Margin="8,0,0,0" Command="{Binding SendTerminalCommand}" />
+                                <Button Grid.Column="2" Content="Vyčistiť" Margin="8,0,0,0" Command="{Binding ClearTerminalCommand}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="6,10,6,0" Padding="14,8">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource MutedBrush}" />
+        </Border>
+    </Grid>
+</UserControl>

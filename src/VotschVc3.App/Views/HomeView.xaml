@@ -21,11 +21,16 @@
                 <TextBlock Text="Vyber komoru" FontSize="22" FontFamily="Segoe UI Semibold" />
                 <TextBlock Text="Obe komory môžu byť pripojené a bežať súčasne." Style="{StaticResource Caption}" Margin="0,4,0,0" />
             </StackPanel>
-            <Border HorizontalAlignment="Right" VerticalAlignment="Top"
-                    Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="9,4">
-                <TextBlock Text="{Binding AppVersion}" Style="{StaticResource Caption}"
-                           ToolTip="Verzia aplikácie — pozri CHANGELOG.md" />
-            </Border>
+            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top">
+                <Border HorizontalAlignment="Right"
+                        Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="9,4">
+                    <TextBlock Text="{Binding AppVersion}" Style="{StaticResource Caption}"
+                               ToolTip="Verzia aplikácie — pozri CHANGELOG.md" />
+                </Border>
+                <Button Content="Teplomery ASL F100 →" Style="{StaticResource GhostButton}"
+                        HorizontalAlignment="Right" Margin="0,6,0,0"
+                        Command="{Binding OpenThermometersCommand}" />
+            </StackPanel>
         </Grid>
 
         <ItemsControl Grid.Row="1" ItemsSource="{Binding Chambers}" VerticalAlignment="Top">

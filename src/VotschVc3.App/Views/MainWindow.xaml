@@ -17,6 +17,9 @@
         <DataTemplate DataType="{x:Type vm:ChamberViewModel}">
             <views:ChamberView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ThermometersViewModel}">
+            <views:ThermometersView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="14">

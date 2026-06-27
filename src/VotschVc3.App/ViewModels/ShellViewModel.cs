@@ -58,7 +58,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             chamber.PropertyChanged += OnChamberPropertyChanged;
         }
 
+        Thermometers = new ThermometersViewModel();
+
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
+        OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
         GoHomeCommand = new RelayCommand(GoHome);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
@@ -67,6 +70,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     }
 
     public ObservableCollection<ChamberViewModel> Chambers { get; }
+
+    /// <summary>ASL F100 thermometers manager (USB).</summary>
+    public ThermometersViewModel Thermometers { get; }
 
     private object _currentView;
     /// <summary>Either this shell (home page) or the selected chamber.</summary>
@@ -92,6 +98,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public string WindowTitle => $"Vötsch — Riadenie klimatických komôr  ·  {AppVersion}";
 
     public RelayCommand<ChamberViewModel> OpenChamberCommand { get; }
+    public RelayCommand OpenThermometersCommand { get; }
     public RelayCommand GoHomeCommand { get; }
 
     private void OpenChamber(ChamberViewModel? chamber)
@@ -195,6 +202,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _saveCts?.Cancel();
         _saveCts?.Dispose();
         SaveConfigs();
+
+        await Thermometers.DisposeAsync();
 
         foreach (ChamberViewModel chamber in Chambers)
         {

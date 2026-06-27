@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.1.0] – 2026-06-27
+
+### Pridané
+- **Teplomery ASL F100** cez USB (virtuálny COM port): enumerácia portov so
+  **sériovým číslom** (rozlíšenie viacerých rovnakých kusov), pripojenie a
+  **súčasné čítanie viacerých** teplomerov naraz.
+- Pre každý teplomer: živá teplota, graf priebehu, `*IDN?` identifikácia,
+  konfigurovateľný príkaz čítania (default `READ?`), baud, interval a
+  **SCPI terminál** na kalibráciu.
+- Jadro: `F100Protocol` (parsovanie hodnoty a jednotky) + testy.
+
 ## [1.0.0] – 2026-06-27
 
 ### Pridané
@@ -67,6 +78,7 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 - WPF (.NET 8) MVVM aplikácia: pripojenie, live monitoring, manuálne setpointy,
   profil, záznam, surový terminál; tmavá téma; jednotkové testy jadra.
 
+[1.1.0]: https://github.com/mukky89/chamber_fos_soft
 [1.0.0]: https://github.com/mukky89/chamber_fos_soft
 [0.7.0]: https://github.com/mukky89/chamber_fos_soft
 [0.6.0]: https://github.com/mukky89/chamber_fos_soft
