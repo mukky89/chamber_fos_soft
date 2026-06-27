@@ -1305,6 +1305,50 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     #endregion
 
+    #region Persistence
+
+    /// <summary>Applies a saved configuration (connection, mapping, alarm limits).</summary>
+    public void ApplyConfig(ChamberConfig c)
+    {
+        ArgumentNullException.ThrowIfNull(c);
+        Host = c.Host;
+        Port = c.Port;
+        Address = c.Address;
+        AnalogChannelCount = c.AnalogChannelCount;
+        StartChannelIndex = c.StartChannelIndex;
+        SelectedTerminator = c.Terminator;
+        PollIntervalSeconds = c.PollIntervalSeconds;
+        AlarmsEnabled = c.AlarmsEnabled;
+        TempMin = c.TempMin;
+        TempMax = c.TempMax;
+        HumMin = c.HumMin;
+        HumMax = c.HumMax;
+        AutoStopOnAlarm = c.AutoStopOnAlarm;
+        AutoReconnect = c.AutoReconnect;
+    }
+
+    /// <summary>Captures the current configuration for persistence.</summary>
+    public ChamberConfig ToConfig() => new()
+    {
+        Kind = Kind,
+        Host = Host,
+        Port = Port,
+        Address = Address,
+        AnalogChannelCount = AnalogChannelCount,
+        StartChannelIndex = StartChannelIndex,
+        Terminator = SelectedTerminator,
+        PollIntervalSeconds = PollIntervalSeconds,
+        AlarmsEnabled = AlarmsEnabled,
+        TempMin = TempMin,
+        TempMax = TempMax,
+        HumMin = HumMin,
+        HumMax = HumMax,
+        AutoStopOnAlarm = AutoStopOnAlarm,
+        AutoReconnect = AutoReconnect,
+    };
+
+    #endregion
+
     #region Infrastructure
 
     private void RefreshCommands()

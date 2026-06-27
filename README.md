@@ -5,7 +5,10 @@ Moderná **WPF (.NET 8) MVVM** aplikácia na ovládanie klimatických komôr
 **ASCII-2** protokolu.
 
 Podporuje **dve komory naraz** (každá s vlastnou IP adresou, obe môžu byť
-pripojené a bežať súčasne):
+pripojené a bežať súčasne). **Home page slúži ako dashboard** – ukazuje živé
+hodnoty, stav profilu (progress) a alarm oboch komôr naraz. Konfigurácia komôr
+(IP, port, mapovanie kanálov, alarm limity) sa **automaticky ukladá** a obnoví
+po reštarte (`Dokumenty/VotschVc3/chambers.json`).
 
 - **Komora 1** — teplota **+ vlhkosť** (typ VC3),
 - **Komora 2** — **iba teplota** (typ VT3).

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
@@ -12,9 +13,21 @@ namespace VotschVc3.App.ViewModels;
 /// </summary>
 public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 {
+    private static readonly HashSet<string> PersistedKeys = new()
+    {
+        nameof(ChamberViewModel.Host), nameof(ChamberViewModel.Port), nameof(ChamberViewModel.Address),
+        nameof(ChamberViewModel.AnalogChannelCount), nameof(ChamberViewModel.StartChannelIndex),
+        nameof(ChamberViewModel.SelectedTerminator), nameof(ChamberViewModel.PollIntervalSeconds),
+        nameof(ChamberViewModel.AlarmsEnabled), nameof(ChamberViewModel.TempMin), nameof(ChamberViewModel.TempMax),
+        nameof(ChamberViewModel.HumMin), nameof(ChamberViewModel.HumMax),
+        nameof(ChamberViewModel.AutoStopOnAlarm), nameof(ChamberViewModel.AutoReconnect),
+    };
+
     private readonly ProfileStore _store;
     private readonly EmailSettingsStore _emailStore;
+    private readonly ChamberConfigStore _configStore;
     private readonly EmailNotifier _notifier = new();
+    private CancellationTokenSource? _saveCts;
 
     public ShellViewModel()
     {
@@ -22,6 +35,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VotschVc3");
         _store = new ProfileStore(System.IO.Path.Combine(dir, "profiles.json"));
         _emailStore = new EmailSettingsStore(System.IO.Path.Combine(dir, "email.json"));
+        _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
         _notifier.Settings = _emailStore.Load();
 
         Chambers = new ObservableCollection<ChamberViewModel>
@@ -29,6 +43,20 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             new("Komora 1 — teplota + vlhkosť", ChamberKind.TemperatureHumidity, "192.168.0.1", _store, _notifier),
             new("Komora 2 — teplota", ChamberKind.TemperatureOnly, "192.168.0.2", _store, _notifier),
         };
+
+        // Restore saved per-chamber configuration (matched by kind), then watch
+        // for changes to persist them automatically.
+        List<ChamberConfig> configs = _configStore.LoadAll();
+        foreach (ChamberViewModel chamber in Chambers)
+        {
+            ChamberConfig? saved = configs.FirstOrDefault(c => c.Kind == chamber.Kind);
+            if (saved is not null)
+            {
+                chamber.ApplyConfig(saved);
+            }
+
+            chamber.PropertyChanged += OnChamberPropertyChanged;
+        }
 
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         GoHomeCommand = new RelayCommand(GoHome);
@@ -110,10 +138,60 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     #endregion
 
+    #region Configuration persistence
+
+    private void OnChamberPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not null && PersistedKeys.Contains(e.PropertyName))
+        {
+            DebouncedSaveConfigs();
+        }
+    }
+
+    private void DebouncedSaveConfigs()
+    {
+        _saveCts?.Cancel();
+        _saveCts?.Dispose();
+        _saveCts = new CancellationTokenSource();
+        CancellationToken token = _saveCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(800, token);
+                SaveConfigs();
+            }
+            catch (OperationCanceledException)
+            {
+                // Superseded by a newer change.
+            }
+        });
+    }
+
+    private void SaveConfigs()
+    {
+        try
+        {
+            _configStore.SaveAll(Chambers.Select(c => c.ToConfig()));
+        }
+        catch
+        {
+            // Persistence failures must never crash the app.
+        }
+    }
+
+    #endregion
+
     public async ValueTask DisposeAsync()
     {
+        _saveCts?.Cancel();
+        _saveCts?.Dispose();
+        SaveConfigs();
+
         foreach (ChamberViewModel chamber in Chambers)
         {
+            chamber.PropertyChanged -= OnChamberPropertyChanged;
             await chamber.DisposeAsync();
         }
     }
