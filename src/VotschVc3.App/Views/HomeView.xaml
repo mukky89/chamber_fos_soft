@@ -34,6 +34,20 @@
                 <Button Content="Prehliadač záznamov →" Style="{StaticResource GhostButton}"
                         HorizontalAlignment="Right" Margin="0,2,0,0"
                         Command="{Binding OpenRecordingViewerCommand}" />
+                <Button Content="Audit trail →" Style="{StaticResource GhostButton}"
+                        HorizontalAlignment="Right" Margin="0,2,0,0"
+                        Command="{Binding OpenAuditCommand}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+                    <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="9,4" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource Caption}">
+                            <Run Text="{Binding CurrentUserName, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                            <Run Text=" · " />
+                            <Run Text="{Binding CurrentRoleLabel, Mode=OneWay}" />
+                        </TextBlock>
+                    </Border>
+                    <Button Content="Odhlásiť" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
+                            Command="{Binding LogoutCommand}" />
+                </StackPanel>
             </StackPanel>
         </Grid>
 

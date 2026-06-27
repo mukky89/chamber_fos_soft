@@ -23,6 +23,12 @@
         <DataTemplate DataType="{x:Type vm:RecordingViewerViewModel}">
             <views:RecordingViewerView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:LoginViewModel}">
+            <views:LoginView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AuditViewModel}">
+            <views:AuditView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="14">

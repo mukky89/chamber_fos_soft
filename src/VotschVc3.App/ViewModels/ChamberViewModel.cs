@@ -10,6 +10,7 @@ using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
 using VotschVc3.Core.Recording;
+using VotschVc3.Core.Security;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -26,12 +27,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private readonly ProfileStore _store;
     private readonly EmailNotifier _email;
     private readonly ThermometersViewModel _thermometers;
+    private readonly AuditLog _audit;
     private CancellationTokenSource? _pollingCts;
     private CancellationTokenSource? _profileCts;
     private CsvRecorder? _recorder;
     private DateTime? _profileActualStart;
 
-    public ChamberViewModel(ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers)
+    public ChamberViewModel(ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit)
     {
         ArgumentNullException.ThrowIfNull(config);
         Id = config.Id;
@@ -41,6 +43,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _email = email ?? throw new ArgumentNullException(nameof(email));
         _thermometers = thermometers ?? throw new ArgumentNullException(nameof(thermometers));
+        _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _client.FrameExchanged += OnFrameExchanged;
 
         Segments = new ObservableCollection<SegmentViewModel>();
@@ -49,10 +52,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, () => !IsConnected, ReportError);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, () => IsConnected, ReportError);
         ReadOnceCommand = new AsyncRelayCommand(ReadOnceAsync, () => IsConnected, ReportError);
-        ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected, ReportError);
-        StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected, ReportError);
+        ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected && IsControlAllowed, ReportError);
+        StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsControlAllowed, ReportError);
 
-        StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && !IsProfileRunning && Segments.Count > 0, ReportError);
+        StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning);
         AddSegmentCommand = new RelayCommand(AddSegment);
         RemoveSegmentCommand = new RelayCommand(RemoveSegment, () => SelectedSegment is not null);
@@ -92,6 +95,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Short capability label for the UI.</summary>
     public string KindLabel => SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
+
+    private bool _isControlAllowed = true;
+    /// <summary><c>false</c> for view-only users (Operator role); gates control commands.</summary>
+    public bool IsControlAllowed
+    {
+        get => _isControlAllowed;
+        private set { if (SetProperty(ref _isControlAllowed, value)) RefreshCommands(); }
+    }
+
+    /// <summary>Sets whether the current user may operate this chamber.</summary>
+    public void SetControlAllowed(bool allowed) => IsControlAllowed = allowed;
 
     #region Connection
 
@@ -167,6 +181,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         await _client.ConnectAsync(BuildSettings());
         IsConnected = true;
         StatusMessage = "Pripojené.";
+        _audit.Log(Name, "Pripojenie", Endpoint);
 
         if (PollingEnabled)
         {
@@ -184,6 +199,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _connectionLostHandled = false;
         ClearAllAlarms();
         StatusMessage = "Odpojené.";
+        _audit.Log(Name, "Odpojenie", Endpoint);
     }
 
     #endregion
@@ -385,6 +401,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         await _client.WriteSetpointsAsync(setpoints, digital);
         StatusMessage = $"Setpoint zapísaný: {ManualTemperature:0.0} °C" +
             (humidity ? $", {ManualHumidity:0.0} %" : string.Empty);
+        _audit.Log(Name, "Setpoint", $"{ManualTemperature:0.0} °C" + (humidity ? $", {ManualHumidity:0.0} %" : string.Empty));
     }
 
     private async Task StopChamberAsync()
@@ -396,6 +413,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         var setpoints = new List<double> { ManualTemperature, 0d };
         await _client.WriteSetpointsAsync(setpoints, digital);
         StatusMessage = "Komora zastavená (štart kanál vynulovaný).";
+        _audit.Log(Name, "Stop komory", string.Empty);
     }
 
     private DigitalChannels ParseDigitalText() => DigitalChannels.Parse(DigitalChannelsText, StartChannelIndex);
@@ -558,6 +576,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileActualStart = DateTime.Now;
             ProfileStatus = "Profil spustený.";
             StatusMessage = $"Beží profil \"{ProfileName}\".";
+            _audit.Log(Name, "Štart profilu", $"{ProfileName}, {Cycles} cyklov");
             RecalculateTiming();
 
             await runner.RunAsync(profile, startTemp, startHum, token);
@@ -565,12 +584,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ProfileProgress = 100;
             ProfileStatus = "Profil dokončený.";
             StatusMessage = "Profil dokončený.";
+            _audit.Log(Name, "Profil dokončený", ProfileName);
             await NotifyCompletionAsync();
         }
         catch (OperationCanceledException)
         {
             ProfileStatus = "Profil zrušený.";
             StatusMessage = "Profil zrušený.";
+            _audit.Log(Name, "Profil zrušený", ProfileName);
         }
         finally
         {
@@ -1095,6 +1116,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         if (isNew)
         {
             StatusMessage = $"⚠ ALARM: {message}";
+            _audit.Log(Name, "ALARM", message);
             _ = SendAlarmEmailAsync(message);
             if (AutoStopOnAlarm && IsProfileRunning)
             {

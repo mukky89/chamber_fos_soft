@@ -3,6 +3,7 @@ using System.ComponentModel;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
+using VotschVc3.Core.Security;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -26,6 +27,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private readonly ProfileStore _store;
     private readonly EmailSettingsStore _emailStore;
     private readonly ChamberConfigStore _configStore;
+    private readonly UserStore _userStore;
+    private readonly AuditLog _audit;
+    private readonly LoginViewModel _login;
     private readonly EmailNotifier _notifier = new();
     private CancellationTokenSource? _saveCts;
 
@@ -36,7 +40,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _store = new ProfileStore(System.IO.Path.Combine(dir, "profiles.json"));
         _emailStore = new EmailSettingsStore(System.IO.Path.Combine(dir, "email.json"));
         _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
+        _userStore = new UserStore(System.IO.Path.Combine(dir, "users.json"));
+        _audit = new AuditLog(System.IO.Path.Combine(dir, "audit.csv"));
         _notifier.Settings = _emailStore.Load();
+
+        Audit = new AuditViewModel(_audit);
+        _login = new LoginViewModel(_userStore, OnLoggedIn);
 
         Thermometers = new ThermometersViewModel();
         Chambers = new ObservableCollection<ChamberViewModel>();
@@ -62,13 +71,16 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
         OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
+        OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
         GoHomeCommand = new RelayCommand(GoHome);
-        AddChamberCommand = new RelayCommand(AddChamber);
-        RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1);
+        LogoutCommand = new RelayCommand(Logout);
+        AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
+        RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1 && CanManage);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
 
-        _currentView = this;
+        // Start at the login screen.
+        _currentView = _login;
     }
 
     public ObservableCollection<ChamberViewModel> Chambers { get; }
@@ -105,9 +117,14 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand<ChamberViewModel> OpenChamberCommand { get; }
     public RelayCommand OpenThermometersCommand { get; }
     public RelayCommand OpenRecordingViewerCommand { get; }
+    public RelayCommand OpenAuditCommand { get; }
     public RelayCommand GoHomeCommand { get; }
+    public RelayCommand LogoutCommand { get; }
     public RelayCommand AddChamberCommand { get; }
     public RelayCommand<ChamberViewModel> RemoveChamberCommand { get; }
+
+    /// <summary>Audit trail view model.</summary>
+    public AuditViewModel Audit { get; }
 
     private void OpenChamber(ChamberViewModel? chamber)
     {
@@ -118,6 +135,68 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     }
 
     private void GoHome() => CurrentView = this;
+
+    #region Users & permissions
+
+    private User? _currentUser;
+
+    public string CurrentUserName => _currentUser?.Name ?? "—";
+    public string CurrentRoleLabel => _currentUser is null ? string.Empty : RoleLabel(_currentUser.Role);
+    public bool IsLoggedIn => _currentUser is not null;
+
+    private bool CanControl => _currentUser is { Role: >= UserRole.Supervisor };
+    private bool CanManage => _currentUser is { Role: UserRole.Admin };
+
+    private void OnLoggedIn(User user)
+    {
+        _currentUser = user;
+        _audit.CurrentUser = user.Name;
+        _audit.Log("Systém", "Prihlásenie", $"Rola: {user.Role}");
+        ApplyPermissions();
+        CurrentView = this;
+        RaiseUserChanged();
+    }
+
+    private void Logout()
+    {
+        if (_currentUser is not null)
+        {
+            _audit.Log("Systém", "Odhlásenie", _currentUser.Name);
+        }
+
+        _currentUser = null;
+        _audit.CurrentUser = "—";
+        ApplyPermissions();
+        CurrentView = _login;
+        RaiseUserChanged();
+    }
+
+    private void ApplyPermissions()
+    {
+        foreach (ChamberViewModel chamber in Chambers)
+        {
+            chamber.SetControlAllowed(CanControl);
+        }
+
+        AddChamberCommand.RaiseCanExecuteChanged();
+        RemoveChamberCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RaiseUserChanged()
+    {
+        OnPropertyChanged(nameof(CurrentUserName));
+        OnPropertyChanged(nameof(CurrentRoleLabel));
+        OnPropertyChanged(nameof(IsLoggedIn));
+    }
+
+    private static string RoleLabel(UserRole role) => role switch
+    {
+        UserRole.Admin => "Admin",
+        UserRole.Supervisor => "Supervisor",
+        _ => "Operátor",
+    };
+
+    #endregion
 
     #region E-mail notifications
 
@@ -182,7 +261,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private void AddChamberInternal(ChamberConfig config)
     {
-        var chamber = new ChamberViewModel(config, _store, _notifier, Thermometers);
+        var chamber = new ChamberViewModel(config, _store, _notifier, Thermometers, _audit);
+        chamber.SetControlAllowed(CanControl);
         chamber.PropertyChanged += OnChamberPropertyChanged;
         Chambers.Add(chamber);
         RemoveChamberCommand.RaiseCanExecuteChanged();
