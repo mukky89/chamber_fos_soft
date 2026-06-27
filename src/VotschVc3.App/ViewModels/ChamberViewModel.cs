@@ -31,11 +31,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private CsvRecorder? _recorder;
     private DateTime? _profileActualStart;
 
-    public ChamberViewModel(string name, ChamberKind kind, string defaultHost, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers)
+    public ChamberViewModel(ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers)
     {
-        Name = name;
-        Kind = kind;
-        _host = defaultHost;
+        ArgumentNullException.ThrowIfNull(config);
+        Id = config.Id;
+        Name = config.Name;
+        Kind = config.Kind;
+        _host = config.Host;
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _email = email ?? throw new ArgumentNullException(nameof(email));
         _thermometers = thermometers ?? throw new ArgumentNullException(nameof(thermometers));
@@ -70,13 +72,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SendTerminalCommand = new AsyncRelayCommand(SendTerminalAsync, () => IsConnected && !string.IsNullOrWhiteSpace(TerminalInput), ReportError);
         ClearTerminalCommand = new RelayCommand(() => TerminalLines.Clear());
 
+        ApplyConfig(config);
         SeedDefaultProfile();
         RefreshHistory();
         RecalculateTiming();
     }
 
-    /// <summary>Stable identity (used as a key in the shell).</summary>
-    public Guid Id { get; } = Guid.NewGuid();
+    /// <summary>Stable identity (used as a key in the shell and for persistence).</summary>
+    public Guid Id { get; }
 
     /// <summary>Human readable chamber name shown on the home page and header.</summary>
     public string Name { get; }
@@ -1382,6 +1385,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Captures the current configuration for persistence.</summary>
     public ChamberConfig ToConfig() => new()
     {
+        Id = Id,
+        Name = Name,
         Kind = Kind,
         Host = Host,
         Port = Port,

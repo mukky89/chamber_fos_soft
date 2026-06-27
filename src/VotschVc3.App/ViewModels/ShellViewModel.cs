@@ -39,30 +39,32 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _notifier.Settings = _emailStore.Load();
 
         Thermometers = new ThermometersViewModel();
+        Chambers = new ObservableCollection<ChamberViewModel>();
 
-        Chambers = new ObservableCollection<ChamberViewModel>
-        {
-            new("Komora 1 — teplota + vlhkosť", ChamberKind.TemperatureHumidity, "192.168.0.1", _store, _notifier, Thermometers),
-            new("Komora 2 — teplota", ChamberKind.TemperatureOnly, "192.168.0.2", _store, _notifier, Thermometers),
-        };
-
-        // Restore saved per-chamber configuration (matched by kind), then watch
-        // for changes to persist them automatically.
+        // Build chambers from the saved configuration (seed defaults on first run).
         List<ChamberConfig> configs = _configStore.LoadAll();
-        foreach (ChamberViewModel chamber in Chambers)
+        bool seeded = configs.Count == 0;
+        if (seeded)
         {
-            ChamberConfig? saved = configs.FirstOrDefault(c => c.Kind == chamber.Kind);
-            if (saved is not null)
-            {
-                chamber.ApplyConfig(saved);
-            }
+            configs = DefaultConfigs();
+        }
 
-            chamber.PropertyChanged += OnChamberPropertyChanged;
+        foreach (ChamberConfig config in configs)
+        {
+            AddChamberInternal(config);
+        }
+
+        if (seeded)
+        {
+            SaveConfigs();
         }
 
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
+        OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
         GoHomeCommand = new RelayCommand(GoHome);
+        AddChamberCommand = new RelayCommand(AddChamber);
+        RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
 
@@ -73,6 +75,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>ASL F100 thermometers manager (USB).</summary>
     public ThermometersViewModel Thermometers { get; }
+
+    /// <summary>Viewer for saved CSV recordings (analysis).</summary>
+    public RecordingViewerViewModel RecordingViewer { get; } = new();
 
     private object _currentView;
     /// <summary>Either this shell (home page) or the selected chamber.</summary>
@@ -99,7 +104,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public RelayCommand<ChamberViewModel> OpenChamberCommand { get; }
     public RelayCommand OpenThermometersCommand { get; }
+    public RelayCommand OpenRecordingViewerCommand { get; }
     public RelayCommand GoHomeCommand { get; }
+    public RelayCommand AddChamberCommand { get; }
+    public RelayCommand<ChamberViewModel> RemoveChamberCommand { get; }
 
     private void OpenChamber(ChamberViewModel? chamber)
     {
@@ -148,6 +156,70 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             { Error: { } err } => $"Test zlyhal: {err}",
             _ => "Zadaj adresáta pre test.",
         };
+    }
+
+    #endregion
+
+    #region Chamber management
+
+    /// <summary>Chamber types for the "add chamber" picker.</summary>
+    public Array ChamberKinds { get; } = Enum.GetValues(typeof(ChamberKind));
+
+    private string _newChamberName = string.Empty;
+    public string NewChamberName { get => _newChamberName; set => SetProperty(ref _newChamberName, value); }
+
+    private ChamberKind _newChamberKind = ChamberKind.TemperatureHumidity;
+    public ChamberKind NewChamberKind { get => _newChamberKind; set => SetProperty(ref _newChamberKind, value); }
+
+    private string _newChamberHost = "192.168.0.1";
+    public string NewChamberHost { get => _newChamberHost; set => SetProperty(ref _newChamberHost, value); }
+
+    private static List<ChamberConfig> DefaultConfigs() => new()
+    {
+        new ChamberConfig { Name = "Komora 1 — teplota + vlhkosť", Kind = ChamberKind.TemperatureHumidity, Host = "192.168.0.1" },
+        new ChamberConfig { Name = "Komora 2 — teplota", Kind = ChamberKind.TemperatureOnly, Host = "192.168.0.2" },
+    };
+
+    private void AddChamberInternal(ChamberConfig config)
+    {
+        var chamber = new ChamberViewModel(config, _store, _notifier, Thermometers);
+        chamber.PropertyChanged += OnChamberPropertyChanged;
+        Chambers.Add(chamber);
+        RemoveChamberCommand.RaiseCanExecuteChanged();
+    }
+
+    private void AddChamber()
+    {
+        var config = new ChamberConfig
+        {
+            Id = Guid.NewGuid(),
+            Name = string.IsNullOrWhiteSpace(NewChamberName) ? $"Komora {Chambers.Count + 1}" : NewChamberName.Trim(),
+            Kind = NewChamberKind,
+            Host = string.IsNullOrWhiteSpace(NewChamberHost) ? "192.168.0.1" : NewChamberHost.Trim(),
+        };
+
+        AddChamberInternal(config);
+        SaveConfigs();
+        NewChamberName = string.Empty;
+    }
+
+    private async void RemoveChamber(ChamberViewModel? chamber)
+    {
+        if (chamber is null || Chambers.Count <= 1)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(CurrentView, chamber))
+        {
+            GoHome();
+        }
+
+        Chambers.Remove(chamber);
+        chamber.PropertyChanged -= OnChamberPropertyChanged;
+        RemoveChamberCommand.RaiseCanExecuteChanged();
+        SaveConfigs();
+        await chamber.DisposeAsync();
     }
 
     #endregion

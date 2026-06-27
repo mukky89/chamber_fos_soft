@@ -14,6 +14,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Margin="6,4,6,12">
@@ -30,6 +31,9 @@
                 <Button Content="Teplomery ASL F100 →" Style="{StaticResource GhostButton}"
                         HorizontalAlignment="Right" Margin="0,6,0,0"
                         Command="{Binding OpenThermometersCommand}" />
+                <Button Content="Prehliadač záznamov →" Style="{StaticResource GhostButton}"
+                        HorizontalAlignment="Right" Margin="0,2,0,0"
+                        Command="{Binding OpenRecordingViewerCommand}" />
             </StackPanel>
         </Grid>
 
@@ -128,14 +132,42 @@
                                                   RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                         CommandParameter="{Binding}" />
                             </StackPanel>
+
+                            <Button Grid.ColumnSpan="2" Content="✕" Style="{StaticResource GhostButton}"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Padding="8,2" Margin="0"
+                                    ToolTip="Odobrať komoru"
+                                    Command="{Binding DataContext.RemoveChamberCommand,
+                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}" />
                         </Grid>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!-- ===== E-mail notifications ===== -->
+        <!-- ===== Add chamber ===== -->
         <Border Grid.Row="2" Style="{StaticResource Card}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Pridať komoru:" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <StackPanel Width="200" Margin="0,0,10,0">
+                    <TextBlock Text="Názov" Style="{StaticResource Label}" />
+                    <TextBox Text="{Binding NewChamberName, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Width="170" Margin="0,0,10,0">
+                    <TextBlock Text="Typ" Style="{StaticResource Label}" />
+                    <ComboBox ItemsSource="{Binding ChamberKinds}" SelectedItem="{Binding NewChamberKind}" />
+                </StackPanel>
+                <StackPanel Width="150" Margin="0,0,10,0">
+                    <TextBlock Text="IP adresa" Style="{StaticResource Label}" />
+                    <TextBox Text="{Binding NewChamberHost, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <Button Content="Pridať" Style="{StaticResource AccentButton}" VerticalAlignment="Bottom"
+                        Command="{Binding AddChamberCommand}" />
+            </StackPanel>
+        </Border>
+
+        <!-- ===== E-mail notifications ===== -->
+        <Border Grid.Row="3" Style="{StaticResource Card}">
             <StackPanel>
                 <DockPanel LastChildFill="False">
                     <TextBlock Text="Notifikácie e-mailom" Style="{StaticResource Heading}" DockPanel.Dock="Left" />

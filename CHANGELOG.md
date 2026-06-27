@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.3.0] – 2026-06-27
+
+Inšpirované Weiss **SIMPATI** (gap-analýza):
+
+### Pridané
+- **Konfigurovateľný počet komôr** – pridávanie/odoberanie komôr na home page
+  (názov, typ, IP), perzistentné (predtým napevno 2). Approx. SIMPATI „viac
+  systémov".
+- **Prehliadač záznamov** – otvorenie uloženého CSV (komory/teplomera),
+  vykreslenie do grafu a **štatistika** (min/max/priemer, počet vzoriek) na
+  sériu. Approx. SIMPATI „analýza/archív dát".
+
 ## [1.2.0] – 2026-06-27
 
 ### Pridané
@@ -91,6 +103,7 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 - WPF (.NET 8) MVVM aplikácia: pripojenie, live monitoring, manuálne setpointy,
   profil, záznam, surový terminál; tmavá téma; jednotkové testy jadra.
 
+[1.3.0]: https://github.com/mukky89/chamber_fos_soft
 [1.2.0]: https://github.com/mukky89/chamber_fos_soft
 [1.1.0]: https://github.com/mukky89/chamber_fos_soft
 [1.0.0]: https://github.com/mukky89/chamber_fos_soft

@@ -7,6 +7,12 @@ namespace VotschVc3.Core.Profiles;
 /// </summary>
 public sealed class ChamberConfig
 {
+    /// <summary>Stable identity used to match a saved config to its chamber.</summary>
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>Display name of the chamber.</summary>
+    public string Name { get; set; } = "Komora";
+
     public ChamberKind Kind { get; set; }
 
     public string Host { get; set; } = string.Empty;

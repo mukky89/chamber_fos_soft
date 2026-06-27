@@ -20,6 +20,9 @@
         <DataTemplate DataType="{x:Type vm:ThermometersViewModel}">
             <views:ThermometersView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecordingViewerViewModel}">
+            <views:RecordingViewerView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="14">
