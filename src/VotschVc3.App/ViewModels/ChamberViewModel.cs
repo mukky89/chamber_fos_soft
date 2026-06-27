@@ -57,6 +57,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning);
+        StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Queue.Count > 0, ReportError);
+        AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
+        RemoveFromQueueCommand = new RelayCommand(RemoveFromQueue, () => SelectedQueueItem is not null);
+        ClearQueueCommand = new RelayCommand(() => { Queue.Clear(); RefreshQueueCommands(); });
         AddSegmentCommand = new RelayCommand(AddSegment);
         RemoveSegmentCommand = new RelayCommand(RemoveSegment, () => SelectedSegment is not null);
         MoveSegmentUpCommand = new RelayCommand(() => MoveSegment(-1), () => SelectedSegment is not null);
@@ -505,12 +509,79 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Computed start / end schedule of the profile.</summary>
     public string ProfileScheduleText { get => _profileScheduleText; private set => SetProperty(ref _profileScheduleText, value); }
 
+    private string _profileWarnings = string.Empty;
+    /// <summary>"Smart check" validation warnings for the current profile.</summary>
+    public string ProfileWarnings { get => _profileWarnings; private set { if (SetProperty(ref _profileWarnings, value)) OnPropertyChanged(nameof(HasProfileWarnings)); } }
+
+    public bool HasProfileWarnings => !string.IsNullOrEmpty(ProfileWarnings);
+
+    private void ValidateProfile()
+    {
+        var issues = new List<string>();
+        for (int i = 0; i < Segments.Count; i++)
+        {
+            SegmentViewModel s = Segments[i];
+            if (s.DurationMinutes <= 0)
+            {
+                issues.Add($"Segment {i + 1}: trvanie ≤ 0");
+            }
+
+            if (s.TargetTemperature is < -80 or > 200)
+            {
+                issues.Add($"Segment {i + 1}: teplota mimo rozsahu");
+            }
+
+            if (SupportsHumidity && s.TargetHumidity is { } hh && (hh < 0 || hh > 100))
+            {
+                issues.Add($"Segment {i + 1}: vlhkosť mimo 0–100 %");
+            }
+        }
+
+        ProfileWarnings = issues.Count == 0 ? string.Empty : "⚠ " + string.Join(" · ", issues);
+    }
+
     public AsyncRelayCommand StartProfileCommand { get; }
     public RelayCommand StopProfileCommand { get; }
     public RelayCommand AddSegmentCommand { get; }
     public RelayCommand RemoveSegmentCommand { get; }
     public RelayCommand MoveSegmentUpCommand { get; }
     public RelayCommand MoveSegmentDownCommand { get; }
+
+    // --- Test queue ---
+    public ObservableCollection<QueuedProfileViewModel> Queue { get; } = new();
+
+    private QueuedProfileViewModel? _selectedQueueItem;
+    public QueuedProfileViewModel? SelectedQueueItem
+    {
+        get => _selectedQueueItem;
+        set { if (SetProperty(ref _selectedQueueItem, value)) RemoveFromQueueCommand.RaiseCanExecuteChanged(); }
+    }
+
+    public AsyncRelayCommand StartQueueCommand { get; }
+    public RelayCommand AddToQueueCommand { get; }
+    public RelayCommand RemoveFromQueueCommand { get; }
+    public RelayCommand ClearQueueCommand { get; }
+
+    private void AddToQueue()
+    {
+        Queue.Add(new QueuedProfileViewModel(BuildProfile()));
+        RefreshQueueCommands();
+    }
+
+    private void RemoveFromQueue()
+    {
+        if (SelectedQueueItem is { } item)
+        {
+            Queue.Remove(item);
+            RefreshQueueCommands();
+        }
+    }
+
+    private void RefreshQueueCommands()
+    {
+        StartQueueCommand.RaiseCanExecuteChanged();
+        RemoveFromQueueCommand.RaiseCanExecuteChanged();
+    }
 
     private void SeedDefaultProfile()
     {
@@ -537,29 +608,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         Segments = Segments.Select(s => s.ToModel()).ToList(),
     };
 
-    private async Task StartProfileAsync()
+    private Task StartProfileAsync() => RunSequenceAsync(new List<TestProfile> { BuildProfile() });
+
+    private Task StartQueueAsync() => RunSequenceAsync(Queue.Select(q => q.Profile).ToList());
+
+    /// <summary>Runs one or more profiles back-to-back (the test queue).</summary>
+    private async Task RunSequenceAsync(IReadOnlyList<TestProfile> profiles)
     {
-        TestProfile profile = BuildProfile();
-
-        double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
-        double? startHum = SupportsHumidity ? MeasuredHumidity : null;
-
-        var runner = new ProfileRunner(_client, TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds));
-        double totalSeconds = Math.Max(1, profile.TotalDuration.TotalSeconds);
-        double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
-
-        runner.Progress += (_, e) => RunOnUi(() =>
+        if (profiles.Count == 0)
         {
-            double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
-            double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
-            double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
-            ProfileProgress = Math.Clamp(overallSeconds / totalSeconds * 100d, 0, 100);
-            ProfileStatus =
-                (e.IsSoaking ? "⏳ Soak — čakám na toleranciu · " : string.Empty) +
-                $"Cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
-                $"\"{e.Segment.Name}\" · {e.TemperatureSetpoint:0.0} °C" +
-                (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
-        });
+            return;
+        }
 
         _profileCts = new CancellationTokenSource();
         CancellationToken token = _profileCts.Token;
@@ -574,24 +633,27 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             }
 
             _profileActualStart = DateTime.Now;
-            ProfileStatus = "Profil spustený.";
-            StatusMessage = $"Beží profil \"{ProfileName}\".";
-            _audit.Log(Name, "Štart profilu", $"{ProfileName}, {Cycles} cyklov");
             RecalculateTiming();
 
-            await runner.RunAsync(profile, startTemp, startHum, token);
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                TestProfile profile = profiles[i];
+                StatusMessage = $"Beží profil \"{profile.Name}\" ({i + 1}/{profiles.Count}).";
+                _audit.Log(Name, "Štart profilu", $"{profile.Name} ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov)");
+                await RunProfileCoreAsync(profile, i, profiles.Count, token);
+            }
 
             ProfileProgress = 100;
-            ProfileStatus = "Profil dokončený.";
-            StatusMessage = "Profil dokončený.";
-            _audit.Log(Name, "Profil dokončený", ProfileName);
+            ProfileStatus = profiles.Count > 1 ? "Fronta dokončená." : "Profil dokončený.";
+            StatusMessage = ProfileStatus;
+            _audit.Log(Name, "Profil dokončený", profiles.Count > 1 ? $"Fronta {profiles.Count} profilov" : profiles[0].Name);
             await NotifyCompletionAsync();
         }
         catch (OperationCanceledException)
         {
             ProfileStatus = "Profil zrušený.";
             StatusMessage = "Profil zrušený.";
-            _audit.Log(Name, "Profil zrušený", ProfileName);
+            _audit.Log(Name, "Profil zrušený", string.Empty);
         }
         finally
         {
@@ -601,6 +663,33 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileCts = null;
             RecalculateTiming();
         }
+    }
+
+    private async Task RunProfileCoreAsync(TestProfile profile, int indexInQueue, int queueCount, CancellationToken token)
+    {
+        double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
+        double? startHum = SupportsHumidity ? MeasuredHumidity : null;
+
+        var runner = new ProfileRunner(_client, TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds));
+        double totalSeconds = Math.Max(1, profile.TotalDuration.TotalSeconds);
+        double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
+
+        runner.Progress += (_, e) => RunOnUi(() =>
+        {
+            double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
+            double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
+            double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
+            double profileFraction = Math.Clamp(overallSeconds / totalSeconds, 0d, 1d);
+            ProfileProgress = Math.Clamp((indexInQueue + profileFraction) / queueCount * 100d, 0, 100);
+            ProfileStatus =
+                (e.IsSoaking ? "⏳ Soak · " : string.Empty) +
+                (queueCount > 1 ? $"[{indexInQueue + 1}/{queueCount}] " : string.Empty) +
+                $"\"{profile.Name}\" · cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
+                $"· {e.TemperatureSetpoint:0.0} °C" +
+                (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
+        });
+
+        await runner.RunAsync(profile, startTemp, startHum, token);
     }
 
     private async Task WaitForScheduledStartAsync(CancellationToken token)
@@ -736,7 +825,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private void OnSegmentEdited(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(SegmentViewModel.DurationMinutes))
+        if (e.PropertyName is nameof(SegmentViewModel.DurationMinutes)
+            or nameof(SegmentViewModel.TargetTemperature)
+            or nameof(SegmentViewModel.TargetHumidity)
+            or nameof(SegmentViewModel.IsRamp))
         {
             RecalculateTiming();
         }
@@ -766,6 +858,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
 
         BuildPreviewCharts();
+        ValidateProfile();
     }
 
     private static string FormatDuration(TimeSpan t)
@@ -1440,6 +1533,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopChamberCommand.RaiseCanExecuteChanged();
         StartProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
+        StartQueueCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsConnected));
     }

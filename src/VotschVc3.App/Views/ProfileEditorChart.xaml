@@ -1,0 +1,8 @@
+<UserControl x:Class="VotschVc3.App.Views.ProfileEditorChart"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="6">
+        <Canvas x:Name="PlotCanvas" ClipToBounds="True" Background="Transparent"
+                MouseMove="PlotCanvas_MouseMove" MouseLeftButtonUp="PlotCanvas_MouseUp" />
+    </Border>
+</UserControl>

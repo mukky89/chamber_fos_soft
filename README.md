@@ -6,8 +6,11 @@ Moderná **WPF (.NET 8) MVVM** aplikácia na ovládanie klimatických komôr
 
 Súčasťou je aj **odčítavanie presných teplomerov ASL F100** cez USB.
 
-**Verzia: 1.3.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.4.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
+
+Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
+(len čítanie). Heslá sú v `Dokumenty/VotschVc3/users.json` (SHA-256).
 
 Podporuje **dve komory naraz** (každá s vlastnou IP adresou, obe môžu byť
 pripojené a bežať súčasne). **Home page slúži ako dashboard** – ukazuje živé

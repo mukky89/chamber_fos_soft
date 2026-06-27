@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.4.0] – 2026-06-27
+
+Ďalšia dávka inšpirovaná SIMPATI:
+
+### Pridané
+- **Užívatelia + audit trail** – prihlásenie, roly (Operátor/Supervisor/Admin),
+  obmedzenie ovládania pre „len na čítanie", a log akcií operátora (CSV +
+  prehľad v appke).
+- **Grafický editor profilu** – ťahanie bodov teploty priamo v grafe + „smart
+  checks" (validácia trvania/rozsahov).
+- **Guaranteed soak (tolerancia)** – plato sa začne počítať až keď je meraná
+  teplota v tolerancii cieľa.
+- **Fronta testov** – viac profilov za sebou na jednej komore (pridaj aktuálny,
+  spusti frontu), s priebehom naprieč frontou.
+
 ## [1.3.0] – 2026-06-27
 
 Inšpirované Weiss **SIMPATI** (gap-analýza):
@@ -103,6 +118,7 @@ Inšpirované Weiss **SIMPATI** (gap-analýza):
 - WPF (.NET 8) MVVM aplikácia: pripojenie, live monitoring, manuálne setpointy,
   profil, záznam, surový terminál; tmavá téma; jednotkové testy jadra.
 
+[1.4.0]: https://github.com/mukky89/chamber_fos_soft
 [1.3.0]: https://github.com/mukky89/chamber_fos_soft
 [1.2.0]: https://github.com/mukky89/chamber_fos_soft
 [1.1.0]: https://github.com/mukky89/chamber_fos_soft

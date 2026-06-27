@@ -302,10 +302,14 @@
 
                         <Border Grid.Row="2" Style="{StaticResource Card}">
                             <StackPanel>
-                                <TextBlock Text="Náhľad profilu (celý beh vrátane cyklov)" Style="{StaticResource Label}" Margin="0,0,0,4" />
-                                <views:ChartView Height="150" Unit=" °C" EmptyText="Pridaj segmenty…"
-                                                 Series="{Binding PreviewTempSeries}" />
-                                <views:ChartView Height="120" Margin="0,6,0,0" Unit=" %"
+                                <DockPanel LastChildFill="False" Margin="0,0,0,4">
+                                    <TextBlock Text="Editor profilu — ťahaj body myšou (teplota)" Style="{StaticResource Label}" DockPanel.Dock="Left" />
+                                    <TextBlock Text="{Binding ProfileWarnings}" Foreground="{StaticResource DangerBrush}"
+                                               FontFamily="Segoe UI Semibold" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                               Visibility="{Binding HasProfileWarnings, Converter={StaticResource BoolToVisibility}}" />
+                                </DockPanel>
+                                <views:ProfileEditorChart Height="160" Segments="{Binding Segments}" />
+                                <views:ChartView Height="110" Margin="0,6,0,0" Unit=" %"
                                                  Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}"
                                                  Series="{Binding PreviewHumSeries}" />
                             </StackPanel>
@@ -335,6 +339,25 @@
                                 </Grid>
                                 <ProgressBar Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
                                 <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+
+                                <Separator Margin="0,12,0,8" Background="{StaticResource BorderBrush}" />
+                                <DockPanel LastChildFill="False" Margin="0,0,0,6">
+                                    <TextBlock Text="Fronta testov" Style="{StaticResource Label}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                        <Button Content="Pridať aktuálny" Command="{Binding AddToQueueCommand}" />
+                                        <Button Content="Odobrať" Command="{Binding RemoveFromQueueCommand}" />
+                                        <Button Content="Vyčistiť" Command="{Binding ClearQueueCommand}" />
+                                        <Button Content="Spustiť frontu" Style="{StaticResource AccentButton}" Command="{Binding StartQueueCommand}" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <ListBox ItemsSource="{Binding Queue}" SelectedItem="{Binding SelectedQueueItem, Mode=TwoWay}"
+                                         MaxHeight="110" Background="Transparent" BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Summary}" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </StackPanel>
                         </Border>
                     </Grid>
