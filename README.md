@@ -22,7 +22,10 @@ Umožňuje:
   s **náhľadovým grafom** profilu (celý beh vrátane cyklov),
 - **živý graf** teploty a vlhkosti v reálnom čase (meraná hodnota vs. setpoint),
 - **história profilov** (ukladanie / načítanie / mazanie, perzistentné v JSON),
-- **viac cyklov naraz** a **výpočet času** (celkové trvanie, odhad konca behu),
+- **import aj export** profilov (CSV pre Vötsch/Excel, JSON),
+- **viac cyklov naraz**, **odložený štart** (naplánovaný čas) a **výpočet času**
+  (celkové trvanie, odhad konca behu),
+- **e-mail upozornenie** po dokončení profilu (SMTP alebo HTTP API),
 - **zaznamenávať** priebeh do CSV s časovou pečiatkou,
 - posielať **ľubovoľné príkazy** cez surový terminál (na kalibráciu a vendor
   príkazy ako programy či hodiny).
@@ -177,6 +180,24 @@ kľúčových slov (`Dauer/Duration/Zeit/Time`, `Temperatur/Temperature`,
 
 > Tip: v SIMPATI exportuj program/tabuľku do CSV (alebo si ho prepíš do Excelu a
 > ulož ako CSV) – tento súbor potom naimportuješ priamo do editora.
+
+## Export, odložený štart a e-mail
+
+- **Export profilu** (tlačidlo *Export…* v záložke *Profil*) uloží aktuálny
+  profil do **CSV** (kompatibilné so SIMPATI/Excel a s vlastným importom) alebo
+  do **JSON** podľa prípony.
+- **Odložený štart** – zapni *Odložený štart*, zadaj dátum a čas (`HH:mm`);
+  profil sa spustí v naplánovaný čas, dovtedy beží odpočet. Výpočet konca behu
+  to zohľadní.
+- **E-mail upozornenie** – na home page v karte *Notifikácie e-mailom* zapni
+  posielanie, zadaj adresáta a vyber spôsob:
+  - **SMTP** (host, port, SSL, login) – univerzálne, cez `System.Net.Mail`;
+  - **HTTP API** (endpoint + voliteľný Bearer kľúč) – POST JSON
+    `{ to, from, subject, text }`; sem zadáš váš dbfood endpoint. Formát tela
+    prípadne uprav v `HttpEmailSender`.
+
+  Po dokončení profilu sa odošle e-mail s názvom komory, profilu a časom.
+  Nastavenia sa ukladajú do `Dokumenty/VotschVc3/email.json`.
 
 ## Profily (rampy a plata)
 

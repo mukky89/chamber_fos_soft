@@ -285,6 +285,13 @@
 
                         <Border Grid.Row="3" Style="{StaticResource Card}">
                             <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <CheckBox Content="Odložený štart" IsChecked="{Binding UseDelayedStart}" VerticalAlignment="Center" />
+                                    <DatePicker SelectedDate="{Binding ScheduledStartDate}" Margin="12,0,0,0" Width="140"
+                                                IsEnabled="{Binding UseDelayedStart}" />
+                                    <TextBox Text="{Binding ScheduledStartTime, UpdateSourceTrigger=PropertyChanged}" Width="70" Margin="8,0,0,0"
+                                             IsEnabled="{Binding UseDelayedStart}" ToolTip="Čas HH:mm" />
+                                </StackPanel>
                                 <Grid Margin="0,0,0,10">
                                     <StackPanel Orientation="Horizontal">
                                         <Button Content="Spustiť profil" Style="{StaticResource AccentButton}" Command="{Binding StartProfileCommand}" />
@@ -341,8 +348,15 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                             <StackPanel Grid.Row="2" Margin="0,10,0,0">
-                                <Button Content="Importovať Vötsch profil…" Margin="0,0,0,8"
-                                        HorizontalAlignment="Stretch" Command="{Binding ImportProfileCommand}" />
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="Import…" Margin="0" Command="{Binding ImportProfileCommand}" />
+                                    <Button Grid.Column="2" Content="Export…" Margin="0" Command="{Binding ExportProfileCommand}" />
+                                </Grid>
                                 <Button Content="Uložiť aktuálny" Style="{StaticResource AccentButton}" Margin="0,0,0,8"
                                         HorizontalAlignment="Stretch" Command="{Binding SaveToHistoryCommand}" />
                                 <Grid>

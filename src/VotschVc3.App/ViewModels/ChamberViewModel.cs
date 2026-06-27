@@ -6,6 +6,7 @@ using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Communication;
+using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
 using VotschVc3.Core.Recording;
@@ -23,17 +24,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private readonly ChamberClient _client = new();
     private readonly ProfileStore _store;
+    private readonly EmailNotifier _email;
     private CancellationTokenSource? _pollingCts;
     private CancellationTokenSource? _profileCts;
     private CsvRecorder? _recorder;
     private DateTime? _profileActualStart;
 
-    public ChamberViewModel(string name, ChamberKind kind, string defaultHost, ProfileStore store)
+    public ChamberViewModel(string name, ChamberKind kind, string defaultHost, ProfileStore store, EmailNotifier email)
     {
         Name = name;
         Kind = kind;
         _host = defaultHost;
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _email = email ?? throw new ArgumentNullException(nameof(email));
         _client.FrameExchanged += OnFrameExchanged;
 
         Segments = new ObservableCollection<SegmentViewModel>();
@@ -56,6 +59,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         LoadFromHistoryCommand = new RelayCommand(LoadFromHistory, () => SelectedHistoryProfile is not null);
         DeleteFromHistoryCommand = new RelayCommand(DeleteFromHistory, () => SelectedHistoryProfile is not null);
         ImportProfileCommand = new RelayCommand(ImportProfile);
+        ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
 
         StartRecordingCommand = new RelayCommand(StartRecording, () => !IsRecording);
         StopRecordingCommand = new RelayCommand(StopRecording, () => IsRecording);
@@ -361,6 +365,38 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private double _profileUpdateIntervalSeconds = 5;
     public double ProfileUpdateIntervalSeconds { get => _profileUpdateIntervalSeconds; set => SetProperty(ref _profileUpdateIntervalSeconds, Math.Max(1, value)); }
 
+    private bool _useDelayedStart;
+    /// <summary>When set, the profile waits until <see cref="ScheduledStart"/> before running.</summary>
+    public bool UseDelayedStart
+    {
+        get => _useDelayedStart;
+        set { if (SetProperty(ref _useDelayedStart, value)) RecalculateTiming(); }
+    }
+
+    private DateTime _scheduledStartDate = DateTime.Today;
+    public DateTime ScheduledStartDate
+    {
+        get => _scheduledStartDate;
+        set { if (SetProperty(ref _scheduledStartDate, value)) RecalculateTiming(); }
+    }
+
+    private string _scheduledStartTime = DateTime.Now.AddMinutes(5).ToString("HH:mm");
+    public string ScheduledStartTime
+    {
+        get => _scheduledStartTime;
+        set { if (SetProperty(ref _scheduledStartTime, value)) RecalculateTiming(); }
+    }
+
+    /// <summary>The resolved scheduled start moment (date + parsed time).</summary>
+    public DateTime ScheduledStart
+    {
+        get
+        {
+            TimeSpan time = TimeSpan.TryParse(ScheduledStartTime, out TimeSpan t) ? t : TimeSpan.Zero;
+            return ScheduledStartDate.Date + time;
+        }
+    }
+
     private bool _isProfileRunning;
     public bool IsProfileRunning
     {
@@ -438,19 +474,28 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         });
 
         _profileCts = new CancellationTokenSource();
-        _profileActualStart = DateTime.Now;
+        CancellationToken token = _profileCts.Token;
         IsProfileRunning = true;
         ProfileProgress = 0;
-        ProfileStatus = "Profil spustený.";
-        StatusMessage = $"Beží profil \"{ProfileName}\".";
-        RecalculateTiming();
 
         try
         {
-            await runner.RunAsync(profile, startTemp, startHum, _profileCts.Token);
+            if (UseDelayedStart && ScheduledStart > DateTime.Now)
+            {
+                await WaitForScheduledStartAsync(token);
+            }
+
+            _profileActualStart = DateTime.Now;
+            ProfileStatus = "Profil spustený.";
+            StatusMessage = $"Beží profil \"{ProfileName}\".";
+            RecalculateTiming();
+
+            await runner.RunAsync(profile, startTemp, startHum, token);
+
             ProfileProgress = 100;
             ProfileStatus = "Profil dokončený.";
             StatusMessage = "Profil dokončený.";
+            await NotifyCompletionAsync();
         }
         catch (OperationCanceledException)
         {
@@ -465,6 +510,52 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileCts = null;
             RecalculateTiming();
         }
+    }
+
+    private async Task WaitForScheduledStartAsync(CancellationToken token)
+    {
+        while (DateTime.Now < ScheduledStart)
+        {
+            token.ThrowIfCancellationRequested();
+            TimeSpan remaining = ScheduledStart - DateTime.Now;
+            ProfileStatus = $"Naplánované na {ScheduledStart:dd.MM HH:mm} · štart o {FormatCountdown(remaining)}";
+            StatusMessage = ProfileStatus;
+            TimeSpan tick = remaining < TimeSpan.FromSeconds(1) ? remaining : TimeSpan.FromSeconds(1);
+            if (tick > TimeSpan.Zero)
+            {
+                await Task.Delay(tick, token);
+            }
+        }
+    }
+
+    private async Task NotifyCompletionAsync()
+    {
+        if (!_email.CanSend)
+        {
+            return;
+        }
+
+        string subject = $"Profil dokončený: {ProfileName} ({Name})";
+        string body =
+            $"Testovací profil \"{ProfileName}\" na komore \"{Name}\" bol dokončený " +
+            $"{DateTime.Now:dd.MM.yyyy HH:mm:ss}.\r\nCelkové trvanie: {ProfileDurationText}.";
+
+        EmailResult result = await _email.SendAsync(subject, body);
+        if (result.Sent)
+        {
+            StatusMessage = "Profil dokončený · e-mail odoslaný.";
+        }
+        else if (result.Error is not null)
+        {
+            StatusMessage = $"Profil dokončený · e-mail zlyhal: {result.Error}";
+        }
+    }
+
+    private static string FormatCountdown(TimeSpan t)
+    {
+        if (t.TotalHours >= 1) return $"{(int)t.TotalHours} h {t.Minutes} min";
+        if (t.TotalMinutes >= 1) return $"{t.Minutes} min {t.Seconds} s";
+        return $"{t.Seconds} s";
     }
 
     private static double ElapsedBeforeSegment(TestProfile profile, int segmentIndex)
@@ -548,6 +639,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         StartProfileCommand.RaiseCanExecuteChanged();
         SaveToHistoryCommand.RaiseCanExecuteChanged();
+        ExportProfileCommand.RaiseCanExecuteChanged();
         RecalculateTiming();
     }
 
@@ -569,6 +661,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             DateTime end = start + total;
             ProfileScheduleText = $"Spustené {start:HH:mm:ss} · koniec ~ {end:HH:mm:ss} ({end:d})";
+        }
+        else if (UseDelayedStart)
+        {
+            DateTime begin = ScheduledStart;
+            DateTime end = begin + total;
+            ProfileScheduleText = $"Štart {begin:dd.MM HH:mm} · koniec ~ {end:HH:mm} ({end:d})";
         }
         else
         {
@@ -611,6 +709,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand LoadFromHistoryCommand { get; }
     public RelayCommand DeleteFromHistoryCommand { get; }
     public RelayCommand ImportProfileCommand { get; }
+    public RelayCommand ExportProfileCommand { get; }
 
     private void RefreshHistory()
     {
@@ -667,6 +766,42 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             StatusMessage = $"Import zlyhal: {ex.Message}";
         }
+    }
+
+    private void ExportProfile()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Exportovať profil",
+            Filter = "CSV (pre Vötsch/Excel) (*.csv)|*.csv|JSON (*.json)|*.json",
+            DefaultExt = ".csv",
+            FileName = $"{Sanitize(ProfileName)}.csv",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            ProfileExporter.ExportFile(BuildProfile(), dialog.FileName);
+            StatusMessage = $"Profil exportovaný do {dialog.FileName}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export zlyhal: {ex.Message}";
+        }
+    }
+
+    private static string Sanitize(string name)
+    {
+        foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(c, '_');
+        }
+
+        return string.IsNullOrWhiteSpace(name) ? "profil" : name;
     }
 
     private void ApplyProfile(TestProfile profile)
