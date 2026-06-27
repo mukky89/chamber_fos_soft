@@ -83,8 +83,16 @@ public sealed class ProfileRunner
         double? startHum,
         CancellationToken cancellationToken)
     {
-        var segmentClock = System.Diagnostics.Stopwatch.StartNew();
         TimeSpan duration = segment.Duration > TimeSpan.Zero ? segment.Duration : TimeSpan.FromSeconds(1);
+
+        // Guaranteed soak: hold the target and wait until the measured temperature
+        // is within tolerance before starting to count the dwell time.
+        if (!segment.IsRamp && segment.GuaranteedSoak)
+        {
+            await SoakWaitAsync(segment, cycle, index, startHum, cancellationToken).ConfigureAwait(false);
+        }
+
+        var segmentClock = System.Diagnostics.Stopwatch.StartNew();
 
         while (true)
         {
@@ -115,6 +123,46 @@ public sealed class ProfileRunner
         }
     }
 
+    private async Task SoakWaitAsync(
+        ProfileSegment segment, int cycle, int index, double? startHum, CancellationToken cancellationToken)
+    {
+        double tolerance = Math.Abs(segment.SoakTolerance);
+        double? humidity = segment.TargetHumidity ?? startHum;
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Keep driving the chamber to the target while waiting.
+            await WriteSetpointAsync(segment.TargetTemperature, humidity, cancellationToken).ConfigureAwait(false);
+
+            double? measured;
+            try
+            {
+                ChamberReading reading = await _client.ReadAsync(cancellationToken).ConfigureAwait(false);
+                measured = reading.Temperature;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                measured = null;
+            }
+
+            Progress?.Invoke(this, new ProfileProgressEventArgs(
+                cycle, index, segment, 0d, segment.TargetTemperature, humidity, TimeSpan.Zero, isSoaking: true));
+
+            if (measured is { } m && Math.Abs(m - segment.TargetTemperature) <= tolerance)
+            {
+                return;
+            }
+
+            await Task.Delay(_updateInterval, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private Task WriteSetpointAsync(double temperature, double? humidity, CancellationToken cancellationToken)
     {
         var digital = new DigitalChannels
@@ -137,7 +185,8 @@ public sealed class ProfileProgressEventArgs : EventArgs
         double fraction,
         double temperatureSetpoint,
         double? humiditySetpoint,
-        TimeSpan elapsedInSegment)
+        TimeSpan elapsedInSegment,
+        bool isSoaking = false)
     {
         Cycle = cycle;
         SegmentIndex = segmentIndex;
@@ -146,7 +195,11 @@ public sealed class ProfileProgressEventArgs : EventArgs
         TemperatureSetpoint = temperatureSetpoint;
         HumiditySetpoint = humiditySetpoint;
         ElapsedInSegment = elapsedInSegment;
+        IsSoaking = isSoaking;
     }
+
+    /// <summary><c>true</c> while waiting for the guaranteed-soak tolerance.</summary>
+    public bool IsSoaking { get; }
 
     /// <summary>Zero based index of the current cycle.</summary>
     public int Cycle { get; }

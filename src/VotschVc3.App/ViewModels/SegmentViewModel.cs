@@ -14,6 +14,8 @@ public sealed class SegmentViewModel : ObservableObject
         _targetHumidity = model.TargetHumidity;
         _durationMinutes = model.Duration.TotalMinutes;
         _isRamp = model.IsRamp;
+        _guaranteedSoak = model.GuaranteedSoak;
+        _soakTolerance = model.SoakTolerance;
     }
 
     private string _name;
@@ -51,6 +53,20 @@ public sealed class SegmentViewModel : ObservableObject
         set => SetProperty(ref _isRamp, value);
     }
 
+    private bool _guaranteedSoak;
+    public bool GuaranteedSoak
+    {
+        get => _guaranteedSoak;
+        set => SetProperty(ref _guaranteedSoak, value);
+    }
+
+    private double _soakTolerance;
+    public double SoakTolerance
+    {
+        get => _soakTolerance;
+        set => SetProperty(ref _soakTolerance, Math.Max(0, value));
+    }
+
     /// <summary>Materialises the editable values back into a core model object.</summary>
     public ProfileSegment ToModel() => new()
     {
@@ -59,5 +75,7 @@ public sealed class SegmentViewModel : ObservableObject
         TargetHumidity = TargetHumidity,
         Duration = TimeSpan.FromMinutes(DurationMinutes),
         IsRamp = IsRamp,
+        GuaranteedSoak = GuaranteedSoak,
+        SoakTolerance = SoakTolerance,
     };
 }

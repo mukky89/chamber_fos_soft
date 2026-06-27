@@ -537,6 +537,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
             ProfileProgress = Math.Clamp(overallSeconds / totalSeconds * 100d, 0, 100);
             ProfileStatus =
+                (e.IsSoaking ? "⏳ Soak — čakám na toleranciu · " : string.Empty) +
                 $"Cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
                 $"\"{e.Segment.Name}\" · {e.TemperatureSetpoint:0.0} °C" +
                 (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);

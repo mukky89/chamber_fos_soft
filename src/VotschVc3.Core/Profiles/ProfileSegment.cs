@@ -32,6 +32,17 @@ public sealed class ProfileSegment
     public bool IsRamp { get; set; } = true;
 
     /// <summary>
+    /// "Guaranteed soak": for a hold segment, the dwell time only starts counting
+    /// once the measured temperature is within <see cref="SoakTolerance"/> of the
+    /// target. Ensures the specimen actually reaches the set point before the
+    /// plateau is timed.
+    /// </summary>
+    public bool GuaranteedSoak { get; set; }
+
+    /// <summary>Tolerance band (°C) for <see cref="GuaranteedSoak"/>.</summary>
+    public double SoakTolerance { get; set; } = 1.0;
+
+    /// <summary>
     /// Interpolates the temperature at a given fraction (0..1) of the segment,
     /// starting from <paramref name="startTemperature"/>.
     /// </summary>

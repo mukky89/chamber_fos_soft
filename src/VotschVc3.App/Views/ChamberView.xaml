@@ -286,7 +286,9 @@
                                         <DataGridTextColumn x:Name="HumidityColumn" Header="Cieľ %" Width="90"
                                                             Binding="{Binding TargetHumidity, StringFormat=0.0, TargetNullValue=''}" />
                                         <DataGridTextColumn Header="Trvanie (min)" Width="110" Binding="{Binding DurationMinutes, StringFormat=0.##}" />
-                                        <DataGridCheckBoxColumn Header="Rampa" Width="64" Binding="{Binding IsRamp, UpdateSourceTrigger=PropertyChanged}" />
+                                        <DataGridCheckBoxColumn Header="Rampa" Width="58" Binding="{Binding IsRamp, UpdateSourceTrigger=PropertyChanged}" />
+                                        <DataGridCheckBoxColumn Header="Soak" Width="52" Binding="{Binding GuaranteedSoak, UpdateSourceTrigger=PropertyChanged}" />
+                                        <DataGridTextColumn Header="Tol °C" Width="64" Binding="{Binding SoakTolerance, StringFormat=0.0}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" Width="120">
