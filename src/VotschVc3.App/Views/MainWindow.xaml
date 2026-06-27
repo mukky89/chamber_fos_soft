@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VotschVc3.App.ViewModels"
         xmlns:views="clr-namespace:VotschVc3.App.Views"
-        Title="Vötsch — Riadenie klimatických komôr"
+        Title="{Binding WindowTitle}"
         Height="820" Width="1240" MinHeight="640" MinWidth="1040"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BackgroundBrush}"

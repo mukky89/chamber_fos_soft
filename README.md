@@ -4,6 +4,9 @@ Moderná **WPF (.NET 8) MVVM** aplikácia na ovládanie klimatických komôr
 **Vötsch / Weiss** (kontrolér S!MPAC / SIMPAC) cez **Ethernet** pomocou textového
 **ASCII-2** protokolu.
 
+**Verzia: 1.0.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+zobrazuje aj v aplikácii (home page a titulok okna).
+
 Podporuje **dve komory naraz** (každá s vlastnou IP adresou, obe môžu byť
 pripojené a bežať súčasne). **Home page slúži ako dashboard** – ukazuje živé
 hodnoty, stav profilu (progress) a alarm oboch komôr naraz. Konfigurácia komôr

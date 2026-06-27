@@ -10,6 +10,8 @@
     <RootNamespace>VotschVc3.App</RootNamespace>
     <AssemblyName>VotschVc3.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.0.0</Version>
+    <Product>Vötsch — Riadenie klimatických komôr</Product>
   </PropertyGroup>
 
   <ItemGroup>

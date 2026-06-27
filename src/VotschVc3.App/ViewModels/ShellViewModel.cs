@@ -84,6 +84,13 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public bool IsHome => ReferenceEquals(CurrentView, this);
 
+    /// <summary>Application version (e.g. "v1.0.0"), read from the assembly.</summary>
+    public string AppVersion { get; } =
+        "v" + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
+
+    /// <summary>Window title including the version.</summary>
+    public string WindowTitle => $"Vötsch — Riadenie klimatických komôr  ·  {AppVersion}";
+
     public RelayCommand<ChamberViewModel> OpenChamberCommand { get; }
     public RelayCommand GoHomeCommand { get; }
 
