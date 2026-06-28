@@ -23,8 +23,11 @@
                     <TextBlock Text="{Binding AppVersion}" Style="{StaticResource Caption}"
                                ToolTip="Verzia aplikácie — pozri CHANGELOG.md" />
                 </Border>
-                <Button Content="Teplomery ASL F100 →" Style="{StaticResource GhostButton}"
+                <Button Content="Editor profilov →" Style="{StaticResource GhostButton}"
                         HorizontalAlignment="Right" Margin="0,6,0,0"
+                        Command="{Binding OpenProfileLibraryCommand}" />
+                <Button Content="Teplomery ASL F100 →" Style="{StaticResource GhostButton}"
+                        HorizontalAlignment="Right" Margin="0,2,0,0"
                         Command="{Binding OpenThermometersCommand}" />
                 <Button Content="Prehliadač záznamov →" Style="{StaticResource GhostButton}"
                         HorizontalAlignment="Right" Margin="0,2,0,0"

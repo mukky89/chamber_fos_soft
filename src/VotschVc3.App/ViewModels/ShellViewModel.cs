@@ -45,6 +45,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _notifier.Settings = _emailStore.Load();
 
         Audit = new AuditViewModel(_audit);
+        ProfileLibrary = new ProfileLibraryViewModel(_store);
         _login = new LoginViewModel(_userStore, OnLoggedIn);
 
         Thermometers = new ThermometersViewModel();
@@ -54,6 +55,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
         OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
+        OpenProfileLibraryCommand = new RelayCommand(() => CurrentView = ProfileLibrary);
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
         GoHomeCommand = new RelayCommand(GoHome);
         LogoutCommand = new RelayCommand(Logout);
@@ -92,6 +94,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Viewer for saved CSV recordings (analysis).</summary>
     public RecordingViewerViewModel RecordingViewer { get; } = new();
 
+    /// <summary>Standalone profile editor / library (no chamber connection needed).</summary>
+    public ProfileLibraryViewModel ProfileLibrary { get; }
+
     private object _currentView;
     /// <summary>Either this shell (home page) or the selected chamber.</summary>
     public object CurrentView
@@ -118,6 +123,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand<ChamberViewModel> OpenChamberCommand { get; }
     public RelayCommand OpenThermometersCommand { get; }
     public RelayCommand OpenRecordingViewerCommand { get; }
+    public RelayCommand OpenProfileLibraryCommand { get; }
     public RelayCommand OpenAuditCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand LogoutCommand { get; }
