@@ -239,13 +239,8 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Editor -->
-                    <Grid Grid.Column="0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+                        <StackPanel>
 
                         <Border Grid.Row="0" Style="{StaticResource Card}">
                             <Grid>
@@ -279,7 +274,9 @@
                                 </Grid.ColumnDefinitions>
                                 <DataGrid x:Name="SegmentsGrid" Grid.Column="0"
                                           ItemsSource="{Binding Segments}"
-                                          SelectedItem="{Binding SelectedSegment, Mode=TwoWay}">
+                                          SelectedItem="{Binding SelectedSegment, Mode=TwoWay}"
+                                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                          MinHeight="160">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Názov" Width="*" Binding="{Binding Name}" />
                                         <DataGridTextColumn Header="Cieľ °C" Width="90" Binding="{Binding TargetTemperature, StringFormat=0.0}" />
@@ -375,7 +372,8 @@
                                 </ListBox>
                             </StackPanel>
                         </Border>
-                    </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
 
                     <!-- History -->
                     <Border Grid.Column="1" Style="{StaticResource Card}"

@@ -4,6 +4,12 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.2] – 2026-06-28
+
+### Opravené
+- **Zoznam segmentov** (Ohrev/Plato…) sa teraz zobrazuje celý – editor je v
+  ScrollVieweri a tabuľka ukáže všetky riadky (predtým bola orezaná na ~2 riadky).
+
 ## [1.6.1] – 2026-06-28
 
 ### Zmenené
@@ -153,6 +159,7 @@ Inšpirované Weiss **SIMPATI** (gap-analýza):
 - WPF (.NET 8) MVVM aplikácia: pripojenie, live monitoring, manuálne setpointy,
   profil, záznam, surový terminál; tmavá téma; jednotkové testy jadra.
 
+[1.6.2]: https://github.com/mukky89/chamber_fos_soft
 [1.6.1]: https://github.com/mukky89/chamber_fos_soft
 [1.6.0]: https://github.com/mukky89/chamber_fos_soft
 [1.5.0]: https://github.com/mukky89/chamber_fos_soft
