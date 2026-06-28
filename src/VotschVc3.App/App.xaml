@@ -13,6 +13,7 @@
             <conv:BoolToBrushConverter x:Key="BoolToBrush" />
             <conv:InverseBooleanConverter x:Key="InverseBoolean" />
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <conv:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

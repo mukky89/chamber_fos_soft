@@ -32,6 +32,12 @@
         <DataTemplate DataType="{x:Type vm:AuditViewModel}">
             <views:AuditView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AppLogViewModel}">
+            <views:AppLogView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ChangelogViewModel}">
+            <views:ChangelogView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="14">

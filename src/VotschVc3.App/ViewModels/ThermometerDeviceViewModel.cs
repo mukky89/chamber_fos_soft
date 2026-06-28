@@ -4,6 +4,7 @@ using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
 using VotschVc3.App.Thermometers;
+using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Recording;
 using VotschVc3.Core.Thermometers;
 
@@ -132,6 +133,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         await _client.OpenAsync();
         IsConnected = true;
         StatusMessage = "Pripojené.";
+        AppLog.Info("F100", $"Teplomer {PortName} @ {BaudRate} bd pripojený.");
 
         try
         {
@@ -173,6 +175,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         if (!string.IsNullOrWhiteSpace(response))
         {
             Identity = response.Trim();
+            AppLog.Info($"F100 {PortName}", $"Identifikácia: {Identity}");
         }
     }
 
@@ -374,7 +377,11 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
     }
 
-    private void ReportError(Exception ex) => StatusMessage = $"Chyba: {ex.Message}";
+    private void ReportError(Exception ex)
+    {
+        StatusMessage = $"Chyba: {ex.Message}";
+        AppLog.Error($"F100 {PortName}", ex);
+    }
 
     private static Brush CreateBrush(byte r, byte g, byte b)
     {

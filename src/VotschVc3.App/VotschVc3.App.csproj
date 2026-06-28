@@ -11,12 +11,17 @@
     <AssemblyName>VotschVc3.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.5.0</Version>
+    <Version>1.6.0</Version>
     <Product>Vötsch — Riadenie klimatických komôr</Product>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\VotschVc3.Core\VotschVc3.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embed the changelog so it can be shown inside the app. -->
+    <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
   <ItemGroup>

@@ -57,6 +57,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
         OpenProfileLibraryCommand = new RelayCommand(() => CurrentView = ProfileLibrary);
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
+        OpenAppLogCommand = new RelayCommand(() => CurrentView = AppLog);
+        OpenChangelogCommand = new RelayCommand(() => CurrentView = Changelog);
         GoHomeCommand = new RelayCommand(GoHome);
         LogoutCommand = new RelayCommand(Logout);
         AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
@@ -97,6 +99,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Standalone profile editor / library (no chamber connection needed).</summary>
     public ProfileLibraryViewModel ProfileLibrary { get; }
 
+    /// <summary>Application diagnostic log viewer.</summary>
+    public AppLogViewModel AppLog { get; } = new();
+
+    /// <summary>Embedded changelog viewer.</summary>
+    public ChangelogViewModel Changelog { get; } = new();
+
     private object _currentView;
     /// <summary>Either this shell (home page) or the selected chamber.</summary>
     public object CurrentView
@@ -125,6 +133,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand OpenRecordingViewerCommand { get; }
     public RelayCommand OpenProfileLibraryCommand { get; }
     public RelayCommand OpenAuditCommand { get; }
+    public RelayCommand OpenAppLogCommand { get; }
+    public RelayCommand OpenChangelogCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand LogoutCommand { get; }
     public RelayCommand AddChamberCommand { get; }

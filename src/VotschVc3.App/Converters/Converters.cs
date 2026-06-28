@@ -41,6 +41,20 @@ public sealed class BoolToBrushConverter : IValueConverter
         Binding.DoNothing;
 }
 
+/// <summary>Maps an <see cref="VotschVc3.Core.Diagnostics.AppLogLevel"/> to a brush.</summary>
+public sealed class LogLevelToBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
+    {
+        VotschVc3.Core.Diagnostics.AppLogLevel.Error => new SolidColorBrush(Color.FromRgb(0xE2, 0x55, 0x5B)),
+        VotschVc3.Core.Diagnostics.AppLogLevel.Warning => new SolidColorBrush(Color.FromRgb(0xE2, 0xC5, 0x55)),
+        _ => new SolidColorBrush(Color.FromRgb(0x96, 0x9B, 0xB5)),
+    };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Binding.DoNothing;
+}
+
 /// <summary>Inverts a boolean.</summary>
 public sealed class InverseBooleanConverter : IValueConverter
 {

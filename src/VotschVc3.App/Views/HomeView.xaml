@@ -35,6 +35,12 @@
                 <Button Content="Audit trail →" Style="{StaticResource GhostButton}"
                         HorizontalAlignment="Right" Margin="0,2,0,0"
                         Command="{Binding OpenAuditCommand}" />
+                <Button Content="App log →" Style="{StaticResource GhostButton}"
+                        HorizontalAlignment="Right" Margin="0,2,0,0"
+                        Command="{Binding OpenAppLogCommand}" />
+                <Button Content="Changelog →" Style="{StaticResource GhostButton}"
+                        HorizontalAlignment="Right" Margin="0,2,0,0"
+                        Command="{Binding OpenChangelogCommand}" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
                     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="9,4" VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource Caption}">

@@ -6,6 +6,7 @@ using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Communication;
+using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
@@ -189,6 +190,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         IsConnected = true;
         StatusMessage = "Pripojené.";
         _audit.Log(Name, "Pripojenie", Endpoint);
+        AppLog.Info(Name, $"Pripojené na {Endpoint}.");
 
         if (PollingEnabled)
         {
@@ -1238,6 +1240,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             StatusMessage = $"⚠ ALARM: {message}";
             _audit.Log(Name, "ALARM", message);
+            AppLog.Warn(Name, $"ALARM: {message}");
             _ = SendAlarmEmailAsync(message);
             if (AutoStopOnAlarm && IsProfileRunning)
             {
@@ -1566,7 +1569,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(IsConnected));
     }
 
-    private void ReportError(Exception ex) => StatusMessage = $"Chyba: {ex.Message}";
+    private void ReportError(Exception ex)
+    {
+        StatusMessage = $"Chyba: {ex.Message}";
+        AppLog.Error(Name, ex);
+    }
 
     private static void RunOnUi(Action action)
     {
