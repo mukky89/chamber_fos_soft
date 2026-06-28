@@ -475,7 +475,29 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public DateTime ScheduledStartDate
     {
         get => _scheduledStartDate;
-        set { if (SetProperty(ref _scheduledStartDate, value)) RecalculateTiming(); }
+        set
+        {
+            if (SetProperty(ref _scheduledStartDate, value))
+            {
+                OnPropertyChanged(nameof(ScheduledStartDateText));
+                RecalculateTiming();
+            }
+        }
+    }
+
+    /// <summary>The scheduled date as editable text (dd.MM.yyyy), to avoid the OS DatePicker.</summary>
+    public string ScheduledStartDateText
+    {
+        get => ScheduledStartDate.ToString("dd.MM.yyyy");
+        set
+        {
+            if (DateTime.TryParse(value, out DateTime parsed))
+            {
+                ScheduledStartDate = parsed.Date;
+            }
+
+            OnPropertyChanged();
+        }
     }
 
     private string _scheduledStartTime = DateTime.Now.AddMinutes(5).ToString("HH:mm");

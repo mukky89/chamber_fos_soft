@@ -331,8 +331,8 @@
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                     <CheckBox Content="Odložený štart" IsChecked="{Binding UseDelayedStart}" VerticalAlignment="Center" />
-                                    <DatePicker SelectedDate="{Binding ScheduledStartDate}" Margin="12,0,0,0" Width="140"
-                                                IsEnabled="{Binding UseDelayedStart}" />
+                                    <TextBox Text="{Binding ScheduledStartDateText, UpdateSourceTrigger=LostFocus}" Width="110" Margin="12,0,0,0"
+                                             IsEnabled="{Binding UseDelayedStart}" ToolTip="Dátum dd.MM.yyyy" />
                                     <TextBox Text="{Binding ScheduledStartTime, UpdateSourceTrigger=PropertyChanged}" Width="70" Margin="8,0,0,0"
                                              IsEnabled="{Binding UseDelayedStart}" ToolTip="Čas HH:mm" />
                                 </StackPanel>
