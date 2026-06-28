@@ -49,4 +49,15 @@ public partial class ChamberView : UserControl
             e.Handled = true;
         }
     }
+
+    private void ToggleMaximize_Click(object sender, RoutedEventArgs e)
+    {
+        Window? window = Window.GetWindow(this);
+        if (window is not null)
+        {
+            window.WindowState = window.WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+        }
+    }
 }

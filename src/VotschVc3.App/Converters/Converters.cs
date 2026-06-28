@@ -55,6 +55,33 @@ public sealed class LogLevelToBrushConverter : IValueConverter
         Binding.DoNothing;
 }
 
+/// <summary>
+/// Maps a boolean to a <see cref="GridLength"/>: <c>true</c> collapses the
+/// column/row to zero, <c>false</c> uses the width given as the parameter
+/// (default 280).
+/// </summary>
+public sealed class BoolToGridLengthConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is true)
+        {
+            return new GridLength(0);
+        }
+
+        double width = 280;
+        if (parameter is string s && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double w))
+        {
+            width = w;
+        }
+
+        return new GridLength(width);
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Binding.DoNothing;
+}
+
 /// <summary>Inverts a boolean.</summary>
 public sealed class InverseBooleanConverter : IValueConverter
 {

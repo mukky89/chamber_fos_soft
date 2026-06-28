@@ -235,7 +235,7 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="280" />
+                        <ColumnDefinition Width="{Binding IsSegmentsExpanded, Converter={StaticResource BoolToGridLength}, ConverterParameter=280}" />
                     </Grid.ColumnDefinitions>
 
                     <!-- Editor -->
@@ -307,6 +307,8 @@
                                     </Grid>
                                     <Button Content="⤢ Rozbaliť zoznam" Style="{StaticResource GhostButton}"
                                             Command="{Binding ToggleSegmentsExpandCommand}" Margin="0,4,0,0" />
+                                    <Button Content="⛶ Celá obrazovka" Style="{StaticResource GhostButton}"
+                                            Click="ToggleMaximize_Click" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -376,7 +378,8 @@
                     </Grid>
 
                     <!-- History -->
-                    <Border Grid.Column="1" Style="{StaticResource Card}">
+                    <Border Grid.Column="1" Style="{StaticResource Card}"
+                            Visibility="{Binding IsSegmentsExpanded, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />

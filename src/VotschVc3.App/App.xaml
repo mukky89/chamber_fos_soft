@@ -14,6 +14,7 @@
             <conv:InverseBooleanConverter x:Key="InverseBoolean" />
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
             <conv:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
+            <conv:BoolToGridLengthConverter x:Key="BoolToGridLength" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
