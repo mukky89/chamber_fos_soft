@@ -9,15 +9,10 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+        <StackPanel>
 
-        <Grid Grid.Row="0" Margin="6,4,6,12">
+        <Grid Margin="6,4,6,12">
             <StackPanel>
                 <TextBlock Text="Vyber komoru" FontSize="22" FontFamily="Segoe UI Semibold" />
                 <TextBlock Text="Obe komory môžu byť pripojené a bežať súčasne." Style="{StaticResource Caption}" Margin="0,4,0,0" />
@@ -51,7 +46,7 @@
             </StackPanel>
         </Grid>
 
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Chambers}" VerticalAlignment="Top">
+        <ItemsControl ItemsSource="{Binding Chambers}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel Orientation="Horizontal" />
@@ -160,7 +155,7 @@
         </ItemsControl>
 
         <!-- ===== Add chamber ===== -->
-        <Border Grid.Row="2" Style="{StaticResource Card}">
+        <Border Style="{StaticResource Card}">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Pridať komoru:" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,10,0" />
                 <StackPanel Width="200" Margin="0,0,10,0">
@@ -181,7 +176,7 @@
         </Border>
 
         <!-- ===== E-mail notifications ===== -->
-        <Border Grid.Row="3" Style="{StaticResource Card}">
+        <Border Style="{StaticResource Card}">
             <StackPanel>
                 <DockPanel LastChildFill="False">
                     <TextBlock Text="Notifikácie e-mailom" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
@@ -246,5 +241,6 @@
                 </StackPanel>
             </StackPanel>
         </Border>
-    </Grid>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>
