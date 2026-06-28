@@ -80,16 +80,28 @@
                                 <DataGridTextColumn Header="Tol °C" Width="60" Binding="{Binding SoakTolerance, StringFormat=0.0}" />
                             </DataGrid.Columns>
                         </DataGrid>
-                        <StackPanel Grid.Column="1" Margin="12,0,0,0" Width="110">
-                            <Button Content="Pridať" Command="{Binding AddSegmentCommand}" Margin="0,0,0,8" />
-                            <Button Content="Odobrať" Command="{Binding RemoveSegmentCommand}" Margin="0,0,0,8" />
-                            <Button Content="Hore" Command="{Binding MoveSegmentUpCommand}" Margin="0,0,0,8" />
-                            <Button Content="Dole" Command="{Binding MoveSegmentDownCommand}" Margin="0,0,0,8" />
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" Width="130">
+                            <Button Content="Pridať na koniec" Command="{Binding AddSegmentCommand}" Margin="0,0,0,6" />
+                            <Button Content="Vložiť pred" Command="{Binding AddSegmentBeforeCommand}" Margin="0,0,0,6" />
+                            <Button Content="Vložiť za" Command="{Binding AddSegmentAfterCommand}" Margin="0,0,0,6" />
+                            <Button Content="Odobrať" Command="{Binding RemoveSegmentCommand}" Margin="0,0,0,6" />
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Content="↑" Command="{Binding MoveSegmentUpCommand}" Margin="0" />
+                                <Button Grid.Column="2" Content="↓" Command="{Binding MoveSegmentDownCommand}" Margin="0" />
+                            </Grid>
+                            <Button Content="⤢ Rozbaliť" Style="{StaticResource GhostButton}"
+                                    Command="{Binding ToggleSegmentsExpandCommand}" Margin="0,4,0,0" />
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="2" Style="{StaticResource Card}">
+                <Border Grid.Row="2" Style="{StaticResource Card}"
+                        Visibility="{Binding IsSegmentsExpanded, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                     <StackPanel>
                         <DockPanel LastChildFill="False" Margin="0,0,0,4">
                             <TextBlock Text="Editor profilu — ťahaj body myšou (teplota)" Style="{StaticResource Label}" DockPanel.Dock="Left" />

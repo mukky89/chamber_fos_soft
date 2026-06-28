@@ -62,9 +62,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         RemoveFromQueueCommand = new RelayCommand(RemoveFromQueue, () => SelectedQueueItem is not null);
         ClearQueueCommand = new RelayCommand(() => { Queue.Clear(); RefreshQueueCommands(); });
         AddSegmentCommand = new RelayCommand(AddSegment);
+        AddSegmentBeforeCommand = new RelayCommand(() => InsertSegment(0), () => SelectedSegment is not null);
+        AddSegmentAfterCommand = new RelayCommand(() => InsertSegment(1), () => SelectedSegment is not null);
         RemoveSegmentCommand = new RelayCommand(RemoveSegment, () => SelectedSegment is not null);
         MoveSegmentUpCommand = new RelayCommand(() => MoveSegment(-1), () => SelectedSegment is not null);
         MoveSegmentDownCommand = new RelayCommand(() => MoveSegment(+1), () => SelectedSegment is not null);
+        ToggleSegmentsExpandCommand = new RelayCommand(() => IsSegmentsExpanded = !IsSegmentsExpanded);
 
         SaveToHistoryCommand = new RelayCommand(SaveToHistory, () => Segments.Count > 0);
         LoadFromHistoryCommand = new RelayCommand(LoadFromHistory, () => SelectedHistoryProfile is not null);
@@ -439,6 +442,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 RemoveSegmentCommand.RaiseCanExecuteChanged();
                 MoveSegmentUpCommand.RaiseCanExecuteChanged();
                 MoveSegmentDownCommand.RaiseCanExecuteChanged();
+                AddSegmentBeforeCommand.RaiseCanExecuteChanged();
+                AddSegmentAfterCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -543,9 +548,16 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand StartProfileCommand { get; }
     public RelayCommand StopProfileCommand { get; }
     public RelayCommand AddSegmentCommand { get; }
+    public RelayCommand AddSegmentBeforeCommand { get; }
+    public RelayCommand AddSegmentAfterCommand { get; }
     public RelayCommand RemoveSegmentCommand { get; }
     public RelayCommand MoveSegmentUpCommand { get; }
     public RelayCommand MoveSegmentDownCommand { get; }
+    public RelayCommand ToggleSegmentsExpandCommand { get; }
+
+    private bool _isSegmentsExpanded;
+    /// <summary>When set, the segment grid is expanded (preview/run panels collapsed).</summary>
+    public bool IsSegmentsExpanded { get => _isSegmentsExpanded; set => SetProperty(ref _isSegmentsExpanded, value); }
 
     // --- Test queue ---
     public ObservableCollection<QueuedProfileViewModel> Queue { get; } = new();
@@ -762,6 +774,22 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             IsRamp = true,
         });
         Segments.Add(segment);
+        SelectedSegment = segment;
+    }
+
+    private void InsertSegment(int offset)
+    {
+        int index = SelectedSegment is null ? Segments.Count : Segments.IndexOf(SelectedSegment) + offset;
+        index = Math.Clamp(index, 0, Segments.Count);
+        var segment = new SegmentViewModel(new ProfileSegment
+        {
+            Name = $"Segment {Segments.Count + 1}",
+            TargetTemperature = MeasuredTemperature ?? 25,
+            TargetHumidity = SupportsHumidity ? (MeasuredHumidity ?? 50) : null,
+            Duration = TimeSpan.FromMinutes(10),
+            IsRamp = true,
+        });
+        Segments.Insert(index, segment);
         SelectedSegment = segment;
     }
 

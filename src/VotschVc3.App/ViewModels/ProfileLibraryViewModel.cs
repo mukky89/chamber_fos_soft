@@ -27,9 +27,12 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Segments.CollectionChanged += OnSegmentsChanged;
 
         AddSegmentCommand = new RelayCommand(AddSegment);
+        AddSegmentBeforeCommand = new RelayCommand(() => InsertSegment(0), () => SelectedSegment is not null);
+        AddSegmentAfterCommand = new RelayCommand(() => InsertSegment(1), () => SelectedSegment is not null);
         RemoveSegmentCommand = new RelayCommand(RemoveSegment, () => SelectedSegment is not null);
         MoveSegmentUpCommand = new RelayCommand(() => MoveSegment(-1), () => SelectedSegment is not null);
         MoveSegmentDownCommand = new RelayCommand(() => MoveSegment(+1), () => SelectedSegment is not null);
+        ToggleSegmentsExpandCommand = new RelayCommand(() => IsSegmentsExpanded = !IsSegmentsExpanded);
         NewProfileCommand = new RelayCommand(NewProfile);
         SaveToHistoryCommand = new RelayCommand(SaveToHistory, () => Segments.Count > 0);
         LoadFromHistoryCommand = new RelayCommand(LoadFromHistory, () => SelectedHistoryProfile is not null);
@@ -73,6 +76,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
                 RemoveSegmentCommand.RaiseCanExecuteChanged();
                 MoveSegmentUpCommand.RaiseCanExecuteChanged();
                 MoveSegmentDownCommand.RaiseCanExecuteChanged();
+                AddSegmentBeforeCommand.RaiseCanExecuteChanged();
+                AddSegmentAfterCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -113,10 +118,16 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     }
 
     public RelayCommand AddSegmentCommand { get; }
+    public RelayCommand AddSegmentBeforeCommand { get; }
+    public RelayCommand AddSegmentAfterCommand { get; }
     public RelayCommand RemoveSegmentCommand { get; }
     public RelayCommand MoveSegmentUpCommand { get; }
     public RelayCommand MoveSegmentDownCommand { get; }
+    public RelayCommand ToggleSegmentsExpandCommand { get; }
     public RelayCommand NewProfileCommand { get; }
+
+    private bool _isSegmentsExpanded;
+    public bool IsSegmentsExpanded { get => _isSegmentsExpanded; set => SetProperty(ref _isSegmentsExpanded, value); }
     public RelayCommand SaveToHistoryCommand { get; }
     public RelayCommand LoadFromHistoryCommand { get; }
     public RelayCommand DeleteFromHistoryCommand { get; }
@@ -183,6 +194,22 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             IsRamp = true,
         });
         Segments.Add(segment);
+        SelectedSegment = segment;
+    }
+
+    private void InsertSegment(int offset)
+    {
+        int index = SelectedSegment is null ? Segments.Count : Segments.IndexOf(SelectedSegment) + offset;
+        index = Math.Clamp(index, 0, Segments.Count);
+        var segment = new SegmentViewModel(new ProfileSegment
+        {
+            Name = $"Segment {Segments.Count + 1}",
+            TargetTemperature = 25,
+            TargetHumidity = SupportsHumidity ? 50 : null,
+            Duration = TimeSpan.FromMinutes(10),
+            IsRamp = true,
+        });
+        Segments.Insert(index, segment);
         SelectedSegment = segment;
     }
 
