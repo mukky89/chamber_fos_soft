@@ -50,6 +50,18 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         Thermometers = new ThermometersViewModel();
         Chambers = new ObservableCollection<ChamberViewModel>();
 
+        // Commands must exist before chambers are built (AddChamberInternal uses them).
+        OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
+        OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
+        OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
+        OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
+        GoHomeCommand = new RelayCommand(GoHome);
+        LogoutCommand = new RelayCommand(Logout);
+        AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
+        RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1 && CanManage);
+        SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
+        TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
+
         // Build chambers from the saved configuration (seed defaults on first run).
         List<ChamberConfig> configs = _configStore.LoadAll();
         bool seeded = configs.Count == 0;
@@ -67,17 +79,6 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         {
             SaveConfigs();
         }
-
-        OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
-        OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
-        OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
-        OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
-        GoHomeCommand = new RelayCommand(GoHome);
-        LogoutCommand = new RelayCommand(Logout);
-        AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
-        RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1 && CanManage);
-        SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
-        TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
 
         // Start at the login screen.
         _currentView = _login;
