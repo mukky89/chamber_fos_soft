@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VotschVc3.Core", "src\VotschVc3.Core\VotschVc3.Core.csproj", "{C0000000-0000-0000-0000-000000000001}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VotschVc3.App", "src\VotschVc3.App\VotschVc3.App.csproj", "{C0000000-0000-0000-0000-000000000002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VotschVc3.Core", "src\VotschVc3.Core\VotschVc3.Core.csproj", "{C0000000-0000-0000-0000-000000000001}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VotschVc3.Core.Tests", "tests\VotschVc3.Core.Tests\VotschVc3.Core.Tests.csproj", "{C0000000-0000-0000-0000-000000000003}"
 EndProject

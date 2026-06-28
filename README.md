@@ -106,6 +106,11 @@ dotnet test
 Alebo otvor `VotschVc3.sln` vo Visual Studio 2022 a spusti projekt
 `VotschVc3.App`.
 
+> **Spustenie vo Visual Studio:** štartovací projekt musí byť **`VotschVc3.App`**
+> (nie `VotschVc3.Core` — to je knižnica a nedá sa spustiť priamo). Ak dostaneš
+> chybu *„A project with an Output Type of Class Library cannot be started
+> directly"*, klikni pravým na `VotschVc3.App` → **Set as Startup Project**.
+
 > Jadro (`VotschVc3.Core`) a testy sa dajú zostaviť aj na Linuxe/macOS; samotná
 > WPF aplikácia `VotschVc3.App` sa zostaví a spustí len na Windowse.
 
