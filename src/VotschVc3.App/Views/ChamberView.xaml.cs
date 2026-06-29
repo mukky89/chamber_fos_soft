@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using VotschVc3.App.ViewModels;
 
 namespace VotschVc3.App.Views;
@@ -35,10 +36,26 @@ public partial class ChamberView : UserControl
 
     private void OnTerminalLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action == NotifyCollectionChangedAction.Add && _viewModel is { } vm && vm.TerminalLines.Count > 0)
+        if (e.Action != NotifyCollectionChangedAction.Add)
         {
-            TerminalList.ScrollIntoView(vm.TerminalLines[^1]);
+            return;
         }
+
+        // Defer the scroll instead of scrolling synchronously here. ScrollIntoView forces an
+        // immediate layout pass, and at this point the ListBox's ItemContainerGenerator has not
+        // necessarily processed this same CollectionChanged event yet. Forcing layout mid-event
+        // makes the VirtualizingStackPanel verify the generator against a collection that is one
+        // item ahead, throwing "An ItemsControl is inconsistent with its items source." Running on
+        // the dispatcher lets every CollectionChanged listener catch up before we scroll.
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            () =>
+            {
+                if (_viewModel is { } vm && vm.TerminalLines.Count > 0)
+                {
+                    TerminalList.ScrollIntoView(vm.TerminalLines[^1]);
+                }
+            });
     }
 
     private void TerminalInput_KeyDown(object sender, KeyEventArgs e)
