@@ -33,8 +33,12 @@ public sealed class ChamberConnectionSettings
     /// <summary>Timeout for establishing the TCP connection.</summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
-    /// <summary>Timeout for receiving a complete response frame.</summary>
-    public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(3);
+    /// <summary>
+    /// Timeout for receiving a complete response frame. VC3 / SIMPAC controllers
+    /// can be slow to answer when several clients poll them at once, so this is
+    /// kept generous; an occasional slow reply must not look like a dropped link.
+    /// </summary>
+    public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(8);
 
     /// <summary>Creates a deep copy so a UI can edit settings without affecting a live client.</summary>
     public ChamberConnectionSettings Clone() => new()

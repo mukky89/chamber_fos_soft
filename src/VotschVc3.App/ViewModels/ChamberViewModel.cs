@@ -183,6 +183,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopReconnect();
         _connectionLostHandled = false;
         _pollFailureCount = 0;
+        _pollTimeoutCount = 0;
         ClearAlarm("link");
 
         StatusMessage = $"Pripájam sa na {Endpoint}…";
@@ -275,6 +276,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             {
                 ChamberReading reading = await _client.ReadAsync(token);
                 _pollFailureCount = 0;
+                _pollTimeoutCount = 0;
                 ApplyReading(reading);
             }
             catch (OperationCanceledException)
@@ -1174,9 +1176,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     #region Safety / watchdog
 
+    // A hard error (socket reset, host unreachable, …) means the link is really
+    // down, so we react quickly. A read timeout only means the chamber was slow
+    // to answer while the socket is still up – that is not a lost connection, so
+    // we tolerate many more of them before declaring the link lost. This keeps a
+    // genuinely hung chamber detectable without raising false "Strata spojenia"
+    // alarms when the controller merely lags under load.
     private const int MaxPollFailures = 3;
+    private const int MaxPollTimeouts = 6;
     private readonly Dictionary<string, string> _alarms = new();
     private int _pollFailureCount;
+    private int _pollTimeoutCount;
     private bool _connectionLostHandled;
     private CancellationTokenSource? _reconnectCts;
 
@@ -1296,9 +1306,25 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task<bool> OnPollFailureAsync(Exception ex)
     {
-        _pollFailureCount++;
-        StatusMessage = $"Chyba pollingu ({_pollFailureCount}/{MaxPollFailures}): {ex.Message}";
-        if (_pollFailureCount >= MaxPollFailures)
+        // A timeout is a slow reply on a still-open socket, not a dropped link;
+        // tolerate more of those before alarming. Anything else is a real error.
+        bool isTimeout = ex is TimeoutException;
+        int count, threshold;
+
+        if (isTimeout)
+        {
+            count = ++_pollTimeoutCount;
+            threshold = MaxPollTimeouts;
+            StatusMessage = $"Komora neodpovedá ({count}/{threshold})…";
+        }
+        else
+        {
+            count = ++_pollFailureCount;
+            threshold = MaxPollFailures;
+            StatusMessage = $"Chyba pollingu ({count}/{threshold}): {ex.Message}";
+        }
+
+        if (count >= threshold)
         {
             await HandleConnectionLostAsync(ex.Message);
             return true;
@@ -1365,6 +1391,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
             _connectionLostHandled = false;
             _pollFailureCount = 0;
+            _pollTimeoutCount = 0;
             IsConnected = true;
             ClearAlarm("link");
             StatusMessage = "Opätovne pripojené.";
