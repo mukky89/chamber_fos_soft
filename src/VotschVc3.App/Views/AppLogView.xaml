@@ -1,6 +1,10 @@
 <UserControl x:Class="VotschVc3.App.Views.AppLogView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.InputBindings>
+        <!-- Ctrl+C copies the whole log when no individual rows are selected. -->
+        <KeyBinding Modifiers="Control" Key="C" Command="{Binding CopyCommand}" />
+    </UserControl.InputBindings>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -14,16 +18,21 @@
                            VerticalAlignment="Center" Margin="10,0,0,0" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Kopírovať (Ctrl+C)" Command="{Binding CopyCommand}"
+                        ToolTip="Skopíruje celý log do schránky. Ctrl+C skopíruje vybrané riadky alebo celý log." />
                 <Button Content="Vyčistiť pohľad" Command="{Binding ClearViewCommand}" />
                 <Button Content="Obnoviť" Style="{StaticResource AccentButton}" Command="{Binding RefreshCommand}" />
             </StackPanel>
         </Grid>
 
         <Border Grid.Row="1" Style="{StaticResource Card}">
-            <DataGrid ItemsSource="{Binding Entries}" IsReadOnly="True" FontFamily="Consolas">
+            <DataGrid ItemsSource="{Binding Entries}" IsReadOnly="True" FontFamily="Consolas"
+                      SelectionMode="Extended" SelectionUnit="FullRow"
+                      ClipboardCopyMode="IncludeHeader">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Čas" Width="170" Binding="{Binding TimestampText}" />
-                    <DataGridTemplateColumn Header="Úroveň" Width="90">
+                    <DataGridTemplateColumn Header="Úroveň" Width="90"
+                                            ClipboardContentBinding="{Binding LevelText}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding LevelText}" FontFamily="Segoe UI Semibold"

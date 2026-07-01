@@ -25,7 +25,8 @@ Umožňuje:
 
 - **home page** s výberom komory, ktorá sa má nastavovať/ovládať,
 - **animovaná vektorová grafika** komory s rotujúcim ventilátorom (podľa VT³ 7060),
-- pripojiť sa ku každej komore cez TCP/IP nezávisle,
+- pripojiť sa ku každej komore cez TCP/IP nezávisle (a **automaticky po
+  prihlásení**),
 - **čítať** namerané hodnoty (teplota, vlhkosť, digitálne kanály) v reálnom čase,
 - **nastavovať** setpointy teploty a vlhkosti (vlhkosť len pre komoru, ktorá ju má),
 - ovládať **digitálne kanály** (vrátane štartovacieho „system on"),
@@ -207,8 +208,9 @@ kľúčových slov (`Dauer/Duration/Zeit/Time`, `Temperatur/Temperature`,
 - **Odložený štart** – zapni *Odložený štart*, zadaj dátum a čas (`HH:mm`);
   profil sa spustí v naplánovaný čas, dovtedy beží odpočet. Výpočet konca behu
   to zohľadní.
-- **E-mail upozornenie** – na home page v karte *Notifikácie e-mailom* zapni
-  posielanie, zadaj adresáta a vyber spôsob:
+- **E-mail upozornenie** – na obrazovke *Administrácia* (prístupná len rola
+  **Admin**, tlačidlo *Administrácia →* na home page) v karte
+  *Notifikácie e-mailom* zapni posielanie, zadaj adresáta a vyber spôsob:
   - **SMTP** (host, port, SSL, login) – univerzálne, cez `System.Net.Mail`;
   - **HTTP API** (endpoint + voliteľný Bearer kľúč) – POST JSON
     `{ to, from, subject, text }`; sem zadáš váš dbfood endpoint. Formát tela
@@ -227,9 +229,12 @@ Záložka **Bezpečnosť** na detaile komory:
 - **Watchdog spojenia** – po 3 neúspešných čítaniach sa spojenie považuje za
   stratené: alarm, voliteľný auto-stop profilu, e-mail.
 - **Auto-reconnect** – po výpadku sa appka automaticky znovu pripája (exponenciálny
-  backoff do 30 s) a obnoví polling.
+  backoff do 30 s) a obnoví polling. Opätovné pripojenie sa overí skutočným
+  čítaním, takže ak regulátor prijme TCP socket, ale neodpovedá, komora zostane
+  hlásená ako *Strata spojenia* (jediný alarm) namiesto neustáleho blikania
+  odpojenia/pripojenia.
 
-E-mail pri alarme sa odošle, ak sú notifikácie nastavené na home page.
+E-mail pri alarme sa odošle, ak sú notifikácie nastavené v *Administrácii*.
 
 ## Teplomery ASL F100 (USB)
 

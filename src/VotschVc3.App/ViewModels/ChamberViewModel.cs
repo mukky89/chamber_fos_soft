@@ -211,6 +211,33 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _audit.Log(Name, "Odpojenie", Endpoint);
     }
 
+    /// <summary>
+    /// Best-effort connect used to bring the chamber online automatically (e.g.
+    /// right after a user logs in). Never throws: on failure it reports the error
+    /// and, when <see cref="AutoReconnect"/> is enabled, keeps retrying quietly in
+    /// the background instead of surfacing an alarm.
+    /// </summary>
+    public async Task ConnectIfPossibleAsync()
+    {
+        if (IsConnected)
+        {
+            return;
+        }
+
+        try
+        {
+            await ConnectAsync();
+        }
+        catch (Exception ex)
+        {
+            ReportError(ex);
+            if (AutoReconnect)
+            {
+                StartReconnect();
+            }
+        }
+    }
+
     #endregion
 
     #region Live monitoring
@@ -1351,6 +1378,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             {
                 await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token);
                 await _client.ConnectAsync(BuildSettings(), token);
+                // A TCP socket can open even when the controller never answers, so
+                // confirm the link with a real read before declaring success. This
+                // stops the connect / drop flapping (and the alarm-log spam) when
+                // the chamber accepts the socket but does not respond to reads.
+                await _client.ReadAsync(token);
             }
             catch (OperationCanceledException)
             {
@@ -1358,6 +1390,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             }
             catch (Exception ex)
             {
+                await _client.DisconnectAsync();
                 StatusMessage = $"Opätovné pripojenie zlyhalo: {ex.Message}";
                 delaySeconds = Math.Min(delaySeconds * 2, 30);
                 continue;

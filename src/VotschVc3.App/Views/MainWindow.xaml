@@ -38,6 +38,9 @@
         <DataTemplate DataType="{x:Type vm:ChangelogViewModel}">
             <views:ChangelogView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AdminViewModel}">
+            <views:AdminView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="14">

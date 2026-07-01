@@ -4,6 +4,25 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.4] – 2026-07-01
+
+### Pridané
+- **Automatické pripojenie komôr po prihlásení** – po úspešnom prihlásení sa
+  všetky komory pokúsia pripojiť samé (pri neúspechu bežia na pozadí opätovné
+  pokusy, ak je zapnuté automatické pripojenie).
+- **Kopírovanie app logu** – tlačidlo **„Kopírovať (Ctrl+C)"** a klávesová
+  skratka **Ctrl+C** v diagnostickom logu (kopíruje vybrané riadky, alebo celý
+  log, do schránky vrátane hlavičky).
+- **Obrazovka Administrácia** (len pre rolu Admin) – sem sa presunuli
+  **Notifikácie e-mailom** a **Pridať/odobrať komoru** z domovskej stránky.
+
+### Opravené
+- **Blikanie spojenia komory** (stále odpájanie/pripájanie a zaplavenie logu
+  rovnakými varovaniami „Strata spojenia"): opätovné pripojenie teraz overí
+  spojenie skutočným čítaním skôr, než ho vyhlási za úspešné. Ak regulátor
+  prijme TCP socket, ale neodpovedá na čítanie, komora zostane v stave „Strata
+  spojenia" s jediným alarmom namiesto opakovaného blikania a e-mailov.
+
 ## [1.6.3] – 2026-06-28
 
 ### Opravené

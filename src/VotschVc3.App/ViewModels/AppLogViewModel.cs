@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using System.Windows;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Diagnostics;
@@ -14,6 +15,7 @@ public sealed class AppLogViewModel : ObservableObject
     {
         RefreshCommand = new RelayCommand(Refresh);
         ClearViewCommand = new RelayCommand(() => Entries.Clear());
+        CopyCommand = new RelayCommand(CopyAll);
         AppLog.EntryLogged += OnEntryLogged;
         Refresh();
     }
@@ -22,6 +24,36 @@ public sealed class AppLogViewModel : ObservableObject
 
     public RelayCommand RefreshCommand { get; }
     public RelayCommand ClearViewCommand { get; }
+
+    /// <summary>Copies the whole visible log to the clipboard (tab separated).</summary>
+    public RelayCommand CopyCommand { get; }
+
+    private void CopyAll()
+    {
+        if (Entries.Count == 0)
+        {
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.Append("Čas\tÚroveň\tZdroj\tSpráva").Append('\n');
+        foreach (AppLogEntry e in Entries)
+        {
+            sb.Append(e.TimestampText).Append('\t')
+              .Append(e.LevelText).Append('\t')
+              .Append(e.Source).Append('\t')
+              .Append(e.Message).Append('\n');
+        }
+
+        try
+        {
+            Clipboard.SetText(sb.ToString());
+        }
+        catch
+        {
+            // The clipboard can be momentarily locked by another process; ignore.
+        }
+    }
 
     private void Refresh()
     {
