@@ -31,14 +31,16 @@ jobs:
       - name: Test
         run: dotnet test VotschVc3.sln -c Release --no-build --verbosity normal
 
-      - name: Publish app (self-contained win-x64)
+      - name: Publish app (single-file, framework-dependent win-x64)
         run: >-
           dotnet publish src/VotschVc3.App/VotschVc3.App.csproj
           -c Release -r win-x64 --self-contained false
+          -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
+          -p:DebugType=none
           -o publish/VotschVc3.App
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
         with:
           name: VotschVc3.App
-          path: publish/VotschVc3.App
+          path: publish/VotschVc3.App/VotschVc3.App.exe
