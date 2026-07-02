@@ -55,6 +55,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ReadOnceCommand = new AsyncRelayCommand(ReadOnceAsync, () => IsConnected, ReportError);
         ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected && IsControlAllowed, ReportError);
         StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsControlAllowed, ReportError);
+        QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsControlAllowed, ReportError);
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning);
@@ -92,8 +93,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Stable identity (used as a key in the shell and for persistence).</summary>
     public Guid Id { get; }
 
-    /// <summary>Human readable chamber name shown on the home page and header.</summary>
-    public string Name { get; }
+    private string _name = string.Empty;
+    /// <summary>Human readable chamber name shown on the home page and header (editable).</summary>
+    public string Name
+    {
+        get => _name;
+        set => SetProperty(ref _name, string.IsNullOrWhiteSpace(value) ? _name : value.Trim());
+    }
 
     /// <summary>Chamber capabilities.</summary>
     public ChamberKind Kind { get; }
@@ -429,7 +435,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     #region Manual set point
 
     private double _manualTemperature = 25;
-    public double ManualTemperature { get => _manualTemperature; set => SetProperty(ref _manualTemperature, value); }
+    public double ManualTemperature { get => _manualTemperature; set { if (SetProperty(ref _manualTemperature, value)) RaiseActivity(); } }
 
     private bool _controlHumidity;
     public bool ControlHumidity { get => _controlHumidity; set => SetProperty(ref _controlHumidity, value); }
@@ -455,9 +461,23 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AppLog.Info(Name, $"Zápis setpointu: {summary} · adresa {Address} · štart kanál #{StartChannelIndex + 1} = ON · " +
             $"analóg. kanálov {AnalogChannelCount} · digitálne '{DigitalChannelsText}'.");
         await _client.WriteSetpointsAsync(setpoints, digital);
+        SetManualStarted(true);
         StatusMessage = $"Setpoint zapísaný: {summary}";
         _audit.Log(Name, "Setpoint", summary);
         AppLog.Info(Name, $"Setpoint zapísaný: {summary}. Skontroluj v logu odpoveď regulátora (RX) na príkaz TX $..E…");
+    }
+
+    private double _quickTemperature = 25;
+    /// <summary>Temperature (°C) entered in the dashboard quick-set field.</summary>
+    public double QuickTemperature { get => _quickTemperature; set => SetProperty(ref _quickTemperature, value); }
+
+    public AsyncRelayCommand<double?> QuickSetTemperatureCommand { get; }
+
+    /// <summary>Applies a temperature set point directly (used by the presets and the quick field).</summary>
+    private async Task QuickSetTemperatureAsync(double? celsius)
+    {
+        ManualTemperature = celsius ?? QuickTemperature;
+        await ApplySetpointAsync();
     }
 
     private async Task StopChamberAsync()
@@ -469,6 +489,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         var setpoints = new List<double> { ManualTemperature, 0d };
         AppLog.Info(Name, $"Stop komory: adresa {Address} · štart kanál #{StartChannelIndex + 1} = OFF.");
         await _client.WriteSetpointsAsync(setpoints, digital);
+        SetManualStarted(false);
         StatusMessage = "Komora zastavená (štart kanál vynulovaný).";
         _audit.Log(Name, "Stop komory", string.Empty);
         AppLog.Info(Name, "Komora zastavená (štart kanál vynulovaný).");
@@ -500,7 +521,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     }
 
     private string _profileName = "Profil 1";
-    public string ProfileName { get => _profileName; set => SetProperty(ref _profileName, value); }
+    public string ProfileName { get => _profileName; set { if (SetProperty(ref _profileName, value)) RaiseActivity(); } }
 
     private int _cycles = 1;
     public int Cycles
@@ -570,7 +591,34 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public bool IsProfileRunning
     {
         get => _isProfileRunning;
-        private set { if (SetProperty(ref _isProfileRunning, value)) RefreshCommands(); }
+        private set { if (SetProperty(ref _isProfileRunning, value)) { RefreshCommands(); RaiseActivity(); } }
+    }
+
+    private bool _manualStarted;
+
+    /// <summary><c>true</c> while the chamber is actively conditioning: a profile
+    /// is running or a manual set point has been applied (and not stopped).</summary>
+    public bool IsActive => IsProfileRunning || _manualStarted;
+
+    /// <summary>Short label describing what is running, for the dashboard.</summary>
+    public string ActivityLabel =>
+        IsProfileRunning ? $"Profil: {ProfileName}"
+        : _manualStarted ? $"Manuálny setpoint: {ManualTemperature:0.0} °C"
+        : "Nečinné";
+
+    private void SetManualStarted(bool value)
+    {
+        if (_manualStarted != value)
+        {
+            _manualStarted = value;
+            RaiseActivity();
+        }
+    }
+
+    private void RaiseActivity()
+    {
+        OnPropertyChanged(nameof(IsActive));
+        OnPropertyChanged(nameof(ActivityLabel));
     }
 
     private string _profileStatus = "Nečinné.";
@@ -1702,6 +1750,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ReadOnceCommand.RaiseCanExecuteChanged();
         ApplySetpointCommand.RaiseCanExecuteChanged();
         StopChamberCommand.RaiseCanExecuteChanged();
+        QuickSetTemperatureCommand.RaiseCanExecuteChanged();
         StartProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();
