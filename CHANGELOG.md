@@ -4,6 +4,24 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.6] – 2026-07-02
+
+### Zmenené
+- **Nová horná lišta (toolbar)** na domovskej stránke namiesto zvislého menu na
+  boku – navigačné tlačidlá (Editor profilov, Teplomery, Prehliadač záznamov,
+  Audit, App log, Changelog, Administrácia) sú vodorovne v hornej lište, spolu
+  s verziou a prihláseným používateľom.
+
+### Pridané
+- **Zmena poradia komôr** – na každej karte komory sú šípky **◀ ▶**, ktorými sa
+  komora posunie v poradí; nové poradie sa uloží.
+- **Automatická detekcia nesprávneho portu** – ak riadiaca jednotka odpovedá
+  uvítacím bannerom (napr. „100 OK: Portable IEC 61131-3 RT Scheduler for
+  Windows CE …") namiesto ASCII-2 dát, appka to rozpozná, **nezobrazí nezmyselné
+  hodnoty** a do logu zapíše jasnú nápovedu, že treba zmeniť port (ASCII-2 býva
+  **2051**, ASCII-1 2050, SIMSERV 2049; staršie riadiace jednotky ASCII na 2049).
+  Zároveň to zastaví neustále odpájanie/pripájanie (blikanie).
+
 ## [1.6.5] – 2026-07-01
 
 ### Pridané

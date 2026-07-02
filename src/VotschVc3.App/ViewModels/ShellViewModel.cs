@@ -65,6 +65,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         LogoutCommand = new RelayCommand(Logout);
         AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
         RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1 && CanManage);
+        MoveChamberUpCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, -1), c => c is not null);
+        MoveChamberDownCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, +1), c => c is not null);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
 
@@ -145,6 +147,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand LogoutCommand { get; }
     public RelayCommand AddChamberCommand { get; }
     public RelayCommand<ChamberViewModel> RemoveChamberCommand { get; }
+
+    /// <summary>Moves a chamber one place earlier (left) in the dashboard order.</summary>
+    public RelayCommand<ChamberViewModel> MoveChamberUpCommand { get; }
+
+    /// <summary>Moves a chamber one place later (right) in the dashboard order.</summary>
+    public RelayCommand<ChamberViewModel> MoveChamberDownCommand { get; }
 
     /// <summary>Audit trail view model.</summary>
     public AuditViewModel Audit { get; }
@@ -340,6 +348,25 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         RemoveChamberCommand.RaiseCanExecuteChanged();
         SaveConfigs();
         await chamber.DisposeAsync();
+    }
+
+    /// <summary>Reorders a chamber by <paramref name="delta"/> places and persists the new order.</summary>
+    private void MoveChamber(ChamberViewModel? chamber, int delta)
+    {
+        if (chamber is null)
+        {
+            return;
+        }
+
+        int i = Chambers.IndexOf(chamber);
+        int j = i + delta;
+        if (i < 0 || j < 0 || j >= Chambers.Count)
+        {
+            return;
+        }
+
+        Chambers.Move(i, j);
+        SaveConfigs();
     }
 
     #endregion
