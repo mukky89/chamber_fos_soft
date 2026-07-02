@@ -51,6 +51,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
         Thermometers = new ThermometersViewModel();
         Admin = new AdminViewModel(this);
+        QuickProfile = new QuickProfileViewModel(_store);
         Chambers = new ObservableCollection<ChamberViewModel>();
 
         // Commands must exist before chambers are built (AddChamberInternal uses them).
@@ -58,6 +59,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
         OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
         OpenProfileLibraryCommand = new RelayCommand(() => CurrentView = ProfileLibrary);
+        OpenQuickProfileCommand = new RelayCommand(() => CurrentView = QuickProfile);
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
         OpenAppLogCommand = new RelayCommand(() => CurrentView = AppLog);
         OpenChangelogCommand = new RelayCommand(() => CurrentView = Changelog);
@@ -104,6 +106,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Standalone profile editor / library (no chamber connection needed).</summary>
     public ProfileLibraryViewModel ProfileLibrary { get; }
 
+    /// <summary>Quick temperature-sweep profile builder.</summary>
+    public QuickProfileViewModel QuickProfile { get; }
+
     /// <summary>Application diagnostic log viewer.</summary>
     public AppLogViewModel AppLog { get; } = new();
 
@@ -140,6 +145,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand OpenThermometersCommand { get; }
     public RelayCommand OpenRecordingViewerCommand { get; }
     public RelayCommand OpenProfileLibraryCommand { get; }
+    public RelayCommand OpenQuickProfileCommand { get; }
     public RelayCommand OpenAuditCommand { get; }
     public RelayCommand OpenAppLogCommand { get; }
     public RelayCommand OpenChangelogCommand { get; }

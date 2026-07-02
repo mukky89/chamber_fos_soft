@@ -26,6 +26,9 @@
         <DataTemplate DataType="{x:Type vm:ProfileLibraryViewModel}">
             <views:ProfileLibraryView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:QuickProfileViewModel}">
+            <views:QuickProfileView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:LoginViewModel}">
             <views:LoginView />
         </DataTemplate>

@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.8] – 2026-07-02
+
+### Pridané
+- **Rýchly vytvárač profilov** (tlačidlo *Rýchly profil* v hornej lište) – vytvorí
+  symetrický teplotný sweep od zadanej dolnej po hornú teplotu a späť dole:
+  - zadáš **rozsah** (napr. −20 → 60 °C) a **počet medzikrokov** (napr. 7) a
+    aplikácia **automaticky dopočíta** rovnomerne rozložené teploty,
+  - nastavíš **dĺžku plata** a **dĺžku nábehu** (zobrazí sa aj rýchlosť °C/min),
+  - vidíš **náhľad grafu**, počet segmentov a **celkový čas**,
+  - **optimalizácia**: keď zadáš „skrátiť o X hodín", rovnomerne skráti všetky
+    plata a prepočíta celkový čas,
+  - hotový profil **uložíš do knižnice** a otvoríš v Editore profilov / spustíš
+    na komore.
+
 ## [1.6.7] – 2026-07-02
 
 ### Pridané

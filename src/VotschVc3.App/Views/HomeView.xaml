@@ -39,6 +39,7 @@
                         </Style>
                     </WrapPanel.Resources>
                     <Button Content="Editor profilov" Command="{Binding OpenProfileLibraryCommand}" />
+                    <Button Content="Rýchly profil" Command="{Binding OpenQuickProfileCommand}" />
                     <Button Content="Teplomery ASL F100" Command="{Binding OpenThermometersCommand}" />
                     <Button Content="Prehliadač záznamov" Command="{Binding OpenRecordingViewerCommand}" />
                     <Button Content="Audit trail" Command="{Binding OpenAuditCommand}" />
