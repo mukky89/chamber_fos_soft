@@ -407,7 +407,18 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             if (SetProperty(ref _selectedReferenceThermometer, value))
             {
                 if (old is not null) old.PropertyChanged -= OnReferenceChanged;
-                if (value is not null) value.PropertyChanged += OnReferenceChanged;
+                if (value is not null)
+                {
+                    value.PropertyChanged += OnReferenceChanged;
+
+                    // Connect the assigned thermometer so its temperature starts
+                    // updating (it polls itself every ~2 s once connected).
+                    if (!value.IsConnected && value.ConnectCommand.CanExecute(null))
+                    {
+                        value.ConnectCommand.Execute(null);
+                    }
+                }
+
                 RaiseReference();
             }
         }

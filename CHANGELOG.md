@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.10] – 2026-07-02
+
+### Pridané
+- **Priradenie referenčného teplomera ASL F100 priamo na karte komory** – v
+  hlavnom menu je výber teplomera; po priradení sa teplomer **pripojí a
+  aktualizuje teplotu každé ~2 s**.
+- Karta komory teraz jasne **odlišuje tri teploty**:
+  - **Teplota komory** (aktuálna nameraná, biela, veľká),
+  - **Nastavená (setpoint)** (žltá),
+  - **Referencia F100** (zelená).
+
 ## [1.6.9] – 2026-07-02
 
 ### Opravené
