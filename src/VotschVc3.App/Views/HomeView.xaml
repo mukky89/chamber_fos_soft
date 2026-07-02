@@ -123,19 +123,19 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <WrapPanel Margin="0,12,0,0">
                                     <!-- Aktuálna teplota komory -->
-                                    <StackPanel Margin="0,0,20,0">
+                                    <StackPanel Margin="0,0,16,6">
                                         <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="26" FontFamily="Segoe UI Light"
+                                            <TextBlock FontSize="24" FontFamily="Segoe UI Light"
                                                        Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="4,0,0,4"
+                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4"
                                                        Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <!-- Nastavená teplota (setpoint) -->
-                                    <StackPanel Margin="0,0,20,0">
+                                    <StackPanel Margin="0,0,16,6">
                                         <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock FontSize="20" FontFamily="Segoe UI Semibold" Foreground="#FFB454"
@@ -145,16 +145,17 @@
                                         </StackPanel>
                                     </StackPanel>
                                     <!-- Vlhkosť -->
-                                    <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel Margin="0,0,0,6"
+                                                Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="26" FontFamily="Segoe UI Light"
+                                            <TextBlock FontSize="24" FontFamily="Segoe UI Light"
                                                        Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                            <TextBlock Text="%" VerticalAlignment="Bottom" Margin="4,0,0,4"
+                                            <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4"
                                                        Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>
                                     </StackPanel>
-                                </StackPanel>
+                                </WrapPanel>
 
                                 <!-- Referenčný teplomer ASL F100 (aktualizuje sa ~2 s) -->
                                 <StackPanel Margin="0,10,0,0">
@@ -163,12 +164,18 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableThermometers}"
                                                   SelectedItem="{Binding SelectedReferenceThermometer}"
                                                   DisplayMemberPath="Display"
                                                   ToolTip="Priraď teplomer ASL F100 ako referenciu (pripojí sa a aktualizuje sa každé ~2 s)." />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0"
+                                        <Button Grid.Column="1" Content="↻" Margin="6,0,0,0" Padding="8,2"
+                                                Style="{StaticResource GhostButton}"
+                                                ToolTip="Znovu vyhľadať pripojené teplomery (USB COM porty)"
+                                                Command="{Binding DataContext.Thermometers.RefreshCommand,
+                                                          RelativeSource={RelativeSource AncestorType=Window}}" />
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0"
                                                     VerticalAlignment="Center"
                                                     Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
                                             <TextBlock Text="Referencia F100:" Style="{StaticResource Caption}"

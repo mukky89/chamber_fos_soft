@@ -75,7 +75,15 @@
                     </Grid>
 
                     <CheckBox Content="Aj zostupná časť (späť dole)" IsChecked="{Binding IncludeDescending}"
-                              Margin="0,2,0,10" />
+                              Margin="0,2,0,6" />
+                    <CheckBox Content="Dvojitý vrchol (dva najvyššie body)" IsChecked="{Binding DoublePeak}"
+                              Margin="0,0,0,6"
+                              ToolTip="Na vrchole vytvorí dva najvyššie body a medzi nimi plato o pár °C nižšie, aby prebehla zmena teploty." />
+                    <StackPanel Style="{StaticResource QpField}"
+                                Visibility="{Binding DoublePeak, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Pokles medzi vrcholmi (°C)" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding PeakDipCelsius, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
 
                     <TextBlock Text="Optimalizácia" Style="{StaticResource Heading}" Margin="0,4,0,4" />
                     <StackPanel Style="{StaticResource QpField}">

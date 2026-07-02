@@ -301,6 +301,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private void StartPolling()
     {
         StopPolling();
+        _firstReadLogged = false;
         _pollingCts = new CancellationTokenSource();
         _ = PollLoopAsync(_pollingCts.Token);
     }
@@ -366,7 +367,20 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         // "start / system on" channel, so the dashboard reflects the actual
         // chamber and not just what this app happened to send. Only trust it when
         // the response actually carried a digital block.
-        SetReadRunning(RawHasDigitalBlock(reading.Raw) ? reading.DigitalChannels.Start : null);
+        bool hasDigital = RawHasDigitalBlock(reading.Raw);
+        SetReadRunning(hasDigital ? reading.DigitalChannels.Start : null);
+
+        // Log the first reading of each connection so the exact frame layout
+        // (digital block, start channel, values) can be mapped for the
+        // running/idle detection.
+        if (!_firstReadLogged)
+        {
+            _firstReadLogged = true;
+            AppLog.Info(Name,
+                $"Prvé čítanie (RAW): \"{reading.Raw}\" · digitálny blok={(hasDigital ? "áno" : "NIE")} " +
+                $"'{reading.DigitalChannels.ToProtocolString()}' · štart[{StartChannelIndex}]={reading.DigitalChannels.Start} " +
+                $"· hodnoty=[{string.Join(", ", reading.AnalogValues.Select(v => v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)))}]");
+        }
 
         LastRaw = reading.Raw;
         LastUpdate = reading.Timestamp;
@@ -618,6 +632,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     // The chamber's own reported "system on" state from the last reading:
     // true/false when the response carried a digital block, null when unknown.
     private bool? _readRunning;
+    private bool _firstReadLogged;
 
     /// <summary><c>true</c> while the chamber is actively conditioning. Prefers the
     /// chamber's own reported state (digital start channel); falls back to what
