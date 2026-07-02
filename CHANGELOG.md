@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.9] – 2026-07-02
+
+### Opravené
+- **Stav behu komory sa teraz zisťuje z reálneho stavu komory**, nie iba z toho,
+  čo poslala aplikácia. Beh/nečinnosť (kontrolka aj točenie ventilátora) sa
+  odvodzuje z **reportovaného „štart/system on" digitálneho kanála** v odpovedi
+  na čítanie. Takže keď komoru spustil niekto iný (alebo predtým), zobrazí sa
+  správne ako *bežiaca*; ak aplikácia nemá istý stav (odpoveď neobsahuje
+  digitálny blok), použije sa stav podľa toho, čo appka spustila.
+- **Ventilátor sa teraz naozaj točí, keď komora beží** – animácia sa spúšťa
+  spoľahlivo priamo na transformácii (predtým sa za istých okolností nerozbehla).
+- Popisok aktivity ukazuje aktívny setpoint z komory („Beží · setpoint … °C").
+
 ## [1.6.8] – 2026-07-02
 
 ### Pridané

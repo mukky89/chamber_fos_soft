@@ -13,24 +13,17 @@ namespace VotschVc3.App.Views;
 /// </summary>
 public partial class ChamberGraphic : UserControl
 {
-    private readonly Storyboard _fanStoryboard;
+    private readonly DoubleAnimation _fanSpin = new()
+    {
+        From = 0,
+        To = 360,
+        Duration = new Duration(TimeSpan.FromSeconds(2.4)),
+        RepeatBehavior = RepeatBehavior.Forever,
+    };
 
     public ChamberGraphic()
     {
         InitializeComponent();
-
-        var spin = new DoubleAnimation
-        {
-            From = 0,
-            To = 360,
-            Duration = new Duration(TimeSpan.FromSeconds(2.4)),
-            RepeatBehavior = RepeatBehavior.Forever,
-        };
-        Storyboard.SetTarget(spin, FanRotate);
-        Storyboard.SetTargetProperty(spin, new PropertyPath(RotateTransform.AngleProperty));
-        _fanStoryboard = new Storyboard();
-        _fanStoryboard.Children.Add(spin);
-
         Loaded += (_, _) => UpdateRunningState();
     }
 
@@ -81,11 +74,12 @@ public partial class ChamberGraphic : UserControl
         if (IsRunning)
         {
             IdleVeil.Visibility = Visibility.Collapsed;
-            _fanStoryboard.Begin(this, isControllable: true);
+            FanRotate.BeginAnimation(RotateTransform.AngleProperty, _fanSpin);
         }
         else
         {
-            _fanStoryboard.Stop(this);
+            // Remove the animation and hold the current angle; grey out the cabinet.
+            FanRotate.BeginAnimation(RotateTransform.AngleProperty, null);
             IdleVeil.Visibility = Visibility.Visible;
         }
     }
