@@ -52,6 +52,17 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>Also sweep back down from the high temperature to the low one.</summary>
     public bool IncludeDescending { get => _includeDescending; set { if (SetProperty(ref _includeDescending, value)) Recalculate(); } }
 
+    private bool _doublePeak;
+    /// <summary>
+    /// Split the peak into two highest points with a plateau <see cref="PeakDipCelsius"/>
+    /// lower between them, so a temperature change occurs at the top.
+    /// </summary>
+    public bool DoublePeak { get => _doublePeak; set { if (SetProperty(ref _doublePeak, value)) Recalculate(); } }
+
+    private double _peakDipCelsius = 10;
+    /// <summary>How much lower (°C) the notch between the two peaks is.</summary>
+    public double PeakDipCelsius { get => _peakDipCelsius; set { if (SetProperty(ref _peakDipCelsius, Math.Max(0, value))) Recalculate(); } }
+
     private double _shortenByHours;
     /// <summary>Reduce the total time by this many hours, spread evenly across the plateaus.</summary>
     public double ShortenByHours { get => _shortenByHours; set { if (SetProperty(ref _shortenByHours, Math.Max(0, value))) Recalculate(); } }
@@ -90,13 +101,15 @@ public sealed class QuickProfileViewModel : ObservableObject
     private int PlateauCount()
     {
         int n = TemperaturePointCount();
-        return IncludeDescending ? 2 * n - 1 : n;
+        int count = n + (IncludeDescending ? n - 1 : 0);
+        return count + (DoublePeak ? 2 : 0);
     }
 
     private int RampCount()
     {
         int n = TemperaturePointCount();
-        return IncludeDescending ? 2 * (n - 1) : n - 1;
+        int count = (n - 1) + (IncludeDescending ? n - 1 : 0);
+        return count + (DoublePeak ? 2 : 0);
     }
 
     private double EffectivePlateauMinutes()
@@ -135,6 +148,17 @@ public sealed class QuickProfileViewModel : ObservableObject
         {
             segs.Add(Ramp(up[i], RampMinutes));
             segs.Add(Plateau(up[i], plateau));
+        }
+
+        // Optional double peak: dip 10 °C (configurable) below the top and back up,
+        // giving two highest plateaus with a lower plateau between them.
+        if (DoublePeak)
+        {
+            double dip = HighTemperature - PeakDipCelsius;
+            segs.Add(Ramp(dip, RampMinutes));
+            segs.Add(Plateau(dip, plateau));
+            segs.Add(Ramp(HighTemperature, RampMinutes));
+            segs.Add(Plateau(HighTemperature, plateau));
         }
 
         if (IncludeDescending)

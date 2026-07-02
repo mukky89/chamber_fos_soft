@@ -4,6 +4,22 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.11] – 2026-07-02
+
+### Pridané
+- **Rýchly vytvárač profilov – dvojitý vrchol**: voliteľne vytvorí na vrchole
+  dva najvyššie body a medzi nimi plato o zadaných °C nižšie (predvolene 10 °C),
+  aby na vrchole prebehla zmena teploty.
+- **Obnoviť teplomery** – tlačidlo ↻ vedľa výberu referenčného teplomera znovu
+  vyhľadá pripojené USB COM porty (keď bol teplomer pripojený až po štarte appky).
+- **Diagnostika stavu behu** – pri prvom čítaní po pripojení sa do App logu
+  zapíše surová odpoveď komory (RAW, digitálny blok, štart kanál, hodnoty), aby
+  sa dal presne určiť indikátor „komora beží/nečinná".
+
+### Opravené
+- **Vlhkosť sa už nezoreže** na karte komory – hodnoty teplôt/vlhkosti sa
+  zalamujú (WrapPanel) a zmestia sa do rámčeka.
+
 ## [1.6.10] – 2026-07-02
 
 ### Pridané
