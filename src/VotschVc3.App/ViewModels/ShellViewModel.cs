@@ -49,6 +49,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _login = new LoginViewModel(_userStore, OnLoggedIn);
 
         Thermometers = new ThermometersViewModel();
+        Admin = new AdminViewModel(this);
         Chambers = new ObservableCollection<ChamberViewModel>();
 
         // Commands must exist before chambers are built (AddChamberInternal uses them).
@@ -59,6 +60,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
         OpenAppLogCommand = new RelayCommand(() => CurrentView = AppLog);
         OpenChangelogCommand = new RelayCommand(() => CurrentView = Changelog);
+        OpenAdminCommand = new RelayCommand(() => CurrentView = Admin, () => CanManage);
         GoHomeCommand = new RelayCommand(GoHome);
         LogoutCommand = new RelayCommand(Logout);
         AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
@@ -105,6 +107,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Embedded changelog viewer.</summary>
     public ChangelogViewModel Changelog { get; } = new();
 
+    /// <summary>Admin-only settings screen (e-mail notifications, chamber management).</summary>
+    public AdminViewModel Admin { get; }
+
     private object _currentView;
     /// <summary>Either this shell (home page) or the selected chamber.</summary>
     public object CurrentView
@@ -135,6 +140,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand OpenAuditCommand { get; }
     public RelayCommand OpenAppLogCommand { get; }
     public RelayCommand OpenChangelogCommand { get; }
+    public RelayCommand OpenAdminCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand LogoutCommand { get; }
     public RelayCommand AddChamberCommand { get; }
@@ -164,6 +170,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private bool CanControl => _currentUser is { Role: >= UserRole.Supervisor };
     private bool CanManage => _currentUser is { Role: UserRole.Admin };
 
+    /// <summary>True when the signed-in user may open the admin settings screen.</summary>
+    public bool IsAdmin => CanManage;
+
     private void OnLoggedIn(User user)
     {
         _currentUser = user;
@@ -172,7 +181,13 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         ApplyPermissions();
         CurrentView = this;
         RaiseUserChanged();
+
+        // Bring every chamber online automatically once someone is signed in.
+        _ = ConnectAllChambersAsync();
     }
+
+    private Task ConnectAllChambersAsync() =>
+        Task.WhenAll(Chambers.Select(c => c.ConnectIfPossibleAsync()));
 
     private void Logout()
     {
@@ -197,6 +212,13 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
         AddChamberCommand.RaiseCanExecuteChanged();
         RemoveChamberCommand.RaiseCanExecuteChanged();
+        OpenAdminCommand.RaiseCanExecuteChanged();
+
+        // Non-admins must not linger on the admin screen after a role change.
+        if (!CanManage && ReferenceEquals(CurrentView, Admin))
+        {
+            GoHome();
+        }
     }
 
     private void RaiseUserChanged()
@@ -204,6 +226,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(CurrentUserName));
         OnPropertyChanged(nameof(CurrentRoleLabel));
         OnPropertyChanged(nameof(IsLoggedIn));
+        OnPropertyChanged(nameof(IsAdmin));
     }
 
     private static string RoleLabel(UserRole role) => role switch

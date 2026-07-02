@@ -1,0 +1,117 @@
+<UserControl x:Class="VotschVc3.App.Views.AdminView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="MiniField" TargetType="StackPanel">
+            <Setter Property="Width" Value="150" />
+            <Setter Property="Margin" Value="0,0,12,8" />
+        </Style>
+    </UserControl.Resources>
+
+    <!-- All content binds against the shell, which owns the actual settings and commands. -->
+    <Grid DataContext="{Binding Shell}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="6,2,6,8">
+            <Button Content="← Domov" Command="{Binding GoHomeCommand}" />
+            <TextBlock Text="Administrácia" FontSize="17" FontFamily="Segoe UI Semibold"
+                       VerticalAlignment="Center" Margin="10,0,0,0" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel>
+
+            <!-- ===== Add chamber ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Pridať komoru:" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <StackPanel Width="200" Margin="0,0,10,0">
+                        <TextBlock Text="Názov" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding NewChamberName, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Width="170" Margin="0,0,10,0">
+                        <TextBlock Text="Typ" Style="{StaticResource Label}" />
+                        <ComboBox ItemsSource="{Binding ChamberKinds}" SelectedItem="{Binding NewChamberKind}" />
+                    </StackPanel>
+                    <StackPanel Width="150" Margin="0,0,10,0">
+                        <TextBlock Text="IP adresa" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding NewChamberHost, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <Button Content="Pridať" Style="{StaticResource AccentButton}" VerticalAlignment="Bottom"
+                            Command="{Binding AddChamberCommand}" />
+                </StackPanel>
+            </Border>
+
+            <!-- ===== E-mail notifications ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel LastChildFill="False">
+                        <TextBlock Text="Notifikácie e-mailom" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                        <CheckBox Content="Zapnuté" IsChecked="{Binding Email.Enabled}" DockPanel.Dock="Right" />
+                    </DockPanel>
+
+                    <WrapPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="220">
+                            <TextBlock Text="Adresát (komu)" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.Recipient, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Spôsob" Style="{StaticResource Label}" />
+                            <ComboBox ItemsSource="{Binding EmailMethods}" SelectedItem="{Binding Email.Method}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="220">
+                            <TextBlock Text="Odosielateľ (from)" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.From, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </WrapPanel>
+
+                    <TextBlock Text="SMTP" Style="{StaticResource Caption}" Margin="0,6,0,4" />
+                    <WrapPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="200">
+                            <TextBlock Text="Host" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.SmtpHost, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="80">
+                            <TextBlock Text="Port" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.SmtpPort, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="70">
+                            <TextBlock Text="SSL" Style="{StaticResource Label}" />
+                            <CheckBox IsChecked="{Binding Email.SmtpUseSsl}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Používateľ" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.SmtpUser, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Heslo" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.SmtpPassword, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </WrapPanel>
+
+                    <TextBlock Text="HTTP API (napr. dbfood endpoint)" Style="{StaticResource Caption}" Margin="0,6,0,4" />
+                    <WrapPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="320">
+                            <TextBlock Text="Endpoint URL" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.HttpEndpoint, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="220">
+                            <TextBlock Text="API kľúč (Bearer)" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.HttpApiKey, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </WrapPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Uložiť nastavenia" Style="{StaticResource AccentButton}" Command="{Binding SaveEmailSettingsCommand}" />
+                        <Button Content="Poslať test" Command="{Binding TestEmailCommand}" />
+                        <TextBlock Text="{Binding EmailStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
