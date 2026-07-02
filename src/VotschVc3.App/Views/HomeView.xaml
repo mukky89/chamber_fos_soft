@@ -1,6 +1,7 @@
 <UserControl x:Class="VotschVc3.App.Views.HomeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:views="clr-namespace:VotschVc3.App.Views">
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
         <StackPanel>
@@ -72,11 +73,13 @@
 
                             <views:ChamberGraphic Grid.Column="0" Width="150" Height="210"
                                                   VerticalAlignment="Top"
+                                                  IsRunning="{Binding IsActive}"
                                                   TitleText="{Binding KindLabel}" />
 
                             <StackPanel Grid.Column="1" Margin="14,2,0,0">
-                                <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="16"
-                                           TextWrapping="Wrap" />
+                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                         FontFamily="Segoe UI Semibold" FontSize="16"
+                                         ToolTip="Názov komory (uprav a klikni inam)" />
 
                                 <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6"
                                         Padding="8,3" HorizontalAlignment="Left" Margin="0,6,0,0">
@@ -92,6 +95,15 @@
                                             Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11" />
                                     </Border>
+                                </StackPanel>
+
+                                <!-- Kontrolka behu + názov profilu / aktivity -->
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Ellipse Width="11" Height="11" VerticalAlignment="Center"
+                                             Fill="{Binding IsActive, Converter={StaticResource BoolToBrush}}"
+                                             ToolTip="Zelená = komora beží (test/teplota), sivá = nečinné" />
+                                    <TextBlock Text="{Binding ActivityLabel}" Margin="8,0,0,0"
+                                               Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
 
                                 <Grid Margin="0,10,0,0">
@@ -142,6 +154,39 @@
                                     <Button Content="Pripojiť" Style="{StaticResource AccentButton}"
                                             Command="{Binding ConnectCommand}" />
                                     <Button Content="Odpojiť" Command="{Binding DisconnectCommand}" />
+                                </StackPanel>
+
+                                <!-- ===== Rýchle ovládanie ===== -->
+                                <TextBlock Text="Rýchle ovládanie" Style="{StaticResource Label}" Margin="0,12,0,0" />
+                                <WrapPanel Margin="0,4,0,0">
+                                    <WrapPanel.Resources>
+                                        <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                            <Setter Property="Margin" Value="0,0,6,4" />
+                                        </Style>
+                                    </WrapPanel.Resources>
+                                    <Button Content="-20 °C" Command="{Binding QuickSetTemperatureCommand}">
+                                        <Button.CommandParameter><sys:Double>-20</sys:Double></Button.CommandParameter>
+                                    </Button>
+                                    <Button Content="0 °C" Command="{Binding QuickSetTemperatureCommand}">
+                                        <Button.CommandParameter><sys:Double>0</sys:Double></Button.CommandParameter>
+                                    </Button>
+                                    <Button Content="25 °C" Command="{Binding QuickSetTemperatureCommand}">
+                                        <Button.CommandParameter><sys:Double>25</sys:Double></Button.CommandParameter>
+                                    </Button>
+                                    <Button Content="60 °C" Command="{Binding QuickSetTemperatureCommand}">
+                                        <Button.CommandParameter><sys:Double>60</sys:Double></Button.CommandParameter>
+                                    </Button>
+                                </WrapPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBox Width="64" VerticalAlignment="Center"
+                                             Text="{Binding QuickTemperature, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Zadaj teplotu v °C" />
+                                    <TextBlock Text="°C" VerticalAlignment="Center" Margin="4,0,8,0"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <Button Content="Nastaviť" Style="{StaticResource AccentButton}"
+                                            Command="{Binding QuickSetTemperatureCommand}" />
+                                    <Button Content="Stop" Margin="8,0,0,0"
+                                            Command="{Binding StopChamberCommand}" />
                                 </StackPanel>
 
                                 <Button Content="Nastaviť / ovládať →" Style="{StaticResource GhostButton}"

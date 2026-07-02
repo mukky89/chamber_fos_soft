@@ -16,6 +16,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 {
     private static readonly HashSet<string> PersistedKeys = new()
     {
+        nameof(ChamberViewModel.Name),
         nameof(ChamberViewModel.Host), nameof(ChamberViewModel.Port), nameof(ChamberViewModel.Address),
         nameof(ChamberViewModel.AnalogChannelCount), nameof(ChamberViewModel.StartChannelIndex),
         nameof(ChamberViewModel.SelectedTerminator), nameof(ChamberViewModel.PollIntervalSeconds),

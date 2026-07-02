@@ -5,19 +5,7 @@
     <Viewbox Stretch="Uniform">
         <Canvas Width="320" Height="400">
 
-            <!-- ===== Fan spin animation (always alive) ===== -->
-            <Canvas.Triggers>
-                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <DoubleAnimation Storyboard.TargetName="FanRotate"
-                                             Storyboard.TargetProperty="Angle"
-                                             From="0" To="360" Duration="0:0:2.4"
-                                             RepeatBehavior="Forever" />
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
-            </Canvas.Triggers>
+            <!-- Fan spin is started / stopped from code-behind based on IsRunning. -->
 
             <!-- ===== Shadow ===== -->
             <Ellipse Canvas.Left="46" Canvas.Top="378" Width="228" Height="18" Fill="#22000000" />
@@ -122,6 +110,11 @@
             <Ellipse Canvas.Left="238" Canvas.Top="368" Width="22" Height="22" Fill="#3A3D52" />
             <Ellipse Canvas.Left="66" Canvas.Top="374" Width="10" Height="10" Fill="#6A6F86" />
             <Ellipse Canvas.Left="244" Canvas.Top="374" Width="10" Height="10" Fill="#6A6F86" />
+
+            <!-- ===== Idle veil: washes the cabinet to grey when nothing is running ===== -->
+            <Rectangle x:Name="IdleVeil" Canvas.Left="40" Canvas.Top="22" Width="240" Height="346"
+                       RadiusX="16" RadiusY="16" Fill="#B4BAC6" Opacity="0.6"
+                       IsHitTestVisible="False" Visibility="Collapsed" />
         </Canvas>
     </Viewbox>
 </UserControl>

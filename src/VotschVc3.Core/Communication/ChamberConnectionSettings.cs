@@ -33,8 +33,12 @@ public sealed class ChamberConnectionSettings
     /// <summary>Timeout for establishing the TCP connection.</summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
-    /// <summary>Timeout for receiving a complete response frame.</summary>
-    public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(3);
+    /// <summary>
+    /// Timeout for receiving a complete response frame. Kept generous because
+    /// some S!MPAC controllers (and serial-to-Ethernet gateways) are slow to
+    /// acknowledge a write, which otherwise shows up as sporadic write timeouts.
+    /// </summary>
+    public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>Creates a deep copy so a UI can edit settings without affecting a live client.</summary>
     public ChamberConnectionSettings Clone() => new()

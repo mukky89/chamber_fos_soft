@@ -4,6 +4,26 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.7] – 2026-07-02
+
+### Pridané
+- **Rýchle ovládanie priamo na domovskej stránke** pre každú komoru:
+  - tlačidlo **Stop** (zastaví operácie – vynuluje štart kanál),
+  - **preddefinované teploty −20 / 0 / 25 / 60 °C** (jedným klikom nastavia a
+    spustia setpoint),
+  - pole na **rýchle zadanie ľubovoľnej teploty** + tlačidlo *Nastaviť*.
+- **Editovateľný názov komory** – názov na karte komory sa dá prepísať (uloží sa).
+- **Indikátor behu (kontrolka) a názov profilu/aktivity** na karte – zelená
+  kontrolka a text (napr. „Profil: …" alebo „Manuálny setpoint: … °C") keď
+  komora beží; pri nečinnosti je kontrolka sivá.
+- **Grafika komory reaguje na stav** – ventilátor sa točí len keď komora beží;
+  pri nečinnosti sa zastaví a komora je „sivá".
+
+### Zmenené
+- **Predĺžený časový limit odpovede** z 3 s na 5 s – niektoré riadiace jednotky
+  (a sériové brány) pomaly potvrdzujú zápis, čo sa prejavovalo občasnými
+  „TimeoutException" pri nastavovaní setpointu.
+
 ## [1.6.6] – 2026-07-02
 
 ### Zmenené
