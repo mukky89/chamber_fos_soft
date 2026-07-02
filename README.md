@@ -189,7 +189,10 @@ formát, import cieli na to, čo sa reálne dá vymeniť:
     (+ voliteľný stĺpec Rampa/Halten),
   - **časová os setpointov** – riadok = bod s kumulatívnym časom; medzi bodmi sa
     vytvoria rampové segmenty.
-- vlastné **`.json`** profily aplikácie (spätný import).
+- vlastné **`.json`** profily aplikácie (spätný import),
+- **natívne binárne BEdit programy** (`.b01`, `.b02`, …) zo S!MPAC / SIMPATI
+  editora – formát je reverzne dekódovaný (teplotný aj vlhkostný kanál, rampy,
+  plata, tolerancie); po importe si profil vždy skontroluj v náhľade.
 
 Rozpozná nemecké desatinné čiarky (`60,0`) aj časy `hh:mm:ss`. Pre čisto teplotnú
 komoru sa vlhkosť automaticky ignoruje. Hlavičkové stĺpce sa mapujú podľa

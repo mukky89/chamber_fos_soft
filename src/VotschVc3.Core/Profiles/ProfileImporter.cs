@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -43,9 +44,15 @@ public static class ProfileImporter
     public static ProfileImportResult ImportFile(string path, ChamberKind kind)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        string text = File.ReadAllText(path);
-        ProfileImportResult result = Import(text, kind);
-        if (string.IsNullOrWhiteSpace(result.Profile.Name) || result.Profile.Name == "New profile")
+        byte[] bytes = File.ReadAllBytes(path);
+
+        // Native Weiss/Vötsch BEdit program files (.b01/.b02/…) are binary.
+        ProfileImportResult result = BEditImporter.LooksLikeBEdit(bytes)
+            ? BEditImporter.Import(bytes, kind)
+            : Import(Encoding.UTF8.GetString(bytes), kind);
+
+        if (string.IsNullOrWhiteSpace(result.Profile.Name)
+            || result.Profile.Name is "New profile" or "BEdit profil")
         {
             result.Profile.Name = Path.GetFileNameWithoutExtension(path);
         }
