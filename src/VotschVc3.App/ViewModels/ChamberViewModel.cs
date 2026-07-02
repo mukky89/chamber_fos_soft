@@ -222,6 +222,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         await _client.DisconnectAsync();
         IsConnected = false;
         _connectionLostHandled = false;
+        SetManualStarted(false);
+        SetReadRunning(null);
         ClearAllAlarms();
         StatusMessage = "Odpojené.";
         _audit.Log(Name, "Odpojenie", Endpoint);
@@ -359,6 +361,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             MeasuredHumidity = reading.Humidity;
             MeasuredHumiditySetpoint = reading.HumiditySetpoint;
         }
+
+        // Determine the chamber's real running state from the reported digital
+        // "start / system on" channel, so the dashboard reflects the actual
+        // chamber and not just what this app happened to send. Only trust it when
+        // the response actually carried a digital block.
+        SetReadRunning(RawHasDigitalBlock(reading.Raw) ? reading.DigitalChannels.Start : null);
 
         LastRaw = reading.Raw;
         LastUpdate = reading.Timestamp;
@@ -596,15 +604,31 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private bool _manualStarted;
 
-    /// <summary><c>true</c> while the chamber is actively conditioning: a profile
-    /// is running or a manual set point has been applied (and not stopped).</summary>
-    public bool IsActive => IsProfileRunning || _manualStarted;
+    // The chamber's own reported "system on" state from the last reading:
+    // true/false when the response carried a digital block, null when unknown.
+    private bool? _readRunning;
+
+    /// <summary><c>true</c> while the chamber is actively conditioning. Prefers the
+    /// chamber's own reported state (digital start channel); falls back to what
+    /// this app started only while the real state is unknown.</summary>
+    public bool IsActive => IsProfileRunning || (_readRunning ?? _manualStarted);
 
     /// <summary>Short label describing what is running, for the dashboard.</summary>
-    public string ActivityLabel =>
-        IsProfileRunning ? $"Profil: {ProfileName}"
-        : _manualStarted ? $"Manuálny setpoint: {ManualTemperature:0.0} °C"
-        : "Nečinné";
+    public string ActivityLabel
+    {
+        get
+        {
+            if (IsProfileRunning)
+            {
+                return $"Profil: {ProfileName}";
+            }
+
+            double setpoint = MeasuredTemperatureSetpoint ?? ManualTemperature;
+            return (_readRunning ?? _manualStarted)
+                ? $"Beží · setpoint {setpoint:0.0} °C"
+                : "Nečinné";
+        }
+    }
 
     private void SetManualStarted(bool value)
     {
@@ -613,6 +637,37 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _manualStarted = value;
             RaiseActivity();
         }
+    }
+
+    private void SetReadRunning(bool? value)
+    {
+        if (_readRunning != value)
+        {
+            _readRunning = value;
+            RaiseActivity();
+        }
+    }
+
+    /// <summary>True when the raw frame contains a digital-channel block (a run of 8+ 0/1).</summary>
+    private static bool RawHasDigitalBlock(string raw)
+    {
+        int run = 0;
+        foreach (char c in raw)
+        {
+            if (c is '0' or '1')
+            {
+                if (++run >= 8)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                run = 0;
+            }
+        }
+
+        return false;
     }
 
     private void RaiseActivity()
@@ -1472,6 +1527,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopPolling();
         await _client.DisconnectAsync();
         IsConnected = false;
+        SetReadRunning(null);
 
         RaiseAlarm("link", $"Strata spojenia: {reason}");
 
