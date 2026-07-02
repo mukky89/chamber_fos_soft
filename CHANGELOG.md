@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.12] – 2026-07-02
+
+### Pridané
+- **Import natívnych BEdit programov** (`.b01`, `.b02`, …) zo S!MPAC / SIMPATI
+  editora – binárny formát bol reverzne dekódovaný z reálnych súborov:
+  - teplotný **aj vlhkostný** kanál (rampy, plata, tolerancie ±x sa preskočia),
+  - pri komore s vlhkosťou sa oba kanály zlúčia do jednej časovej osi,
+  - rozpoznanie podľa obsahu (signatúra „BEdit"), nie podľa prípony – funguje
+    cez existujúce tlačidlo *Importovať…* (filter súborov rozšírený o `*.b0*`),
+  - overené na reálnych profiloch (STS11, FOSCal…): sedia teploty, plata aj
+    dvojitý vrchol; import vždy pridá upozornenie, aby si profil skontroloval.
+
 ## [1.6.11] – 2026-07-02
 
 ### Pridané

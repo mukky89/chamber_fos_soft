@@ -285,7 +285,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Importovať Vötsch / SIMPATI profil",
-            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json)|*.csv;*.txt;*.dat;*.prg;*.json|Všetky súbory (*.*)|*.*",
+            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json;*.b0*)|*.csv;*.txt;*.dat;*.prg;*.json;*.b0*|Všetky súbory (*.*)|*.*",
         };
 
         if (dialog.ShowDialog() != true)
