@@ -109,7 +109,16 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public bool IsControlAllowed
     {
         get => _isControlAllowed;
-        private set { if (SetProperty(ref _isControlAllowed, value)) RefreshCommands(); }
+        private set
+        {
+            if (SetProperty(ref _isControlAllowed, value))
+            {
+                RefreshCommands();
+                AppLog.Info(Name, value
+                    ? "Ovládanie povolené (rola Supervisor/Admin)."
+                    : "Ovládanie zakázané pre aktuálnu rolu – ovládacie tlačidlá (Nastaviť/Stop/Štart) sú neaktívne.");
+            }
+        }
     }
 
     /// <summary>Sets whether the current user may operate this chamber.</summary>
@@ -434,10 +443,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         bool humidity = SupportsHumidity && ControlHumidity;
         var setpoints = new List<double> { ManualTemperature, humidity ? ManualHumidity : 0d };
+        string summary = $"{ManualTemperature:0.0} °C" + (humidity ? $", {ManualHumidity:0.0} %" : string.Empty);
+        AppLog.Info(Name, $"Zápis setpointu: {summary} · adresa {Address} · štart kanál #{StartChannelIndex + 1} = ON · " +
+            $"analóg. kanálov {AnalogChannelCount} · digitálne '{DigitalChannelsText}'.");
         await _client.WriteSetpointsAsync(setpoints, digital);
-        StatusMessage = $"Setpoint zapísaný: {ManualTemperature:0.0} °C" +
-            (humidity ? $", {ManualHumidity:0.0} %" : string.Empty);
-        _audit.Log(Name, "Setpoint", $"{ManualTemperature:0.0} °C" + (humidity ? $", {ManualHumidity:0.0} %" : string.Empty));
+        StatusMessage = $"Setpoint zapísaný: {summary}";
+        _audit.Log(Name, "Setpoint", summary);
+        AppLog.Info(Name, $"Setpoint zapísaný: {summary}. Skontroluj v logu odpoveď regulátora (RX) na príkaz TX $..E…");
     }
 
     private async Task StopChamberAsync()
@@ -447,9 +459,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         digital.Start = false;
 
         var setpoints = new List<double> { ManualTemperature, 0d };
+        AppLog.Info(Name, $"Stop komory: adresa {Address} · štart kanál #{StartChannelIndex + 1} = OFF.");
         await _client.WriteSetpointsAsync(setpoints, digital);
         StatusMessage = "Komora zastavená (štart kanál vynulovaný).";
         _audit.Log(Name, "Stop komory", string.Empty);
+        AppLog.Info(Name, "Komora zastavená (štart kanál vynulovaný).");
     }
 
     private DigitalChannels ParseDigitalText() => DigitalChannels.Parse(DigitalChannelsText, StartChannelIndex);
@@ -703,6 +717,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 TestProfile profile = profiles[i];
                 StatusMessage = $"Beží profil \"{profile.Name}\" ({i + 1}/{profiles.Count}).";
                 _audit.Log(Name, "Štart profilu", $"{profile.Name} ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov)");
+                AppLog.Info(Name, $"Štart profilu \"{profile.Name}\" ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov, {profile.Segments.Count} segmentov).");
                 await RunProfileCoreAsync(profile, i, profiles.Count, token);
             }
 
@@ -710,6 +725,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ProfileStatus = profiles.Count > 1 ? "Fronta dokončená." : "Profil dokončený.";
             StatusMessage = ProfileStatus;
             _audit.Log(Name, "Profil dokončený", profiles.Count > 1 ? $"Fronta {profiles.Count} profilov" : profiles[0].Name);
+            AppLog.Info(Name, ProfileStatus);
             await NotifyCompletionAsync();
         }
         catch (OperationCanceledException)
@@ -717,6 +733,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ProfileStatus = "Profil zrušený.";
             StatusMessage = "Profil zrušený.";
             _audit.Log(Name, "Profil zrušený", string.Empty);
+            AppLog.Warn(Name, "Profil zrušený používateľom.");
         }
         finally
         {
@@ -1180,11 +1197,29 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task SendTerminalAsync() => await _client.SendRawAsync(TerminalInput);
 
-    private void OnFrameExchanged(object? sender, FrameExchangedEventArgs e) => RunOnUi(() =>
+    private void OnFrameExchanged(object? sender, FrameExchangedEventArgs e)
     {
-        AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  TX  {Visualise(e.Request)}");
-        AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  RX  {Visualise(e.Response)}");
-    });
+        string tx = Visualise(e.Request);
+        string rx = Visualise(e.Response);
+
+        // Mirror control traffic (set points, stop, vendor commands) into the
+        // diagnostic app log so a "connects but won't control" problem is
+        // visible, including the controller's reply. The routine "$xxI" polling
+        // reads are skipped so the log is not flooded.
+        string req = e.Request;
+        bool isRoutineRead = req.Length > 3 && req[0] == Ascii2Protocol.StartDelimiter
+            && char.ToUpperInvariant(req[3]) == Ascii2Protocol.ReadCommand;
+        if (!isRoutineRead)
+        {
+            AppLog.Info(Name, $"Príkaz TX: {tx}  →  RX: {(string.IsNullOrEmpty(rx) ? "(bez odpovede)" : rx)}");
+        }
+
+        RunOnUi(() =>
+        {
+            AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  TX  {tx}");
+            AppendTerminal($"{e.Timestamp:HH:mm:ss.fff}  RX  {rx}");
+        });
+    }
 
     private void AppendTerminal(string line)
     {
