@@ -192,6 +192,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopReconnect();
         _connectionLostHandled = false;
         _pollFailureCount = 0;
+        _bannerWarned = false;
         ClearAlarm("link");
 
         StatusMessage = $"Pripájam sa na {Endpoint}…";
@@ -310,6 +311,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             try
             {
                 ChamberReading reading = await _client.ReadAsync(token);
+                if (LooksLikeControllerBanner(reading.Raw))
+                {
+                    WarnControllerBannerOnce(reading.Raw);
+                    throw new InvalidOperationException(
+                        "Odpoveď je uvítací banner riadiacej jednotky, nie ASCII-2 dáta (skontroluj port).");
+                }
+
                 _pollFailureCount = 0;
                 ApplyReading(reading);
             }
@@ -1240,7 +1248,43 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private readonly Dictionary<string, string> _alarms = new();
     private int _pollFailureCount;
     private bool _connectionLostHandled;
+    private bool _bannerWarned;
     private CancellationTokenSource? _reconnectCts;
+
+    /// <summary>
+    /// True when a response is the controller runtime's version banner
+    /// (e.g. "100 OK: Portable IEC 61131-3 RT Scheduler for Windows CE …")
+    /// rather than an ASCII-2 measured-value frame. This is what a S!MPAC
+    /// controller returns when you connect to the CoDeSys console port instead
+    /// of the ASCII-2 data port.
+    /// </summary>
+    private static bool LooksLikeControllerBanner(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        string u = raw.ToUpperInvariant();
+        return u.Contains("OK:") &&
+            (u.Contains("SCHEDULER") || u.Contains("IEC 61131") || u.Contains("REVISION") || u.Contains("WINDOWS CE"));
+    }
+
+    /// <summary>Logs the "wrong port" hint once per connection so it does not flood the log.</summary>
+    private void WarnControllerBannerOnce(string raw)
+    {
+        if (_bannerWarned)
+        {
+            return;
+        }
+
+        _bannerWarned = true;
+        AppLog.Warn(Name,
+            $"Riadiaca jednotka odpovedala uvítacím bannerom (\"{raw.Trim()}\"), nie ASCII-2 dátami. " +
+            $"Pravdepodobne nesprávny port – teraz {Port}. ASCII-2 rozhranie S!MPAC býva na porte 2051 " +
+            $"(ASCII-1 2050, SIMSERV 2049; staršie riadiace jednotky ASCII na 2049). " +
+            "Zmeň port v nastaveniach komory (Pripojenie a live).");
+    }
 
     private bool _alarmsEnabled;
     public bool AlarmsEnabled
@@ -1413,11 +1457,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             {
                 await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token);
                 await _client.ConnectAsync(BuildSettings(), token);
-                // A TCP socket can open even when the controller never answers, so
-                // confirm the link with a real read before declaring success. This
-                // stops the connect / drop flapping (and the alarm-log spam) when
-                // the chamber accepts the socket but does not respond to reads.
-                await _client.ReadAsync(token);
+                // A TCP socket can open even when the controller never answers (or
+                // only replies with a version banner on the wrong port), so confirm
+                // the link with a real read before declaring success. This stops the
+                // connect / drop flapping and the alarm-log spam.
+                ChamberReading probe = await _client.ReadAsync(token);
+                if (LooksLikeControllerBanner(probe.Raw))
+                {
+                    WarnControllerBannerOnce(probe.Raw);
+                    throw new InvalidOperationException(
+                        "Odpoveď je uvítací banner riadiacej jednotky, nie ASCII-2 dáta (skontroluj port).");
+                }
             }
             catch (OperationCanceledException)
             {
