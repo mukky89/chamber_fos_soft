@@ -33,6 +33,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private CancellationTokenSource? _profileCts;
     private CsvRecorder? _recorder;
     private DateTime? _profileActualStart;
+    private ProfileRunner? _activeRunner;
 
     public ChamberViewModel(ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit)
     {
@@ -58,6 +59,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsControlAllowed, ReportError);
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
+        StartSelectedProfileCommand = new AsyncRelayCommand(StartSelectedProfileAsync, CanStartSelectedProfile, ReportError);
+        PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning);
         StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Queue.Count > 0, ReportError);
         AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
@@ -624,8 +627,31 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public bool IsProfileRunning
     {
         get => _isProfileRunning;
-        private set { if (SetProperty(ref _isProfileRunning, value)) { RefreshCommands(); RaiseActivity(); } }
+        private set
+        {
+            if (SetProperty(ref _isProfileRunning, value))
+            {
+                if (!value)
+                {
+                    IsProfilePaused = false;
+                }
+
+                RefreshCommands();
+                RaiseActivity();
+            }
+        }
     }
+
+    private bool _isProfilePaused;
+    /// <summary><c>true</c> while a running profile is paused (test time frozen).</summary>
+    public bool IsProfilePaused
+    {
+        get => _isProfilePaused;
+        private set { if (SetProperty(ref _isProfilePaused, value)) OnPropertyChanged(nameof(PauseResumeGlyph)); }
+    }
+
+    /// <summary>Glyph for the single pause/resume button (▶ when paused, ⏸ while running).</summary>
+    public string PauseResumeGlyph => IsProfilePaused ? "▶" : "⏸";
 
     private bool _manualStarted;
 
@@ -748,6 +774,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     }
 
     public AsyncRelayCommand StartProfileCommand { get; }
+
+    /// <summary>Starts the profile selected in the history list (▶ on the dashboard card).</summary>
+    public AsyncRelayCommand StartSelectedProfileCommand { get; }
+
+    /// <summary>Pauses or resumes the running profile (⏸ / ▶ on the dashboard card).</summary>
+    public RelayCommand PauseResumeProfileCommand { get; }
+
     public RelayCommand StopProfileCommand { get; }
     public RelayCommand AddSegmentCommand { get; }
     public RelayCommand AddSegmentBeforeCommand { get; }
@@ -826,6 +859,49 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private Task StartQueueAsync() => RunSequenceAsync(Queue.Select(q => q.Profile).ToList());
 
+    private bool CanStartSelectedProfile() =>
+        IsConnected && IsControlAllowed && !IsProfileRunning &&
+        (SelectedHistoryProfile is not null || Segments.Count > 0);
+
+    /// <summary>
+    /// Dashboard ▶: loads the profile picked in the list (if any) into the editor and
+    /// starts it, so a chamber can be launched from a saved profile without opening it.
+    /// </summary>
+    private Task StartSelectedProfileAsync()
+    {
+        if (SelectedHistoryProfile is { } profile)
+        {
+            ApplyProfile(profile);
+        }
+
+        return StartProfileAsync();
+    }
+
+    /// <summary>Dashboard ⏸ / ▶: toggles pause on the running profile.</summary>
+    private void PauseResumeProfile()
+    {
+        if (_activeRunner is not { } runner)
+        {
+            return;
+        }
+
+        if (runner.IsPaused)
+        {
+            runner.Resume();
+            IsProfilePaused = false;
+            StatusMessage = $"Profil \"{ProfileName}\" pokračuje.";
+            _audit.Log(Name, "Profil pokračuje", ProfileName);
+        }
+        else
+        {
+            runner.Pause();
+            IsProfilePaused = true;
+            ProfileStatus = $"⏸ Pozastavené · \"{ProfileName}\"";
+            StatusMessage = ProfileStatus;
+            _audit.Log(Name, "Profil pozastavený", ProfileName);
+        }
+    }
+
     /// <summary>Runs one or more profiles back-to-back (the test queue).</summary>
     private async Task RunSequenceAsync(IReadOnlyList<TestProfile> profiles)
     {
@@ -875,6 +951,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         finally
         {
             IsProfileRunning = false;
+            _activeRunner = null;
             _profileActualStart = null;
             _profileCts?.Dispose();
             _profileCts = null;
@@ -888,6 +965,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         double? startHum = SupportsHumidity ? MeasuredHumidity : null;
 
         var runner = new ProfileRunner(_client, TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds));
+        _activeRunner = runner;
         double totalSeconds = Math.Max(1, profile.TotalDuration.TotalSeconds);
         double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
 
@@ -1051,6 +1129,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
 
         StartProfileCommand.RaiseCanExecuteChanged();
+        StartSelectedProfileCommand.RaiseCanExecuteChanged();
         SaveToHistoryCommand.RaiseCanExecuteChanged();
         ExportProfileCommand.RaiseCanExecuteChanged();
         RecalculateTiming();
@@ -1118,6 +1197,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             {
                 LoadFromHistoryCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
+                StartSelectedProfileCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -1128,13 +1208,34 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand ImportProfileCommand { get; }
     public RelayCommand ExportProfileCommand { get; }
 
+    /// <summary>
+    /// Reloads the saved-profile list from the shared store. Public so the shell can
+    /// refresh it after the user creates a profile elsewhere (e.g. the quick builder).
+    /// </summary>
+    public void ReloadProfiles()
+    {
+        TestProfile? previouslySelected = SelectedHistoryProfile;
+        RefreshHistory();
+        if (previouslySelected is not null)
+        {
+            SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == previouslySelected.Id);
+        }
+    }
+
     private void RefreshHistory()
     {
         History.Clear();
-        foreach (TestProfile profile in _store.LoadAll().Where(p => p.Kind == Kind))
+
+        // A humidity chamber can also run temperature-only profiles (e.g. those made
+        // by the quick builder), so include those; hide humidity profiles on a
+        // temperature-only chamber since it cannot honour the humidity channel.
+        foreach (TestProfile profile in _store.LoadAll()
+                     .Where(p => p.Kind == Kind || p.Kind == ChamberKind.TemperatureOnly))
         {
             History.Add(profile);
         }
+
+        StartSelectedProfileCommand.RaiseCanExecuteChanged();
     }
 
     private void SaveToHistory()
@@ -1834,6 +1935,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopChamberCommand.RaiseCanExecuteChanged();
         QuickSetTemperatureCommand.RaiseCanExecuteChanged();
         StartProfileCommand.RaiseCanExecuteChanged();
+        StartSelectedProfileCommand.RaiseCanExecuteChanged();
+        PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();

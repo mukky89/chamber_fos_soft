@@ -68,13 +68,13 @@
                         <DataGrid Grid.Column="0" ItemsSource="{Binding Segments}" SelectedItem="{Binding SelectedSegment, Mode=TwoWay}"
                                   ScrollViewer.VerticalScrollBarVisibility="Disabled" MinHeight="160">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Názov" Width="*" Binding="{Binding Name}" />
-                                <DataGridTextColumn Header="Cieľ °C" Width="84" Binding="{Binding TargetTemperature, StringFormat=0.0}" />
-                                <DataGridTextColumn Header="Cieľ %" Width="84" Binding="{Binding TargetHumidity, StringFormat=0.0, TargetNullValue=''}" />
-                                <DataGridTextColumn Header="Trvanie (min)" Width="108" Binding="{Binding DurationMinutes, StringFormat=0.##}" />
+                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Názov" Width="*" Binding="{Binding Name}" />
+                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Cieľ °C" Width="84" Binding="{Binding TargetTemperature, StringFormat=0.0}" />
+                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Cieľ %" Width="84" Binding="{Binding TargetHumidity, StringFormat=0.0, TargetNullValue=''}" />
+                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Trvanie (min)" Width="108" Binding="{Binding DurationMinutes, StringFormat=0.##}" />
                                 <DataGridCheckBoxColumn Header="Rampa" Width="56" Binding="{Binding IsRamp, UpdateSourceTrigger=PropertyChanged}" />
                                 <DataGridCheckBoxColumn Header="Soak" Width="52" Binding="{Binding GuaranteedSoak, UpdateSourceTrigger=PropertyChanged}" />
-                                <DataGridTextColumn Header="Tol °C" Width="60" Binding="{Binding SoakTolerance, StringFormat=0.0}" />
+                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Tol °C" Width="60" Binding="{Binding SoakTolerance, StringFormat=0.0}" />
                             </DataGrid.Columns>
                         </DataGrid>
                         <StackPanel Grid.Column="1" Margin="12,0,0,0" Width="130">

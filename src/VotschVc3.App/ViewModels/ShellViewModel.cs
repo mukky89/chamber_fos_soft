@@ -168,11 +168,24 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     {
         if (chamber is not null)
         {
+            // Pick up any profiles created elsewhere (e.g. the quick builder) so they
+            // are available in the chamber's history list.
+            chamber.ReloadProfiles();
             CurrentView = chamber;
         }
     }
 
-    private void GoHome() => CurrentView = this;
+    private void GoHome()
+    {
+        // Refresh every chamber's saved-profile list so profiles created in the quick
+        // builder / editor show up in the dashboard picker without restarting the app.
+        foreach (ChamberViewModel chamber in Chambers)
+        {
+            chamber.ReloadProfiles();
+        }
+
+        CurrentView = this;
+    }
 
     #region Users & permissions
 
