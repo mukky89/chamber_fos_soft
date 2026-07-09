@@ -565,6 +565,32 @@
         </Style.Triggers>
     </Style>
 
+    <!-- ===== Empty-state list ===== -->
+    <!-- ListBox that shows a muted hint (from Tag) when it has no items, so the
+         operator never stares at a blank area. Usage:
+         <ListBox Style="{StaticResource ListWithEmptyHint}" Tag="Zatiaľ žiadne profily…" /> -->
+    <Style x:Key="ListWithEmptyHint" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Style.Triggers>
+            <Trigger Property="HasItems" Value="False">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBox">
+                            <Border Background="Transparent" MinHeight="56">
+                                <TextBlock Text="{TemplateBinding Tag}"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12"
+                                           TextWrapping="Wrap" TextAlignment="Center"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Margin="14,10" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- ===== ListBoxItem (accent outline instead of the system-blue fill) ===== -->
     <Style TargetType="ListBoxItem">
         <Setter Property="Background" Value="Transparent" />
