@@ -105,7 +105,7 @@
                         <DockPanel LastChildFill="False" Margin="0,0,0,4">
                             <TextBlock Text="Editor profilu — ťahaj body myšou (teplota)" Style="{StaticResource Label}" DockPanel.Dock="Left" />
                             <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                <Run Text="Trvanie: " Foreground="#969BB5" />
+                                <Run Text="Trvanie: " Foreground="{StaticResource MutedBrush}" />
                                 <Run Text="{Binding ProfileDurationText, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
                             </TextBlock>
                         </DockPanel>

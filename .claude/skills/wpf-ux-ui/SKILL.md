@@ -22,11 +22,14 @@ Aplikácia riadi klimatické komory a pece v laboratóriu. Používatelia sú op
 | `DangerBrush` | `#E2555B` | stop/zmazať/alarmy |
 | `TextBrush` | `#E6E8F2` | hlavný text |
 | `MutedBrush` | `#969BB5` | sekundárny text, popisky |
+| `OkBrush` | `#4FC17A` | beh/OK, ▶ play, referenčný teplomer |
+| `WarnBrush` | `#FFB454` | upozornenie/pauza ⏸, zobrazenie setpointu |
+| `ErrorBrush` | `#E5646E` | chybové hodnoty, ⏹ stop ikonka |
 
-Semaforové farby v kóde (cez `Freeze(r,g,b)` helper, vždy frozen):
+Farby kriviek grafov v C# kóde (cez `Freeze(r,g,b)` helper, vždy frozen):
 teplota `#FF8A5C` (setpoint `#FFC2A8` čiarkovane), vlhkosť `#4FB6FF`
-(setpoint `#A9DCFF`), beh/OK zelená `#4FC17A`, upozornenie oranžová `#FFB454`,
-chyba červená `#E5646E`.
+(setpoint `#A9DCFF`). Jediná povolená výnimka hex vo views: dekoratívne
+gradienty LoginView a ilustrácie (`ChamberGraphic`, `PolEkoGraphic`).
 
 ## 2. Komponentové štýly — použi existujúce, nevymýšľaj nové
 
@@ -86,8 +89,8 @@ chyba červená `#E5646E`.
 
 - Klikacie ciele ≥ 28 px výšky (operátori v rukaviciach); ikonkové tlačidlá
   `Padding="9,3"` a `FontSize=14+`.
-- Play/Pause/Stop ikonky: ▶ zelená `#4FC17A`, ⏸ oranžová `#FFB454`,
-  ⏹ červená `#E5646E` — konzistentne v celej appke.
+- Play/Pause/Stop ikonky: ▶ `OkBrush`, ⏸ `WarnBrush`, ⏹ `ErrorBrush` —
+  konzistentne v celej appke.
 - Číselné vstupy: `UpdateSourceTrigger=LostFocus` (nechceš prepočty počas
   písania „-" alebo „1"); textové: `PropertyChanged`.
 - Enter v terminálovom vstupe odošle príkaz (KeyDown handler).
