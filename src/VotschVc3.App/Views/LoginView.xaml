@@ -65,6 +65,7 @@
                             BorderThickness="1" CornerRadius="6">
                         <PasswordBox x:Name="PasswordBox" Padding="9,8" FontSize="13" BorderThickness="0"
                                      Background="Transparent" Foreground="{StaticResource TextBrush}"
+                                     CaretBrush="{StaticResource TextBrush}"
                                      KeyDown="PasswordBox_KeyDown" />
                     </Border>
 
