@@ -12,7 +12,7 @@ namespace VotschVc3.Core.Profiles;
 /// </summary>
 public sealed class ProfileRunner
 {
-    private readonly ChamberClient _client;
+    private readonly IChamberDevice _client;
     private readonly TimeSpan _updateInterval;
 
     // Pause gate: set = running, reset = paused. The segment clock is stopped
@@ -21,7 +21,7 @@ public sealed class ProfileRunner
 
     /// <param name="client">A connected chamber client.</param>
     /// <param name="updateInterval">How often a fresh set point is written (default 5&#160;s).</param>
-    public ProfileRunner(ChamberClient client, TimeSpan? updateInterval = null)
+    public ProfileRunner(IChamberDevice client, TimeSpan? updateInterval = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _updateInterval = updateInterval ?? TimeSpan.FromSeconds(5);
