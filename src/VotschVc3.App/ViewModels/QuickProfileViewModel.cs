@@ -353,9 +353,21 @@ public sealed class QuickProfileViewModel : ObservableObject
         try
         {
             TestProfile profile = BuildProfile();
+
+            // Upsert by name so re-saving the same sweep updates it instead of
+            // creating duplicates in the shared library.
+            TestProfile? existing = _store.LoadAll()
+                .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                profile.Id = existing.Id;
+            }
+
             _store.Save(profile);
-            Status = $"Profil \"{profile.Name}\" uložený do knižnice ({profile.Segments.Count} segmentov, " +
-                $"{Format(profile.SinglePassDuration.TotalMinutes)}). Otvor ho v Editore profilov.";
+            Status = (existing is null
+                    ? $"Profil \"{profile.Name}\" uložený do knižnice"
+                    : $"Profil \"{profile.Name}\" aktualizovaný v knižnici") +
+                $" ({profile.Segments.Count} segmentov, {Format(profile.SinglePassDuration.TotalMinutes)}). Otvor ho v Editore profilov.";
         }
         catch (Exception ex)
         {

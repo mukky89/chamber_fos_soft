@@ -130,10 +130,19 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Uložené profily" Style="{StaticResource Heading}" />
+                    <DockPanel Grid.Row="0" LastChildFill="False">
+                        <TextBlock Text="Uložené profily" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                        <TextBlock Text="dvojklik = načítať" Style="{StaticResource Caption}"
+                                   DockPanel.Dock="Right" VerticalAlignment="Center" />
+                    </DockPanel>
                     <ListBox Grid.Row="1" ItemsSource="{Binding History}"
                              SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              Background="Transparent" BorderThickness="0">
+                        <ListBox.InputBindings>
+                            <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding LoadFromHistoryCommand}" />
+                        </ListBox.InputBindings>
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -142,10 +151,11 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="10,7">
+                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="10,7"
+                                        ToolTip="Dvojklik načíta profil do editora (teploty aj všetky parametre).">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" />
-                                        <TextBlock Style="{StaticResource Caption}">
+                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0">
                                             <Run Text="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm', Mode=OneWay}" />
                                             <Run Text=" · " />
                                             <Run Text="{Binding Kind, Mode=OneWay}" />

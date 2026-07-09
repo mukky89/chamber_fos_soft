@@ -94,6 +94,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ClearTerminalCommand = new RelayCommand(() => TerminalLines.Clear());
 
         ApplyConfig(config);
+        if (IsPolEko)
+        {
+            // A sensible first command for the MODBUS terminal (read input register 0).
+            _terminalInput = "04 0000 0001";
+        }
+
         SeedDefaultProfile();
         RefreshHistory();
         RecalculateTiming();
@@ -521,6 +527,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Temperature (°C) entered in the dashboard quick-set field.</summary>
     public double QuickTemperature { get => _quickTemperature; set => SetProperty(ref _quickTemperature, value); }
 
+    /// <summary>
+    /// One-click temperature presets on the dashboard card, tailored to the device:
+    /// a drying oven cannot go below ambient, so it gets drying temperatures instead
+    /// of the climate-chamber sweep points.
+    /// </summary>
+    public IReadOnlyList<double> QuickPresets => IsPolEko
+        ? new[] { 60d, 105d, 150d, 250d }
+        : new[] { -20d, 0d, 25d, 60d };
+
     public AsyncRelayCommand<double?> QuickSetTemperatureCommand { get; }
 
     /// <summary>Applies a temperature set point directly (used by the presets and the quick field).</summary>
@@ -764,8 +779,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public bool HasProfileWarnings => !string.IsNullOrEmpty(ProfileWarnings);
 
+    /// <summary>Device temperature envelope used by the profile "smart check".</summary>
+    private (double Min, double Max) DeviceTempRange => IsPolEko
+        ? (0, 300)    // SLN drying oven: ambient .. +300 °C, no sub-zero capability
+        : (-80, 200); // Vötsch climate chamber
+
     private void ValidateProfile()
     {
+        (double tMin, double tMax) = DeviceTempRange;
         var issues = new List<string>();
         for (int i = 0; i < Segments.Count; i++)
         {
@@ -775,9 +796,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 issues.Add($"Segment {i + 1}: trvanie ≤ 0");
             }
 
-            if (s.TargetTemperature is < -80 or > 200)
+            if (s.TargetTemperature < tMin || s.TargetTemperature > tMax)
             {
-                issues.Add($"Segment {i + 1}: teplota mimo rozsahu");
+                issues.Add($"Segment {i + 1}: teplota mimo rozsahu zariadenia [{tMin:0}; {tMax:0}] °C");
             }
 
             if (SupportsHumidity && s.TargetHumidity is { } hh && (hh < 0 || hh > 100))
@@ -898,6 +919,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         if (_activeRunner is not { } runner)
         {
+            // The runner exists only once segments actually execute; during a
+            // delayed-start countdown there is nothing to pause yet.
+            StatusMessage = "Profil ešte nebeží (čaká na naplánovaný štart) – pozastaviť sa dá až po štarte.";
             return;
         }
 
@@ -930,6 +954,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         CancellationToken token = _profileCts.Token;
         IsProfileRunning = true;
         ProfileProgress = 0;
+        _profileNowFraction = 0; // fresh run: the preview "now" marker starts at the beginning
 
         try
         {
@@ -1264,11 +1289,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private void SaveToHistory()
     {
         TestProfile profile = BuildProfile();
-        profile.Id = Guid.NewGuid();
+
+        // Upsert by name: saving a profile with an existing name updates it instead
+        // of piling up duplicates in the shared library.
+        TestProfile? existing = _store.LoadAll()
+            .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+        profile.Id = existing?.Id ?? Guid.NewGuid();
+
         _store.Save(profile);
         RefreshHistory();
         SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == profile.Id);
-        StatusMessage = $"Profil \"{profile.Name}\" uložený do histórie.";
+        StatusMessage = existing is null
+            ? $"Profil \"{profile.Name}\" uložený do histórie."
+            : $"Profil \"{profile.Name}\" aktualizovaný (prepísaná staršia verzia).";
     }
 
     private void LoadFromHistory()
