@@ -415,7 +415,7 @@
                                     <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding LoadFromHistoryCommand}" />
                                 </ListBox.InputBindings>
                                 <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
+                                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                         <Setter Property="Margin" Value="0,2" />
                                     </Style>
@@ -566,7 +566,7 @@
                                  Background="Transparent" BorderThickness="0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
                             <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem">
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                     <Setter Property="Background" Value="Transparent" />
                                     <Setter Property="Padding" Value="2,1" />
                                 </Style>

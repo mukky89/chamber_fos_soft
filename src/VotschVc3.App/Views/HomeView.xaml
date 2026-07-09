@@ -134,7 +134,7 @@
                                     <StackPanel Margin="0,0,16,6">
                                         <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="24" FontFamily="Segoe UI Light"
+                                            <TextBlock Style="{StaticResource MetricSmall}"
                                                        Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
                                             <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4"
                                                        Foreground="{StaticResource MutedBrush}" />
@@ -144,7 +144,7 @@
                                     <StackPanel Margin="0,0,16,6">
                                         <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="20" FontFamily="Segoe UI Semibold" Foreground="{StaticResource WarnBrush}"
+                                            <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
                                                        Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
                                             <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
                                                        Foreground="{StaticResource MutedBrush}" />
@@ -155,7 +155,7 @@
                                                 Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="24" FontFamily="Segoe UI Light"
+                                            <TextBlock Style="{StaticResource MetricSmall}"
                                                        Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
                                             <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4"
                                                        Foreground="{StaticResource MutedBrush}" />
@@ -186,7 +186,7 @@
                                                     Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
                                             <TextBlock Text="Referencia F100:" Style="{StaticResource Caption}"
                                                        VerticalAlignment="Center" Margin="0,0,6,0" />
-                                            <TextBlock FontSize="20" FontFamily="Segoe UI Semibold" Foreground="{StaticResource OkBrush}"
+                                            <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource OkBrush}"
                                                        Text="{Binding ReferenceTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
                                             <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
                                                        Foreground="{StaticResource MutedBrush}" />
@@ -206,7 +206,7 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                                     <Button Content="Pripojiť" Style="{StaticResource AccentButton}"
                                             Command="{Binding ConnectCommand}" />
-                                    <Button Content="Odpojiť" Command="{Binding DisconnectCommand}" />
+                                    <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
                                 </StackPanel>
 
                                 <!-- ===== Spustiť podľa uloženého profilu ===== -->
@@ -279,7 +279,7 @@
                                                Foreground="{StaticResource MutedBrush}" />
                                     <Button Content="Nastaviť" Style="{StaticResource AccentButton}"
                                             Command="{Binding QuickSetTemperatureCommand}" />
-                                    <Button Content="Stop" Margin="8,0,0,0"
+                                    <Button Content="Stop" Style="{StaticResource DangerButton}" Margin="8,0,0,0"
                                             Command="{Binding StopChamberCommand}" />
                                 </StackPanel>
 

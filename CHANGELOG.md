@@ -4,6 +4,23 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.4] – 2026-07-09
+
+### Zmenené (dizajn podľa wpf-ux-ui)
+- **Tmavé tooltips** – systémový svetložltý ToolTip nahradený tmavým so
+  zaoblením a zalamovaním (tooltips používame všade, konečne ladia s témou).
+- **Štíhle tmavé scrollbary** – namiesto hrubých systémových; ťahaný palec
+  sa zvýrazní akcentovou farbou.
+- **Tmavý CheckBox** – vlastný glyph (tmavý box, akcentová výplň s bielou
+  fajkou), hover a klávesnicový focus.
+- **Výber v zoznamoch** – akcentový obrys namiesto systémovo-modrej výplne
+  (história profilov, teplomery, fronta).
+- **Klávesnicový focus na tlačidlách** je viditeľný (akcentový rámik).
+- **Jednotné metriky na dlaždici** – nové štýly `MetricSmall`/`MetricSub`
+  namiesto ad-hoc veľkostí písma (teplota, vlhkosť, setpoint, referencia).
+- **Stop a Odpojiť na dlaždici sú červené** (`DangerButton`) – konzistentne
+  s detailom komory (pravidlo: nebezpečné akcie vždy odlíšené).
+
 ## [1.7.3] – 2026-07-09
 
 ### Zmenené
