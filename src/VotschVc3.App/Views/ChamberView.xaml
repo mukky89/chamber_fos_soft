@@ -23,7 +23,13 @@
                 <Button Content="⚡ Rýchly profil" Margin="8,0,0,0"
                         Command="{Binding DataContext.OpenQuickProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         ToolTip="Otvoriť rýchly vytvárač profilov (teplotný sweep)." />
-                <views:ChamberGraphic Width="34" Height="44" Margin="6,0,10,0" />
+                <Grid Margin="6,0,10,0">
+                    <views:ChamberGraphic Width="34" Height="44" IsRunning="{Binding IsActive}"
+                                          Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                    <views:PolEkoGraphic Width="38" Height="44" IsRunning="{Binding IsActive}"
+                                         TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
+                                         Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}" />
+                </Grid>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{Binding Name}" FontSize="17" FontFamily="Segoe UI Semibold" />
                     <TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}" />

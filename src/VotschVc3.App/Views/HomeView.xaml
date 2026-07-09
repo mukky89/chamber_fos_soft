@@ -72,10 +72,16 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <views:ChamberGraphic Grid.Column="0" Width="150" Height="210"
-                                                  VerticalAlignment="Top"
-                                                  IsRunning="{Binding IsActive}"
-                                                  TitleText="{Binding KindLabel}" />
+                            <Grid Grid.Column="0" VerticalAlignment="Top">
+                                <views:ChamberGraphic Width="150" Height="210"
+                                                      IsRunning="{Binding IsActive}"
+                                                      TitleText="{Binding KindLabel}"
+                                                      Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                                <views:PolEkoGraphic Width="150" Height="210"
+                                                     IsRunning="{Binding IsActive}"
+                                                     TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
+                                                     Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}" />
+                            </Grid>
 
                             <StackPanel Grid.Column="1" Margin="14,2,0,0">
                                 <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"

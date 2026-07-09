@@ -4,6 +4,16 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.1] – 2026-07-09
+
+### Pridané
+- **Predkonfigurovaná POL-EKO SLN 115** – zariadenie je automaticky pridané
+  (IP **10.88.5.162**, port 502, MODBUS, len teplota, rozsah do 300 °C). Pridá
+  sa raz (aj do existujúcich inštalácií); ak ho odstrániš, znovu sa neobjaví.
+- **Grafika POL-EKO pece** – nový vektorový obrázok (nerezová skriňa s dotykovým
+  displejom a teplotou) sa zobrazuje na dlaždici aj v hlavičke pre POL-EKO
+  zariadenia; SVG verzia je v `assets/poleko_sln.svg`.
+
 ## [1.7.0] – 2026-07-09
 
 ### Pridané

@@ -11,7 +11,7 @@
     <AssemblyName>VotschVc3.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.7.0</Version>
+    <Version>1.7.1</Version>
     <Product>Vötsch — Riadenie klimatických komôr</Product>
   </PropertyGroup>
 

@@ -81,14 +81,39 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             configs = DefaultConfigs();
         }
 
+        // One-time migration: make sure the POL-EKO oven exists for installs created
+        // before it was added. A marker file ensures it is seeded only once, so a
+        // user who later removes it will not see it reappear on the next start.
+        bool addedPolEko = false;
+        string polEkoMarker = System.IO.Path.Combine(dir, ".poleko_seeded");
+        if (!System.IO.File.Exists(polEkoMarker) &&
+            !configs.Any(c => c.Protocol == ChamberProtocol.PolEkoModbus))
+        {
+            configs.Add(DefaultPolEkoConfig());
+            addedPolEko = true;
+        }
+
         foreach (ChamberConfig config in configs)
         {
             AddChamberInternal(config);
         }
 
-        if (seeded)
+        if (seeded || addedPolEko)
         {
             SaveConfigs();
+        }
+
+        try
+        {
+            System.IO.Directory.CreateDirectory(dir);
+            if (!System.IO.File.Exists(polEkoMarker))
+            {
+                System.IO.File.WriteAllText(polEkoMarker, DateTimeOffset.Now.ToString("o"));
+            }
+        }
+        catch
+        {
+            // A missing marker only means the one-time seed check runs again; harmless.
         }
 
         // Start at the login screen.
@@ -335,6 +360,20 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     {
         new ChamberConfig { Name = "Komora 1 — teplota + vlhkosť", Kind = ChamberKind.TemperatureHumidity, Host = "192.168.0.1" },
         new ChamberConfig { Name = "Komora 2 — teplota", Kind = ChamberKind.TemperatureOnly, Host = "192.168.0.2" },
+        DefaultPolEkoConfig(),
+    };
+
+    /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>
+    private static ChamberConfig DefaultPolEkoConfig() => new()
+    {
+        Name = "POL-EKO SLN 115 — sušiareň",
+        Kind = ChamberKind.TemperatureOnly,
+        Protocol = ChamberProtocol.PolEkoModbus,
+        Host = "10.88.5.162",
+        Port = 502,
+        Address = 1,
+        TempMin = 0,
+        TempMax = 300, // SLN drying oven range is up to +300 °C
     };
 
     private void AddChamberInternal(ChamberConfig config)
