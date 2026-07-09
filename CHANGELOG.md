@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.7] – 2026-07-09
+
+### Pridané
+- **Notifikácie na ploche a zvuk** – pri dokončení profilu/fronty a pri každom
+  novom alarme zaznie zvuk, zobrazí sa bublina v oznamovacej oblasti Windows
+  (na Win 10/11 ako toast) a ikona na paneli úloh bliká, kým appku neotvoríš.
+  Operátor tak nemusí sledovať monitor; dopĺňa existujúci e-mail.
+- **Dvojkrokové odobratie komory** – prvý klik na ✕ zmení tlačidlo na
+  „✕ Naozaj?", druhý klik do 4 sekúnd komoru odoberie (vrátane konfigurácie);
+  inak sa tlačidlo samo vráti. Omylom už komoru nezmažeš.
+
 ## [1.7.6] – 2026-07-09
 
 ### Pridané

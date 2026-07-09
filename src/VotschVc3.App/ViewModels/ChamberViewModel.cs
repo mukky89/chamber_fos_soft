@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
+using VotschVc3.App.Notifications;
 using VotschVc3.Core.Communication;
 using VotschVc3.Core.Communication.PolEko;
 using VotschVc3.Core.Diagnostics;
@@ -152,6 +153,23 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Sets whether the current user may operate this chamber.</summary>
     public void SetControlAllowed(bool allowed) => IsControlAllowed = allowed;
+
+    private bool _isRemoveArmed;
+    /// <summary>
+    /// Two-step removal state driven by the shell: the dashboard ✕ arms first,
+    /// a second click within a few seconds actually removes the chamber.
+    /// </summary>
+    public bool IsRemoveArmed
+    {
+        get => _isRemoveArmed;
+        private set { if (SetProperty(ref _isRemoveArmed, value)) OnPropertyChanged(nameof(RemoveButtonText)); }
+    }
+
+    /// <summary>Caption of the dashboard remove button (reflects the armed state).</summary>
+    public string RemoveButtonText => IsRemoveArmed ? "✕ Naozaj?" : "✕";
+
+    /// <summary>Arms / disarms the two-step remove confirmation (called by the shell).</summary>
+    public void SetRemoveArmed(bool value) => IsRemoveArmed = value;
 
     #region Connection
 
@@ -980,6 +998,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = ProfileStatus;
             _audit.Log(Name, "Profil dokončený", profiles.Count > 1 ? $"Fronta {profiles.Count} profilov" : profiles[0].Name);
             AppLog.Info(Name, ProfileStatus);
+            DesktopNotifier.Notify(
+                $"{ProfileStatus.TrimEnd('.')} · {Name}",
+                profiles.Count > 1
+                    ? $"Dokončených {profiles.Count} profilov ({DateTime.Now:HH:mm})."
+                    : $"\"{profiles[0].Name}\" dokončený o {DateTime.Now:HH:mm}.",
+                DesktopNotificationKind.Success);
             await NotifyCompletionAsync();
         }
         catch (OperationCanceledException)
@@ -1694,6 +1718,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = $"⚠ ALARM: {message}";
             _audit.Log(Name, "ALARM", message);
             AppLog.Warn(Name, $"ALARM: {message}");
+            DesktopNotifier.Notify($"⚠ ALARM · {Name}", message, DesktopNotificationKind.Alarm);
             _ = SendAlarmEmailAsync(message);
             if (AutoStopOnAlarm && IsProfileRunning)
             {

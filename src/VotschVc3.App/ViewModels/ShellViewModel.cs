@@ -404,12 +404,38 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         NewChamberName = string.Empty;
     }
 
+    private CancellationTokenSource? _removeArmCts;
+
     private async void RemoveChamber(ChamberViewModel? chamber)
     {
         if (chamber is null || Chambers.Count <= 1)
         {
             return;
         }
+
+        // Two-step confirmation: the first ✕ click arms the button ("✕ Naozaj?"),
+        // a second click within 4 s removes the chamber; otherwise it disarms
+        // itself. Removing a chamber deletes its saved configuration, so an
+        // accidental single click must never be enough.
+        if (!chamber.IsRemoveArmed)
+        {
+            foreach (ChamberViewModel c in Chambers)
+            {
+                c.SetRemoveArmed(false);
+            }
+
+            chamber.SetRemoveArmed(true);
+            _removeArmCts?.Cancel();
+            _removeArmCts = new CancellationTokenSource();
+            CancellationToken token = _removeArmCts.Token;
+            _ = Task.Delay(TimeSpan.FromSeconds(4), token).ContinueWith(
+                _ => chamber.SetRemoveArmed(false),
+                token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+            return;
+        }
+
+        _removeArmCts?.Cancel();
+        chamber.SetRemoveArmed(false);
 
         if (ReferenceEquals(CurrentView, chamber))
         {
