@@ -20,6 +20,9 @@
         <Grid Grid.Row="0" Margin="6,2,6,8">
             <StackPanel Orientation="Horizontal">
                 <Button Content="← Domov" Command="{Binding DataContext.GoHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                <Button Content="⚡ Rýchly profil" Margin="8,0,0,0"
+                        Command="{Binding DataContext.OpenQuickProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Otvoriť rýchly vytvárač profilov (teplotný sweep)." />
                 <views:ChamberGraphic Width="34" Height="44" Margin="6,0,10,0" />
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{Binding Name}" FontSize="17" FontFamily="Segoe UI Semibold" />

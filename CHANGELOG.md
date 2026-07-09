@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.13] – 2026-07-09
+
+### Pridané
+- **Automatický názov v Rýchlom vytváraču profilov** – názov sa generuje podľa
+  vzoru z parametrov sweepu:
+  `[predpona ]Sweep {od}…{do} °C · {N} bodov[ · obojsmerný][ · 2 vrcholy]`
+  (N = počet rôznych teplotných bodov). Názov sa dá **ručne upraviť** (vtedy sa
+  prestane prepisovať) a tlačidlom *Automaticky* sa vráti generovaný názov.
+- **Predpona názvu** – voliteľné pole (napr. kód projektu/vzorky), ktoré sa
+  vloží pred automaticky generovaný názov.
+- **Tlačidlo „⚡ Rýchly profil“** priamo v ovládaní komory (v hlavičke detailu
+  komory) otvorí rýchly vytvárač profilov.
+
 ## [1.6.12] – 2026-07-02
 
 ### Pridané
