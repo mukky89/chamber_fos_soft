@@ -4,6 +4,25 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.14] – 2026-07-09
+
+### Pridané
+- **Spustenie komory z uloženého profilu priamo z dlaždice** – pri výbere komory
+  je rozbaľovací zoznam uložených profilov (vrátane tých z Rýchleho vytvárača)
+  a ikonky **▶ spustiť · ⏸/▶ pozastaviť/pokračovať · ⏹ zastaviť**.
+- **Pozastavenie a pokračovanie profilu** – bežiaci profil sa dá pozastaviť
+  (testovací čas sa zmrazí, komora drží posledný setpoint) a plynulo obnoviť;
+  tlačidlo je aj v detaile komory (záložka *Profil*).
+- **Čas štartu a konca počas behu** – na dlaždici komory sa pri bežiacom profile
+  zobrazuje „Spustené HH:mm:ss · koniec ~ HH:mm:ss".
+
+### Opravené
+- **Rýchly profil je teraz viditeľný v komore** – uložené profily sa v zozname
+  komory obnovia pri návrate na hlavnú stránku a pri otvorení komory; teplotné
+  profily (napr. z Rýchleho vytvárača) sú dostupné aj na komore s vlhkosťou.
+- **Neviditeľný kurzor v tabuľkách profilu** – editačné bunky tabuľky segmentov
+  mali čierny kurzor na tmavom podklade; kurzor je teraz biely.
+
 ## [1.6.13] – 2026-07-09
 
 ### Pridané

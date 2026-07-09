@@ -15,6 +15,10 @@ public sealed class ProfileRunner
     private readonly ChamberClient _client;
     private readonly TimeSpan _updateInterval;
 
+    // Pause gate: set = running, reset = paused. The segment clock is stopped
+    // while paused so no test time elapses; the chamber keeps its last set point.
+    private readonly ManualResetEventSlim _resume = new(true);
+
     /// <param name="client">A connected chamber client.</param>
     /// <param name="updateInterval">How often a fresh set point is written (default 5&#160;s).</param>
     public ProfileRunner(ChamberClient client, TimeSpan? updateInterval = null)
@@ -29,6 +33,23 @@ public sealed class ProfileRunner
 
     /// <summary>Raised whenever the runner writes a new set point.</summary>
     public event EventHandler<ProfileProgressEventArgs>? Progress;
+
+    /// <summary><c>true</c> while the run is paused (test time is frozen).</summary>
+    public bool IsPaused { get; private set; }
+
+    /// <summary>Pauses the run: the test clock stops and no further set points advance.</summary>
+    public void Pause()
+    {
+        IsPaused = true;
+        _resume.Reset();
+    }
+
+    /// <summary>Resumes a paused run from exactly where it stopped.</summary>
+    public void Resume()
+    {
+        IsPaused = false;
+        _resume.Set();
+    }
 
     /// <summary>
     /// Runs the profile to completion (or until <paramref name="cancellationToken"/>
@@ -97,6 +118,7 @@ public sealed class ProfileRunner
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            await WaitWhilePausedAsync(segmentClock, cancellationToken).ConfigureAwait(false);
 
             double elapsedSeconds = segmentClock.Elapsed.TotalSeconds;
             double fraction = Math.Clamp(elapsedSeconds / duration.TotalSeconds, 0d, 1d);
@@ -132,6 +154,7 @@ public sealed class ProfileRunner
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            await WaitWhilePausedAsync(null, cancellationToken).ConfigureAwait(false);
 
             // Keep driving the chamber to the target while waiting.
             await WriteSetpointAsync(segment.TargetTemperature, humidity, cancellationToken).ConfigureAwait(false);
@@ -160,6 +183,32 @@ public sealed class ProfileRunner
             }
 
             await Task.Delay(_updateInterval, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Blocks while the run is paused, stopping <paramref name="clock"/> so no test
+    /// time elapses and restarting it on resume. Returns immediately when running.
+    /// </summary>
+    private async Task WaitWhilePausedAsync(System.Diagnostics.Stopwatch? clock, CancellationToken cancellationToken)
+    {
+        if (_resume.IsSet)
+        {
+            return;
+        }
+
+        clock?.Stop();
+        try
+        {
+            while (!_resume.IsSet)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            clock?.Start();
         }
     }
 
