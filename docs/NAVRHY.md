@@ -49,6 +49,26 @@ vedľa profilov a pridať týždenný plánovač (profil X každý pondelok 6:00
 Texty sú dnes v XAML natvrdo po slovensky. Presun do `.resx` slovníkov by
 umožnil prepínanie jazyka (užitočné pre audit u zákazníka).
 
+## 9. Notifikácie na ploche a zvuk — nízka prácnosť, vysoký prínos
+Windows toast/zvukové upozornenie pri dokončení profilu a pri alarme
+(operátor nemusí sledovať monitor). Doplnok k existujúcemu e-mailu.
+
+## 10. Porovnanie záznamov v prehliadači — stredná priorita
+Otvoriť dva CSV záznamy naraz a prekryť ich krivky (referenčný beh vs.
+aktuálny) – užitočné pri opakovaných testoch a validácii komory.
+
+## 11. Šablóny noriem (IEC 60068-2-x) — stredná priorita
+Predpripravené profily podľa bežných noriem (2-1 chlad, 2-2 suché teplo,
+2-14 zmeny teploty) ako východiská v knižnici – parametre si operátor doladí.
+
+## 12. Dvojkrokové potvrdenie aj pre „Odobrať komoru" — technický dlh
+Mazanie profilov už má dvojkrokové potvrdenie (v1.7.6); tlačidlo ✕ na
+odobratie komory na dashboarde stále maže konfiguráciu okamžite.
+
+## 13. Zálohovanie/obnova nastavení — nižšia priorita
+Export/import celého priečinka Dokumenty/VotschVc3 (profily, komory, používatelia,
+e-mail) do jedného ZIP – prenos na iný počítač alebo záloha pred aktualizáciou.
+
 ## Opravené v tejto revízii (v1.7.2)
 - Ukladanie profilu prepisuje verziu s rovnakým názvom (žiadne duplikáty) —
   komora, editor profilov aj rýchly vytvárač.

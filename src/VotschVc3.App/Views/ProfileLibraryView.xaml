@@ -179,7 +179,9 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="0" Content="Načítať" Command="{Binding LoadFromHistoryCommand}" Margin="0" />
-                            <Button Grid.Column="2" Content="Zmazať" Style="{StaticResource DangerButton}" Margin="0" Command="{Binding DeleteFromHistoryCommand}" />
+                            <Button Grid.Column="2" Content="{Binding DeleteButtonText}" Style="{StaticResource DangerButton}" Margin="0"
+                                    Command="{Binding DeleteFromHistoryCommand}"
+                                    ToolTip="Zmazanie vyžaduje dva kliknutia – druhý potvrdzuje do 3 sekúnd." />
                         </Grid>
                     </StackPanel>
                 </Grid>

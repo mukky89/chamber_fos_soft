@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.6] – 2026-07-09
+
+### Pridané
+- **Dvojkrokové mazanie profilov** – prvý klik na „Zmazať" zmení tlačidlo na
+  „Naozaj zmazať?" a druhý klik do 3 sekúnd potvrdí; inak sa tlačidlo samo
+  vráti. Platí v histórii komory aj v editore profilov; zmena výberu
+  potvrdenie zruší. Omylom už profil nezmažeš.
+
 ## [1.7.5] – 2026-07-09
 
 ### Zmenené (dizajn podľa wpf-ux-ui)
