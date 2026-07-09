@@ -1241,6 +1241,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _selectedHistoryProfile, value))
             {
+                DisarmDelete(); // a different profile is selected – confirmation no longer applies
                 LoadFromHistoryCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
                 StartSelectedProfileCommand.RaiseCanExecuteChanged();
@@ -1393,14 +1394,52 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         RecalculateTiming();
     }
 
+    private CancellationTokenSource? _deleteArmCts;
+
+    private bool _isDeleteArmed;
+    /// <summary>Two-step delete: the first click arms the button, the second (within 3 s) deletes.</summary>
+    public bool IsDeleteArmed
+    {
+        get => _isDeleteArmed;
+        private set { if (SetProperty(ref _isDeleteArmed, value)) OnPropertyChanged(nameof(DeleteButtonText)); }
+    }
+
+    /// <summary>Delete button caption reflecting the confirmation state.</summary>
+    public string DeleteButtonText => IsDeleteArmed ? "Naozaj zmazať?" : "Zmazať";
+
+    private void DisarmDelete()
+    {
+        _deleteArmCts?.Cancel();
+        _deleteArmCts = null;
+        IsDeleteArmed = false;
+    }
+
     private void DeleteFromHistory()
     {
-        if (SelectedHistoryProfile is { } profile)
+        if (SelectedHistoryProfile is not { } profile)
         {
-            _store.Delete(profile.Id);
-            RefreshHistory();
-            StatusMessage = $"Profil \"{profile.Name}\" odstránený z histórie.";
+            return;
         }
+
+        if (!IsDeleteArmed)
+        {
+            // First click only arms the confirmation; it auto-reverts after 3 s so a
+            // forgotten armed button cannot delete something much later.
+            IsDeleteArmed = true;
+            _deleteArmCts?.Cancel();
+            _deleteArmCts = new CancellationTokenSource();
+            CancellationToken token = _deleteArmCts.Token;
+            _ = Task.Delay(TimeSpan.FromSeconds(3), token).ContinueWith(
+                _ => IsDeleteArmed = false,
+                token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+            StatusMessage = $"Zmazať profil \"{profile.Name}\"? Potvrď druhým klikom do 3 sekúnd.";
+            return;
+        }
+
+        DisarmDelete();
+        _store.Delete(profile.Id);
+        RefreshHistory();
+        StatusMessage = $"Profil \"{profile.Name}\" odstránený z histórie.";
     }
 
     #endregion
