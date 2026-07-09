@@ -24,11 +24,51 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         SaveToLibraryCommand = new RelayCommand(SaveToLibrary);
-        Recalculate();
+        ResetNameCommand = new RelayCommand(EnableAutoName);
+        Recalculate(); // also generates the initial automatic name
     }
 
-    private string _profileName = "Rýchly profil";
-    public string ProfileName { get => _profileName; set => SetProperty(ref _profileName, value); }
+    /// <summary>True while the name is being set programmatically, so the user-edit
+    /// detection in <see cref="ProfileName"/> ignores our own writes.</summary>
+    private bool _settingNameInternally;
+
+    private bool _autoName = true;
+    /// <summary>
+    /// When true the profile name is generated automatically from the sweep
+    /// parameters (see <see cref="ComposeAutoName"/>). Editing the name box by hand
+    /// switches this off; <see cref="ResetNameCommand"/> turns it back on.
+    /// </summary>
+    public bool IsAutoName
+    {
+        get => _autoName;
+        private set { if (SetProperty(ref _autoName, value)) OnPropertyChanged(nameof(NameModeText)); }
+    }
+
+    public string NameModeText => IsAutoName
+        ? "Názov sa generuje automaticky z parametrov."
+        : "Názov si upravil ručne. Tlačidlom „Automaticky“ sa vráti generovaný názov.";
+
+    private string _namePrefix = string.Empty;
+    /// <summary>Optional user prefix placed in front of the generated name (e.g. a project or DUT code).</summary>
+    public string NamePrefix
+    {
+        get => _namePrefix;
+        set { if (SetProperty(ref _namePrefix, value)) UpdateAutoName(); }
+    }
+
+    private string _profileName = string.Empty;
+    public string ProfileName
+    {
+        get => _profileName;
+        set
+        {
+            if (SetProperty(ref _profileName, value) && !_settingNameInternally)
+            {
+                // A keystroke in the name box: respect the manual name from now on.
+                IsAutoName = false;
+            }
+        }
+    }
 
     private double _lowTemperature = -20;
     public double LowTemperature { get => _lowTemperature; set { if (SetProperty(ref _lowTemperature, value)) Recalculate(); } }
@@ -94,7 +134,14 @@ public sealed class QuickProfileViewModel : ObservableObject
     private string _status = "Nastav rozsah a kroky, potom ulož do knižnice.";
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
 
+    private string _namePatternHint = string.Empty;
+    /// <summary>Human-readable preview of the naming pattern used for the generated name.</summary>
+    public string NamePatternHint { get => _namePatternHint; private set => SetProperty(ref _namePatternHint, value); }
+
     public RelayCommand SaveToLibraryCommand { get; }
+
+    /// <summary>Re-enables automatic naming and regenerates the name from the parameters.</summary>
+    public RelayCommand ResetNameCommand { get; }
 
     private int TemperaturePointCount() => Math.Max(2, IntermediateSteps + 2);
 
@@ -225,7 +272,53 @@ public sealed class QuickProfileViewModel : ObservableObject
         Summary = $"{LowTemperature:0.#} → {HighTemperature:0.#} °C, {IntermediateSteps} medzikrokov" +
             (IncludeDescending ? " a späť dole" : string.Empty);
 
+        UpdateAutoName();
         BuildPreview();
+    }
+
+    /// <summary>Re-enables automatic naming (used by the "Automaticky" button).</summary>
+    private void EnableAutoName()
+    {
+        IsAutoName = true;
+        UpdateAutoName();
+    }
+
+    /// <summary>Refreshes the pattern hint and, when auto-naming is on, the name itself.</summary>
+    private void UpdateAutoName()
+    {
+        string generated = ComposeAutoName();
+        NamePatternHint = $"Vzor: {generated}";
+
+        if (!IsAutoName)
+        {
+            return;
+        }
+
+        _settingNameInternally = true;
+        ProfileName = generated;
+        _settingNameInternally = false;
+    }
+
+    /// <summary>
+    /// Builds the automatic profile name. Pattern:
+    /// <c>[predpona ]Sweep {od}…{do} °C · {N} bodov[ · obojsmerný][ · 2 vrcholy]</c>,
+    /// where <c>N</c> is the number of distinct temperature points.
+    /// </summary>
+    private string ComposeAutoName()
+    {
+        string core = $"Sweep {LowTemperature:0.#}…{HighTemperature:0.#} °C · {TemperaturePointCount()} bodov";
+        if (IncludeDescending)
+        {
+            core += " · obojsmerný";
+        }
+
+        if (DoublePeak)
+        {
+            core += " · 2 vrcholy";
+        }
+
+        string prefix = NamePrefix?.Trim() ?? string.Empty;
+        return prefix.Length > 0 ? $"{prefix} {core}" : core;
     }
 
     private void BuildPreview()
