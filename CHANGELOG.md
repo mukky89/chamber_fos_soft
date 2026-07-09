@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.6.15] – 2026-07-09
+
+### Pridané
+- **Náhľad profilu na dlaždici komory** – po vybraní (alebo počas behu) testu sa
+  zobrazí teplotná krivka profilu a počas behu aj zvislý ukazovateľ „teraz",
+  takže vidno, v ktorom štádiu a na akej teplote sa test nachádza priamo v profile.
+- **História profilov – dvojklik načíta profil** do editora (teploty aj všetky
+  parametre); panel je širší a názov aj popis sa zalamujú (vidno celý text).
+
+### Opravené
+- **Zlý názov vybraného profilu** v rozbaľovacom zozname na dlaždici (zobrazoval
+  sa názov typu namiesto názvu profilu) – teraz sa ukazuje názov profilu.
+
 ## [1.6.14] – 2026-07-09
 
 ### Pridané

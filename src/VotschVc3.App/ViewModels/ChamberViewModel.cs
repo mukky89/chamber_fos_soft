@@ -638,6 +638,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
                 RefreshCommands();
                 RaiseActivity();
+                OnPropertyChanged(nameof(HasProfilePreview));
+                BuildProfilePreview();
             }
         }
     }
@@ -982,6 +984,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 $"\"{profile.Name}\" · cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
                 $"· {e.TemperatureSetpoint:0.0} °C" +
                 (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
+
+            // Advance the "now" marker on the profile preview.
+            _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
+            BuildProfilePreview();
         });
 
         await runner.RunAsync(profile, startTemp, startHum, token);
@@ -1170,6 +1176,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
 
         BuildPreviewCharts();
+        BuildProfilePreview();
         ValidateProfile();
     }
 
@@ -1198,6 +1205,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 LoadFromHistoryCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
                 StartSelectedProfileCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(HasProfilePreview));
+                BuildProfilePreview();
             }
         }
     }
@@ -1761,6 +1770,66 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private IReadOnlyList<ChartSeries> _previewHumSeries = Array.Empty<ChartSeries>();
     public IReadOnlyList<ChartSeries> PreviewHumSeries { get => _previewHumSeries; private set => SetProperty(ref _previewHumSeries, value); }
+
+    private IReadOnlyList<ChartSeries> _profilePreview = Array.Empty<ChartSeries>();
+    /// <summary>
+    /// Temperature curve of the profile picked on the dashboard (or the running one),
+    /// with a dashed vertical "now" marker showing how far the test has progressed.
+    /// </summary>
+    public IReadOnlyList<ChartSeries> ProfilePreview { get => _profilePreview; private set => SetProperty(ref _profilePreview, value); }
+
+    /// <summary>0..1 position of the "now" marker within a single pass of the profile.</summary>
+    private double _profileNowFraction;
+
+    /// <summary><c>true</c> when there is a profile to preview (selected or running).</summary>
+    public bool HasProfilePreview => IsProfileRunning || SelectedHistoryProfile is not null;
+
+    private void BuildProfilePreview()
+    {
+        List<ProfileSegment> segs =
+            IsProfileRunning ? Segments.Select(s => s.ToModel()).ToList()
+            : SelectedHistoryProfile?.Segments ?? Segments.Select(s => s.ToModel()).ToList();
+
+        if (segs.Count == 0)
+        {
+            ProfilePreview = Array.Empty<ChartSeries>();
+            return;
+        }
+
+        var pts = new List<Point>();
+        double t = 0;
+        double start = MeasuredTemperature ?? segs[0].TargetTemperature;
+        pts.Add(new Point(0, start));
+        foreach (ProfileSegment s in segs)
+        {
+            double dur = s.Duration.TotalMinutes;
+            if (s.IsRamp)
+            {
+                t += dur;
+                pts.Add(new Point(t, s.TargetTemperature));
+            }
+            else
+            {
+                pts.Add(new Point(t, s.TargetTemperature));
+                t += dur;
+                pts.Add(new Point(t, s.TargetTemperature));
+            }
+        }
+
+        var series = new List<ChartSeries> { new("Profil", TempBrush, pts) };
+
+        // Vertical "now" line at the current position, so the operator can see the
+        // stage and temperature directly on the profile while it runs.
+        if (IsProfileRunning && t > 0)
+        {
+            double nowX = Math.Clamp(_profileNowFraction, 0, 1) * t;
+            double minY = pts.Min(p => p.Y);
+            double maxY = pts.Max(p => p.Y);
+            series.Add(new ChartSeries("Teraz", TempSpBrush, new List<Point> { new(nowX, minY), new(nowX, maxY) }, dashed: true));
+        }
+
+        ProfilePreview = series;
+    }
 
     private void RecordLive(ChamberReading reading)
     {
