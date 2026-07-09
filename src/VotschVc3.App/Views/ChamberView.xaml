@@ -191,17 +191,17 @@
                                               DisplayMemberPath="Display" />
                                     <TextBlock VerticalAlignment="Center" Margin="14,0,0,0"
                                                Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
-                                        <Run Text="Ref: " Foreground="#969BB5" />
+                                        <Run Text="Ref: " Foreground="{StaticResource MutedBrush}" />
                                         <Run Text="{Binding ReferenceTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}"
                                              FontFamily="Segoe UI Semibold" />
-                                        <Run Text=" °C" Foreground="#969BB5" />
+                                        <Run Text=" °C" Foreground="{StaticResource MutedBrush}" />
                                     </TextBlock>
                                     <TextBlock VerticalAlignment="Center" Margin="14,0,0,0"
                                                Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
-                                        <Run Text="Δ (komora − ref): " Foreground="#969BB5" />
+                                        <Run Text="Δ (komora − ref): " Foreground="{StaticResource MutedBrush}" />
                                         <Run Text="{Binding ReferenceDeviation, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}"
                                              FontFamily="Segoe UI Semibold" />
-                                        <Run Text=" K" Foreground="#969BB5" />
+                                        <Run Text=" K" Foreground="{StaticResource MutedBrush}" />
                                     </TextBlock>
                                 </StackPanel>
                                 <TextBlock Style="{StaticResource Caption}" Margin="6,2">
@@ -360,7 +360,7 @@
                                     </StackPanel>
                                     <StackPanel HorizontalAlignment="Right">
                                         <TextBlock HorizontalAlignment="Right">
-                                            <Run Text="Celkové trvanie: " Foreground="#969BB5" />
+                                            <Run Text="Celkové trvanie: " Foreground="{StaticResource MutedBrush}" />
                                             <Run Text="{Binding ProfileDurationText, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
                                         </TextBlock>
                                         <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}" HorizontalAlignment="Right" />

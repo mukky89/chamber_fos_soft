@@ -12,6 +12,10 @@
     <Color x:Key="DangerColor">#FFE2555B</Color>
     <Color x:Key="TextColor">#FFE6E8F2</Color>
     <Color x:Key="MutedColor">#FF969BB5</Color>
+    <!-- Semaphore colors: running/OK, warning/paused/setpoint, error/stop. -->
+    <Color x:Key="OkColor">#FF4FC17A</Color>
+    <Color x:Key="WarnColor">#FFFFB454</Color>
+    <Color x:Key="ErrorColor">#FFE5646E</Color>
 
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
@@ -22,6 +26,9 @@
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
     <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}" />
     <SolidColorBrush x:Key="MutedBrush" Color="{StaticResource MutedColor}" />
+    <SolidColorBrush x:Key="OkBrush" Color="{StaticResource OkColor}" />
+    <SolidColorBrush x:Key="WarnBrush" Color="{StaticResource WarnColor}" />
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
 
     <sys:Double x:Key="DefaultFontSize">13</sys:Double>
 

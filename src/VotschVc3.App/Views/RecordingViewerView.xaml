@@ -32,7 +32,7 @@
         <Border Grid.Row="2" Style="{StaticResource Card}">
             <StackPanel>
                 <TextBlock Text="Štatistika" Style="{StaticResource Heading}" />
-                <DataGrid ItemsSource="{Binding Stats}" MaxHeight="200">
+                <DataGrid ItemsSource="{Binding Stats}" MaxHeight="200" IsReadOnly="True">
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="" Width="34">
                             <DataGridTemplateColumn.CellTemplate>

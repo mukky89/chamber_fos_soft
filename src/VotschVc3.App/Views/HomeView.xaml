@@ -144,7 +144,7 @@
                                     <StackPanel Margin="0,0,16,6">
                                         <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="20" FontFamily="Segoe UI Semibold" Foreground="#FFB454"
+                                            <TextBlock FontSize="20" FontFamily="Segoe UI Semibold" Foreground="{StaticResource WarnBrush}"
                                                        Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
                                             <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
                                                        Foreground="{StaticResource MutedBrush}" />
@@ -186,7 +186,7 @@
                                                     Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
                                             <TextBlock Text="Referencia F100:" Style="{StaticResource Caption}"
                                                        VerticalAlignment="Center" Margin="0,0,6,0" />
-                                            <TextBlock FontSize="20" FontFamily="Segoe UI Semibold" Foreground="#4FC17A"
+                                            <TextBlock FontSize="20" FontFamily="Segoe UI Semibold" Foreground="{StaticResource OkBrush}"
                                                        Text="{Binding ReferenceTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
                                             <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
                                                        Foreground="{StaticResource MutedBrush}" />
@@ -235,11 +235,11 @@
                                             </Style>
                                         </StackPanel.Resources>
                                         <Button Content="▶" Command="{Binding StartSelectedProfileCommand}"
-                                                Foreground="#4FC17A" ToolTip="Spustiť vybraný profil" />
+                                                Foreground="{StaticResource OkBrush}" ToolTip="Spustiť vybraný profil" />
                                         <Button Content="{Binding PauseResumeGlyph}" Command="{Binding PauseResumeProfileCommand}"
-                                                Foreground="#FFB454" ToolTip="Pozastaviť / pokračovať" />
+                                                Foreground="{StaticResource WarnBrush}" ToolTip="Pozastaviť / pokračovať" />
                                         <Button Content="⏹" Command="{Binding StopProfileCommand}"
-                                                Foreground="#E5646E" ToolTip="Zastaviť profil" />
+                                                Foreground="{StaticResource ErrorBrush}" ToolTip="Zastaviť profil" />
                                     </StackPanel>
                                 </Grid>
 

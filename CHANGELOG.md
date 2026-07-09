@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.3] – 2026-07-09
+
+### Zmenené
+- **UI audit podľa dizajn systému (wpf-ux-ui skill)** – do témy pridané
+  sémantické tokeny `OkBrush`/`WarnBrush`/`ErrorBrush`; všetky natvrdo zadané
+  hex farby vo views nahradené tokenmi (setpoint, referenčný teplomer,
+  ▶⏸⏹ ikonky, sekundárne texty). Výnimkou ostávajú dekoratívne gradienty
+  LoginView a ilustrácie komôr (označené komentárom).
+
+### Opravené
+- **Prehliadač záznamov – tabuľka štatistík je read-only** (bunky sa nedali
+  zmysluplne editovať a mali neviditeľný kurzor).
+
 ## [1.7.2] – 2026-07-09
 
 ### Opravené

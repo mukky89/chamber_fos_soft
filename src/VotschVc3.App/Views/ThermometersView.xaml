@@ -62,7 +62,7 @@
                                         <TextBlock Margin="0,2,0,0">
                                             <Run Text="{Binding Temperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}"
                                                  FontFamily="Segoe UI Semibold" />
-                                            <Run Text="{Binding Unit, Mode=OneWay}" Foreground="#969BB5" />
+                                            <Run Text="{Binding Unit, Mode=OneWay}" Foreground="{StaticResource MutedBrush}" />
                                         </TextBlock>
                                     </StackPanel>
                                 </Border>
