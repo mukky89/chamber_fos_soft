@@ -39,7 +39,8 @@
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="Nájdené zariadenia" Style="{StaticResource Heading}" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
-                             Background="Transparent" BorderThickness="0">
+                             Style="{StaticResource ListWithEmptyHint}"
+                             Tag="Žiadne teplomery. Pripoj ASL F100 cez USB a klikni na „Vyhľadať zariadenia“.">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />

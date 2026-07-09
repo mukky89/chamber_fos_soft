@@ -380,7 +380,9 @@
                                     </StackPanel>
                                 </DockPanel>
                                 <ListBox ItemsSource="{Binding Queue}" SelectedItem="{Binding SelectedQueueItem, Mode=TwoWay}"
-                                         MaxHeight="110" Background="Transparent" BorderThickness="0">
+                                         Style="{StaticResource ListWithEmptyHint}"
+                                         Tag="Fronta je prázdna – tlačidlom „Pridať aktuálny“ zaradíš aktuálny profil a testy pobežia za sebou."
+                                         MaxHeight="110">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Summary}" />
@@ -408,9 +410,10 @@
                             </DockPanel>
                             <ListBox Grid.Row="1" ItemsSource="{Binding History}"
                                      SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
+                                     Style="{StaticResource ListWithEmptyHint}"
+                                     Tag="Zatiaľ žiadne uložené profily. Vytvor profil v editore alebo Rýchlom vytváraci a ulož ho tlačidlom „Uložiť aktuálny“."
                                      HorizontalContentAlignment="Stretch"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     Background="Transparent" BorderThickness="0">
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListBox.InputBindings>
                                     <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding LoadFromHistoryCommand}" />
                                 </ListBox.InputBindings>
@@ -563,7 +566,8 @@
                     </Grid.RowDefinitions>
                     <Border Grid.Row="0" Style="{StaticResource Card}" Background="{StaticResource BackgroundBrush}">
                         <ListBox x:Name="TerminalList" ItemsSource="{Binding TerminalLines}"
-                                 Background="Transparent" BorderThickness="0"
+                                 Style="{StaticResource ListWithEmptyHint}"
+                                 Tag="Zatiaľ žiadna komunikácia. Pripoj sa ku komore – každý TX/RX rámec sa zobrazí tu."
                                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">

@@ -4,6 +4,15 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.5] – 2026-07-09
+
+### Zmenené (dizajn podľa wpf-ux-ui)
+- **Prázdne stavy zoznamov** – prázdny zoznam už nie je prázdna plocha, ale
+  nápoveda čo spraviť: história profilov („ulož tlačidlom Uložiť aktuálny"),
+  fronta testov, terminál a zoznam teplomerov (nový štýl `ListWithEmptyHint`).
+- **Panel Uložené profily v editore profilov rozšírený** (290 → 380 px) –
+  parita s históriou v komore, celé názvy a popisy sú čitateľné.
+
 ## [1.7.4] – 2026-07-09
 
 ### Zmenené (dizajn podľa wpf-ux-ui)
