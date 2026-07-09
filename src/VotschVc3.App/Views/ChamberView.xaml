@@ -77,28 +77,35 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Style="{StaticResource FieldStack}">
                                     <TextBlock Text="Adresa komory" Style="{StaticResource Label}" />
-                                    <TextBox Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Vötsch: 2-miestna adresa v rámci ASCII-2. POL-EKO: MODBUS unit ID (zvyčajne 1)." />
                                 </StackPanel>
                             </Grid>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Style="{StaticResource FieldStack}">
-                                    <TextBlock Text="Analóg. kanály" Style="{StaticResource Label}" />
-                                    <TextBox Text="{Binding AnalogChannelCount, UpdateSourceTrigger=PropertyChanged}" />
+                            <!-- ASCII-2 specific settings – meaningless for a MODBUS (POL-EKO) device. -->
+                            <StackPanel Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Style="{StaticResource FieldStack}">
+                                        <TextBlock Text="Analóg. kanály" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding AnalogChannelCount, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Style="{StaticResource FieldStack}">
+                                        <TextBlock Text="Štart kanál index" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding StartChannelIndex, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Terminátor rámca" Style="{StaticResource Label}" />
+                                    <ComboBox ItemsSource="{Binding TerminatorOptions}" SelectedItem="{Binding SelectedTerminator}" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="2" Style="{StaticResource FieldStack}">
-                                    <TextBlock Text="Štart kanál index" Style="{StaticResource Label}" />
-                                    <TextBox Text="{Binding StartChannelIndex, UpdateSourceTrigger=PropertyChanged}" />
-                                </StackPanel>
-                            </Grid>
-                            <StackPanel Style="{StaticResource FieldStack}">
-                                <TextBlock Text="Terminátor rámca" Style="{StaticResource Label}" />
-                                <ComboBox ItemsSource="{Binding TerminatorOptions}" SelectedItem="{Binding SelectedTerminator}" />
                             </StackPanel>
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                       Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}"
+                                       Text="POL-EKO SMART · MODBUS TCP (port 502). Meraná teplota sa číta z input registra; setpoint a štart cez holding registre." />
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <Button Content="Pripojiť" Style="{StaticResource AccentButton}" Command="{Binding ConnectCommand}" />
                                 <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
@@ -584,7 +591,11 @@
                         <Button Grid.Column="2" Content="Vyčistiť" Margin="8,0,0,0" Command="{Binding ClearTerminalCommand}" />
                     </Grid>
                     <TextBlock Grid.Row="2" Style="{StaticResource Caption}" Margin="6,8,6,0" TextWrapping="Wrap"
+                               Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
                                Text="Príklady:  $01I  (čítať)   ·   $01E 0050.0 0000.0 0000.0 0000.0 0000.0 0000.0 10000000000000000000000000000000  (zápis)   ·   terminátor sa dopĺňa automaticky." />
+                    <TextBlock Grid.Row="2" Style="{StaticResource Caption}" Margin="6,8,6,0" TextWrapping="Wrap"
+                               Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}"
+                               Text="MODBUS PDU v HEX (funkcia + dáta):  04 0000 0001 = čítať input register 0 (teplota)   ·   03 0001 0001 = čítať holding register 1   ·   odpoveď je HEX ADU." />
                 </Grid>
             </TabItem>
         </TabControl>

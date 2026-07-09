@@ -245,11 +245,19 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private void SaveToHistory()
     {
         TestProfile profile = BuildProfile();
-        profile.Id = Guid.NewGuid();
+
+        // Upsert by name: saving a profile with an existing name updates it instead
+        // of piling up duplicates in the shared library.
+        TestProfile? existing = _store.LoadAll()
+            .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+        profile.Id = existing?.Id ?? Guid.NewGuid();
+
         _store.Save(profile);
         RefreshHistory();
         SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == profile.Id);
-        StatusMessage = $"Profil \"{profile.Name}\" uložený.";
+        StatusMessage = existing is null
+            ? $"Profil \"{profile.Name}\" uložený."
+            : $"Profil \"{profile.Name}\" aktualizovaný (prepísaná staršia verzia).";
     }
 
     private void LoadFromHistory()

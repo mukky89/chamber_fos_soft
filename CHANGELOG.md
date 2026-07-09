@@ -4,6 +4,32 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.2] – 2026-07-09
+
+### Opravené
+- **Ukladanie profilov už nevytvára duplikáty** – „Uložiť" prepíše profil
+  s rovnakým názvom (komora, editor profilov aj rýchly vytvárač); stav hlási
+  „uložený" vs. „aktualizovaný".
+- **Validácia teploty podľa zariadenia** – POL-EKO sušiareň 0…300 °C,
+  Vötsch komora −80…200 °C (predtým natvrdo −80…200 pre všetko).
+- **Ukazovateľ „teraz"** v náhľade profilu sa pri štarte nového behu resetuje.
+- **Pauza počas odloženého štartu** – tlačidlo ⏸ vysvetlí, že profil ešte
+  nebeží, namiesto tichého ignorovania.
+
+### Zmenené
+- **POL-EKO detail komory** – skryté ASCII-2 polia (analóg. kanály, štart
+  kanál, terminátor), MODBUS nápoveda a predvolený HEX príkaz v termináli,
+  tooltip na adresu (MODBUS unit ID).
+- **Rýchle predvoľby teploty na dlaždici podľa zariadenia** – sušiareň:
+  60/105/150/250 °C; komora: −20/0/25/60 °C.
+- **Editor profilov (knižnica)** – dvojklik načíta profil do editora, názvy
+  a popisy sa zalamujú (ako v komore).
+
+### Pridané
+- `docs/NAVRHY.md` – prioritizované návrhy nových modulov (simulátor
+  zariadenia, PDF report testu, kalibračný modul, sken MODBUS registrov,
+  štítky profilov, REST/MQTT monitoring, perzistentná fronta, lokalizácia).
+
 ## [1.7.1] – 2026-07-09
 
 ### Pridané

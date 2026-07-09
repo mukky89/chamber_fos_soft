@@ -254,25 +254,23 @@
 
                                 <!-- ===== Rýchle ovládanie ===== -->
                                 <TextBlock Text="Rýchle ovládanie" Style="{StaticResource Label}" Margin="0,12,0,0" />
-                                <WrapPanel Margin="0,4,0,0">
-                                    <WrapPanel.Resources>
-                                        <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
-                                            <Setter Property="Margin" Value="0,0,6,4" />
-                                        </Style>
-                                    </WrapPanel.Resources>
-                                    <Button Content="-20 °C" Command="{Binding QuickSetTemperatureCommand}">
-                                        <Button.CommandParameter><sys:Double>-20</sys:Double></Button.CommandParameter>
-                                    </Button>
-                                    <Button Content="0 °C" Command="{Binding QuickSetTemperatureCommand}">
-                                        <Button.CommandParameter><sys:Double>0</sys:Double></Button.CommandParameter>
-                                    </Button>
-                                    <Button Content="25 °C" Command="{Binding QuickSetTemperatureCommand}">
-                                        <Button.CommandParameter><sys:Double>25</sys:Double></Button.CommandParameter>
-                                    </Button>
-                                    <Button Content="60 °C" Command="{Binding QuickSetTemperatureCommand}">
-                                        <Button.CommandParameter><sys:Double>60</sys:Double></Button.CommandParameter>
-                                    </Button>
-                                </WrapPanel>
+                                <!-- Presets differ per device (an oven cannot go below ambient). -->
+                                <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource GhostButton}" Margin="0,0,6,4"
+                                                    Content="{Binding}" ContentStringFormat="{}{0:0} °C"
+                                                    Command="{Binding DataContext.QuickSetTemperatureCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                     <TextBox Width="64" VerticalAlignment="Center"
                                              Text="{Binding QuickTemperature, UpdateSourceTrigger=PropertyChanged}"
