@@ -28,6 +28,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        Notifications.DesktopNotifier.Shutdown();
         AppLog.Info("App", "Aplikácia ukončená.");
         base.OnExit(e);
     }

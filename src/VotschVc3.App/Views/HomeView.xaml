@@ -302,8 +302,8 @@
                                         Command="{Binding DataContext.MoveChamberDownCommand,
                                                   RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                         CommandParameter="{Binding}" />
-                                <Button Content="✕" Style="{StaticResource GhostButton}" Padding="8,2"
-                                        ToolTip="Odobrať komoru"
+                                <Button Content="{Binding RemoveButtonText}" Style="{StaticResource GhostButton}" Padding="8,2"
+                                        ToolTip="Odobrať komoru – vyžaduje dva kliknutia (druhý potvrdí do 4 s). Zmaže aj uloženú konfiguráciu."
                                         Visibility="{Binding DataContext.IsAdmin,
                                                   RelativeSource={RelativeSource AncestorType=Window},
                                                   Converter={StaticResource BoolToVisibility}}"

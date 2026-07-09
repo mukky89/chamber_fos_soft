@@ -4,6 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <!-- WinForms only for NotifyIcon (tray balloon notifications). -->
+    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -11,7 +13,7 @@
     <AssemblyName>VotschVc3.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.7.6</Version>
+    <Version>1.7.7</Version>
     <Product>Vötsch — Riadenie klimatických komôr</Product>
   </PropertyGroup>
 
