@@ -15,6 +15,9 @@ public sealed class ChamberConfig
 
     public ChamberKind Kind { get; set; }
 
+    /// <summary>Wire protocol (Vötsch ASCII-2 by default, or POL-EKO MODBUS).</summary>
+    public ChamberProtocol Protocol { get; set; } = ChamberProtocol.VotschAscii2;
+
     public string Host { get; set; } = string.Empty;
     public int Port { get; set; } = 1080;
     public int Address { get; set; } = 1;

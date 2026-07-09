@@ -8,7 +8,7 @@ namespace VotschVc3.Core.Communication;
 /// decoder, serialising all access so concurrent callers (live polling, a
 /// running profile, the manual terminal) never interleave on the wire.
 /// </summary>
-public sealed class ChamberClient : IAsyncDisposable
+public sealed class ChamberClient : IChamberDevice
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Func<ChamberConnectionSettings, ITransport> _transportFactory;

@@ -312,11 +312,21 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Chamber types for the "add chamber" picker.</summary>
     public Array ChamberKinds { get; } = Enum.GetValues(typeof(ChamberKind));
 
+    /// <summary>Protocols for the "add chamber" picker (Vötsch ASCII-2, POL-EKO MODBUS).</summary>
+    public Array ChamberProtocols { get; } = Enum.GetValues(typeof(ChamberProtocol));
+
     private string _newChamberName = string.Empty;
     public string NewChamberName { get => _newChamberName; set => SetProperty(ref _newChamberName, value); }
 
     private ChamberKind _newChamberKind = ChamberKind.TemperatureHumidity;
     public ChamberKind NewChamberKind { get => _newChamberKind; set => SetProperty(ref _newChamberKind, value); }
+
+    private ChamberProtocol _newChamberProtocol = ChamberProtocol.VotschAscii2;
+    public ChamberProtocol NewChamberProtocol
+    {
+        get => _newChamberProtocol;
+        set => SetProperty(ref _newChamberProtocol, value);
+    }
 
     private string _newChamberHost = "192.168.0.1";
     public string NewChamberHost { get => _newChamberHost; set => SetProperty(ref _newChamberHost, value); }
@@ -338,11 +348,15 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private void AddChamber()
     {
+        bool polEko = NewChamberProtocol == ChamberProtocol.PolEkoModbus;
         var config = new ChamberConfig
         {
             Id = Guid.NewGuid(),
             Name = string.IsNullOrWhiteSpace(NewChamberName) ? $"Komora {Chambers.Count + 1}" : NewChamberName.Trim(),
-            Kind = NewChamberKind,
+            // POL-EKO ovens are temperature-only and speak MODBUS TCP on port 502.
+            Kind = polEko ? ChamberKind.TemperatureOnly : NewChamberKind,
+            Protocol = NewChamberProtocol,
+            Port = polEko ? 502 : 1080,
             Host = string.IsNullOrWhiteSpace(NewChamberHost) ? "192.168.0.1" : NewChamberHost.Trim(),
         };
 

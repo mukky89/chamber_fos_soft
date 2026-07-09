@@ -6,6 +6,7 @@ using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Communication;
+using VotschVc3.Core.Communication.PolEko;
 using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
@@ -24,7 +25,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 {
     private const int MaxTerminalLines = 1000;
 
-    private readonly ChamberClient _client = new();
+    private readonly IChamberDevice _client;
     private readonly ProfileStore _store;
     private readonly EmailNotifier _email;
     private readonly ThermometersViewModel _thermometers;
@@ -41,11 +42,16 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         Id = config.Id;
         Name = config.Name;
         Kind = config.Kind;
+        Protocol = config.Protocol;
         _host = config.Host;
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _email = email ?? throw new ArgumentNullException(nameof(email));
         _thermometers = thermometers ?? throw new ArgumentNullException(nameof(thermometers));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
+
+        _client = Protocol == ChamberProtocol.PolEkoModbus
+            ? new PolEkoClient()
+            : new ChamberClient();
         _client.FrameExchanged += OnFrameExchanged;
 
         Segments = new ObservableCollection<SegmentViewModel>();
@@ -107,11 +113,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Chamber capabilities.</summary>
     public ChamberKind Kind { get; }
 
+    /// <summary>Wire protocol used to talk to this chamber / oven.</summary>
+    public ChamberProtocol Protocol { get; }
+
+    /// <summary><c>true</c> for a POL-EKO MODBUS oven (temperature only).</summary>
+    public bool IsPolEko => Protocol == ChamberProtocol.PolEkoModbus;
+
     /// <summary><c>true</c> when the chamber supports humidity control.</summary>
-    public bool SupportsHumidity => Kind == ChamberKind.TemperatureHumidity;
+    public bool SupportsHumidity => Kind == ChamberKind.TemperatureHumidity && Protocol == ChamberProtocol.VotschAscii2;
 
     /// <summary>Short capability label for the UI.</summary>
-    public string KindLabel => SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
+    public string KindLabel => IsPolEko
+        ? "POL-EKO · Teplota"
+        : SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
 
     private bool _isControlAllowed = true;
     /// <summary><c>false</c> for view-only users (Operator role); gates control commands.</summary>
@@ -1975,6 +1989,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         Id = Id,
         Name = Name,
         Kind = Kind,
+        Protocol = Protocol,
         Host = Host,
         Port = Port,
         Address = Address,

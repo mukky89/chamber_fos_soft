@@ -4,6 +4,24 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.0] – 2026-07-09
+
+### Pridané
+- **Nový typ zariadenia: POL-EKO sušiareň (SLN 115) cez MODBUS TCP.** Aplikácia
+  vie teraz ovládať aj POL-EKO pece so SMART regulátorom popri Vötsch komorách:
+  - nová abstrakcia zariadenia (`IChamberDevice`) – Vötsch ASCII-2 aj POL-EKO
+    MODBUS zdieľajú rovnaké ovládanie, profily, frontu aj náhľady,
+  - vlastný **MODBUS TCP klient** (funkcie 0x03/0x04/0x06, port 502),
+  - `PolEkoClient` číta meranú teplotu (input register) a setpoint/zap-vyp
+    (holding registre), zápis setpointu riadi pec; ak firmware MODBUS zápis
+    nepovoľuje, aplikácia to bezpečne ohlási ako chybu (nič nevykoná naslepo),
+  - v **Administrácii** pri pridávaní komory je nový výber **Protokol**
+    (Vötsch ASCII-2 / POL-EKO MODBUS); POL-EKO sa automaticky nastaví na
+    port 502 a typ „len teplota".
+  - ⚠ **Mapa registrov** (`PolEkoRegisterMap`) vychádza z verejnej POL-EKO SMART
+    dokumentácie a je na jednom mieste – pred ostrým riadením ju over voči
+    reálnej peci (prípadne sledovaním komunikácie LabDesk) a uprav adresy.
+
 ## [1.6.15] – 2026-07-09
 
 ### Pridané
