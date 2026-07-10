@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.7.8] – 2026-07-10
+
+### Opravené
+- **Krížik ✕ appku naozaj zavrie** – ikona notifikácií v oznamovacej oblasti
+  po zavretí okna držala proces „v lište", takže zavretie vyzeralo ako
+  minimalizácia. Ikona sa teraz odstráni hneď pri zatváraní a aplikácia sa
+  garantovane ukončí (`ShutdownMode=OnMainWindowClose` + explicitný Shutdown).
+- **Biely textový kurzor aj v poli hesla** – `PasswordBox` na prihlasovacej
+  obrazovke nie je TextBox, takže mal stále čierny (neviditeľný) kurzor;
+  pridaný globálny štýl s bielym kurzorom. Výber textu je teraz zvýraznený
+  akcentovou farbou vo všetkých vstupoch.
+
+### Zmenené
+- **Aplikácia sa spúšťa maximalizovaná** (na celú obrazovku).
+
 ## [1.7.7] – 2026-07-09
 
 ### Pridané

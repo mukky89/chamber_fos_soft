@@ -249,6 +249,7 @@
     <Style TargetType="TextBox">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="CaretBrush" Value="White" />
+        <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}" />
         <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
@@ -274,12 +275,25 @@
         </Setter>
     </Style>
 
+    <!-- PasswordBox is NOT a TextBox, so it needs its own white caret (the login
+         screen otherwise shows an invisible black caret on the dark background). -->
+    <Style TargetType="PasswordBox">
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="CaretBrush" Value="White" />
+        <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <!-- Editing textbox inside DataGrid cells. The DataGrid supplies its own default
          editing style (transparent background, black caret), which is invisible on the
          dark grid rows, so give it a light caret/foreground matching the app theme. -->
     <Style x:Key="DataGridEditTextBox" TargetType="TextBox">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="CaretBrush" Value="White" />
+        <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}" />
         <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="6,3" />

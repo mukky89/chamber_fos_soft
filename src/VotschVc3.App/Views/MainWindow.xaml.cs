@@ -11,6 +11,16 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = _shell;
-        Closed += async (_, _) => await _shell.DisposeAsync();
+
+        // Remove the tray notification icon the moment the window starts closing –
+        // otherwise a leftover icon makes the app look "minimised to tray" instead
+        // of closed. The explicit Shutdown guarantees the process exits even while
+        // WinForms (NotifyIcon) native handles exist.
+        Closing += (_, _) => Notifications.DesktopNotifier.Shutdown();
+        Closed += async (_, _) =>
+        {
+            await _shell.DisposeAsync();
+            Application.Current.Shutdown();
+        };
     }
 }

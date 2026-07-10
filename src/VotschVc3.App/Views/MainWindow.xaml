@@ -5,6 +5,7 @@
         xmlns:views="clr-namespace:VotschVc3.App.Views"
         Title="{Binding WindowTitle}"
         Height="820" Width="1240" MinHeight="640" MinWidth="1040"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BackgroundBrush}"
         TextOptions.TextFormattingMode="Display"
