@@ -4,6 +4,32 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.0] – 2026-07-10
+
+### Pridané
+- **Editovateľné predvoľby rýchleho ovládania pre každé zariadenie** (admin) –
+  tlačidlo „✎ Upraviť predvoľby" na karte umožní adminovi zadať vlastné teploty
+  (napr. 60, 105, 150, 250). Ukladajú sa per zariadenie.
+- **Rozsah teploty a vlhkosti na hlavnej stránke** – karta zobrazuje
+  „Rozsah: −45…190 °C · 0…100 %rv" (z limitov zariadenia).
+- **Stav zariadenia „Aktívna / Neaktívna"** – jasný odznak na karte: zelená
+  „Aktívna", keď beží nejaká nastavená teplota (profil alebo manuál), inak
+  sivá „Neaktívna".
+
+### Zmenené
+- **Predkonfigurované tri zariadenia** (jednorazovo sa nastavia):
+  Komora 1 = Vötsch VT3 7034 (teplota, 10.88.1.175:2049), Komora 2 = Vötsch
+  VC3 7034 (teplota + vlhkosť, 10.88.1.180:2049), Komora 3 = POL-EKO SLN 115
+  (10.88.5.162:502). IP adresy aj porty sa zapamätajú (port Vötsch je 2049,
+  dá sa zmeniť).
+- **Krajšie rozmiestnenie hlavnej stránky** – karta komory prepracovaná do
+  prehľadných sekcií (živé hodnoty + rozsah, pripojenie + referencia, testovací
+  profil + náhľad, rýchle ovládanie); širšia karta, zarovnané prvky.
+- **Krajšie tlačidlá + animácie** – jemná animácia zväčšenia pri prejdení myšou
+  a stlačení na všetkých tlačidlách.
+- **Farebné animované play/pause/stop** – ▶ zelené, ⏸ oranžové, ⏹ červené, pri
+  prejdení myšou sa vyfarbia a zväčšia.
+
 ## [1.7.8] – 2026-07-10
 
 ### Opravené

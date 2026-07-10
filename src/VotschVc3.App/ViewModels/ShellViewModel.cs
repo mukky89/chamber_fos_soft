@@ -23,6 +23,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         nameof(ChamberViewModel.AlarmsEnabled), nameof(ChamberViewModel.TempMin), nameof(ChamberViewModel.TempMax),
         nameof(ChamberViewModel.HumMin), nameof(ChamberViewModel.HumMax),
         nameof(ChamberViewModel.AutoStopOnAlarm), nameof(ChamberViewModel.AutoReconnect),
+        nameof(ChamberViewModel.QuickPresets),
     };
 
     private readonly ProfileStore _store;
@@ -76,21 +77,16 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // Build chambers from the saved configuration (seed defaults on first run).
         List<ChamberConfig> configs = _configStore.LoadAll();
         bool seeded = configs.Count == 0;
-        if (seeded)
+
+        // One-time reseed to the real lab layout (VT3 7034, VC3 7034, POL-EKO with
+        // their fixed IP addresses / ports). Guarded by a marker so a user who later
+        // edits IPs or removes a chamber keeps their changes on the next start.
+        string reseedMarker = System.IO.Path.Combine(dir, ".chambers_seed_v3");
+        bool reseeded = false;
+        if (seeded || !System.IO.File.Exists(reseedMarker))
         {
             configs = DefaultConfigs();
-        }
-
-        // One-time migration: make sure the POL-EKO oven exists for installs created
-        // before it was added. A marker file ensures it is seeded only once, so a
-        // user who later removes it will not see it reappear on the next start.
-        bool addedPolEko = false;
-        string polEkoMarker = System.IO.Path.Combine(dir, ".poleko_seeded");
-        if (!System.IO.File.Exists(polEkoMarker) &&
-            !configs.Any(c => c.Protocol == ChamberProtocol.PolEkoModbus))
-        {
-            configs.Add(DefaultPolEkoConfig());
-            addedPolEko = true;
+            reseeded = true;
         }
 
         foreach (ChamberConfig config in configs)
@@ -98,7 +94,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             AddChamberInternal(config);
         }
 
-        if (seeded || addedPolEko)
+        if (seeded || reseeded)
         {
             SaveConfigs();
         }
@@ -106,9 +102,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         try
         {
             System.IO.Directory.CreateDirectory(dir);
-            if (!System.IO.File.Exists(polEkoMarker))
+            if (!System.IO.File.Exists(reseedMarker))
             {
-                System.IO.File.WriteAllText(polEkoMarker, DateTimeOffset.Now.ToString("o"));
+                System.IO.File.WriteAllText(reseedMarker, DateTimeOffset.Now.ToString("o"));
             }
         }
         catch
@@ -261,6 +257,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         foreach (ChamberViewModel chamber in Chambers)
         {
             chamber.SetControlAllowed(CanControl);
+            chamber.SetManageAllowed(CanManage);
         }
 
         AddChamberCommand.RaiseCanExecuteChanged();
@@ -358,8 +355,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private static List<ChamberConfig> DefaultConfigs() => new()
     {
-        new ChamberConfig { Name = "Komora 1 — teplota + vlhkosť", Kind = ChamberKind.TemperatureHumidity, Host = "192.168.0.1" },
-        new ChamberConfig { Name = "Komora 2 — teplota", Kind = ChamberKind.TemperatureOnly, Host = "192.168.0.2" },
+        // Vötsch VT3 7034 – temperature only. ASCII-2 port 2049 (may change per site).
+        new ChamberConfig { Name = "Komora 1 — Vötsch VT3 7034 (teplota)", Kind = ChamberKind.TemperatureOnly, Host = "10.88.1.175", Port = 2049 },
+        // Vötsch VC3 7034 – temperature + humidity.
+        new ChamberConfig { Name = "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", Kind = ChamberKind.TemperatureHumidity, Host = "10.88.1.180", Port = 2049 },
         DefaultPolEkoConfig(),
     };
 

@@ -64,6 +64,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected && IsControlAllowed, ReportError);
         StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsControlAllowed, ReportError);
         QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsControlAllowed, ReportError);
+        ToggleEditPresetsCommand = new RelayCommand(() => IsEditingPresets = !IsEditingPresets, () => IsManageAllowed);
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
         StartSelectedProfileCommand = new AsyncRelayCommand(StartSelectedProfileAsync, CanStartSelectedProfile, ReportError);
@@ -153,6 +154,28 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Sets whether the current user may operate this chamber.</summary>
     public void SetControlAllowed(bool allowed) => IsControlAllowed = allowed;
+
+    private bool _isManageAllowed;
+    /// <summary><c>true</c> only for admins; gates per-device configuration (e.g. quick presets).</summary>
+    public bool IsManageAllowed
+    {
+        get => _isManageAllowed;
+        private set
+        {
+            if (SetProperty(ref _isManageAllowed, value))
+            {
+                if (!value)
+                {
+                    IsEditingPresets = false;
+                }
+
+                ToggleEditPresetsCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Sets whether the current user may configure this chamber (admin only).</summary>
+    public void SetManageAllowed(bool allowed) => IsManageAllowed = allowed;
 
     private bool _isRemoveArmed;
     /// <summary>
@@ -545,14 +568,61 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Temperature (°C) entered in the dashboard quick-set field.</summary>
     public double QuickTemperature { get => _quickTemperature; set => SetProperty(ref _quickTemperature, value); }
 
+    private List<double> _quickPresets = new();
+
     /// <summary>
-    /// One-click temperature presets on the dashboard card, tailored to the device:
-    /// a drying oven cannot go below ambient, so it gets drying temperatures instead
-    /// of the climate-chamber sweep points.
+    /// One-click temperature presets on the dashboard card. Per-device and
+    /// persisted; defaults depend on the device (an oven cannot go below ambient).
     /// </summary>
-    public IReadOnlyList<double> QuickPresets => IsPolEko
-        ? new[] { 60d, 105d, 150d, 250d }
-        : new[] { -20d, 0d, 25d, 60d };
+    public IReadOnlyList<double> QuickPresets => _quickPresets;
+
+    /// <summary>The presets as editable text ("60, 105, 150, 250") for the admin editor.</summary>
+    public string QuickPresetsText
+    {
+        get => string.Join(", ", _quickPresets.Select(p => p.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)));
+        set
+        {
+            List<double> parsed = ParsePresets(value);
+            if (parsed.Count > 0)
+            {
+                _quickPresets = parsed;
+                OnPropertyChanged(nameof(QuickPresets));
+                StatusMessage = $"Predvoľby rýchleho ovládania uložené: {QuickPresetsText} °C.";
+            }
+
+            OnPropertyChanged(); // normalise (or revert) the text box content
+        }
+    }
+
+    private bool _isEditingPresets;
+    /// <summary>True while the admin preset editor row is visible on the card.</summary>
+    public bool IsEditingPresets { get => _isEditingPresets; set => SetProperty(ref _isEditingPresets, value); }
+
+    public RelayCommand ToggleEditPresetsCommand { get; }
+
+    private List<double> DefaultQuickPresets() => IsPolEko
+        ? new List<double> { 60, 105, 150, 250 }
+        : new List<double> { -20, 0, 25, 60 };
+
+    /// <summary>Parses "60, 105.5, 150" → presets; invalid tokens are skipped, 1–8 values.</summary>
+    private static List<double> ParsePresets(string? text)
+    {
+        var result = new List<double>();
+        foreach (string token in (text ?? string.Empty).Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (double.TryParse(token, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v)
+                && v is >= -100 and <= 350 && !result.Contains(v))
+            {
+                result.Add(v);
+                if (result.Count == 8)
+                {
+                    break;
+                }
+            }
+        }
+
+        return result;
+    }
 
     public AsyncRelayCommand<double?> QuickSetTemperatureCommand { get; }
 
@@ -714,7 +784,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// this app started only while the real state is unknown.</summary>
     public bool IsActive => IsProfileRunning || (_readRunning ?? _manualStarted);
 
-    /// <summary>Short label describing what is running, for the dashboard.</summary>
+    /// <summary>One-word device state for the dashboard: "Aktívna" while a set point
+    /// is being driven (profile or manual), "Neaktívna" otherwise.</summary>
+    public string StateLabel => IsActive ? "Aktívna" : "Neaktívna";
+
+    /// <summary>Detail line under the state: what exactly is running.</summary>
     public string ActivityLabel
     {
         get
@@ -727,7 +801,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             double setpoint = MeasuredTemperatureSetpoint ?? ManualTemperature;
             return (_readRunning ?? _manualStarted)
                 ? $"Beží · setpoint {setpoint:0.0} °C"
-                : "Nečinné";
+                : "Žiadna nastavená teplota";
+        }
+    }
+
+    /// <summary>Temperature/humidity operating range for the dashboard (from alarm limits).</summary>
+    public string RangeLabel
+    {
+        get
+        {
+            string temp = $"{TempMin:0.#}…{TempMax:0.#} °C";
+            return SupportsHumidity ? $"{temp}  ·  {HumMin:0.#}…{HumMax:0.#} %rv" : temp;
         }
     }
 
@@ -774,6 +858,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private void RaiseActivity()
     {
         OnPropertyChanged(nameof(IsActive));
+        OnPropertyChanged(nameof(StateLabel));
         OnPropertyChanged(nameof(ActivityLabel));
     }
 
@@ -1650,16 +1735,16 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     }
 
     private double _tempMin = -45;
-    public double TempMin { get => _tempMin; set => SetProperty(ref _tempMin, value); }
+    public double TempMin { get => _tempMin; set { if (SetProperty(ref _tempMin, value)) OnPropertyChanged(nameof(RangeLabel)); } }
 
     private double _tempMax = 190;
-    public double TempMax { get => _tempMax; set => SetProperty(ref _tempMax, value); }
+    public double TempMax { get => _tempMax; set { if (SetProperty(ref _tempMax, value)) OnPropertyChanged(nameof(RangeLabel)); } }
 
     private double _humMin;
-    public double HumMin { get => _humMin; set => SetProperty(ref _humMin, value); }
+    public double HumMin { get => _humMin; set { if (SetProperty(ref _humMin, value)) OnPropertyChanged(nameof(RangeLabel)); } }
 
     private double _humMax = 100;
-    public double HumMax { get => _humMax; set => SetProperty(ref _humMax, value); }
+    public double HumMax { get => _humMax; set { if (SetProperty(ref _humMax, value)) OnPropertyChanged(nameof(RangeLabel)); } }
 
     private bool _autoStopOnAlarm = true;
     /// <summary>Stop a running profile when an alarm or connection loss occurs.</summary>
@@ -2078,6 +2163,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         HumMax = c.HumMax;
         AutoStopOnAlarm = c.AutoStopOnAlarm;
         AutoReconnect = c.AutoReconnect;
+
+        _quickPresets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
+        OnPropertyChanged(nameof(QuickPresets));
+        OnPropertyChanged(nameof(QuickPresetsText));
     }
 
     /// <summary>Captures the current configuration for persistence.</summary>
@@ -2101,6 +2190,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         HumMax = HumMax,
         AutoStopOnAlarm = AutoStopOnAlarm,
         AutoReconnect = AutoReconnect,
+        QuickPresets = new List<double>(_quickPresets),
     };
 
     #endregion

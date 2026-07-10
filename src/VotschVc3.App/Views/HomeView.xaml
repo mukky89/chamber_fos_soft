@@ -1,8 +1,24 @@
 <UserControl x:Class="VotschVc3.App.Views.HomeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:views="clr-namespace:VotschVc3.App.Views">
+    <UserControl.Resources>
+        <!-- Grouped sub-panel inside a chamber card. -->
+        <Style x:Key="Section" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+        <!-- Small pill badge (kind / state). -->
+        <Style x:Key="Badge" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="9,4" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
         <StackPanel>
 
@@ -65,107 +81,141 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Style="{StaticResource Card}" Width="470">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="150" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}" Width="500" Margin="7">
+                        <StackPanel>
 
-                            <Grid Grid.Column="0" VerticalAlignment="Top">
-                                <views:ChamberGraphic Width="150" Height="210"
-                                                      IsRunning="{Binding IsActive}"
-                                                      TitleText="{Binding KindLabel}"
-                                                      Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
-                                <views:PolEkoGraphic Width="150" Height="210"
-                                                     IsRunning="{Binding IsActive}"
-                                                     TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
-                                                     Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}" />
-                            </Grid>
+                            <!-- ===== Header: graphic + name + badges + state ===== -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="128" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="1" Margin="14,2,0,0">
-                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
-                                         FontFamily="Segoe UI Semibold" FontSize="16"
-                                         ToolTip="Názov komory (uprav a klikni inam)" />
-
-                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6"
-                                        Padding="8,3" HorizontalAlignment="Left" Margin="0,6,0,0">
-                                    <TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}" />
-                                </Border>
-
-                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                    <Ellipse Width="11" Height="11" VerticalAlignment="Center"
-                                             Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
-                                    <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" Style="{StaticResource Caption}" />
-                                    <Border Background="{StaticResource DangerBrush}" CornerRadius="6" Padding="7,2" Margin="10,0,0,0"
-                                            VerticalAlignment="Center"
-                                            Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBlock Text="ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11" />
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- Kontrolka behu + názov profilu / aktivity -->
-                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                    <Ellipse Width="11" Height="11" VerticalAlignment="Center"
-                                             Fill="{Binding IsActive, Converter={StaticResource BoolToBrush}}"
-                                             ToolTip="Zelená = komora beží (test/teplota), sivá = nečinné" />
-                                    <TextBlock Text="{Binding ActivityLabel}" Margin="8,0,0,0"
-                                               Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-
-                                <Grid Margin="0,10,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="8" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="IP adresa" Style="{StaticResource Label}" />
-                                        <TextBox Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Width="80">
-                                        <TextBlock Text="Port" Style="{StaticResource Label}" />
-                                        <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" />
-                                    </StackPanel>
+                                <Grid Grid.Column="0" VerticalAlignment="Top">
+                                    <views:ChamberGraphic Width="128" Height="172"
+                                                          IsRunning="{Binding IsActive}"
+                                                          TitleText="{Binding KindLabel}"
+                                                          Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                                    <views:PolEkoGraphic Width="128" Height="172"
+                                                         IsRunning="{Binding IsActive}"
+                                                         TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
+                                                         Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}" />
                                 </Grid>
 
-                                <WrapPanel Margin="0,12,0,0">
-                                    <!-- Aktuálna teplota komory -->
-                                    <StackPanel Margin="0,0,16,6">
-                                        <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource MetricSmall}"
-                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4"
-                                                       Foreground="{StaticResource MutedBrush}" />
+                                <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                                    <DockPanel LastChildFill="True">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                            <Button Content="◀" Style="{StaticResource GhostButton}" Padding="7,2"
+                                                    ToolTip="Posunúť doľava"
+                                                    Command="{Binding DataContext.MoveChamberUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Content="▶" Style="{StaticResource GhostButton}" Padding="7,2"
+                                                    ToolTip="Posunúť doprava"
+                                                    Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Content="{Binding RemoveButtonText}" Style="{StaticResource GhostButton}" Padding="8,2"
+                                                    ToolTip="Odobrať komoru – vyžaduje dva kliknutia (druhý potvrdí do 4 s). Zmaže aj uloženú konfiguráciu."
+                                                    Visibility="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                                                    Command="{Binding DataContext.RemoveChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
                                         </StackPanel>
-                                    </StackPanel>
-                                    <!-- Nastavená teplota (setpoint) -->
-                                    <StackPanel Margin="0,0,16,6">
-                                        <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                                       Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
-                                                       Foreground="{StaticResource MutedBrush}" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <!-- Vlhkosť -->
-                                    <StackPanel Margin="0,0,0,6"
-                                                Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource MetricSmall}"
-                                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                            <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4"
-                                                       Foreground="{StaticResource MutedBrush}" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                </WrapPanel>
+                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                                 FontFamily="Segoe UI Semibold" FontSize="16" VerticalAlignment="Top"
+                                                 ToolTip="Názov komory (uprav a klikni inam)" />
+                                    </DockPanel>
 
-                                <!-- Referenčný teplomer ASL F100 (aktualizuje sa ~2 s) -->
-                                <StackPanel Margin="0,10,0,0">
-                                    <TextBlock Text="Referenčný teplomer ASL F100" Style="{StaticResource Label}" />
+                                    <!-- Badges: kind, state, alarm -->
+                                    <WrapPanel Margin="0,10,0,0">
+                                        <Border Style="{StaticResource Badge}">
+                                            <TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}" />
+                                        </Border>
+                                        <Border Style="{StaticResource Badge}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                                         Fill="{Binding IsActive, Converter={StaticResource BoolToBrush}}" />
+                                                <TextBlock Text="{Binding StateLabel}" Margin="6,0,0,0" FontFamily="Segoe UI Semibold" FontSize="12"
+                                                           Foreground="{Binding IsActive, Converter={StaticResource BoolToBrush}}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="9,4" VerticalAlignment="Center"
+                                                Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="⚠ ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12" />
+                                        </Border>
+                                    </WrapPanel>
+
+                                    <!-- Connection state + activity detail -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                                 Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
+                                        <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" Style="{StaticResource Caption}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
+                                               Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- ===== Live values + range ===== -->
+                            <Border Style="{StaticResource Section}" Margin="0,12,0,10">
+                                <StackPanel>
+                                    <WrapPanel>
+                                        <StackPanel Margin="0,0,22,0">
+                                            <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource MetricSmall}"
+                                                           Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,22,0">
+                                            <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
+                                                           Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource MetricSmall}"
+                                                           Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </WrapPanel>
+                                    <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap">
+                                        <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
+                                        <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ===== Connection: IP / port + connect ===== -->
+                            <Border Style="{StaticResource Section}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="90" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="IP adresa" Style="{StaticResource Label}" />
+                                            <TextBox Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Port" Style="{StaticResource Label}" />
+                                            <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="Vötsch ASCII-2 zvyčajne 2049 · POL-EKO MODBUS 502" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button Content="Pripojiť" Style="{StaticResource AccentButton}" Command="{Binding ConnectCommand}" />
+                                        <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
+                                    </StackPanel>
+
+                                    <!-- Reference thermometer -->
+                                    <TextBlock Text="Referenčný teplomer ASL F100" Style="{StaticResource Label}" Margin="0,12,0,0" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -173,145 +223,116 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableThermometers}"
-                                                  SelectedItem="{Binding SelectedReferenceThermometer}"
-                                                  DisplayMemberPath="Display"
+                                                  SelectedItem="{Binding SelectedReferenceThermometer}" DisplayMemberPath="Display"
                                                   ToolTip="Priraď teplomer ASL F100 ako referenciu (pripojí sa a aktualizuje sa každé ~2 s)." />
-                                        <Button Grid.Column="1" Content="↻" Margin="6,0,0,0" Padding="8,2"
-                                                Style="{StaticResource GhostButton}"
+                                        <Button Grid.Column="1" Content="↻" Margin="6,0,0,0" Padding="8,2" Style="{StaticResource GhostButton}"
                                                 ToolTip="Znovu vyhľadať pripojené teplomery (USB COM porty)"
-                                                Command="{Binding DataContext.Thermometers.RefreshCommand,
-                                                          RelativeSource={RelativeSource AncestorType=Window}}" />
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0"
-                                                    VerticalAlignment="Center"
+                                                Command="{Binding DataContext.Thermometers.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center"
                                                     Visibility="{Binding HasReference, Converter={StaticResource BoolToVisibility}}">
-                                            <TextBlock Text="Referencia F100:" Style="{StaticResource Caption}"
-                                                       VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <TextBlock Text="F100:" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                             <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource OkBrush}"
                                                        Text="{Binding ReferenceTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
-                                                       Foreground="{StaticResource MutedBrush}" />
+                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
+                            </Border>
 
-                                <StackPanel Margin="0,10,0,0"
-                                            Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}">
-                                    <ProgressBar Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" Height="6" />
-                                    <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}"
-                                               Margin="0,4,0,0" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}"
-                                               Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                            <!-- ===== Test profile: picker + play/pause/stop + preview ===== -->
+                            <Border Style="{StaticResource Section}">
+                                <StackPanel>
+                                    <TextBlock Text="Testovací profil" Style="{StaticResource Label}" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox Grid.Column="0" VerticalAlignment="Center"
+                                                  ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
+                                                  ToolTip="Vyber uložený profil (aj z Rýchleho vytvárača) a spusti ho tlačidlom ▶.">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
+                                            <Button Style="{StaticResource IconActionButton}" Content="▶"
+                                                    Foreground="{StaticResource OkBrush}" Command="{Binding StartSelectedProfileCommand}"
+                                                    ToolTip="Spustiť vybraný profil" />
+                                            <Button Style="{StaticResource IconActionButton}" Content="{Binding PauseResumeGlyph}"
+                                                    Foreground="{StaticResource WarnBrush}" Command="{Binding PauseResumeProfileCommand}"
+                                                    ToolTip="Pozastaviť / pokračovať" />
+                                            <Button Style="{StaticResource IconActionButton}" Content="⏹"
+                                                    Foreground="{StaticResource ErrorBrush}" Command="{Binding StopProfileCommand}"
+                                                    Margin="0" ToolTip="Zastaviť profil" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"
+                                            Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel>
+                                            <views:ChartView Height="118" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil" />
+                                            <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,6,0,0">
+                                                <ProgressBar Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" Height="6" />
+                                                <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}"
+                                                           Margin="0,4,0,0" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}"
+                                                           Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
+                            </Border>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                                    <Button Content="Pripojiť" Style="{StaticResource AccentButton}"
-                                            Command="{Binding ConnectCommand}" />
-                                    <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
-                                </StackPanel>
+                            <!-- ===== Quick control ===== -->
+                            <Border Style="{StaticResource Section}" Margin="0,0,0,4">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock Text="Rýchle ovládanie" Style="{StaticResource Label}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                        <Button DockPanel.Dock="Right" Content="✎ Upraviť predvoľby" Style="{StaticResource GhostButton}"
+                                                Padding="6,1" FontSize="12" Command="{Binding ToggleEditPresetsCommand}"
+                                                Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
+                                                ToolTip="Admin: uprav teploty rýchleho ovládania pre toto zariadenie." />
+                                    </DockPanel>
 
-                                <!-- ===== Spustiť podľa uloženého profilu ===== -->
-                                <TextBlock Text="Testovací profil" Style="{StaticResource Label}" Margin="0,12,0,0" />
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <ComboBox Grid.Column="0" VerticalAlignment="Center"
-                                              ItemsSource="{Binding History}"
-                                              SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
-                                              ToolTip="Vyber uložený profil (aj z Rýchleho vytvárača) a spusti ho tlačidlom ▶.">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
-                                        <StackPanel.Resources>
-                                            <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
-                                                <Setter Property="Margin" Value="0,0,4,0" />
-                                                <Setter Property="Padding" Value="9,3" />
-                                                <Setter Property="FontSize" Value="14" />
-                                            </Style>
-                                        </StackPanel.Resources>
-                                        <Button Content="▶" Command="{Binding StartSelectedProfileCommand}"
-                                                Foreground="{StaticResource OkBrush}" ToolTip="Spustiť vybraný profil" />
-                                        <Button Content="{Binding PauseResumeGlyph}" Command="{Binding PauseResumeProfileCommand}"
-                                                Foreground="{StaticResource WarnBrush}" ToolTip="Pozastaviť / pokračovať" />
-                                        <Button Content="⏹" Command="{Binding StopProfileCommand}"
-                                                Foreground="{StaticResource ErrorBrush}" ToolTip="Zastaviť profil" />
+                                    <!-- Admin preset editor -->
+                                    <StackPanel Margin="0,6,0,0" Visibility="{Binding IsEditingPresets, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBox Text="{Binding QuickPresetsText, UpdateSourceTrigger=LostFocus}"
+                                                 ToolTip="Teploty oddelené čiarkou, napr. 60, 105, 150, 250" />
+                                        <TextBlock Text="Teploty oddeľ čiarkou (1–8 hodnôt). Uloží sa po opustení poľa." Style="{StaticResource Caption}" Margin="0,3,0,0" />
                                     </StackPanel>
-                                </Grid>
 
-                                <!-- Náhľad profilu s ukazovateľom „teraz" -->
-                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="6,4"
-                                        Margin="0,8,0,0"
-                                        Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
-                                    <views:ChartView Height="120" Unit=" °C"
-                                                     Series="{Binding ProfilePreview}"
-                                                     EmptyText="Vyber profil" />
-                                </Border>
+                                    <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,6,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource GhostButton}" Margin="0,0,6,4"
+                                                        Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
+                                                        Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
 
-                                <!-- ===== Rýchle ovládanie ===== -->
-                                <TextBlock Text="Rýchle ovládanie" Style="{StaticResource Label}" Margin="0,12,0,0" />
-                                <!-- Presets differ per device (an oven cannot go below ambient). -->
-                                <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,4,0,0">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button Style="{StaticResource GhostButton}" Margin="0,0,6,4"
-                                                    Content="{Binding}" ContentStringFormat="{}{0:0} °C"
-                                                    Command="{Binding DataContext.QuickSetTemperatureCommand,
-                                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}" />
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBox Width="64" VerticalAlignment="Center"
-                                             Text="{Binding QuickTemperature, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Zadaj teplotu v °C" />
-                                    <TextBlock Text="°C" VerticalAlignment="Center" Margin="4,0,8,0"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                    <Button Content="Nastaviť" Style="{StaticResource AccentButton}"
-                                            Command="{Binding QuickSetTemperatureCommand}" />
-                                    <Button Content="Stop" Style="{StaticResource DangerButton}" Margin="8,0,0,0"
-                                            Command="{Binding StopChamberCommand}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <TextBox Width="64" VerticalAlignment="Center"
+                                                 Text="{Binding QuickTemperature, UpdateSourceTrigger=PropertyChanged}" ToolTip="Zadaj teplotu v °C" />
+                                        <TextBlock Text="°C" VerticalAlignment="Center" Margin="4,0,8,0" Foreground="{StaticResource MutedBrush}" />
+                                        <Button Content="Nastaviť" Style="{StaticResource AccentButton}" Command="{Binding QuickSetTemperatureCommand}" />
+                                        <Button Content="Stop" Style="{StaticResource DangerButton}" Margin="8,0,0,0" Command="{Binding StopChamberCommand}" />
+                                    </StackPanel>
                                 </StackPanel>
+                            </Border>
 
-                                <Button Content="Nastaviť / ovládať →" Style="{StaticResource GhostButton}"
-                                        Margin="0,10,0,0" HorizontalAlignment="Left"
-                                        Command="{Binding DataContext.OpenChamberCommand,
-                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}" />
-                            </StackPanel>
-
-                            <StackPanel Grid.ColumnSpan="2" Orientation="Horizontal"
-                                        HorizontalAlignment="Right" VerticalAlignment="Top">
-                                <Button Content="◀" Style="{StaticResource GhostButton}" Padding="7,2"
-                                        ToolTip="Posunúť doľava"
-                                        Command="{Binding DataContext.MoveChamberUpCommand,
-                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}" />
-                                <Button Content="▶" Style="{StaticResource GhostButton}" Padding="7,2"
-                                        ToolTip="Posunúť doprava"
-                                        Command="{Binding DataContext.MoveChamberDownCommand,
-                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}" />
-                                <Button Content="{Binding RemoveButtonText}" Style="{StaticResource GhostButton}" Padding="8,2"
-                                        ToolTip="Odobrať komoru – vyžaduje dva kliknutia (druhý potvrdí do 4 s). Zmaže aj uloženú konfiguráciu."
-                                        Visibility="{Binding DataContext.IsAdmin,
-                                                  RelativeSource={RelativeSource AncestorType=Window},
-                                                  Converter={StaticResource BoolToVisibility}}"
-                                        Command="{Binding DataContext.RemoveChamberCommand,
-                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}" />
-                            </StackPanel>
-                        </Grid>
+                            <Button Content="Nastaviť / ovládať →" Style="{StaticResource GhostButton}"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}" />
+                        </StackPanel>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
