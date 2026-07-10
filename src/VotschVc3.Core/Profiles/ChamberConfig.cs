@@ -33,4 +33,10 @@ public sealed class ChamberConfig
     public double HumMax { get; set; } = 100;
     public bool AutoStopOnAlarm { get; set; } = true;
     public bool AutoReconnect { get; set; } = true;
+
+    /// <summary>
+    /// Dashboard quick-set temperature presets (°C) for this device. Null or empty
+    /// falls back to protocol defaults. Editable by admins per device.
+    /// </summary>
+    public List<double>? QuickPresets { get; set; }
 }
