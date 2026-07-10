@@ -105,3 +105,8 @@ gradienty LoginView a ilustrácie (`ChamberGraphic`, `PolEkoGraphic`).
 - [ ] Nebezpečné akcie `DangerButton`, primárna max 1–2× `AccentButton`
 - [ ] DataGrid textové stĺpce majú `EditingElementStyle={StaticResource DataGridEditTextBox}`
 - [ ] XML validita XAML overená; nové commandy pridané do `RefreshCommands()`
+- [ ] **Skontrolované build-lámajúce XAML pasce** (viď `wpf/references/anti-patterns.md`):
+  žiadny `Setter TargetName` na transform/Freezable (MC4111), žiadny `Setter.Value="{Binding}"`,
+  lokálne hodnoty vs. trigger Settery, `BasedOn` na odvodených štýloch.
+- [ ] **Počkať na zelené Windows CI pred mergom** – WPF sa kompiluje len na Windows,
+  toto prostredie build chyby nezachytí. Nemergovať PR bez úspešného buildu.
