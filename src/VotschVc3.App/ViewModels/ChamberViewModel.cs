@@ -95,6 +95,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SendTerminalCommand = new AsyncRelayCommand(SendTerminalAsync, () => IsConnected && !string.IsNullOrWhiteSpace(TerminalInput), ReportError);
         ClearTerminalCommand = new RelayCommand(() => TerminalLines.Clear());
 
+        InsertReadCommandCommand = new RelayCommand(() => TerminalInput = TestReadFrame);
+        InsertWriteCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, true));
+        InsertStopCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, false));
+        RunSetpointDiagnosticCommand = new AsyncRelayCommand(RunSetpointDiagnosticAsync, () => IsConnected && !IsPolEko, ReportError);
+
         ApplyConfig(config);
         if (IsPolEko)
         {
@@ -134,6 +139,55 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public string KindLabel => IsPolEko
         ? "POL-EKO · Teplota"
         : SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
+
+    #region Nameplate (type-plate details)
+
+    private ChamberNameplate _nameplate = new();
+
+    private void SetPlate(Action<string> assign, string current, string? value,
+        [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+    {
+        value ??= string.Empty;
+        if (current != value)
+        {
+            assign(value);
+            OnPropertyChanged(name);
+        }
+    }
+
+    public string Manufacturer { get => _nameplate.Manufacturer; set => SetPlate(v => _nameplate.Manufacturer = v, _nameplate.Manufacturer, value); }
+    public string DeviceModel { get => _nameplate.Model; set => SetPlate(v => _nameplate.Model = v, _nameplate.Model, value); }
+    public string SerialNumber { get => _nameplate.SerialNumber; set => SetPlate(v => _nameplate.SerialNumber = v, _nameplate.SerialNumber, value); }
+    public string OrderNumber { get => _nameplate.OrderNumber; set => SetPlate(v => _nameplate.OrderNumber = v, _nameplate.OrderNumber, value); }
+    public string YearOfConstruction { get => _nameplate.YearOfConstruction; set => SetPlate(v => _nameplate.YearOfConstruction = v, _nameplate.YearOfConstruction, value); }
+    public string Refrigerant1 { get => _nameplate.Refrigerant1; set => SetPlate(v => _nameplate.Refrigerant1 = v, _nameplate.Refrigerant1, value); }
+    public string Refrigerant2 { get => _nameplate.Refrigerant2; set => SetPlate(v => _nameplate.Refrigerant2 = v, _nameplate.Refrigerant2, value); }
+    public string SupplyVoltage { get => _nameplate.SupplyVoltage; set => SetPlate(v => _nameplate.SupplyVoltage = v, _nameplate.SupplyVoltage, value); }
+    public string NominalPower { get => _nameplate.NominalPower; set => SetPlate(v => _nameplate.NominalPower = v, _nameplate.NominalPower, value); }
+    public string NominalCurrent { get => _nameplate.NominalCurrent; set => SetPlate(v => _nameplate.NominalCurrent = v, _nameplate.NominalCurrent, value); }
+    public string SystemNumber { get => _nameplate.SystemNumber; set => SetPlate(v => _nameplate.SystemNumber = v, _nameplate.SystemNumber, value); }
+    public string FirstCalibration { get => _nameplate.FirstCalibration; set => SetPlate(v => _nameplate.FirstCalibration = v, _nameplate.FirstCalibration, value); }
+    public string NextCalibration { get => _nameplate.NextCalibration; set => SetPlate(v => _nameplate.NextCalibration = v, _nameplate.NextCalibration, value); }
+    public string DeviceNotes { get => _nameplate.Notes; set => SetPlate(v => _nameplate.Notes = v, _nameplate.Notes, value); }
+
+    /// <summary>Names of the nameplate properties, so the shell can persist edits to them.</summary>
+    public static readonly string[] NameplatePropertyNames =
+    {
+        nameof(Manufacturer), nameof(DeviceModel), nameof(SerialNumber), nameof(OrderNumber),
+        nameof(YearOfConstruction), nameof(Refrigerant1), nameof(Refrigerant2), nameof(SupplyVoltage),
+        nameof(NominalPower), nameof(NominalCurrent), nameof(SystemNumber),
+        nameof(FirstCalibration), nameof(NextCalibration), nameof(DeviceNotes),
+    };
+
+    private void RaiseNameplate()
+    {
+        foreach (string p in NameplatePropertyNames)
+        {
+            OnPropertyChanged(p);
+        }
+    }
+
+    #endregion
 
     private bool _isControlAllowed = true;
     /// <summary><c>false</c> for view-only users (Operator role); gates control commands.</summary>
@@ -1639,6 +1693,86 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task SendTerminalAsync() => await _client.SendRawAsync(TerminalInput);
 
+    #region Set-point diagnostics (Vötsch ASCII-2)
+
+    private double _diagTestTemperature = 30;
+    /// <summary>Temperature used by the set-point test commands.</summary>
+    public double DiagTestTemperature { get => _diagTestTemperature; set => SetProperty(ref _diagTestTemperature, value); }
+
+    private string _diagResult = "Spusti test alebo pošli ukážkový príkaz nižšie.";
+    /// <summary>Human-readable result / diagnosis of the last set-point test.</summary>
+    public string DiagResult { get => _diagResult; private set => SetProperty(ref _diagResult, value); }
+
+    public RelayCommand InsertReadCommandCommand { get; }
+    public RelayCommand InsertWriteCommandCommand { get; }
+    public RelayCommand InsertStopCommandCommand { get; }
+    public AsyncRelayCommand RunSetpointDiagnosticCommand { get; }
+
+    /// <summary>The read frame (no terminator) for the current address, e.g. "$01I".</summary>
+    public string TestReadFrame => Ascii2Protocol.BuildReadCommand(Address, TerminatorValue).TrimEnd('\r', '\n');
+
+    /// <summary>Builds the exact write frame (no terminator) this app would send.</summary>
+    private string BuildWriteFrame(double temperature, bool start)
+    {
+        DigitalChannels digital = ParseDigitalText();
+        digital.StartChannelIndex = StartChannelIndex;
+        digital.Start = start;
+        double humidity = SupportsHumidity && ControlHumidity ? ManualHumidity : 0d;
+        var setpoints = new List<double> { temperature, humidity };
+        return Ascii2Protocol.BuildWriteCommand(Address, setpoints, digital, AnalogChannelCount, TerminatorValue)
+            .TrimEnd('\r', '\n');
+    }
+
+    /// <summary>
+    /// Writes a test set point and reads it back, so we can tell whether the chamber
+    /// actually accepts the write and, if not, point at the most likely cause.
+    /// </summary>
+    private async Task RunSetpointDiagnosticAsync()
+    {
+        if (IsPolEko)
+        {
+            DiagResult = "Diagnostika je pre Vötsch ASCII-2; POL-EKO použi cez MODBUS terminál.";
+            return;
+        }
+
+        DiagResult = "Prebieha test…";
+        ChamberReading before = await _client.ReadAsync();
+        double? spBefore = before.TemperatureSetpoint;
+        AppLog.Info(Name, $"[DIAG] Pred zápisom · RAW=\"{before.Raw}\" · nameraná={before.Temperature:0.0} · setpoint={spBefore:0.0}");
+
+        var digital = ParseDigitalText();
+        digital.StartChannelIndex = StartChannelIndex;
+        digital.Start = true;
+        var setpoints = new List<double> { DiagTestTemperature, 0d };
+        AppLog.Info(Name, $"[DIAG] Zapisujem setpoint {DiagTestTemperature:0.0} °C, štart kanál #{StartChannelIndex + 1}=ON, adresa {Address}, kanálov {AnalogChannelCount}.");
+        await _client.WriteSetpointsAsync(setpoints, digital);
+
+        await Task.Delay(1500);
+        ChamberReading after = await _client.ReadAsync();
+        double? spAfter = after.TemperatureSetpoint;
+        AppLog.Info(Name, $"[DIAG] Po zápise · RAW=\"{after.Raw}\" · nameraná={after.Temperature:0.0} · setpoint={spAfter:0.0}");
+
+        bool accepted = spAfter is { } a && Math.Abs(a - DiagTestTemperature) < 1.0;
+        if (accepted)
+        {
+            DiagResult = $"✅ Zápis funguje: setpoint sa zmenil na {spAfter:0.0} °C. " +
+                "Ak sa teplota napriek tomu nemení, komora možno nie je spustená (štart kanál) alebo beží interný program.";
+        }
+        else
+        {
+            DiagResult =
+                $"❌ Setpoint sa NEZMENIL (pred: {spBefore:0.0}, po: {spAfter:0.0} °C). Najpravdepodobnejšie príčiny:\n" +
+                "1) Komora nie je v režime diaľkového/PC ovládania – na regulátore prepni na 'externé / SIMPATI / PC' ovládanie (čítanie ide vždy, zápis len v tomto režime).\n" +
+                $"2) Nesprávny štart / 'condition on' kanál (teraz #{StartChannelIndex + 1}) – skús iný index v záložke Pripojenie.\n" +
+                $"3) Nesprávna adresa (teraz {Address}) alebo počet analógových kanálov (teraz {AnalogChannelCount}).\n" +
+                "4) Iný terminátor rámca (skús CR LF). Pozri App log pre presné RAW rámce (TX/RX).";
+        }
+
+        StatusMessage = accepted ? "Diagnostika: zápis setpointu OK." : "Diagnostika: zápis setpointu zlyhal – pozri výsledok v záložke.";
+    }
+
+    #endregion
+
     private void OnFrameExchanged(object? sender, FrameExchangedEventArgs e)
     {
         string tx = Visualise(e.Request);
@@ -2167,6 +2301,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _quickPresets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
         OnPropertyChanged(nameof(QuickPresets));
         OnPropertyChanged(nameof(QuickPresetsText));
+
+        _nameplate = c.Nameplate?.Clone() ?? new ChamberNameplate();
+        RaiseNameplate();
     }
 
     /// <summary>Captures the current configuration for persistence.</summary>
@@ -2191,6 +2328,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AutoStopOnAlarm = AutoStopOnAlarm,
         AutoReconnect = AutoReconnect,
         QuickPresets = new List<double>(_quickPresets),
+        Nameplate = _nameplate.Clone(),
     };
 
     #endregion
@@ -2211,6 +2349,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();
+        RunSetpointDiagnosticCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsConnected));
     }
 

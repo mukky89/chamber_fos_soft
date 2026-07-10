@@ -560,6 +560,35 @@
 
             <!-- ===== Terminal ===== -->
             <TabItem Header="Surový terminál">
+                <DockPanel>
+
+                <!-- Set-point diagnostics (Vötsch only) -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card}"
+                        Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                    <StackPanel>
+                        <TextBlock Text="Diagnostika nastavenia teploty" Style="{StaticResource Heading}" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Text="Test zapíše skúšobný setpoint a hneď ho prečíta späť, aby zistil, či komora zápis prijala. Rámce (TX/RX) sa zapíšu aj do App logu." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Test teplota (°C)" Style="{StaticResource Label}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Width="70" VerticalAlignment="Center"
+                                     Text="{Binding DiagTestTemperature, UpdateSourceTrigger=LostFocus}" />
+                            <Button Content="▶ Spustiť test zápisu" Style="{StaticResource AccentButton}" Margin="12,0,0,0"
+                                    Command="{Binding RunSetpointDiagnosticCommand}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Vložiť ukážkový príkaz do terminálu:" Style="{StaticResource Caption}"
+                                       VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <Button Content="Čítať" Command="{Binding InsertReadCommandCommand}" ToolTip="$..I – prečítať aktuálne hodnoty" />
+                            <Button Content="Zápis + štart" Command="{Binding InsertWriteCommandCommand}" ToolTip="Zápis test teploty so zapnutým štart kanálom" />
+                            <Button Content="Stop" Command="{Binding InsertStopCommandCommand}" ToolTip="Zápis so štart kanálom = OFF" />
+                        </StackPanel>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,8">
+                            <TextBlock Text="{Binding DiagResult}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -603,6 +632,104 @@
                                Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}"
                                Text="MODBUS PDU v HEX (funkcia + dáta):  04 0000 0001 = čítať input register 0 (teplota)   ·   03 0001 0001 = čítať holding register 1   ·   odpoveď je HEX ADU." />
                 </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ===== Nameplate ===== -->
+            <TabItem Header="Zariadenie">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Border Style="{StaticResource Card}" HorizontalAlignment="Left" VerticalAlignment="Top" Width="560">
+                        <StackPanel>
+                            <TextBlock Text="Údaje zo štítku zariadenia" Style="{StaticResource Heading}" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                       Text="Detaily z typového štítku komory (informatívne). Zmeny sa uložia automaticky." />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Výrobca" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Manufacturer, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Typ / Model" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding DeviceModel, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Sériové číslo" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding SerialNumber, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Číslo zákazky" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding OrderNumber, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Rok výroby" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding YearOfConstruction, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="2" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Systém / schéma č." Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding SystemNumber, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Chladivo 1" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Refrigerant1, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="3" Grid.Column="2" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Chladivo 2" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Refrigerant2, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Napájanie" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding SupplyVoltage, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="4" Grid.Column="2" Style="{StaticResource FieldStack}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Výkon" Style="{StaticResource Label}" />
+                                            <TextBox Text="{Binding NominalPower, UpdateSourceTrigger=LostFocus}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Prúd" Style="{StaticResource Label}" />
+                                            <TextBox Text="{Binding NominalCurrent, UpdateSourceTrigger=LostFocus}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="5" Grid.Column="0" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Prvá kalibrácia" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding FirstCalibration, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="5" Grid.Column="2" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Ďalšia kalibrácia" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding NextCalibration, UpdateSourceTrigger=LostFocus}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Style="{StaticResource FieldStack}">
+                                    <TextBlock Text="Poznámky" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding DeviceNotes, UpdateSourceTrigger=LostFocus}"
+                                             TextWrapping="Wrap" AcceptsReturn="True" MinHeight="46" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 
