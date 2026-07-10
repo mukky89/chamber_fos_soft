@@ -13,6 +13,10 @@
     <AssemblyName>VotschVc3.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- WPF handles DPI via the app.manifest; the WinForms analyzer (enabled by
+         UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
+         to this WPF-first app. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <Version>1.8.2</Version>
     <Product>Vötsch — Riadenie klimatických komôr</Product>
   </PropertyGroup>
