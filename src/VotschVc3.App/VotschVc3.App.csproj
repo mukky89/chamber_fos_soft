@@ -18,6 +18,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- UseWindowsForms injects implicit global usings for System.Windows.Forms and
+         System.Drawing, which make WPF types (UserControl, Brush, Point, …)
+         ambiguous. Remove them – WinForms is referenced only for NotifyIcon and
+         DesktopNotifier qualifies those types explicitly. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\VotschVc3.Core\VotschVc3.Core.csproj" />
   </ItemGroup>
 
