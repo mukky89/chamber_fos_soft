@@ -150,8 +150,6 @@
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource BackgroundBrush}" />
-                            <Setter TargetName="Sc" Property="ScaleX" Value="0.96" />
-                            <Setter TargetName="Sc" Property="ScaleY" Value="0.96" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
@@ -279,16 +277,22 @@
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding Foreground}" BorderThickness="1.6"
-                            CornerRadius="10" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True">
+                            CornerRadius="10" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True"
+                            TextElement.Foreground="{TemplateBinding Foreground}">
                         <Border.RenderTransform>
                             <ScaleTransform x:Name="Sc" ScaleX="1" ScaleY="1" />
                         </Border.RenderTransform>
-                        <ContentPresenter x:Name="Cp" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          TextElement.Foreground="{TemplateBinding Foreground}" />
+                        <Grid>
+                            <!-- Colour fill revealed on hover (Setter.Value cannot bind, so
+                                 fade in a Foreground-coloured overlay instead). The glyph
+                                 colour inherits from Bd and is overridden to white on hover. -->
+                            <Border x:Name="Fill" Background="{TemplateBinding Foreground}" CornerRadius="9" Opacity="0" />
+                            <ContentPresenter x:Name="Cp" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" />
+                            <Setter TargetName="Fill" Property="Opacity" Value="1" />
                             <Setter TargetName="Cp" Property="TextElement.Foreground" Value="White" />
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
@@ -306,10 +310,6 @@
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Sc" Property="ScaleX" Value="0.94" />
-                            <Setter TargetName="Sc" Property="ScaleY" Value="0.94" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.32" />
