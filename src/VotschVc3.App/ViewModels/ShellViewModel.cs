@@ -14,7 +14,7 @@ namespace VotschVc3.App.ViewModels;
 /// </summary>
 public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 {
-    private static readonly HashSet<string> PersistedKeys = new()
+    private static readonly HashSet<string> PersistedKeys = new HashSet<string>
     {
         nameof(ChamberViewModel.Name),
         nameof(ChamberViewModel.Host), nameof(ChamberViewModel.Port), nameof(ChamberViewModel.Address),
@@ -24,7 +24,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         nameof(ChamberViewModel.HumMin), nameof(ChamberViewModel.HumMax),
         nameof(ChamberViewModel.AutoStopOnAlarm), nameof(ChamberViewModel.AutoReconnect),
         nameof(ChamberViewModel.QuickPresets),
-    };
+    }.Concat(ChamberViewModel.NameplatePropertyNames).ToHashSet();
 
     private readonly ProfileStore _store;
     private readonly EmailSettingsStore _emailStore;
@@ -356,9 +356,31 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private static List<ChamberConfig> DefaultConfigs() => new()
     {
         // Vötsch VT3 7034 – temperature only. ASCII-2 port 2049 (may change per site).
-        new ChamberConfig { Name = "Komora 1 — Vötsch VT3 7034 (teplota)", Kind = ChamberKind.TemperatureOnly, Host = "10.88.1.175", Port = 2049 },
+        new ChamberConfig
+        {
+            Name = "Komora 1 — Vötsch VT3 7034 (teplota)", Kind = ChamberKind.TemperatureOnly, Host = "10.88.1.175", Port = 2049,
+            Nameplate = new ChamberNameplate
+            {
+                Model = "VT³ 7034", SerialNumber = "58566198240010", OrderNumber = "56619824",
+                YearOfConstruction = "2014", Refrigerant1 = "R-404A · 2,5 kg", Refrigerant2 = "R-23 · 0,75 kg",
+                SupplyVoltage = "3/N/PE AC 400V±10% 50Hz", NominalPower = "4,9 kW", NominalCurrent = "16 A",
+                SystemNumber = "67624022", FirstCalibration = "2014", NextCalibration = "2015",
+                Notes = "Made in Germany. Štanddruck 13 bar g.",
+            },
+        },
         // Vötsch VC3 7034 – temperature + humidity.
-        new ChamberConfig { Name = "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", Kind = ChamberKind.TemperatureHumidity, Host = "10.88.1.180", Port = 2049 },
+        new ChamberConfig
+        {
+            Name = "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", Kind = ChamberKind.TemperatureHumidity, Host = "10.88.1.180", Port = 2049,
+            Nameplate = new ChamberNameplate
+            {
+                Model = "VC³ 7034", SerialNumber = "58566126860010", OrderNumber = "56612686",
+                YearOfConstruction = "2008", Refrigerant1 = "R-404A · 2,5 kg", Refrigerant2 = "R-23 · 0,55 kg",
+                SupplyVoltage = "3/N/PE AC 400V±10% 50Hz", NominalPower = "4,9 kW", NominalCurrent = "16 A",
+                SystemNumber = "67624021", FirstCalibration = "08-09", NextCalibration = "2009",
+                Notes = "Štanddruck 13 bar g.",
+            },
+        },
         DefaultPolEkoConfig(),
     };
 

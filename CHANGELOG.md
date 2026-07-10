@@ -4,6 +4,22 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.1] – 2026-07-10
+
+### Pridané
+- **Karta „Zariadenie" s údajmi zo štítku** – v detaile komory nová záložka
+  s údajmi z typového štítku (typ, sériové číslo, zákazka, rok, chladivá,
+  napájanie, výkon/prúd, kalibrácie, poznámky). Predvyplnené pre VT3 7034
+  a VC3 7034 z fotiek štítkov; editovateľné a ukladajú sa.
+- **Diagnostika nastavenia teploty (Vötsch)** – v záložke „Surový terminál"
+  nový panel:
+  - **Spustiť test zápisu** zapíše skúšobný setpoint a hneď ho prečíta späť;
+    ak sa nezmenil, vypíše najpravdepodobnejšie príčiny (komora nie je
+    v režime diaľkového/PC ovládania, zlý štart kanál, adresa, počet kanálov,
+    terminátor). TX/RX rámce idú do App logu.
+  - tlačidlá **Čítať / Zápis + štart / Stop** vložia presný ASCII-2 rámec do
+    terminálu na ručné odoslanie a sledovanie odpovede.
+
 ## [1.8.0] – 2026-07-10
 
 ### Pridané

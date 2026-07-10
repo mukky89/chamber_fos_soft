@@ -39,4 +39,7 @@ public sealed class ChamberConfig
     /// falls back to protocol defaults. Editable by admins per device.
     /// </summary>
     public List<double>? QuickPresets { get; set; }
+
+    /// <summary>Nameplate / type-plate details (from the chamber's rating label).</summary>
+    public ChamberNameplate? Nameplate { get; set; }
 }
