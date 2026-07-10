@@ -4,6 +4,15 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.2] – 2026-07-10
+
+### Opravené
+- **Build zlyhal (WPF XAML)** – animácie tlačidiel z 1.8.0 používali neplatný
+  `Setter TargetName="Sc"` (na `ScaleTransform`) a `Setter.Value="{Binding …}"`,
+  ktoré WPF nepodporuje (chyby MC4111 a „Binding cannot be set on Value"). Scale
+  na stlačenie odstránený (hover animácia ostáva), farebná výplň ▶⏸⏹ pri prejdení
+  myšou riešená cez prekryvnú vrstvu. Aplikácia sa teraz zostaví.
+
 ## [1.8.1] – 2026-07-10
 
 ### Pridané
