@@ -2,6 +2,38 @@
 
 # WPF Anti-Patterns Reference
 
+## ⛔ XAML that fails to COMPILE (learned the hard way — always check these)
+
+These do not error in an XML validator but break the WPF build (`dotnet build`
+on Windows). WPF only compiles on Windows, so this environment cannot catch them —
+review every new Style/ControlTemplate against this list before committing:
+
+- **`Setter TargetName` can only target a named FrameworkElement** in the template,
+  NOT a `Freezable` such as a `ScaleTransform`/`TranslateTransform`/`Brush`.
+  Targeting a named transform in a `<Setter>` → error **MC4111 "Cannot find the
+  Trigger target"**. To animate a named transform use a `Storyboard`
+  (`Storyboard.TargetName="Sc"` works); for a static change, set the whole
+  `RenderTransform` on the element (`<Setter TargetName="Bd" Property="RenderTransform">`).
+- **`Setter.Value` cannot be a `{Binding}`** → "A Binding cannot be set on the Value
+  property of type Setter." Also `{TemplateBinding}` is unreliable there. To reveal
+  a per-instance colour on hover, fade in an overlay `Border` whose `Background` is a
+  `{TemplateBinding Foreground}` (Opacity 0→1 via a Setter), don't bind Setter.Value.
+- **Local values beat template/style trigger Setters.** If you set
+  `TextElement.Foreground` (or any property) directly as an attribute on the element,
+  a hover/checked trigger Setter on the SAME element will NOT override it. Put the
+  default on a PARENT element (so the child inherits it) and let the trigger Setter on
+  the child win, or drive it entirely from triggers.
+- **Derived Style must use `BasedOn`** for `{x:Type Button}` etc., or it silently
+  loses the base template.
+- Completed `Storyboard`s hold their end value (`FillBehavior=HoldEnd`) and can
+  "stick", overriding later trigger Setters on the same property. Prefer a single
+  mechanism (all-storyboard or all-setter) per property; keep hover scale as
+  storyboards and do not also set the same ScaleTransform via Setters.
+
+**Process:** WPF build errors surface only in Windows CI (`.github/workflows/build.yml`).
+Wait for green CI before merging XAML changes — do not merge a PR whose build hasn't
+passed.
+
 ## MVVM Violations
 - **Logic in code-behind** → move to ViewModel commands; code-behind only for pure view concerns (focus, scroll, animations).
 - **God ViewModel** → split into focused ViewModels composed by a shell.
