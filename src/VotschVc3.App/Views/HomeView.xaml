@@ -104,24 +104,39 @@
 
                                 <StackPanel Grid.Column="1" Margin="14,0,0,0">
                                     <DockPanel LastChildFill="True">
-                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                        <!-- Admin-only: reorder + remove (move icons hidden for non-admins). -->
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top"
+                                                    Visibility="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
                                             <Button Content="◀" Style="{StaticResource GhostButton}" Padding="7,2"
-                                                    ToolTip="Posunúť doľava"
+                                                    ToolTip="Posunúť doľava (admin)"
                                                     Command="{Binding DataContext.MoveChamberUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
                                             <Button Content="▶" Style="{StaticResource GhostButton}" Padding="7,2"
-                                                    ToolTip="Posunúť doprava"
+                                                    ToolTip="Posunúť doprava (admin)"
                                                     Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
                                             <Button Content="{Binding RemoveButtonText}" Style="{StaticResource GhostButton}" Padding="8,2"
                                                     ToolTip="Odobrať komoru – vyžaduje dva kliknutia (druhý potvrdí do 4 s). Zmaže aj uloženú konfiguráciu."
-                                                    Visibility="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                                                     Command="{Binding DataContext.RemoveChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
                                         </StackPanel>
-                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
-                                                 FontFamily="Segoe UI Semibold" FontSize="16" VerticalAlignment="Top"
-                                                 ToolTip="Názov komory (uprav a klikni inam)" />
+                                        <!-- Admin-only pencil to enter name edit mode. -->
+                                        <Button DockPanel.Dock="Right" Content="✎" Style="{StaticResource GhostButton}" Padding="7,2"
+                                                VerticalAlignment="Top" Margin="4,0,6,0"
+                                                Command="{Binding ToggleEditNameCommand}"
+                                                ToolTip="Upraviť názov komory (admin)"
+                                                Visibility="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
+                                        <Grid VerticalAlignment="Top">
+                                            <!-- Read-only full name (default). -->
+                                            <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="16"
+                                                       TextWrapping="Wrap" VerticalAlignment="Center"
+                                                       Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                                            <!-- Editable name (admin, edit mode). Enter/focus-loss commits. -->
+                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                                     FontFamily="Segoe UI Semibold" FontSize="16"
+                                                     Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}"
+                                                     ToolTip="Uprav názov a klikni inam." />
+                                        </Grid>
                                     </DockPanel>
 
                                     <!-- Badges: kind, state, alarm -->
@@ -201,12 +216,16 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="IP adresa" Style="{StaticResource Label}" />
-                                            <TextBox Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" />
+                                            <!-- IP / port editovateľné len pre admina. -->
+                                            <TextBox Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}"
+                                                     IsReadOnly="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolean}}"
+                                                     ToolTip="IP adresu môže meniť len admin." />
                                         </StackPanel>
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Port" Style="{StaticResource Label}" />
                                             <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
-                                                     ToolTip="Vötsch ASCII-2 zvyčajne 2049 · POL-EKO MODBUS 502" />
+                                                     IsReadOnly="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolean}}"
+                                                     ToolTip="Vötsch ASCII-2 zvyčajne 2049 · POL-EKO MODBUS 502. Mení len admin." />
                                         </StackPanel>
                                     </Grid>
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
