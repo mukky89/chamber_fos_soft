@@ -458,14 +458,14 @@
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
                     <StackPanel Orientation="Horizontal" Background="Transparent">
-                        <Border x:Name="Box" Width="17" Height="17" CornerRadius="4"
+                        <Border x:Name="Box" Width="18" Height="18" CornerRadius="4"
                                 Background="{StaticResource SurfaceAltBrush}"
                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1.5"
                                 VerticalAlignment="Center">
-                            <Path x:Name="Check" Data="M2.5,7.5 L6.5,11 L12,3.5"
-                                  Stroke="White" StrokeThickness="2" StrokeStartLineCap="Round"
-                                  StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                  Visibility="Collapsed" Margin="1" />
+                            <TextBlock x:Name="Check" Text="✔" FontSize="12" FontWeight="Bold"
+                                       Foreground="White" TextAlignment="Center"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Visibility="Collapsed" />
                         </Border>
                         <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
                                           RecognizesAccessKey="True" />

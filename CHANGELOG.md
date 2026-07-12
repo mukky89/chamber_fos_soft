@@ -4,6 +4,25 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.3] – 2026-07-10
+
+### Zmenené
+- **Názov komory sa upravuje len cez ✎ (admin)** – inak sa zobrazuje celý názov
+  (už sa neoreže). Úpravu názvu, IP adresy aj portu a presúvanie/odoberanie
+  komôr vidí a robí len admin; operátorovi sú polia len na čítanie a šípky
+  ◀ ▶ skryté.
+
+### Opravené
+- **Checkbox – viditeľná fajka** – vlastný glyph nahradený spoľahlivým „✔"
+  (predtým sa fajka nevykreslila).
+
+### Pridané
+- **Diagnostika „Prečítať digitálne"** (Vötsch) – prečíta digitálne kanály
+  komory a vypíše, ktoré bity sú nastavené. Takto nájdeš správny **štart /
+  'condition on' kanál**: spusti komoru ručne na paneli, klikni Prečítať a bit,
+  ktorý je 1, zadaj do „Štart kanál index". (Rieši prípad: setpoint sa zapíše,
+  ale komora sa nezapne na výkon.)
+
 ## [1.8.2] – 2026-07-10
 
 ### Opravené

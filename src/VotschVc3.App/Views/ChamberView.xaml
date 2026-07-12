@@ -575,6 +575,9 @@
                                      Text="{Binding DiagTestTemperature, UpdateSourceTrigger=LostFocus}" />
                             <Button Content="▶ Spustiť test zápisu" Style="{StaticResource AccentButton}" Margin="12,0,0,0"
                                     Command="{Binding RunSetpointDiagnosticCommand}" />
+                            <Button Content="Prečítať digitálne" Margin="8,0,0,0"
+                                    Command="{Binding ReadDigitalCommand}"
+                                    ToolTip="Prečíta digitálne kanály a ukáže nastavené bity – takto nájdeš štart kanál (spusti komoru ručne, prečítaj, ktorý bit je 1)." />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="Vložiť ukážkový príkaz do terminálu:" Style="{StaticResource Caption}"

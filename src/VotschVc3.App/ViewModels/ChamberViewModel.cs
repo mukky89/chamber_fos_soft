@@ -65,6 +65,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsControlAllowed, ReportError);
         QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsControlAllowed, ReportError);
         ToggleEditPresetsCommand = new RelayCommand(() => IsEditingPresets = !IsEditingPresets, () => IsManageAllowed);
+        ToggleEditNameCommand = new RelayCommand(() => IsEditingName = !IsEditingName);
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
         StartSelectedProfileCommand = new AsyncRelayCommand(StartSelectedProfileAsync, CanStartSelectedProfile, ReportError);
@@ -99,6 +100,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         InsertWriteCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, true));
         InsertStopCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, false));
         RunSetpointDiagnosticCommand = new AsyncRelayCommand(RunSetpointDiagnosticAsync, () => IsConnected && !IsPolEko, ReportError);
+        ReadDigitalCommand = new AsyncRelayCommand(ReadDigitalAsync, () => IsConnected && !IsPolEko, ReportError);
 
         ApplyConfig(config);
         if (IsPolEko)
@@ -230,6 +232,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Sets whether the current user may configure this chamber (admin only).</summary>
     public void SetManageAllowed(bool allowed) => IsManageAllowed = allowed;
+
+    private bool _isEditingName;
+    /// <summary>True while the dashboard name field is in edit mode (via the ✎ button).</summary>
+    public bool IsEditingName { get => _isEditingName; private set => SetProperty(ref _isEditingName, value); }
+
+    public RelayCommand ToggleEditNameCommand { get; }
 
     private bool _isRemoveArmed;
     /// <summary>
@@ -1707,6 +1715,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand InsertWriteCommandCommand { get; }
     public RelayCommand InsertStopCommandCommand { get; }
     public AsyncRelayCommand RunSetpointDiagnosticCommand { get; }
+    public AsyncRelayCommand ReadDigitalCommand { get; }
 
     /// <summary>The read frame (no terminator) for the current address, e.g. "$01I".</summary>
     public string TestReadFrame => Ascii2Protocol.BuildReadCommand(Address, TerminatorValue).TrimEnd('\r', '\n');
@@ -1769,6 +1778,41 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
 
         StatusMessage = accepted ? "Diagnostika: zápis setpointu OK." : "Diagnostika: zápis setpointu zlyhal – pozri výsledok v záložke.";
+    }
+
+    /// <summary>
+    /// Reads the chamber's digital-channel block and lists which bits are set, so the
+    /// operator can identify the real "start / condition on" channel: start the chamber
+    /// manually on its panel, read here, and the bit that is 1 is the start channel.
+    /// </summary>
+    private async Task ReadDigitalAsync()
+    {
+        if (IsPolEko)
+        {
+            return;
+        }
+
+        ChamberReading r = await _client.ReadAsync();
+        bool[] bits = r.DigitalChannels.ToArray();
+        var set = new List<int>();
+        for (int i = 0; i < bits.Length; i++)
+        {
+            if (bits[i])
+            {
+                set.Add(i);
+            }
+        }
+
+        string setList = set.Count > 0 ? string.Join(", ", set) : "žiadny";
+        string block = r.DigitalChannels.ToProtocolString();
+        DiagResult =
+            $"Digitálne kanály z odpovede komory:\n{block}\n" +
+            $"Nastavené bity (0-based index): {setList}.\n" +
+            $"Teraz zapisujeme štart na index #{StartChannelIndex}.\n\n" +
+            "Ako nájsť správny štart kanál: spusti komoru RUČNE na paneli (nech beží na výkon), " +
+            "potom klikni „Prečítať digitálne“. Bit, ktorý sa zmení na '1', je štart / 'condition on' " +
+            "kanál – zadaj jeho index do poľa „Štart kanál index“ v záložke Pripojenie a ulož.";
+        AppLog.Info(Name, $"[DIAG] Digitálne: {block} · nastavené={setList} · RAW=\"{r.Raw}\"");
     }
 
     #endregion
@@ -2350,6 +2394,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StartQueueCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();
         RunSetpointDiagnosticCommand.RaiseCanExecuteChanged();
+        ReadDigitalCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsConnected));
     }
 
