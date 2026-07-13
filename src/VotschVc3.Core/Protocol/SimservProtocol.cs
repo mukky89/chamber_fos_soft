@@ -42,6 +42,12 @@ public static class SimservProtocol
     public const int SetDigitalOut = 14001;        // args: index, 1/0[, user]
     public const int GetDigitalOut = 14003;        // args: index -> 0/1
 
+    // Automatic / program-mode reads (work regardless of who started the run).
+    public const int GetProgramName = 19031;       // -> program name
+    public const int GetProgramStatus = 19062;     // -> 1/0 (a program is running)
+    public const int GetProgramStart = 19064;      // -> name, loops, warm-up time, start date
+    public const int GetActualLoops = 19006;       // arg: 0 external / 1 internal -> current loop
+
     /// <summary>
     /// Builds a SIMSERV frame: <c>FunctionNo ¶ Simpati-ID ¶ args… CR</c>.
     /// </summary>
@@ -86,8 +92,20 @@ public static class SimservProtocol
     /// <summary>Ask the controller for its type (33333 = SimCon, 44444 = Simpac).</summary>
     public static string BuildGetChamberType(int simpatiId) => Build(GetChamberType, simpatiId);
 
-    /// <summary>Ask the controller for its operating mode (0x02 = MANUAL).</summary>
+    /// <summary>Ask the controller for its operating mode (0x02 = MANUAL, 0x04 = AUTOMATIC).</summary>
     public static string BuildGetOperatingMode(int simpatiId) => Build(GetOperatingMode, simpatiId);
+
+    /// <summary>Ask the controller for its operating status (0x2 = RUN).</summary>
+    public static string BuildGetOperatingStatus(int simpatiId) => Build(GetOperatingStatus, simpatiId);
+
+    /// <summary>Ask for the name of the loaded / running program.</summary>
+    public static string BuildGetProgramName(int simpatiId) => Build(GetProgramName, simpatiId);
+
+    /// <summary>Ask whether a program is currently running (1/0).</summary>
+    public static string BuildGetProgramStatus(int simpatiId) => Build(GetProgramStatus, simpatiId);
+
+    /// <summary>Ask for the running program's details (name, loops, warm-up time, start date).</summary>
+    public static string BuildGetProgramStart(int simpatiId) => Build(GetProgramStart, simpatiId);
 
     /// <summary>Splits a SIMSERV response into its ¶-separated tokens (terminator stripped).</summary>
     public static string[] ParseResponse(string? raw)

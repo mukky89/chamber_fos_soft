@@ -581,6 +581,9 @@
                             <Button Content="SIMSERV test" Margin="8,0,0,0"
                                     Command="{Binding SimservProbeCommand}"
                                     ToolTip="Otestuje, či komora (Simpac) hovorí protokol SIMSERV na tomto porte – pošle funkčné príkazy (typ, teplota, setpoint, režim) a ukáže odpoveď." />
+                            <Button Content="Program info" Margin="8,0,0,0"
+                                    Command="{Binding ReadProgramInfoCommand}"
+                                    ToolTip="Prečíta cez SIMSERV živý stav regulátora – režim, či beží program, jeho názov a detaily (aj keď ho spustila iná appka alebo panel komory)." />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="Vložiť ukážkový príkaz do terminálu:" Style="{StaticResource Caption}"

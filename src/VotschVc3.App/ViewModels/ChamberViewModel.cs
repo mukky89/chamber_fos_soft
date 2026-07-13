@@ -102,6 +102,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         RunSetpointDiagnosticCommand = new AsyncRelayCommand(RunSetpointDiagnosticAsync, () => IsConnected && !IsPolEko, ReportError);
         ReadDigitalCommand = new AsyncRelayCommand(ReadDigitalAsync, () => IsConnected && !IsPolEko, ReportError);
         SimservProbeCommand = new AsyncRelayCommand(SimservProbeAsync, () => IsConnected && !IsPolEko, ReportError);
+        ReadProgramInfoCommand = new AsyncRelayCommand(ReadProgramInfoAsync, () => IsConnected && !IsPolEko, ReportError);
         InsertSimservSetpointCommand = new RelayCommand(
             () => TerminalInput = SimservProtocol.BuildSetNominalValue(Address, 1, DiagTestTemperature).TrimEnd('\r'));
         InsertSimservStartCommand = new RelayCommand(
@@ -1722,8 +1723,60 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand RunSetpointDiagnosticCommand { get; }
     public AsyncRelayCommand ReadDigitalCommand { get; }
     public AsyncRelayCommand SimservProbeCommand { get; }
+    public AsyncRelayCommand ReadProgramInfoCommand { get; }
     public RelayCommand InsertSimservSetpointCommand { get; }
     public RelayCommand InsertSimservStartCommand { get; }
+
+    /// <summary>
+    /// Reads the controller's live program / operating state over SIMSERV, so we can
+    /// see what is running even when the chamber is driven by another app or a
+    /// program was started on the chamber's own panel. Some controllers do not
+    /// implement every command (they answer with a negative error code, e.g. -5).
+    /// </summary>
+    private async Task ReadProgramInfoAsync()
+    {
+        if (IsPolEko)
+        {
+            DiagResult = "Program info je pre Vötsch/Simpac (SIMSERV); POL-EKO používa MODBUS.";
+            return;
+        }
+
+        DiagResult = "Čítam stav programu (SIMSERV)…";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Stav komory / programu (SIMSERV) – živý stav regulátora bez ohľadu na to, kto ho spustil:");
+        sb.AppendLine();
+
+        async Task Probe(string label, string frame)
+        {
+            string sent = frame.TrimEnd('\r', '\n');
+            try
+            {
+                string resp = await _client.SendRawAsync(sent);
+                sb.AppendLine($"→ {label}: {sent}");
+                sb.AppendLine($"← {(string.IsNullOrEmpty(resp) ? "(bez odpovede)" : resp)}");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"→ {label}: {sent}");
+                sb.AppendLine($"← CHYBA: {ex.Message}");
+            }
+
+            sb.AppendLine();
+        }
+
+        int id = Address;
+        await Probe("Prevádzkový režim (10010: 0x02=manuál, 0x04=program)", SimservProtocol.BuildGetOperatingMode(id));
+        await Probe("Prevádzkový stav (10012: 0x2=beží)", SimservProtocol.BuildGetOperatingStatus(id));
+        await Probe("Beží program? (19062: 1/0)", SimservProtocol.BuildGetProgramStatus(id));
+        await Probe("Názov programu (19031)", SimservProtocol.BuildGetProgramName(id));
+        await Probe("Detaily programu (19064: názov, cykly, štart)", SimservProtocol.BuildGetProgramStart(id));
+
+        sb.AppendLine("Poznámka: ak niektorý príkaz vráti záporné číslo (napr. -5 = neznámy príkaz), " +
+            "tento regulátor danú funkciu nepodporuje. Podľa toho, čo vráti, viem doplniť čítanie " +
+            "bežiaceho programu do hlavného okna.");
+        DiagResult = sb.ToString();
+        AppLog.Info(Name, "[SIMSERV] Program info dokončené.");
+    }
 
     /// <summary>
     /// Sends a handful of SIMSERV function commands over the live connection and

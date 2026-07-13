@@ -4,6 +4,16 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.10] – 2026-07-13
+
+### Pridané
+- **„Program info" (SIMSERV)** – nové tlačidlo v Surovom termináli prečíta živý
+  stav regulátora: prevádzkový režim (`10010`), stav (`10012`), či beží program
+  (`19062`), názov programu (`19031`) a detaily (`19064`). Funguje bez ohľadu na
+  to, kto komoru ovláda – naša appka, iná appka, alebo program spustený priamo
+  na paneli komory. Slúži na overenie, ktoré z týchto príkazov daný regulátor
+  podporuje (niektoré môžu vrátiť napr. `-5` = neznámy príkaz).
+
 ## [1.8.9] – 2026-07-13
 
 ### Zmenené
