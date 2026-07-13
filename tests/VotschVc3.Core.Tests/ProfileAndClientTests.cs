@@ -44,7 +44,9 @@ public class ProfileAndClientTests
     [Fact]
     public async Task ChamberClient_read_parses_fake_transport_response()
     {
-        var fake = new FakeTransport("0024.5 0025.0 10000000000000000000000000000000");
+        // Default StartChannelIndex is 1 (Vötsch S!MPAC), so the start / "condition
+        // on" bit is the second character of the digital block ("01000000…").
+        var fake = new FakeTransport("0024.5 0025.0 01000000000000000000000000000000");
         await using var client = new ChamberClient(_ => fake);
         await client.ConnectAsync(new ChamberConnectionSettings());
 
@@ -66,7 +68,8 @@ public class ProfileAndClientTests
         await client.SetTemperatureAndHumidityAsync(50.0, null, start: true);
 
         Assert.StartsWith("$01E 0050.0 0000.0", fake.LastRequest);
-        Assert.Contains("10000000000000000000000000000000", fake.LastRequest);
+        // Start bit lands on channel 1 (default StartChannelIndex), i.e. "01000000…".
+        Assert.Contains("01000000000000000000000000000000", fake.LastRequest);
     }
 
     private sealed class FakeTransport : ITransport
