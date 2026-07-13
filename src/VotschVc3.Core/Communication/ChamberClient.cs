@@ -91,9 +91,25 @@ public sealed class ChamberClient : IChamberDevice
         DigitalChannels digital,
         CancellationToken cancellationToken = default)
     {
-        string command = Ascii2Protocol.BuildWriteCommand(
-            Settings.Address, setpoints, digital, Settings.AnalogChannelCount, Settings.Terminator);
-        await ExchangeAsync(command, cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(setpoints);
+        ArgumentNullException.ThrowIfNull(digital);
+
+        // Simpac controllers answer ASCII-2 reads ($ddI) but ignore ASCII-2
+        // set-point writes ($ddE) — control has to go through SIMSERV function
+        // commands, which the controller acknowledges with "1". Set each analog
+        // control variable (1 = temperature, 2 = humidity, …) with SET NOMINAL
+        // VALUE (11001), then the start / "system on" digital channel with SET
+        // DIGITALOUT (14001). The SIMSERV channel is 1-based, so it is the
+        // 0-based StartChannelIndex plus one.
+        int id = Settings.Address;
+        for (int i = 0; i < setpoints.Count; i++)
+        {
+            string setNominal = SimservProtocol.BuildSetNominalValue(id, i + 1, setpoints[i]);
+            await ExchangeAsync(setNominal, cancellationToken).ConfigureAwait(false);
+        }
+
+        string setStart = SimservProtocol.BuildSetDigitalOut(id, Settings.StartChannelIndex + 1, digital.Start);
+        await ExchangeAsync(setStart, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

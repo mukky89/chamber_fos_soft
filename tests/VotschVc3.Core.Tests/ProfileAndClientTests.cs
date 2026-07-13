@@ -60,17 +60,21 @@ public class ProfileAndClientTests
     }
 
     [Fact]
-    public async Task ChamberClient_write_emits_expected_frame()
+    public async Task ChamberClient_write_emits_simserv_commands()
     {
-        var fake = new FakeTransport(string.Empty);
+        // Simpac controllers are controlled with SIMSERV, not the ASCII-2 $ddE
+        // frame: SET NOMINAL VALUE (11001) per control variable, then SET
+        // DIGITALOUT (14001) for the start channel. The controller answers "1".
+        var fake = new FakeTransport("1");
         await using var client = new ChamberClient(_ => fake);
-        await client.ConnectAsync(new ChamberConnectionSettings { AnalogChannelCount = 6 });
+        await client.ConnectAsync(new ChamberConnectionSettings()); // StartChannelIndex defaults to 1
 
         await client.SetTemperatureAndHumidityAsync(50.0, null, start: true);
 
-        Assert.StartsWith("$01E 0050.0 0000.0", fake.LastRequest);
-        // Start bit lands on channel 1 (default StartChannelIndex), i.e. "01000000…".
-        Assert.Contains("01000000000000000000000000000000", fake.LastRequest);
+        var sent = fake.Requests.Select(r => r.TrimEnd('\r')).ToList();
+        Assert.Contains("11001¶1¶1¶50.0", sent);              // temperature set point
+        Assert.Contains("14001¶1¶2¶1", sent);                 // start channel (StartChannelIndex 1 -> SIMSERV channel 2)
+        Assert.DoesNotContain(sent, r => r.StartsWith("$01E")); // no ASCII-2 write
     }
 
     private sealed class FakeTransport : ITransport
@@ -79,7 +83,9 @@ public class ProfileAndClientTests
 
         public FakeTransport(string response) => _response = response;
 
-        public string? LastRequest { get; private set; }
+        public List<string> Requests { get; } = new();
+
+        public string? LastRequest => Requests.Count > 0 ? Requests[^1] : null;
 
         public bool IsConnected { get; private set; }
 
@@ -97,7 +103,7 @@ public class ProfileAndClientTests
 
         public Task<string> SendReceiveAsync(string command, CancellationToken cancellationToken = default)
         {
-            LastRequest = command;
+            Requests.Add(command);
             return Task.FromResult(_response);
         }
 

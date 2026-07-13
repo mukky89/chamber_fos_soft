@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.9] – 2026-07-13
+
+### Zmenené
+- **Riadenie Vötsch/Simpac ide teraz cez SIMSERV** (nie ASCII-2 `$01E`).
+  Test na VT3 7034 potvrdil, že komora zápis cez `$01E` ignoruje, ale SIMSERV
+  príkazy prijíma (odpoveď „1"): `11001¶1¶1¶30.0` (setpoint) aj `14001¶1¶1¶1`
+  (štart). Zápis setpointu (Nastaviť), štart aj stop teraz appka posiela ako
+  SIMSERV `SET NOMINAL VALUE (11001)` pre každý kanál a `SET DIGITALOUT (14001)`
+  pre štart kanál. **Čítanie ostáva cez ASCII-2 `$01I`** (jedným rámcom, rýchle).
+  Štart kanál pre SIMSERV = „Štart kanál index" + 1 (SIMSERV čísluje kanály od 1);
+  ak by komora nenaskočila, priprav „Štart kanál index" (0 = SIMSERV kanál 1).
+  POL-EKO (MODBUS) sa to netýka.
+
 ## [1.8.8] – 2026-07-13
 
 ### Opravené
