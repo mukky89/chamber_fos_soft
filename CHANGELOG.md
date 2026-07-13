@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.9.1] – 2026-07-13
+
+### Opravené
+- **Štart išiel na nesprávny digitálny kanál.** Panel komory ukazuje, že „Start"
+  je prvý digitálny výstup (**index 0**), nie index 1/2. Terminál potvrdil, že
+  `SET DIGITALOUT` kanál N zodpovedá rovnakému bitu N v ASCII odpovedi (kanál 2 →
+  bit 2). Predvolený „Štart kanál index" opravený na **0** a SIMSERV štart kanál
+  = index (bez +1), takže sa zapína práve kanál „Start". Reseed marker zdvihnutý
+  na `v5`, aby sa oprava raz automaticky použila. (Setpoint sa zapisoval správne
+  už predtým – problém bol len v tom, že sa nezapol správny štart kanál.)
+- **Teplotná komora už neposiela kanál vlhkosti.** `SET NOMINAL VALUE` na kanál 2
+  (vlhkosť) vracal na teplotnej komore `-8` (kanál neexistuje) – appka teraz na
+  teplotné komory posiela iba teplotu.
+
 ## [1.9.0] – 2026-07-13
 
 ### Pridané

@@ -73,7 +73,7 @@ public class ProfileAndClientTests
 
         var sent = fake.Requests.Select(r => r.TrimEnd('\r')).ToList();
         Assert.Contains("11001¶1¶1¶50.0", sent);              // temperature set point
-        Assert.Contains("14001¶1¶2¶1", sent);                 // start channel (StartChannelIndex 1 -> SIMSERV channel 2)
+        Assert.Contains("14001¶1¶0¶1", sent);                 // start channel = StartChannelIndex (0 = "Start")
         Assert.DoesNotContain(sent, r => r.StartsWith("$01E")); // no ASCII-2 write
     }
 

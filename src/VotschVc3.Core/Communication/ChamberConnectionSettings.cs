@@ -28,13 +28,13 @@ public sealed class ChamberConnectionSettings
     public int AnalogChannelCount { get; set; } = Ascii2Protocol.DefaultAnalogChannelCount;
 
     /// <summary>
-    /// Index (0-based) of the digital channel that switches the chamber on. The
-    /// Vötsch / Weiss S!MPAC controllers use channel 1 (the second bit,
-    /// <c>"01000000…"</c>) for the "start / condition on" signal — this is the
-    /// value the read-back diagnostic reports when a unit is started manually.
-    /// Verify against your unit with the raw terminal if in doubt.
+    /// Index (0-based) of the digital channel that switches the chamber on. On the
+    /// Vötsch / Weiss Simpac controllers this is the channel labelled "Start" on
+    /// the panel, which is the first digital output (index 0). SET DIGITALOUT uses
+    /// the same index as the ASCII-2 read-back block, so this value is both the
+    /// SIMSERV channel and the read-back bit. Verify on your unit if in doubt.
     /// </summary>
-    public int StartChannelIndex { get; set; } = 1;
+    public int StartChannelIndex { get; set; }
 
     /// <summary>Timeout for establishing the TCP connection.</summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);

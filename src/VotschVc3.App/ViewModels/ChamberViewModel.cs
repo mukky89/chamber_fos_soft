@@ -660,7 +660,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         digital.Start = true;
 
         bool humidity = SupportsHumidity && ControlHumidity;
-        var setpoints = new List<double> { ManualTemperature, humidity ? ManualHumidity : 0d };
+        // Only send the humidity control variable to humidity chambers; a temp-only
+        // Simpac answers SET NOMINAL on channel 2 with -8 (variable not found).
+        var setpoints = humidity
+            ? new List<double> { ManualTemperature, ManualHumidity }
+            : new List<double> { ManualTemperature };
         string summary = $"{ManualTemperature:0.0} °C" + (humidity ? $", {ManualHumidity:0.0} %" : string.Empty);
         AppLog.Info(Name, $"Zápis setpointu: {summary} · adresa {Address} · štart kanál #{StartChannelIndex + 1} = ON · " +
             $"analóg. kanálov {AnalogChannelCount} · digitálne '{DigitalChannelsText}'.");
@@ -1898,8 +1902,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         var digital = ParseDigitalText();
         digital.StartChannelIndex = StartChannelIndex;
         digital.Start = true;
-        var setpoints = new List<double> { DiagTestTemperature, 0d };
-        AppLog.Info(Name, $"[DIAG] Zapisujem setpoint {DiagTestTemperature:0.0} °C, štart kanál #{StartChannelIndex + 1}=ON, adresa {Address}, kanálov {AnalogChannelCount}.");
+        var setpoints = new List<double> { DiagTestTemperature };
+        AppLog.Info(Name, $"[DIAG] Zapisujem setpoint {DiagTestTemperature:0.0} °C, štart kanál #{StartChannelIndex}=ON, adresa {Address}.");
         await _client.WriteSetpointsAsync(setpoints, digital);
 
         await Task.Delay(1500);

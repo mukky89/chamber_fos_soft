@@ -99,8 +99,9 @@ public sealed class ChamberClient : IChamberDevice
         // commands, which the controller acknowledges with "1". Set each analog
         // control variable (1 = temperature, 2 = humidity, …) with SET NOMINAL
         // VALUE (11001), then the start / "system on" digital channel with SET
-        // DIGITALOUT (14001). The SIMSERV channel is 1-based, so it is the
-        // 0-based StartChannelIndex plus one.
+        // DIGITALOUT (14001). SET DIGITALOUT channel N maps to the same index N in
+        // the ASCII-2 read-back block (verified: channel 2 lit bit 2), so the
+        // SIMSERV channel is exactly the 0-based StartChannelIndex.
         int id = Settings.Address;
         for (int i = 0; i < setpoints.Count; i++)
         {
@@ -108,7 +109,7 @@ public sealed class ChamberClient : IChamberDevice
             await ExchangeAsync(setNominal, cancellationToken).ConfigureAwait(false);
         }
 
-        string setStart = SimservProtocol.BuildSetDigitalOut(id, Settings.StartChannelIndex + 1, digital.Start);
+        string setStart = SimservProtocol.BuildSetDigitalOut(id, Settings.StartChannelIndex, digital.Start);
         await ExchangeAsync(setStart, cancellationToken).ConfigureAwait(false);
     }
 
@@ -123,7 +124,9 @@ public sealed class ChamberClient : IChamberDevice
         CancellationToken cancellationToken = default)
     {
         var digital = new DigitalChannels { StartChannelIndex = Settings.StartChannelIndex, Start = start };
-        var setpoints = new List<double> { temperature, humidity ?? 0d };
+        var setpoints = humidity is { } h
+            ? new List<double> { temperature, h }
+            : new List<double> { temperature };
         return WriteSetpointsAsync(setpoints, digital, cancellationToken);
     }
 
@@ -139,7 +142,7 @@ public sealed class ChamberClient : IChamberDevice
         // with a negative error code, which is harmless here.
         await ExchangeAsync(SimservProtocol.BuildStopProgram(id), cancellationToken).ConfigureAwait(false);
         // Clear the start / "system on" channel (manual mode) -> output off.
-        string off = SimservProtocol.BuildSetDigitalOut(id, Settings.StartChannelIndex + 1, on: false);
+        string off = SimservProtocol.BuildSetDigitalOut(id, Settings.StartChannelIndex, on: false);
         await ExchangeAsync(off, cancellationToken).ConfigureAwait(false);
     }
 

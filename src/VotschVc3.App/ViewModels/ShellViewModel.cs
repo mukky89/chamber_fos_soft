@@ -81,7 +81,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // One-time reseed to the real lab layout (VT3 7034, VC3 7034, POL-EKO with
         // their fixed IP addresses / ports). Guarded by a marker so a user who later
         // edits IPs or removes a chamber keeps their changes on the next start.
-        string reseedMarker = System.IO.Path.Combine(dir, ".chambers_seed_v4");
+        string reseedMarker = System.IO.Path.Combine(dir, ".chambers_seed_v5");
         bool reseeded = false;
         if (seeded || !System.IO.File.Exists(reseedMarker))
         {
@@ -359,7 +359,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         new ChamberConfig
         {
             Name = "Komora 1 — Vötsch VT3 7034 (teplota)", Kind = ChamberKind.TemperatureOnly, Host = "10.88.5.175", Port = 2049,
-            StartChannelIndex = 1,
+            StartChannelIndex = 0,
             Nameplate = new ChamberNameplate
             {
                 Model = "VT³ 7034", SerialNumber = "58566198240010", OrderNumber = "56619824",
@@ -373,7 +373,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         new ChamberConfig
         {
             Name = "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", Kind = ChamberKind.TemperatureHumidity, Host = "10.88.5.180", Port = 2049,
-            StartChannelIndex = 1,
+            StartChannelIndex = 0,
             Nameplate = new ChamberNameplate
             {
                 Model = "VC³ 7034", SerialNumber = "58566126860010", OrderNumber = "56612686",
@@ -420,9 +420,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             Protocol = NewChamberProtocol,
             Port = polEko ? 502 : 1080,
             Host = string.IsNullOrWhiteSpace(NewChamberHost) ? "192.168.0.1" : NewChamberHost.Trim(),
-            // Vötsch S!MPAC controllers use digital channel 1 as the start /
-            // "condition on" signal; POL-EKO (MODBUS) does not use this field.
-            StartChannelIndex = polEko ? 0 : 1,
+            // The Vötsch "Start" channel is the first digital output (index 0);
+            // POL-EKO (MODBUS) does not use this field.
+            StartChannelIndex = 0,
         };
 
         AddChamberInternal(config);
