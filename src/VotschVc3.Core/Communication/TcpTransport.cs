@@ -92,7 +92,10 @@ public sealed class TcpTransport : ITransport
             throw new InvalidOperationException("The transport is not connected.");
         }
 
-        byte[] payload = Encoding.ASCII.GetBytes(command);
+        // Latin-1 (ISO-8859-1) is a superset of ASCII for the ASCII-2 protocol
+        // (all its characters are < 128, so nothing changes there) and, unlike
+        // Encoding.ASCII, it transmits the SIMSERV separator '¶' (0xB6) intact.
+        byte[] payload = Encoding.Latin1.GetBytes(command);
         await _stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
         await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
 

@@ -578,6 +578,9 @@
                             <Button Content="Prečítať digitálne" Margin="8,0,0,0"
                                     Command="{Binding ReadDigitalCommand}"
                                     ToolTip="Prečíta digitálne kanály a ukáže nastavené bity – takto nájdeš štart kanál (spusti komoru ručne, prečítaj, ktorý bit je 1)." />
+                            <Button Content="SIMSERV test" Margin="8,0,0,0"
+                                    Command="{Binding SimservProbeCommand}"
+                                    ToolTip="Otestuje, či komora (Simpac) hovorí protokol SIMSERV na tomto porte – pošle funkčné príkazy (typ, teplota, setpoint, režim) a ukáže odpoveď." />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="Vložiť ukážkový príkaz do terminálu:" Style="{StaticResource Caption}"
@@ -585,6 +588,8 @@
                             <Button Content="Čítať" Command="{Binding InsertReadCommandCommand}" ToolTip="$..I – prečítať aktuálne hodnoty" />
                             <Button Content="Zápis + štart" Command="{Binding InsertWriteCommandCommand}" ToolTip="Zápis test teploty so zapnutým štart kanálom" />
                             <Button Content="Stop" Command="{Binding InsertStopCommandCommand}" ToolTip="Zápis so štart kanálom = OFF" />
+                            <Button Content="SIMSERV setpoint" Command="{Binding InsertSimservSetpointCommand}" ToolTip="Vloží SIMSERV príkaz SET NOMINAL VALUE (11001) pre test teplotu." />
+                            <Button Content="SIMSERV štart" Command="{Binding InsertSimservStartCommand}" ToolTip="Vloží SIMSERV príkaz SET DIGITALOUT (14001) – zapne štart kanál 1." />
                         </StackPanel>
                         <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,8">
                             <TextBlock Text="{Binding DiagResult}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" />

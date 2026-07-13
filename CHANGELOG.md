@@ -4,6 +4,24 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.7] – 2026-07-13
+
+### Pridané
+- **SIMSERV protokol (Simpac) – prvý krok: test.** Komora Vötsch odpovedá na
+  čítanie (`$01I`), ale zápis setpointu cez ASCII-2 (`$01E`) ignoruje. Podľa
+  Simpati manuálu sa Simpac riadi cez SIMSERV funkčné príkazy
+  (`FunkciaNo ¶ Simpati-ID ¶ …`, oddeľovač `¶` = ASCII 182, ukončené CR):
+  napr. `SET NOMINAL VALUE 11001`, `SET DIGITALOUT 14001`,
+  `GET ACTUAL VALUE 11004`. Pridaný kodek `SimservProtocol` + tlačidlo
+  **„SIMSERV test"** v Surovom termináli, ktoré pošle funkčné príkazy a ukáže
+  odpoveď komory – takto zistíme, či komora SIMSERV na danom porte podporuje.
+  Tlačidlá **„SIMSERV setpoint / štart"** vložia príslušný príkaz do terminálu.
+  (ASCII-2 a MODBUS ostávajú nezmenené.)
+
+### Opravené
+- **TCP prenos posiela znaky ako Latin-1** namiesto ASCII, aby prešiel
+  oddeľovač SIMSERV `¶` (0xB6). Pre ASCII-2 (znaky < 128) sa nič nemení.
+
 ## [1.8.6] – 2026-07-13
 
 ### Opravené

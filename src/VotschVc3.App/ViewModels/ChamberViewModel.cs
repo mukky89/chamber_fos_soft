@@ -101,6 +101,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         InsertStopCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, false));
         RunSetpointDiagnosticCommand = new AsyncRelayCommand(RunSetpointDiagnosticAsync, () => IsConnected && !IsPolEko, ReportError);
         ReadDigitalCommand = new AsyncRelayCommand(ReadDigitalAsync, () => IsConnected && !IsPolEko, ReportError);
+        SimservProbeCommand = new AsyncRelayCommand(SimservProbeAsync, () => IsConnected && !IsPolEko, ReportError);
+        InsertSimservSetpointCommand = new RelayCommand(
+            () => TerminalInput = SimservProtocol.BuildSetNominalValue(Address, 1, DiagTestTemperature).TrimEnd('\r'));
+        InsertSimservStartCommand = new RelayCommand(
+            () => TerminalInput = SimservProtocol.BuildSetDigitalOut(Address, 1, on: true).TrimEnd('\r'));
 
         ApplyConfig(config);
         if (IsPolEko)
@@ -1716,6 +1721,60 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand InsertStopCommandCommand { get; }
     public AsyncRelayCommand RunSetpointDiagnosticCommand { get; }
     public AsyncRelayCommand ReadDigitalCommand { get; }
+    public AsyncRelayCommand SimservProbeCommand { get; }
+    public RelayCommand InsertSimservSetpointCommand { get; }
+    public RelayCommand InsertSimservStartCommand { get; }
+
+    /// <summary>
+    /// Sends a handful of SIMSERV function commands over the live connection and
+    /// shows the raw replies, so we can tell whether this Simpac controller speaks
+    /// SIMSERV on the current port. If it does, set point and start can be written
+    /// with SET NOMINAL VALUE (11001) / SET DIGITALOUT (14001) instead of the
+    /// ASCII-2 <c>$ddE</c> frame the controller ignores.
+    /// </summary>
+    private async Task SimservProbeAsync()
+    {
+        if (IsPolEko)
+        {
+            DiagResult = "SIMSERV je pre Vötsch/Simpac; POL-EKO používa MODBUS.";
+            return;
+        }
+
+        DiagResult = "SIMSERV test prebieha… (môže trvať pár sekúnd)";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("SIMSERV test (Simpac) – posielam funkčné príkazy a čítam odpoveď:");
+        sb.AppendLine();
+
+        async Task Probe(string label, string frame)
+        {
+            string sent = frame.TrimEnd('\r', '\n');
+            try
+            {
+                string resp = await _client.SendRawAsync(sent);
+                sb.AppendLine($"→ {label}: {sent}");
+                sb.AppendLine($"← {(string.IsNullOrEmpty(resp) ? "(bez odpovede)" : resp)}");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"→ {label}: {sent}");
+                sb.AppendLine($"← CHYBA: {ex.Message}");
+            }
+
+            sb.AppendLine();
+        }
+
+        int id = Address;
+        await Probe("Typ regulátora (10017)", SimservProtocol.BuildGetChamberType(id));
+        await Probe("Nameraná teplota (11004, idx 1)", SimservProtocol.BuildGetActualValue(id, 1));
+        await Probe("Setpoint teplota (11002, idx 1)", SimservProtocol.BuildGetNominalValue(id, 1));
+        await Probe("Prevádzkový režim (10010)", SimservProtocol.BuildGetOperatingMode(id));
+
+        sb.AppendLine("Ak prišli zmysluplné odpovede (napr. „1¶44444\" = Simpac, „1¶24.5\" = teplota), " +
+            "komora hovorí SIMSERV a viem cez to zapisovať setpoint aj štart. Ak je všade " +
+            "„(bez odpovede)\" alebo timeout, komora na tomto porte SIMSERV nepodporuje.");
+        DiagResult = sb.ToString();
+        AppLog.Info(Name, "[SIMSERV] Probe dokončený.");
+    }
 
     /// <summary>The read frame (no terminator) for the current address, e.g. "$01I".</summary>
     public string TestReadFrame => Ascii2Protocol.BuildReadCommand(Address, TerminatorValue).TrimEnd('\r', '\n');
