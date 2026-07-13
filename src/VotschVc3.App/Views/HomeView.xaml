@@ -329,8 +329,9 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Button Style="{StaticResource GhostButton}" Margin="0,0,6,4"
+                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,7,6"
                                                         Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
+                                                        ToolTip="Klikni = nastav túto teplotu a zapni komoru"
                                                         Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         CommandParameter="{Binding}" />
                                             </DataTemplate>
@@ -344,6 +345,16 @@
                                         <Button Content="Nastaviť" Style="{StaticResource AccentButton}" Command="{Binding QuickSetTemperatureCommand}" />
                                         <Button Content="Stop" Style="{StaticResource DangerButton}" Margin="8,0,0,0" Command="{Binding StopChamberCommand}" />
                                     </StackPanel>
+
+                                    <!-- Action feedback banner: pops up after an action so the operator
+                                         always sees what happened / what was switched on. Auto-clears. -->
+                                    <Border Margin="0,8,0,0" CornerRadius="8" Padding="11,8"
+                                            Background="{StaticResource SurfaceAltBrush}"
+                                            BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
+                                            Visibility="{Binding HasActionInfo, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="{Binding ActionInfo}" Foreground="{StaticResource TextBrush}"
+                                                   FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                                    </Border>
                                 </StackPanel>
                             </Border>
 

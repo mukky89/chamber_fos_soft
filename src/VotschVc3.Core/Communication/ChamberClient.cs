@@ -128,6 +128,22 @@ public sealed class ChamberClient : IChamberDevice
     }
 
     /// <summary>
+    /// Completely stops the chamber: stops any running program (SET STOPZPGPRG)
+    /// and clears the start / "system on" digital channel (SET DIGITALOUT = 0), so
+    /// the controller stops driving power regardless of manual / program mode.
+    /// </summary>
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        int id = Settings.Address;
+        // Stop a running program if any. Controllers without program support answer
+        // with a negative error code, which is harmless here.
+        await ExchangeAsync(SimservProtocol.BuildStopProgram(id), cancellationToken).ConfigureAwait(false);
+        // Clear the start / "system on" channel (manual mode) -> output off.
+        string off = SimservProtocol.BuildSetDigitalOut(id, Settings.StartChannelIndex + 1, on: false);
+        await ExchangeAsync(off, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Sends an already formatted, raw frame (terminator optional – it is added
     /// when missing) and returns the raw response. For ad-hoc / vendor commands.
     /// </summary>

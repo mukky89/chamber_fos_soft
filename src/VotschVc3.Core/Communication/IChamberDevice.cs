@@ -39,6 +39,12 @@ public interface IChamberDevice : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Completely switches the device output off: stops any running program and
+    /// clears the start / "system on" channel, so the chamber stops driving power.
+    /// </summary>
+    Task StopAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sends an ad-hoc raw frame and returns the raw response, for the diagnostic
     /// terminal. The exact meaning of the frame is protocol specific.
     /// </summary>

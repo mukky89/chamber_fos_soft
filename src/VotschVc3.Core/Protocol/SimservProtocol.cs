@@ -42,6 +42,8 @@ public static class SimservProtocol
     public const int SetDigitalOut = 14001;        // args: index, 1/0[, user]
     public const int GetDigitalOut = 14003;        // args: index -> 0/1
 
+    public const int StopProgram = 19015;          // SET STOPZPGPRG (stop a running program)
+
     // Automatic / program-mode reads (work regardless of who started the run).
     public const int GetProgramName = 19031;       // -> program name
     public const int GetProgramStatus = 19062;     // -> 1/0 (a program is running)
@@ -88,6 +90,9 @@ public static class SimservProtocol
     /// <summary>Switch a digital output channel on/off (channel 1 = start / "system on").</summary>
     public static string BuildSetDigitalOut(int simpatiId, int index, bool on) =>
         Build(SetDigitalOut, simpatiId, Idx(index), on ? "1" : "0");
+
+    /// <summary>Stops a running program (automatic mode) via SET STOPZPGPRG.</summary>
+    public static string BuildStopProgram(int simpatiId) => Build(StopProgram, simpatiId);
 
     /// <summary>Ask the controller for its type (33333 = SimCon, 44444 = Simpac).</summary>
     public static string BuildGetChamberType(int simpatiId) => Build(GetChamberType, simpatiId);

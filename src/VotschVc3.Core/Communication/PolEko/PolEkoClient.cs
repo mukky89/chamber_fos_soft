@@ -107,6 +107,15 @@ public sealed class PolEkoClient : IChamberDevice
         RaiseFrame($"SET {temperature:0.0} °C · {(digital.Start ? "ON" : "OFF")}");
     }
 
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        ModbusTcpClient modbus = _modbus ?? throw new InvalidOperationException("Not connected to the POL-EKO device.");
+        // Switch the oven off (on/off holding register = 0). The set point is left
+        // untouched so it is remembered for the next start.
+        await modbus.WriteSingleRegisterAsync(Unit, _map.OnOffHolding, 0, cancellationToken).ConfigureAwait(false);
+        RaiseFrame("STOP · OFF");
+    }
+
     public async Task<string> SendRawAsync(string frame, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(frame);

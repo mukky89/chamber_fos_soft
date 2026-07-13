@@ -312,6 +312,45 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private string _statusMessage = "Pripravené.";
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
 
+    private string _actionInfo = string.Empty;
+    /// <summary>Transient "what just happened" banner shown after an operator action.</summary>
+    public string ActionInfo
+    {
+        get => _actionInfo;
+        private set { if (SetProperty(ref _actionInfo, value)) OnPropertyChanged(nameof(HasActionInfo)); }
+    }
+
+    /// <summary>True while an <see cref="ActionInfo"/> banner should be visible.</summary>
+    public bool HasActionInfo => !string.IsNullOrEmpty(ActionInfo);
+
+    private System.Windows.Threading.DispatcherTimer? _actionInfoTimer;
+
+    /// <summary>
+    /// Pops a short confirmation banner ("Nastavené 30 °C · štart ZAPNUTÝ", …) so the
+    /// operator always sees what an action did and what is now switched on. It also
+    /// mirrors to <see cref="StatusMessage"/> and auto-clears after a few seconds.
+    /// </summary>
+    private void ShowActionInfo(string message)
+    {
+        ActionInfo = message;
+        StatusMessage = message;
+        if (_actionInfoTimer is null)
+        {
+            _actionInfoTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(4.5),
+            };
+            _actionInfoTimer.Tick += (_, _) =>
+            {
+                _actionInfoTimer!.Stop();
+                ActionInfo = string.Empty;
+            };
+        }
+
+        _actionInfoTimer.Stop();
+        _actionInfoTimer.Start();
+    }
+
     public AsyncRelayCommand ConnectCommand { get; }
     public AsyncRelayCommand DisconnectCommand { get; }
 
@@ -336,7 +375,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StatusMessage = $"Pripájam sa na {Endpoint}…";
         await _client.ConnectAsync(BuildSettings());
         IsConnected = true;
-        StatusMessage = "Pripojené.";
+        ShowActionInfo($"🔌 Pripojené na {Endpoint}");
         _audit.Log(Name, "Pripojenie", Endpoint);
         AppLog.Info(Name, $"Pripojené na {Endpoint}.");
 
@@ -357,7 +396,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SetManualStarted(false);
         SetReadRunning(null);
         ClearAllAlarms();
-        StatusMessage = "Odpojené.";
+        ShowActionInfo("🔌 Odpojené");
         _audit.Log(Name, "Odpojenie", Endpoint);
     }
 
@@ -627,7 +666,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             $"analóg. kanálov {AnalogChannelCount} · digitálne '{DigitalChannelsText}'.");
         await _client.WriteSetpointsAsync(setpoints, digital);
         SetManualStarted(true);
-        StatusMessage = $"Setpoint zapísaný: {summary}";
+        ShowActionInfo($"✔ Nastavené {summary} · štart ZAPNUTÝ");
         _audit.Log(Name, "Setpoint", summary);
         AppLog.Info(Name, $"Setpoint zapísaný: {summary}. Skontroluj v logu odpoveď regulátora (RX) na príkaz TX $..E…");
     }
@@ -703,17 +742,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task StopChamberAsync()
     {
-        DigitalChannels digital = ParseDigitalText();
-        digital.StartChannelIndex = StartChannelIndex;
-        digital.Start = false;
-
-        var setpoints = new List<double> { ManualTemperature, 0d };
-        AppLog.Info(Name, $"Stop komory: adresa {Address} · štart kanál #{StartChannelIndex + 1} = OFF.");
-        await _client.WriteSetpointsAsync(setpoints, digital);
+        AppLog.Info(Name, $"Stop komory: adresa {Address} · úplné vypnutie výkonu (stop programu + štart kanál OFF).");
+        await _client.StopAsync();
         SetManualStarted(false);
-        StatusMessage = "Komora zastavená (štart kanál vynulovaný).";
+        ShowActionInfo("⏹ Stop – výkon komory VYPNUTÝ");
         _audit.Log(Name, "Stop komory", string.Empty);
-        AppLog.Info(Name, "Komora zastavená (štart kanál vynulovaný).");
+        AppLog.Info(Name, "Komora zastavená – výkon vypnutý.");
     }
 
     private DigitalChannels ParseDigitalText() => DigitalChannels.Parse(DigitalChannelsText, StartChannelIndex);
@@ -1140,7 +1174,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             for (int i = 0; i < profiles.Count; i++)
             {
                 TestProfile profile = profiles[i];
-                StatusMessage = $"Beží profil \"{profile.Name}\" ({i + 1}/{profiles.Count}).";
+                ShowActionInfo($"▶ Spustený profil „{profile.Name}\" ({i + 1}/{profiles.Count})");
                 _audit.Log(Name, "Štart profilu", $"{profile.Name} ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov)");
                 AppLog.Info(Name, $"Štart profilu \"{profile.Name}\" ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov, {profile.Segments.Count} segmentov).");
                 await RunProfileCoreAsync(profile, i, profiles.Count, token);

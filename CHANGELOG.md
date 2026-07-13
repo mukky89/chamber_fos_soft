@@ -4,6 +4,24 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.9.0] – 2026-07-13
+
+### Pridané
+- **Rýchle ovládanie – teploty v rámčekoch (chip) s hover efektom.** Predvoľby
+  teplôt sú teraz orámované boxy (nový štýl `PresetChip`); po prejdení myšou sa
+  zvýrazní okraj (accent), po stlačení sa vyplnia. Väčší, jasnejší cieľ pre
+  operátora (aj v rukaviciach).
+- **Vyskakujúca spätná väzba akcií.** Po každej akcii (Nastaviť, predvoľba, Stop,
+  Pripojiť/Odpojiť, štart profilu) sa v karte komory zobrazí banner „✔ Nastavené
+  30 °C · štart ZAPNUTÝ", „⏹ Stop – výkon VYPNUTÝ" a pod., aby operátor vždy
+  vedel, čo sa stalo a čo je zapnuté. Banner sám zmizne po ~4,5 s.
+
+### Zmenené
+- **Stop teraz úplne vypne výkon komory.** Namiesto len vynulovania štart kanála
+  Stop cez SIMSERV najprv zastaví prípadný bežiaci program (`SET STOPZPGPRG
+  19015`) a potom zhodí štart kanál (`SET DIGITALOUT 14001 = 0`). Pri POL-EKO
+  zapíše on/off register na 0. Setpoint sa nemení (zapamätá sa na ďalší štart).
+
 ## [1.8.10] – 2026-07-13
 
 ### Pridané
