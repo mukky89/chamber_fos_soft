@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.9.3] – 2026-07-13
+
+### Pridané
+- **MODBUS sken registrov (POL-EKO)** – nové tlačidlo v Surovom termináli
+  prečíta holding (FC03) aj input (FC04) registre 0–63 a vypíše hodnoty. Sprav
+  sken počas behu programu (aj z inej appky) a raz bez neho a porovnaj, ktorý
+  register sa zmenil – tak nájdeme register bežiaceho programu/segmentu.
+
+### Zmenené
+- **Stop bežiaceho profilu úplne vypne výkon komory.** Predtým Stop len ukončil
+  plán; teraz po zastavení pošle StopAsync (stop programu + štart kanál OFF),
+  takže komora prestane hriať/chladiť.
+
 ## [1.9.2] – 2026-07-13
 
 ### Opravené

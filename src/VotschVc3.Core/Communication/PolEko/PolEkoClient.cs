@@ -116,6 +116,65 @@ public sealed class PolEkoClient : IChamberDevice
         RaiseFrame("STOP · OFF");
     }
 
+    /// <summary>
+    /// Reads a block of holding (FC03) and input (FC04) registers and returns a
+    /// human-readable dump, for finding an undocumented register (e.g. the running
+    /// program number / segment) empirically: scan while a program runs and again
+    /// while idle, then compare which value changed.
+    /// </summary>
+    public async Task<string> ScanRegistersAsync(int count = 64, CancellationToken cancellationToken = default)
+    {
+        ModbusTcpClient modbus = _modbus ?? throw new InvalidOperationException("Not connected to the POL-EKO device.");
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"MODBUS sken (unit {Unit}) – registre 0..{count - 1}.");
+        sb.AppendLine("Sprav sken počas behu programu aj bez neho a porovnaj, ktorá hodnota sa zmenila.");
+        sb.AppendLine();
+
+        await ScanBlockAsync(sb, "Holding (FC03)",
+            (a, ct) => modbus.ReadHoldingRegistersAsync(Unit, a, 1, ct), count, cancellationToken).ConfigureAwait(false);
+        sb.AppendLine();
+        await ScanBlockAsync(sb, "Input (FC04)",
+            (a, ct) => modbus.ReadInputRegistersAsync(Unit, a, 1, ct), count, cancellationToken).ConfigureAwait(false);
+
+        return sb.ToString();
+    }
+
+    private async Task ScanBlockAsync(
+        System.Text.StringBuilder sb,
+        string title,
+        Func<ushort, CancellationToken, Task<ushort[]>> read,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        sb.AppendLine(title + ":");
+        int found = 0;
+        for (ushort a = 0; a < count; a++)
+        {
+            try
+            {
+                ushort[] r = await read(a, cancellationToken).ConfigureAwait(false);
+                ushort raw = r[0];
+                sb.AppendLine($"  [{a}] = {raw}  (0x{raw:X4}, signed {(short)raw}, ~{(short)raw * _map.TemperatureScale:0.0})");
+                found++;
+            }
+            catch (ModbusException)
+            {
+                // Register not present – skip quietly.
+            }
+            catch (TimeoutException)
+            {
+                sb.AppendLine($"  [{a}] timeout – blok ukončený.");
+                break;
+            }
+        }
+
+        if (found == 0)
+        {
+            sb.AppendLine("  (žiadny register v tomto rozsahu neodpovedal)");
+        }
+    }
+
     public async Task<string> SendRawAsync(string frame, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(frame);

@@ -600,6 +600,26 @@
                     </StackPanel>
                 </Border>
 
+                <!-- MODBUS diagnostics (POL-EKO only) -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card}"
+                        Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="MODBUS diagnostika" Style="{StaticResource Heading}" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Text="Sken prečíta holding (FC03) a input (FC04) registre 0–63. Sprav sken počas behu programu (z inej appky) aj bez neho a porovnaj, ktorý register sa zmenil – tak nájdeme register bežiaceho programu/segmentu." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="▶ MODBUS sken registrov" Style="{StaticResource AccentButton}"
+                                    Command="{Binding ModbusScanCommand}"
+                                    ToolTip="Prečíta blok MODBUS registrov a vypíše hodnoty – na nájdenie registra bežiaceho programu." />
+                        </StackPanel>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,8">
+                            <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding DiagResult}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" />
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />

@@ -33,6 +33,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private readonly AuditLog _audit;
     private CancellationTokenSource? _pollingCts;
     private CancellationTokenSource? _profileCts;
+    private bool _powerOffOnProfileCancel;
     private CsvRecorder? _recorder;
     private DateTime? _profileActualStart;
     private ProfileRunner? _activeRunner;
@@ -103,6 +104,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ReadDigitalCommand = new AsyncRelayCommand(ReadDigitalAsync, () => IsConnected && !IsPolEko, ReportError);
         SimservProbeCommand = new AsyncRelayCommand(SimservProbeAsync, () => IsConnected && !IsPolEko, ReportError);
         ReadProgramInfoCommand = new AsyncRelayCommand(ReadProgramInfoAsync, () => IsConnected && !IsPolEko, ReportError);
+        ModbusScanCommand = new AsyncRelayCommand(ModbusScanAsync, () => IsConnected && IsPolEko, ReportError);
         InsertSimservSetpointCommand = new RelayCommand(
             () => TerminalInput = SimservProtocol.BuildSetNominalValue(Address, 1, DiagTestTemperature).TrimEnd('\r'));
         InsertSimservStartCommand = new RelayCommand(
@@ -389,7 +391,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         StopReconnect();
         StopPolling();
-        StopProfile();
+        // Cancel a running profile without the Stop-button power-off (we are
+        // disconnecting; a StopAsync on the closing connection would just error).
+        _profileCts?.Cancel();
         await _client.DisconnectAsync();
         IsConnected = false;
         _connectionLostHandled = false;
@@ -1200,12 +1204,29 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         catch (OperationCanceledException)
         {
             ProfileStatus = "Profil zrušený.";
-            StatusMessage = "Profil zrušený.";
             _audit.Log(Name, "Profil zrušený", string.Empty);
             AppLog.Warn(Name, "Profil zrušený používateľom.");
+            if (_powerOffOnProfileCancel)
+            {
+                try
+                {
+                    await _client.StopAsync();
+                    SetManualStarted(false);
+                    ShowActionInfo("⏹ Profil zastavený – výkon komory VYPNUTÝ");
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Warn(Name, $"Vypnutie výkonu po zastavení profilu zlyhalo: {ex.Message}");
+                }
+            }
+            else
+            {
+                StatusMessage = "Profil zrušený.";
+            }
         }
         finally
         {
+            _powerOffOnProfileCancel = false;
             IsProfileRunning = false;
             _activeRunner = null;
             _profileActualStart = null;
@@ -1304,7 +1325,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         return seconds;
     }
 
-    private void StopProfile() => _profileCts?.Cancel();
+    private void StopProfile()
+    {
+        // Pressing Stop on a profile should also cut the chamber output, not just
+        // end the schedule. The power-off runs after the runner unwinds (in the
+        // cancellation handler of RunSequenceAsync) so it can't race a pending write.
+        _powerOffOnProfileCancel = true;
+        _profileCts?.Cancel();
+    }
 
     private void AddSegment()
     {
@@ -1762,6 +1790,25 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand ReadDigitalCommand { get; }
     public AsyncRelayCommand SimservProbeCommand { get; }
     public AsyncRelayCommand ReadProgramInfoCommand { get; }
+    public AsyncRelayCommand ModbusScanCommand { get; }
+
+    /// <summary>
+    /// Dumps a block of POL-EKO MODBUS registers so an undocumented value (e.g. the
+    /// running program number) can be found empirically by comparing a scan taken
+    /// while a program runs with one taken while idle.
+    /// </summary>
+    private async Task ModbusScanAsync()
+    {
+        if (_client is not VotschVc3.Core.Communication.PolEko.PolEkoClient poleko)
+        {
+            DiagResult = "MODBUS sken je len pre POL-EKO.";
+            return;
+        }
+
+        DiagResult = "MODBUS sken prebieha… (môže trvať pár sekúnd)";
+        DiagResult = await poleko.ScanRegistersAsync(64);
+        AppLog.Info(Name, "[MODBUS] Sken registrov dokončený.");
+    }
     public RelayCommand InsertSimservSetpointCommand { get; }
     public RelayCommand InsertSimservStartCommand { get; }
 
