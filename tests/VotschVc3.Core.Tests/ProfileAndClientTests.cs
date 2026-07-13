@@ -45,9 +45,9 @@ public class ProfileAndClientTests
     public async Task ChamberClient_read_parses_fake_transport_response()
     {
         // The chamber returns "<set point> <actual>" per channel (set point 25.0,
-        // actual 24.5). Default StartChannelIndex is 0 ("Start" is the first digital
-        // channel), so the start / "condition on" bit is the first character.
-        var fake = new FakeTransport("0025.0 0024.5 10000000000000000000000000000000");
+        // actual 24.5). Default StartChannelIndex is 1 (the bit that is set while the
+        // unit runs), so the start / "condition on" bit is the second character.
+        var fake = new FakeTransport("0025.0 0024.5 01000000000000000000000000000000");
         await using var client = new ChamberClient(_ => fake);
         await client.ConnectAsync(new ChamberConnectionSettings());
 
@@ -67,13 +67,13 @@ public class ProfileAndClientTests
         // DIGITALOUT (14001) for the start channel. The controller answers "1".
         var fake = new FakeTransport("1");
         await using var client = new ChamberClient(_ => fake);
-        await client.ConnectAsync(new ChamberConnectionSettings()); // StartChannelIndex defaults to 0
+        await client.ConnectAsync(new ChamberConnectionSettings()); // StartChannelIndex defaults to 1
 
         await client.SetTemperatureAndHumidityAsync(50.0, null, start: true);
 
         var sent = fake.Requests.Select(r => r.TrimEnd('\r')).ToList();
         Assert.Contains("11001¶1¶1¶50.0", sent);              // temperature set point
-        Assert.Contains("14001¶1¶0¶1", sent);                 // start channel = StartChannelIndex (0 = "Start")
+        Assert.Contains("14001¶1¶1¶1", sent);                 // start channel = StartChannelIndex (1 = running bit)
         Assert.DoesNotContain(sent, r => r.StartsWith("$01E")); // no ASCII-2 write
     }
 

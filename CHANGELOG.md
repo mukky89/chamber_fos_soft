@@ -4,6 +4,16 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.9.2] – 2026-07-13
+
+### Opravené
+- **Štart kanál späť na index 1** (v 1.9.1 bol omylom 0). SIMSERV kanál 0
+  digitálny výstup nenastavil. Rozhoduje tvrdý dôkaz: pri ručne spustenej komore
+  digitálna diagnostika ukázala nastavený **bit 1**, a `SET DIGITALOUT` kanál N
+  zodpovedá bitu N – takže štart komory je **kanál 1**. Reseed marker `v6`.
+  (Ak by na inej komore štart sedel na inom bite, zisti ho cez „Prečítať
+  digitálne" pri bežiacej komore a nastav „Štart kanál index".)
+
 ## [1.9.1] – 2026-07-13
 
 ### Opravené

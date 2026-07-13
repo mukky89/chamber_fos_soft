@@ -29,12 +29,13 @@ public sealed class ChamberConnectionSettings
 
     /// <summary>
     /// Index (0-based) of the digital channel that switches the chamber on. On the
-    /// Vötsch / Weiss Simpac controllers this is the channel labelled "Start" on
-    /// the panel, which is the first digital output (index 0). SET DIGITALOUT uses
-    /// the same index as the ASCII-2 read-back block, so this value is both the
-    /// SIMSERV channel and the read-back bit. Verify on your unit if in doubt.
+    /// VT3 7034 the read-back diagnostic showed bit 1 set while the unit was running
+    /// manually, and SET DIGITALOUT channel N maps to the same read-back bit N
+    /// (channel 2 lit bit 2), so this value is both the SIMSERV channel and the
+    /// read-back bit. Calibrate with "Prečítať digitálne" (run the chamber, note the
+    /// bit that turns 1) and set this index accordingly if a unit differs.
     /// </summary>
-    public int StartChannelIndex { get; set; }
+    public int StartChannelIndex { get; set; } = 1;
 
     /// <summary>Timeout for establishing the TCP connection.</summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);
