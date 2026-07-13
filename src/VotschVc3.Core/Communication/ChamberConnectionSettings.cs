@@ -27,8 +27,14 @@ public sealed class ChamberConnectionSettings
     /// <summary>Number of analog set point fields sent with a write command.</summary>
     public int AnalogChannelCount { get; set; } = Ascii2Protocol.DefaultAnalogChannelCount;
 
-    /// <summary>Index (0-based) of the digital channel that switches the chamber on.</summary>
-    public int StartChannelIndex { get; set; }
+    /// <summary>
+    /// Index (0-based) of the digital channel that switches the chamber on. The
+    /// Vötsch / Weiss S!MPAC controllers use channel 1 (the second bit,
+    /// <c>"01000000…"</c>) for the "start / condition on" signal — this is the
+    /// value the read-back diagnostic reports when a unit is started manually.
+    /// Verify against your unit with the raw terminal if in doubt.
+    /// </summary>
+    public int StartChannelIndex { get; set; } = 1;
 
     /// <summary>Timeout for establishing the TCP connection.</summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);

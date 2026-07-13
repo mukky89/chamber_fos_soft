@@ -359,6 +359,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         new ChamberConfig
         {
             Name = "Komora 1 — Vötsch VT3 7034 (teplota)", Kind = ChamberKind.TemperatureOnly, Host = "10.88.1.175", Port = 2049,
+            StartChannelIndex = 1,
             Nameplate = new ChamberNameplate
             {
                 Model = "VT³ 7034", SerialNumber = "58566198240010", OrderNumber = "56619824",
@@ -372,6 +373,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         new ChamberConfig
         {
             Name = "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", Kind = ChamberKind.TemperatureHumidity, Host = "10.88.1.180", Port = 2049,
+            StartChannelIndex = 1,
             Nameplate = new ChamberNameplate
             {
                 Model = "VC³ 7034", SerialNumber = "58566126860010", OrderNumber = "56612686",
@@ -418,6 +420,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             Protocol = NewChamberProtocol,
             Port = polEko ? 502 : 1080,
             Host = string.IsNullOrWhiteSpace(NewChamberHost) ? "192.168.0.1" : NewChamberHost.Trim(),
+            // Vötsch S!MPAC controllers use digital channel 1 as the start /
+            // "condition on" signal; POL-EKO (MODBUS) does not use this field.
+            StartChannelIndex = polEko ? 0 : 1,
         };
 
         AddChamberInternal(config);

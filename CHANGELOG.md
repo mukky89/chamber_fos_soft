@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.4] – 2026-07-13
+
+### Opravené
+- **Predvolený štart kanál Vötsch je teraz #1** (nie #0). Diagnostika „Prečítať
+  digitálne" na VT3 7034 potvrdila, že pri ručne spustenej komore je nastavený
+  bit s indexom **1** (`01000000…`), pri vypnutej žiadny. Doteraz appka
+  zapisovala štart na kanál #0, takže sa setpoint zapísal, ale komora
+  nenaskočila na výkon. Nové a novopridané Vötsch komory majú „Štart kanál
+  index" predvyplnený na 1; POL-EKO (MODBUS) sa to netýka. **Existujúce uložené
+  komory:** nastav v záložke „Pripojenie a live" pole „Štart kanál index" na
+  **1** a ulož (alebo zmaž `chambers.json` pre obnovu predvolieb).
+
 ## [1.8.3] – 2026-07-10
 
 ### Zmenené
