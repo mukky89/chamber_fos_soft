@@ -4,6 +4,22 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.5] – 2026-07-13
+
+### Opravené
+- **Nesprávna predvolená IP komôr 1 a 2** – seed dáta mali podsieť `10.88.1.x`
+  (`10.88.1.175` / `10.88.1.180`), reálne sú komory na `10.88.5.x`
+  (`10.88.5.175` / `10.88.5.180`, port 2049). Prejavilo sa to len ak sa
+  `chambers.json` zmazal/obnovil – komory potom hlásili
+  `TimeoutException: Timed out connecting to 10.88.1.x…`. IP opravené a
+  reseed marker zdvihnutý na `v4`, takže sa správne lab IP raz automaticky
+  aplikujú pri najbližšom spustení. (POL-EKO `10.88.5.162:502` bol vždy
+  správne.)
+
+  > Pozn.: jednorazový reseed prepíše komory na predvolený lab layout
+  > (názvy, IP, štart kanál #1). Ak máš vlastné úpravy, po spustení ich
+  > prípadne znova zadaj.
+
 ## [1.8.4] – 2026-07-13
 
 ### Opravené

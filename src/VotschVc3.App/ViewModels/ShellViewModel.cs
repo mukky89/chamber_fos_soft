@@ -81,7 +81,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // One-time reseed to the real lab layout (VT3 7034, VC3 7034, POL-EKO with
         // their fixed IP addresses / ports). Guarded by a marker so a user who later
         // edits IPs or removes a chamber keeps their changes on the next start.
-        string reseedMarker = System.IO.Path.Combine(dir, ".chambers_seed_v3");
+        string reseedMarker = System.IO.Path.Combine(dir, ".chambers_seed_v4");
         bool reseeded = false;
         if (seeded || !System.IO.File.Exists(reseedMarker))
         {
@@ -358,7 +358,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // Vötsch VT3 7034 – temperature only. ASCII-2 port 2049 (may change per site).
         new ChamberConfig
         {
-            Name = "Komora 1 — Vötsch VT3 7034 (teplota)", Kind = ChamberKind.TemperatureOnly, Host = "10.88.1.175", Port = 2049,
+            Name = "Komora 1 — Vötsch VT3 7034 (teplota)", Kind = ChamberKind.TemperatureOnly, Host = "10.88.5.175", Port = 2049,
             StartChannelIndex = 1,
             Nameplate = new ChamberNameplate
             {
@@ -372,7 +372,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // Vötsch VC3 7034 – temperature + humidity.
         new ChamberConfig
         {
-            Name = "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", Kind = ChamberKind.TemperatureHumidity, Host = "10.88.1.180", Port = 2049,
+            Name = "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", Kind = ChamberKind.TemperatureHumidity, Host = "10.88.5.180", Port = 2049,
             StartChannelIndex = 1,
             Nameplate = new ChamberNameplate
             {
