@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.9.4] – 2026-07-13
+
+### Pridané
+- **Graf profilu na hlavnej stránke je väčší** (118 → 210 px) a má **hover
+  odčítanie**: keď prejdeš myšou po krivke, ukáže sa zvislý zameriavač, bod a
+  bublina s **teplotou a časom** v danom mieste.
+- **Živý časový odpočet** bežiaceho profilu („Zostáva MM:SS", resp. H:MM:SS),
+  aktualizovaný každú sekundu, pod progress barom.
+- **Výrazný odznak režimu** hore na karte: **PROFIL** (beží profil) alebo
+  **MANUÁL** (manuálne nastavená teplota), skrytý keď je komora nečinná.
+
 ## [1.9.3] – 2026-07-13
 
 ### Pridané

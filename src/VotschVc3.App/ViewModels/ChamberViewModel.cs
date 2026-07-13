@@ -36,6 +36,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private bool _powerOffOnProfileCancel;
     private CsvRecorder? _recorder;
     private DateTime? _profileActualStart;
+    private DateTime? _profileEstimatedEnd;
+    private System.Windows.Threading.DispatcherTimer? _countdownTimer;
     private ProfileRunner? _activeRunner;
 
     public ChamberViewModel(ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit)
@@ -970,10 +972,60 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(IsActive));
         OnPropertyChanged(nameof(StateLabel));
         OnPropertyChanged(nameof(ActivityLabel));
+        OnPropertyChanged(nameof(ControlModeBadge));
+        OnPropertyChanged(nameof(HasControlMode));
     }
 
     private string _profileStatus = "Nečinné.";
     public string ProfileStatus { get => _profileStatus; private set => SetProperty(ref _profileStatus, value); }
+
+    private string _profileTimeRemaining = string.Empty;
+    /// <summary>Live "time left" countdown of the running profile (updates every second).</summary>
+    public string ProfileTimeRemaining { get => _profileTimeRemaining; private set => SetProperty(ref _profileTimeRemaining, value); }
+
+    /// <summary>Prominent control-mode badge: "PROFIL", "MANUÁL" or empty when idle.</summary>
+    public string ControlModeBadge =>
+        IsProfileRunning ? "PROFIL" : ((_readRunning ?? _manualStarted) ? "MANUÁL" : string.Empty);
+
+    /// <summary>True while a control mode (profile or manual) is active — drives the badge visibility.</summary>
+    public bool HasControlMode => !string.IsNullOrEmpty(ControlModeBadge);
+
+    private void StartCountdown()
+    {
+        if (_countdownTimer is null)
+        {
+            _countdownTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _countdownTimer.Tick += (_, _) => UpdateCountdown();
+        }
+
+        UpdateCountdown();
+        _countdownTimer.Start();
+    }
+
+    private void StopCountdown()
+    {
+        _countdownTimer?.Stop();
+        ProfileTimeRemaining = string.Empty;
+    }
+
+    private void UpdateCountdown()
+    {
+        if (!IsProfileRunning || _profileEstimatedEnd is not { } end)
+        {
+            ProfileTimeRemaining = string.Empty;
+            return;
+        }
+
+        TimeSpan left = end - DateTime.Now;
+        if (left < TimeSpan.Zero)
+        {
+            left = TimeSpan.Zero;
+        }
+
+        ProfileTimeRemaining = left.TotalHours >= 1
+            ? $"Zostáva {(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}"
+            : $"Zostáva {left.Minutes:00}:{left.Seconds:00}";
+    }
 
     private double _profileProgress;
     public double ProfileProgress { get => _profileProgress; private set => SetProperty(ref _profileProgress, value); }
@@ -1177,6 +1229,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             }
 
             _profileActualStart = DateTime.Now;
+            _profileEstimatedEnd = DateTime.Now + TimeSpan.FromTicks(profiles.Sum(p => p.TotalDuration.Ticks));
+            StartCountdown();
             RecalculateTiming();
 
             for (int i = 0; i < profiles.Count; i++)
@@ -1230,6 +1284,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             IsProfileRunning = false;
             _activeRunner = null;
             _profileActualStart = null;
+            _profileEstimatedEnd = null;
+            StopCountdown();
             _profileCts?.Dispose();
             _profileCts = null;
             RecalculateTiming();

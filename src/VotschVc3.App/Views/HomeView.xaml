@@ -152,6 +152,11 @@
                                                            Foreground="{Binding IsActive, Converter={StaticResource BoolToBrush}}" />
                                             </StackPanel>
                                         </Border>
+                                        <!-- Prominent control-mode badge: PROFIL vs MANUÁL. -->
+                                        <Border Background="{StaticResource AccentBrush}" CornerRadius="7" Padding="9,4" VerticalAlignment="Center"
+                                                Visibility="{Binding HasControlMode, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{Binding ControlModeBadge}" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12" />
+                                        </Border>
                                         <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="9,4" VerticalAlignment="Center"
                                                 Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
                                             <TextBlock Text="⚠ ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12" />
@@ -292,11 +297,14 @@
                                     <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"
                                             Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
                                         <StackPanel>
-                                            <views:ChartView Height="118" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil" />
+                                            <views:ChartView Height="210" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
+                                                             ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode." />
                                             <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,6,0,0">
                                                 <ProgressBar Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" Height="6" />
+                                                <TextBlock Text="{Binding ProfileTimeRemaining}" FontFamily="Segoe UI Semibold" FontSize="15"
+                                                           Foreground="{StaticResource TextBrush}" Margin="0,5,0,0" />
                                                 <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}"
-                                                           Margin="0,4,0,0" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
+                                                           Margin="0,2,0,0" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}"
                                                            Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>

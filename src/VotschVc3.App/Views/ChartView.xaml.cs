@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using VotschVc3.App.Charting;
@@ -19,11 +20,20 @@ public partial class ChartView : UserControl
     private const double PadTop = 10;
     private const double PadBottom = 22;
 
+    // Plot transform captured on the last Redraw, so mouse handlers can map a
+    // cursor position back to a data point (hover read-out).
+    private bool _hasPlot;
+    private double _minX, _maxX, _minY, _maxY, _plotW, _plotH;
+    private ChartSeries? _hoverSeries;
+    private readonly List<UIElement> _overlay = new();
+
     public ChartView()
     {
         InitializeComponent();
         PlotCanvas.SizeChanged += (_, _) => Redraw();
         Loaded += (_, _) => Redraw();
+        PlotCanvas.MouseMove += OnPlotMouseMove;
+        PlotCanvas.MouseLeave += (_, _) => ClearOverlay();
     }
 
     public static readonly DependencyProperty SeriesProperty = DependencyProperty.Register(
@@ -99,6 +109,9 @@ public partial class ChartView : UserControl
             return;
         }
 
+        _hasPlot = false;
+        _overlay.Clear();
+
         List<ChartSeries> series = Series?.Where(s => s.Points.Count > 0).ToList() ?? new List<ChartSeries>();
         if (series.Count == 0)
         {
@@ -129,6 +142,11 @@ public partial class ChartView : UserControl
 
         double ToPx(double x) => PadLeft + (x - minX) / (maxX - minX) * plotW;
         double ToPy(double y) => PadTop + (1 - (y - minY) / (maxY - minY)) * plotH;
+
+        // Remember the transform so the hover read-out can map cursor -> data.
+        _minX = minX; _maxX = maxX; _minY = minY; _maxY = maxY; _plotW = plotW; _plotH = plotH;
+        _hoverSeries = series.FirstOrDefault(s => !s.Dashed) ?? series[0];
+        _hasPlot = true;
 
         // Horizontal gridlines + Y labels.
         for (int i = 0; i <= 4; i++)
@@ -219,5 +237,108 @@ public partial class ChartView : UserControl
 
         Canvas.SetTop(tb, top);
         PlotCanvas.Children.Add(tb);
+    }
+
+    // ===== Hover read-out: crosshair + value chip following the cursor =====
+
+    private void OnPlotMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_hasPlot || _hoverSeries is null || _hoverSeries.Points.Count == 0 || _plotW <= 0)
+        {
+            ClearOverlay();
+            return;
+        }
+
+        double left = PadLeft;
+        double mx = Math.Clamp(e.GetPosition(PlotCanvas).X, left, left + _plotW);
+        double dataX = _minX + (mx - left) / _plotW * (_maxX - _minX);
+        if (InterpolateY(_hoverSeries.Points, dataX) is not { } yv)
+        {
+            ClearOverlay();
+            return;
+        }
+
+        double px = left + (dataX - _minX) / (_maxX - _minX) * _plotW;
+        double py = PadTop + (1 - (yv - _minY) / (_maxY - _minY)) * _plotH;
+
+        ClearOverlay();
+        Brush accent = TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue;
+
+        AddOverlay(new Line
+        {
+            X1 = px, Y1 = PadTop, X2 = px, Y2 = PadTop + _plotH,
+            Stroke = accent, StrokeThickness = 1, Opacity = 0.6,
+            StrokeDashArray = new DoubleCollection { 3, 3 },
+        });
+
+        var dot = new Ellipse { Width = 8, Height = 8, Fill = accent, Stroke = Brushes.White, StrokeThickness = 1 };
+        Canvas.SetLeft(dot, px - 4);
+        Canvas.SetTop(dot, py - 4);
+        AddOverlay(dot);
+
+        var chip = new Border
+        {
+            Background = accent,
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(6, 2, 6, 2),
+            Child = new TextBlock
+            {
+                Text = $"{yv:0.0}{Unit}  ·  {dataX:0.#} min",
+                Foreground = Brushes.White,
+                FontSize = 11,
+                FontFamily = new FontFamily("Segoe UI Semibold"),
+            },
+        };
+        chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double cx = px + 8;
+        if (cx + chip.DesiredSize.Width > left + _plotW)
+        {
+            cx = px - chip.DesiredSize.Width - 8;
+        }
+
+        double cy = py - 26 < PadTop ? py + 10 : py - 26;
+        Canvas.SetLeft(chip, Math.Max(left, cx));
+        Canvas.SetTop(chip, cy);
+        AddOverlay(chip);
+    }
+
+    private static double? InterpolateY(IReadOnlyList<Point> pts, double x)
+    {
+        if (pts.Count == 0)
+        {
+            return null;
+        }
+
+        if (x <= pts[0].X) return pts[0].Y;
+        if (x >= pts[^1].X) return pts[^1].Y;
+        for (int i = 1; i < pts.Count; i++)
+        {
+            if (x <= pts[i].X)
+            {
+                Point a = pts[i - 1];
+                Point b = pts[i];
+                double dx = b.X - a.X;
+                double t = dx == 0 ? 0 : (x - a.X) / dx;
+                return a.Y + (b.Y - a.Y) * t;
+            }
+        }
+
+        return pts[^1].Y;
+    }
+
+    private void AddOverlay(UIElement element)
+    {
+        _overlay.Add(element);
+        PlotCanvas.Children.Add(element);
+    }
+
+    private void ClearOverlay()
+    {
+        foreach (UIElement element in _overlay)
+        {
+            PlotCanvas.Children.Remove(element);
+        }
+
+        _overlay.Clear();
     }
 }
