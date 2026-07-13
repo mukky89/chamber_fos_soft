@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using VotschVc3.App.ViewModels;
 
 namespace VotschVc3.App.Views;
@@ -35,10 +36,24 @@ public partial class ChamberView : UserControl
 
     private void OnTerminalLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action == NotifyCollectionChangedAction.Add && _viewModel is { } vm && vm.TerminalLines.Count > 0)
+        if (e.Action != NotifyCollectionChangedAction.Add || _viewModel is null)
         {
-            TerminalList.ScrollIntoView(vm.TerminalLines[^1]);
+            return;
         }
+
+        // Auto-scroll to the newest line, but defer it so ScrollIntoView (which
+        // forces a layout pass) does not re-enter the ItemContainerGenerator while
+        // it is still handling this CollectionChanged notification. Doing it
+        // synchronously throws "ItemsControl is inconsistent with its items source"
+        // when several lines are appended in a burst (e.g. the SIMSERV probe or a
+        // trim that removes the oldest line right after an add).
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (_viewModel is { } vm && vm.TerminalLines.Count > 0)
+            {
+                TerminalList.ScrollIntoView(vm.TerminalLines[^1]);
+            }
+        }));
     }
 
     private void TerminalInput_KeyDown(object sender, KeyEventArgs e)

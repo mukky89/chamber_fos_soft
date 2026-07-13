@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.8] – 2026-07-13
+
+### Opravené
+- **Pád „ItemsControl is inconsistent with its items source"** v Surovom
+  termináli. Auto-scroll (`ScrollIntoView`) sa volal synchrónne priamo v
+  obsluhe `CollectionChanged`, čo vynútilo layout a znovu-vstúpilo do
+  generátora položiek počas jeho aktualizácie – padalo to pri rýchlom prílive
+  riadkov (napr. „SIMSERV test", ktorý pošle viac rámcov naraz). Scroll sa teraz
+  odloží cez dispatcher (Background priorita), takže sa zbehne až po dokončení
+  zmeny kolekcie.
+
 ## [1.8.7] – 2026-07-13
 
 ### Pridané
