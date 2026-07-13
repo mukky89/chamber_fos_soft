@@ -48,8 +48,10 @@ public class Ascii2ProtocolTests
     [Fact]
     public void ParseReading_extracts_analog_and_digital_values()
     {
-        // Measured/setpoint pairs for temperature and humidity, then the digital block.
-        string raw = "0024.5 0025.0 0048.0 0050.0 10000000000000000000000000000000";
+        // The chamber returns each channel as "<set point> <actual>": temperature
+        // set point 25.0 / actual 24.5, humidity set point 50.0 / actual 48.0,
+        // then the digital block. ParseReading normalises to actual-first.
+        string raw = "0025.0 0024.5 0050.0 0048.0 10000000000000000000000000000000";
 
         ChamberReading reading = Ascii2Protocol.ParseReading(raw);
 

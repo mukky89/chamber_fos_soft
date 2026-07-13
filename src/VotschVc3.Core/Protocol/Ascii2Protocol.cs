@@ -188,6 +188,18 @@ public static class Ascii2Protocol
             }
         }
 
+        // The S!MPAC / SIMPAC read response returns each analog channel as
+        // "<set point> <actual>", but the rest of the app (and ChamberReading's
+        // accessors, matching the POL-EKO client) use the "<actual> <set point>"
+        // convention. Swap the two values inside each channel pair so measured
+        // temperature/humidity and their set points are not reported the wrong
+        // way round. Verified against a VT3 7034: setting set point −20 °C made
+        // the first value read back −20 while the measured value stayed put.
+        for (int i = 0; i + 1 < values.Count; i += 2)
+        {
+            (values[i], values[i + 1]) = (values[i + 1], values[i]);
+        }
+
         var digital = DigitalChannels.Parse(digitalText, startChannelIndex);
         return new ChamberReading(DateTimeOffset.Now, raw, values, digital);
     }

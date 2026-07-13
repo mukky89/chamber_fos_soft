@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.8.6] – 2026-07-13
+
+### Opravené
+- **Prehodená nameraná teplota a setpoint (Vötsch)** – regulátor S!MPAC vracia
+  v odpovedi na čítanie pre každý kanál poradie „setpoint, nameraná hodnota",
+  no appka to čítala opačne. Prejavilo sa to tak, že po zadaní setpointu −20 °C
+  ukazovala „Teplota komory −20 °C" a „setpoint" nameranú hodnotu. Parser to
+  teraz normalizuje na „nameraná, setpoint", takže karta aj graf ukazujú
+  správne hodnoty (platí pre teplotu aj vlhkosť). POL-EKO ide inou cestou a
+  ostáva nezmenené.
+
 ## [1.8.5] – 2026-07-13
 
 ### Opravené

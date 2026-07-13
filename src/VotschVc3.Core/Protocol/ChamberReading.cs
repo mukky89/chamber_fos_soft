@@ -4,14 +4,15 @@ namespace VotschVc3.Core.Protocol;
 /// Immutable snapshot of the values returned by the chamber in response to the
 /// ASCII-2 read command (<c>$ddI</c>).
 /// <para>
-/// The ASCII-2 read response contains, for every analog channel, the measured
-/// (actual) value followed by the active set point value, and finally the block
-/// of digital channels. Because the number of analog channels and their meaning
-/// depends on the chamber configuration, the raw decoded values are kept in
-/// <see cref="AnalogValues"/> while convenience accessors map the conventional
-/// layout (channel&#160;1&#160;=&#160;temperature, channel&#160;2&#160;=&#160;humidity).
-/// Use the raw values together with the original <see cref="Raw"/> frame to
-/// calibrate the mapping against your specific unit.
+/// On the wire the ASCII-2 read response returns, for every analog channel, the
+/// active set point value followed by the measured (actual) value, and finally
+/// the block of digital channels. <see cref="Ascii2Protocol.ParseReading"/>
+/// normalises this into the actual-first convention used throughout the app (and
+/// by the POL-EKO client), so <see cref="AnalogValues"/> holds
+/// measured / set point per channel. Because the number of analog channels and
+/// their meaning depends on the chamber configuration, use the raw values
+/// together with the original <see cref="Raw"/> frame to calibrate the mapping
+/// against your specific unit.
 /// </para>
 /// </summary>
 public sealed class ChamberReading

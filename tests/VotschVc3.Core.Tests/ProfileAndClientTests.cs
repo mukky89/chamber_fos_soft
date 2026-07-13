@@ -44,9 +44,10 @@ public class ProfileAndClientTests
     [Fact]
     public async Task ChamberClient_read_parses_fake_transport_response()
     {
-        // Default StartChannelIndex is 1 (Vötsch S!MPAC), so the start / "condition
-        // on" bit is the second character of the digital block ("01000000…").
-        var fake = new FakeTransport("0024.5 0025.0 01000000000000000000000000000000");
+        // The chamber returns "<set point> <actual>" per channel (set point 25.0,
+        // actual 24.5). Default StartChannelIndex is 1 (Vötsch S!MPAC), so the
+        // start / "condition on" bit is the second character of the digital block.
+        var fake = new FakeTransport("0025.0 0024.5 01000000000000000000000000000000");
         await using var client = new ChamberClient(_ => fake);
         await client.ConnectAsync(new ChamberConnectionSettings());
 
