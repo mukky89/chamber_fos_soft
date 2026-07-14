@@ -66,7 +66,7 @@
             <DockPanel>
                 <!-- Brand -->
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="Riadenie klimatických komôr" FontFamily="Segoe UI Semibold"
+                    <TextBlock Text="Riadenie laboratórnych zariadení" FontFamily="Segoe UI Semibold"
                                FontSize="16" TextWrapping="Wrap" TextTrimming="None" />
                     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="8,3"
                             Margin="0,8,0,0" HorizontalAlignment="Left">
@@ -107,15 +107,7 @@
 
         <!-- ===== Main content ===== -->
         <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
-            <StackPanel>
-
-            <StackPanel Margin="6,4,6,10">
-                <TextBlock Text="Vyber komoru" FontSize="22" FontFamily="Segoe UI Semibold" />
-                <TextBlock Text="Obe komory môžu byť pripojené a bežať súčasne."
-                           Style="{StaticResource Caption}" Margin="0,4,0,0" />
-                <TextBlock Text="Poradie zmeníš šípkami ◀ ▶ na kartách." Style="{StaticResource Caption}" Margin="0,2,0,0"
-                           Visibility="{Binding IsReorderAllowed, Converter={StaticResource BoolToVisibility}}" />
-            </StackPanel>
+            <StackPanel Margin="0,4,0,0">
 
             <ItemsControl ItemsSource="{Binding Chambers}">
                 <ItemsControl.ItemsPanel>
@@ -127,6 +119,26 @@
                     <DataTemplate>
                         <Border Style="{StaticResource Card}" Width="500" Margin="7">
                             <StackPanel>
+
+                                <!-- ===== Top bar: reorder (admin) + primary "open device" action ===== -->
+                                <DockPanel LastChildFill="False" Margin="0,0,0,12">
+                                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center"
+                                                Visibility="{Binding DataContext.IsReorderAllowed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                                        <Button Content="◀" Style="{StaticResource GhostButton}" Padding="7,2"
+                                                ToolTip="Posunúť doľava (admin)"
+                                                Command="{Binding DataContext.MoveChamberUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Content="▶" Style="{StaticResource GhostButton}" Padding="7,2"
+                                                ToolTip="Posunúť doprava (admin)"
+                                                Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </StackPanel>
+                                    <Button DockPanel.Dock="Right" Content="⚙  Nastaviť / ovládať  →" Style="{StaticResource AccentButton}"
+                                            Padding="16,9" FontSize="13"
+                                            Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
+                                </DockPanel>
 
                                 <!-- ===== ① Header: graphic + name + badges + state ===== -->
                                 <Grid>
@@ -147,45 +159,10 @@
                                     </Grid>
 
                                     <StackPanel Grid.Column="1" Margin="14,0,0,0">
-                                        <DockPanel LastChildFill="True">
-                                            <!-- Admin-only: reorder arrows (only when reordering is enabled). -->
-                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top"
-                                                        Visibility="{Binding DataContext.IsReorderAllowed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
-                                                <Button Content="◀" Style="{StaticResource GhostButton}" Padding="7,2"
-                                                        ToolTip="Posunúť doľava (admin)"
-                                                        Command="{Binding DataContext.MoveChamberUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                        CommandParameter="{Binding}" />
-                                                <Button Content="▶" Style="{StaticResource GhostButton}" Padding="7,2"
-                                                        ToolTip="Posunúť doprava (admin)"
-                                                        Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                        CommandParameter="{Binding}" />
-                                            </StackPanel>
-                                            <!-- Admin-only: remove chamber. -->
-                                            <Button DockPanel.Dock="Right" Content="{Binding RemoveButtonText}" Style="{StaticResource GhostButton}" Padding="8,2"
-                                                    VerticalAlignment="Top"
-                                                    ToolTip="Odobrať komoru – vyžaduje dva kliknutia (druhý potvrdí do 4 s). Zmaže aj uloženú konfiguráciu."
-                                                    Visibility="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
-                                                    Command="{Binding DataContext.RemoveChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}" />
-                                            <!-- Admin-only pencil to enter name edit mode. -->
-                                            <Button DockPanel.Dock="Right" Content="✎" Style="{StaticResource GhostButton}" Padding="7,2"
-                                                    VerticalAlignment="Top" Margin="4,0,6,0"
-                                                    Command="{Binding ToggleEditNameCommand}"
-                                                    ToolTip="Upraviť názov komory (admin)"
-                                                    Visibility="{Binding DataContext.IsAdmin, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
-                                            <Grid VerticalAlignment="Top">
-                                                <!-- Read-only name on a single line (default). -->
-                                                <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="16"
-                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                                           ToolTip="{Binding Name}"
-                                                           Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
-                                                <!-- Editable name (admin, edit mode). Enter/focus-loss commits. -->
-                                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
-                                                         FontFamily="Segoe UI Semibold" FontSize="16"
-                                                         Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}"
-                                                         ToolTip="Uprav názov a klikni inam." />
-                                            </Grid>
-                                        </DockPanel>
+                                        <!-- Read-only name (editing + removal live in device settings). -->
+                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="16"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Top"
+                                                   ToolTip="{Binding Name}" />
 
                                         <!-- Badges: kind, state, alarm -->
                                         <WrapPanel Margin="0,10,0,0">
@@ -417,6 +394,25 @@
                                             </ItemsControl>
                                         </StackPanel>
 
+                                        <!-- Odložený štart (pre toto zariadenie): keď je zapnuté, spustenie profilu sa naplánuje -->
+                                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="10,8" Margin="0,10,0,0">
+                                            <StackPanel>
+                                                <CheckBox Content="Odložený štart" IsChecked="{Binding UseDelayedStart}"
+                                                          ToolTip="Keď je zapnuté, spustenie profilu (▶ alebo rýchle tlačidlo) sa naplánuje na zadaný dátum a čas." />
+                                                <StackPanel Orientation="Horizontal" Margin="0,7,0,0" IsEnabled="{Binding UseDelayedStart}">
+                                                    <TextBlock Text="Dátum" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                    <TextBox Width="112" Height="32" Padding="8,0" VerticalContentAlignment="Center"
+                                                             Text="{Binding ScheduledStartDateText, UpdateSourceTrigger=LostFocus}" ToolTip="Dátum dd.MM.yyyy" />
+                                                    <TextBlock Text="Čas" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="14,0,6,0" />
+                                                    <TextBox Width="72" Height="32" Padding="8,0" VerticalContentAlignment="Center"
+                                                             Text="{Binding ScheduledStartTime, UpdateSourceTrigger=PropertyChanged}" ToolTip="Čas HH:mm" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}" Margin="0,6,0,0"
+                                                           TextWrapping="Wrap"
+                                                           Visibility="{Binding UseDelayedStart, Converter={StaticResource BoolToVisibility}}" />
+                                            </StackPanel>
+                                        </Border>
+
                                         <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"
                                                 Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
                                             <StackPanel>
@@ -435,14 +431,8 @@
                                         </Border>
                                     </StackPanel>
                                 </Border>
-
-                                <!-- ③ Pripojenie (IP/port), referenčný teplomer a Pripojiť/Odpojiť
-                                     sú teraz v obrazovke „Nastaviť / ovládať →" (nastavenia komory),
-                                     nie na karte. Stav pripojenia zostáva viditeľný v hlavičke. -->
-                                <Button Content="Nastaviť / ovládať →" Style="{StaticResource GhostButton}"
-                                        HorizontalAlignment="Left" Margin="0,2,0,0"
-                                        Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}" />
+                                <!-- Pripojenie (IP/port), referenčný teplomer, odobratie a premenovanie
+                                     zariadenia sú v obrazovke „Nastaviť / ovládať →" (hore na karte). -->
                             </StackPanel>
                         </Border>
                     </DataTemplate>

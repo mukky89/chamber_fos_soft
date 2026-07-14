@@ -94,12 +94,30 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             reseeded = true;
         }
 
+        // One-time: force the canonical device names (keyed by each device's fixed
+        // lab IP) so existing installs pick up the renamed devices. Guarded by its own
+        // marker; after it runs once an admin can freely rename a device and keep it.
+        string namesMarker = System.IO.Path.Combine(dir, ".device_names_v1");
+        bool renamed = false;
+        if (!reseeded && !System.IO.File.Exists(namesMarker))
+        {
+            foreach (ChamberConfig config in configs)
+            {
+                string? canonical = CanonicalDeviceName(config.Host);
+                if (canonical is not null && config.Name != canonical)
+                {
+                    config.Name = canonical;
+                    renamed = true;
+                }
+            }
+        }
+
         foreach (ChamberConfig config in configs)
         {
             AddChamberInternal(config);
         }
 
-        if (seeded || reseeded)
+        if (seeded || reseeded || renamed)
         {
             SaveConfigs();
         }
@@ -110,6 +128,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             if (!System.IO.File.Exists(reseedMarker))
             {
                 System.IO.File.WriteAllText(reseedMarker, DateTimeOffset.Now.ToString("o"));
+            }
+
+            if (!System.IO.File.Exists(namesMarker))
+            {
+                System.IO.File.WriteAllText(namesMarker, DateTimeOffset.Now.ToString("o"));
             }
         }
         catch
@@ -165,7 +188,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         "v" + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
 
     /// <summary>Window title including the version.</summary>
-    public string WindowTitle => $"Vötsch — Riadenie klimatických komôr  ·  {AppVersion}";
+    public string WindowTitle => $"Riadenie laboratórnych zariadení  ·  {AppVersion}";
 
     public RelayCommand<ChamberViewModel> OpenChamberCommand { get; }
     public RelayCommand OpenThermometersCommand { get; }
@@ -398,6 +421,15 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private string _newChamberHost = "192.168.0.1";
     public string NewChamberHost { get => _newChamberHost; set => SetProperty(ref _newChamberHost, value); }
 
+    /// <summary>Canonical device name for a fixed lab IP (used by the one-time name migration).</summary>
+    private static string? CanonicalDeviceName(string host) => host switch
+    {
+        "10.88.5.175" => "Komora 1 — Vötsch VT3 7034 (teplota)",
+        "10.88.5.180" => "Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)",
+        "10.88.5.162" => "Sušiareň — POL-EKO SLN 115 (teplota)",
+        _ => null,
+    };
+
     private static List<ChamberConfig> DefaultConfigs() => new()
     {
         // Vötsch VT3 7034 – temperature only. ASCII-2 port 2049 (may change per site).
@@ -434,7 +466,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>
     private static ChamberConfig DefaultPolEkoConfig() => new()
     {
-        Name = "POL-EKO SLN 115 — sušiareň",
+        Name = "Sušiareň — POL-EKO SLN 115 (teplota)",
         Kind = ChamberKind.TemperatureOnly,
         Protocol = ChamberProtocol.PolEkoModbus,
         Host = "10.88.5.162",

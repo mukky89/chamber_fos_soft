@@ -36,7 +36,7 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal">
                         <Border Width="10" Height="10" CornerRadius="5" Background="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                        <TextBlock Text="VÖTSCH CONTROL" FontFamily="Segoe UI Semibold" FontSize="13"
+                        <TextBlock Text="LAB CONTROL" FontFamily="Segoe UI Semibold" FontSize="13"
                                    Foreground="{StaticResource MutedBrush}" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
 
@@ -45,7 +45,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="2">
-                        <TextBlock Text="Riadenie klimatických komôr" FontSize="26" FontFamily="Segoe UI Light"
+                        <TextBlock Text="Riadenie laboratórnych zariadení" FontSize="26" FontFamily="Segoe UI Light"
                                    Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
                         <TextBlock Text="Profily · grafy · alarmy · teplomery ASL F100 · audit · reporty"
                                    Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap" />
@@ -57,8 +57,8 @@
             <Border Grid.Column="1" CornerRadius="0,18,18,0" Background="{StaticResource SurfaceBrush}"
                     BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="36,40">
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Vitaj späť 👋" FontSize="24" FontFamily="Segoe UI Semibold" />
-                    <TextBlock Text="Prihlás sa do aplikácie." Style="{StaticResource Caption}" Margin="0,4,0,22" />
+                    <TextBlock Text="Prihlásenie" FontSize="24" FontFamily="Segoe UI Semibold" />
+                    <TextBlock Text="Zadaj používateľa a heslo." Style="{StaticResource Caption}" Margin="0,4,0,22" />
 
                     <TextBlock Text="Užívateľ" Style="{StaticResource Label}" />
                     <ComboBox ItemsSource="{Binding UserNames}" SelectedItem="{Binding SelectedUserName}" />

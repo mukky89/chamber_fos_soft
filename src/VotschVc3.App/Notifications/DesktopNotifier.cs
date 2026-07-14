@@ -78,7 +78,7 @@ public static class DesktopNotifier
         {
             Icon = icon ?? System.Drawing.SystemIcons.Application,
             Visible = true,
-            Text = "Vötsch — riadenie klimatických komôr",
+            Text = "Riadenie laboratórnych zariadení",
         };
     }
 

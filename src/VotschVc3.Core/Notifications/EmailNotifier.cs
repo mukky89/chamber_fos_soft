@@ -45,7 +45,7 @@ public sealed class EmailNotifier
         return DeliverAsync(
             Settings.Recipient,
             "Test – Vötsch riadenie komôr",
-            "Toto je testovací e-mail z aplikácie na riadenie klimatických komôr.",
+            "Toto je testovací e-mail z aplikácie na riadenie laboratórnych zariadení.",
             cancellationToken);
     }
 

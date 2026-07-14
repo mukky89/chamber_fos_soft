@@ -17,8 +17,8 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.12.0</Version>
-    <Product>Vötsch — Riadenie klimatických komôr</Product>
+    <Version>1.13.0</Version>
+    <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
   <ItemGroup>

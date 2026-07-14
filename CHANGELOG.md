@@ -4,6 +4,28 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.13.0] – 2026-07-14
+
+### Zmenené
+- **Aplikácia sa premenovala na „Riadenie laboratórnych zariadení"** (titulok
+  okna, prihlasovacia obrazovka, bočný panel, notifikácie).
+- **Prihlasovacia obrazovka:** čistejší nadpis „Prihlásenie" (bez emoji),
+  odznak „LAB CONTROL", hero titulok podľa nového názvu.
+- **Názvy zariadení nastavené natvrdo:** „Komora 1 — Vötsch VT3 7034 (teplota)",
+  „Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)", „Sušiareň — POL-EKO SLN 115
+  (teplota)". Existujúce inštalácie sa jednorazovo premenujú podľa IP; potom
+  môže admin názov ľubovoľne meniť.
+- **„Nastaviť / ovládať" je teraz hore na karte** ako výrazné tlačidlo.
+- **Premenovanie a odobratie zariadenia** sa presunulo z karty do nastavení
+  zariadenia (záložka „Zariadenie" → „Nastavenie zariadenia").
+
+### Pridané
+- **Odložený štart priamo na nástenke** pre každé zariadenie – zapni a zadaj
+  dátum/čas; spustenie profilu (▶ alebo rýchle tlačidlo) sa naplánuje.
+
+### Odstránené
+- Nadpis „Vyber komoru" a popis „Obe komory môžu byť…" z hlavného zobrazenia.
+
 ## [1.12.0] – 2026-07-14
 
 ### Pridané

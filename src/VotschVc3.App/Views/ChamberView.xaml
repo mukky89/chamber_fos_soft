@@ -669,7 +669,26 @@
             <!-- ===== Nameplate ===== -->
             <TabItem Header="Zariadenie">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <Border Style="{StaticResource Card}" HorizontalAlignment="Left" VerticalAlignment="Top" Width="560">
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="560">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Nastavenie zariadenia" Style="{StaticResource Heading}" />
+                            <TextBlock Text="Názov zariadenia" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                     IsReadOnly="{Binding IsManageAllowed, Converter={StaticResource InverseBoolean}}"
+                                     ToolTip="Názov zariadenia – mení len admin." />
+                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0"
+                                        Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}">
+                                <Button Content="{Binding RemoveButtonText}" Style="{StaticResource DangerButton}"
+                                        Command="{Binding DataContext.RemoveChamberCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip="Odobrať zariadenie – vyžaduje dva kliknutia (druhý potvrdí do 4 s). Zmaže aj uloženú konfiguráciu." />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
+                                       Text="Premenovanie a odobratie zariadenia je dostupné len pre administrátora." />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="Údaje zo štítku zariadenia" Style="{StaticResource Heading}" />
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
@@ -760,6 +779,7 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
         </TabControl>
