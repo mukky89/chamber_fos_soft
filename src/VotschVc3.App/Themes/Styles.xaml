@@ -297,31 +297,32 @@
 
     <!-- ===== Coloured icon action button (play / pause / stop) =====
          Caller sets Foreground to the accent colour (OkBrush / WarnBrush / ErrorBrush).
-         Idle: tinted outline + coloured glyph. Hover: fills with the colour, white
-         glyph, animated scale-up. Press: quick scale-down. -->
+         Idle: soft colour wash + coloured glyph (each control is instantly colour-coded).
+         Hover: fills with the colour, white glyph, glow + animated scale-up. -->
     <Style x:Key="IconActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontSize" Value="17" />
         <Setter Property="FontFamily" Value="Segoe UI" />
-        <Setter Property="Width" Value="42" />
-        <Setter Property="Height" Value="38" />
-        <Setter Property="Margin" Value="0,0,6,0" />
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Margin" Value="0,0,7,0" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding Foreground}" BorderThickness="1.6"
-                            CornerRadius="10" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True"
+                            BorderBrush="{TemplateBinding Foreground}" BorderThickness="1.5"
+                            CornerRadius="11" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True"
                             TextElement.Foreground="{TemplateBinding Foreground}">
                         <Border.RenderTransform>
                             <ScaleTransform x:Name="Sc" ScaleX="1" ScaleY="1" />
                         </Border.RenderTransform>
                         <Grid>
-                            <!-- Colour fill revealed on hover (Setter.Value cannot bind, so
-                                 fade in a Foreground-coloured overlay instead). The glyph
-                                 colour inherits from Bd and is overridden to white on hover. -->
-                            <Border x:Name="Fill" Background="{TemplateBinding Foreground}" CornerRadius="9" Opacity="0" />
+                            <!-- Colour fill: a faint wash at rest (soft colour-coding) that
+                                 fades to full on hover. Setter.Value cannot bind, so the
+                                 overlay uses the templated Foreground and only its Opacity
+                                 is animated. The glyph is coloured at rest, white on hover. -->
+                            <Border x:Name="Fill" Background="{TemplateBinding Foreground}" CornerRadius="10" Opacity="0.14" />
                             <ContentPresenter x:Name="Cp" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -329,11 +330,17 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Fill" Property="Opacity" Value="1" />
                             <Setter TargetName="Cp" Property="TextElement.Foreground" Value="White" />
+                            <Setter TargetName="Bd" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="12" ShadowDepth="0" Opacity="0.5"
+                                                      Color="{StaticResource AccentColor}" />
+                                </Setter.Value>
+                            </Setter>
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
                                     <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1.14" Duration="0:0:0.12" />
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1.14" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1.12" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1.12" Duration="0:0:0.12" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -347,8 +354,9 @@
                             </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Opacity" Value="0.32" />
+                            <Setter Property="Opacity" Value="0.3" />
                             <Setter Property="Cursor" Value="Arrow" />
+                            <Setter TargetName="Fill" Property="Opacity" Value="0" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

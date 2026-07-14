@@ -50,6 +50,17 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===== Dashboard layout ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Rozloženie nástenky" Style="{StaticResource Heading}" />
+                    <CheckBox Content="Povoliť presúvanie komôr (šípky ◀ ▶ na kartách)"
+                              IsChecked="{Binding AllowChamberReorder}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
+                               Text="Keď je zapnuté, na kartách komôr sa adminovi zobrazia šípky na zmenu poradia. Vypnuté = poradie sa nedá omylom prehodiť." />
+                </StackPanel>
+            </Border>
+
             <!-- ===== E-mail notifications ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>

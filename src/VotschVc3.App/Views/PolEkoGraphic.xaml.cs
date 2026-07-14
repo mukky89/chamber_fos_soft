@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace VotschVc3.App.Views;
 
@@ -12,6 +14,14 @@ namespace VotschVc3.App.Views;
 /// </summary>
 public partial class PolEkoGraphic : UserControl
 {
+    private readonly DoubleAnimation _fanSpin = new()
+    {
+        From = 0,
+        To = 360,
+        Duration = new Duration(TimeSpan.FromSeconds(2.4)),
+        RepeatBehavior = RepeatBehavior.Forever,
+    };
+
     public PolEkoGraphic()
     {
         InitializeComponent();
@@ -63,5 +73,15 @@ public partial class PolEkoGraphic : UserControl
 
         IdleVeil.Visibility = IsRunning ? Visibility.Collapsed : Visibility.Visible;
         RunDot.Opacity = IsRunning ? 1.0 : 0.25;
+
+        if (IsRunning)
+        {
+            FanRotate.BeginAnimation(RotateTransform.AngleProperty, _fanSpin);
+        }
+        else
+        {
+            // Remove the animation and hold the current angle so the fan visibly stops.
+            FanRotate.BeginAnimation(RotateTransform.AngleProperty, null);
+        }
     }
 }

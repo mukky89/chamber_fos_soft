@@ -4,6 +4,7 @@ using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Security;
+using VotschVc3.Core.Settings;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -33,6 +34,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private readonly AuditLog _audit;
     private readonly LoginViewModel _login;
     private readonly EmailNotifier _notifier = new();
+    private readonly UiSettingsStore _uiStore;
+    private readonly UiSettings _ui;
     private CancellationTokenSource? _saveCts;
 
     public ShellViewModel()
@@ -44,6 +47,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
         _userStore = new UserStore(System.IO.Path.Combine(dir, "users.json"));
         _audit = new AuditLog(System.IO.Path.Combine(dir, "audit.csv"));
+        _uiStore = new UiSettingsStore(System.IO.Path.Combine(dir, "ui.json"));
+        _ui = _uiStore.Load();
         _notifier.Settings = _emailStore.Load();
 
         Audit = new AuditViewModel(_audit);
@@ -222,6 +227,45 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>True when the signed-in user may open the admin settings screen.</summary>
     public bool IsAdmin => CanManage;
 
+    /// <summary>
+    /// Admin toggle (persisted): when on, the dashboard cards expose the reorder
+    /// arrows so chambers can be dragged into a new order. Off by default.
+    /// </summary>
+    public bool AllowChamberReorder
+    {
+        get => _ui.AllowChamberReorder;
+        set
+        {
+            if (_ui.AllowChamberReorder == value)
+            {
+                return;
+            }
+
+            _ui.AllowChamberReorder = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsReorderAllowed));
+        }
+    }
+
+    /// <summary>
+    /// Whether the reorder arrows should be visible right now: only for admins
+    /// and only when the admin has explicitly enabled reordering.
+    /// </summary>
+    public bool IsReorderAllowed => CanManage && _ui.AllowChamberReorder;
+
+    private void SaveUiSettings()
+    {
+        try
+        {
+            _uiStore.Save(_ui);
+        }
+        catch
+        {
+            // A failed preference write must never crash the app.
+        }
+    }
+
     private void OnLoggedIn(User user)
     {
         _currentUser = user;
@@ -277,6 +321,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(CurrentRoleLabel));
         OnPropertyChanged(nameof(IsLoggedIn));
         OnPropertyChanged(nameof(IsAdmin));
+        OnPropertyChanged(nameof(IsReorderAllowed));
     }
 
     private static string RoleLabel(UserRole role) => role switch
