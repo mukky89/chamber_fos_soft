@@ -79,7 +79,7 @@
 
                     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="12,9" Margin="0,18,0,0">
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
-                                   Text="Predvolené: admin / admin (plný prístup) · operator / operator (len čítanie). Heslá zmeň v Dokumenty/VotschVc3/users.json." />
+                                   Text="Predvolené: admin / admin (plný prístup) · operator / operator (len čítanie). Používateľov a role spravuje admin v Administrácii." />
                     </Border>
 
                     <DockPanel LastChildFill="False" Margin="0,12,0,0">

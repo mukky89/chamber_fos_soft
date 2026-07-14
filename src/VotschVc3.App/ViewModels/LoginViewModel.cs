@@ -13,11 +13,22 @@ public sealed class LoginViewModel : ObservableObject
     {
         _store = store;
         _onSuccess = onSuccess;
-        UserNames = store.LoadAll().Select(u => u.Name).ToList();
-        _selectedUserName = UserNames.FirstOrDefault() ?? string.Empty;
+        _userNames = store.LoadAll().Select(u => u.Name).ToList();
+        _selectedUserName = _userNames.FirstOrDefault() ?? string.Empty;
     }
 
-    public IReadOnlyList<string> UserNames { get; }
+    private IReadOnlyList<string> _userNames;
+    public IReadOnlyList<string> UserNames { get => _userNames; private set => SetProperty(ref _userNames, value); }
+
+    /// <summary>Reloads the user list (after an admin adds or removes a user).</summary>
+    public void RefreshUsers()
+    {
+        UserNames = _store.LoadAll().Select(u => u.Name).ToList();
+        if (!UserNames.Contains(SelectedUserName, StringComparer.OrdinalIgnoreCase))
+        {
+            SelectedUserName = UserNames.FirstOrDefault() ?? string.Empty;
+        }
+    }
 
     private string _selectedUserName;
     public string SelectedUserName { get => _selectedUserName; set => SetProperty(ref _selectedUserName, value); }

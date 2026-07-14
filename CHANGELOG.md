@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.14.0] – 2026-07-14
+
+### Pridané
+- **Správa používateľov v Administrácii:** vytváranie používateľov, priradenie
+  a zmena rolí (Operátor / Supervisor / Admin) aj mazanie (nedá sa odstrániť
+  posledný admin ani práve prihlásený používateľ).
+- **Šípky ▲▼ (jemné +/−)** pri poli „Vlastná teplota" (krok 1 °C) a pri čase
+  odloženého štartu (hodiny / minúty).
+- **Odložený štart:** dátum sa vyberá z **kalendára** a čas cez **hodiny:minúty**.
+
+### Opravené
+- **Checkbox** – fajka sa zobrazovala priveľká a nezarovnaná; nahradená čistou
+  vektorovou fajkou, ktorá je dobre viditeľná.
+
 ## [1.13.0] – 2026-07-14
 
 ### Zmenené

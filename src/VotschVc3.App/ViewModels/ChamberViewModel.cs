@@ -854,7 +854,29 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public string ScheduledStartTime
     {
         get => _scheduledStartTime;
-        set { if (SetProperty(ref _scheduledStartTime, value)) RecalculateTiming(); }
+        set
+        {
+            if (SetProperty(ref _scheduledStartTime, value))
+            {
+                OnPropertyChanged(nameof(ScheduledStartHour));
+                OnPropertyChanged(nameof(ScheduledStartMinute));
+                RecalculateTiming();
+            }
+        }
+    }
+
+    /// <summary>Scheduled-start hour (0–23), for the time stepper on the dashboard.</summary>
+    public int ScheduledStartHour
+    {
+        get => TimeSpan.TryParse(ScheduledStartTime, out TimeSpan t) ? t.Hours : 0;
+        set => ScheduledStartTime = $"{Math.Clamp(value, 0, 23):00}:{ScheduledStartMinute:00}";
+    }
+
+    /// <summary>Scheduled-start minute (0–59), for the time stepper on the dashboard.</summary>
+    public int ScheduledStartMinute
+    {
+        get => TimeSpan.TryParse(ScheduledStartTime, out TimeSpan t) ? t.Minutes : 0;
+        set => ScheduledStartTime = $"{ScheduledStartHour:00}:{Math.Clamp(value, 0, 59):00}";
     }
 
     /// <summary>The resolved scheduled start moment (date + parsed time).</summary>

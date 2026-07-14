@@ -274,8 +274,9 @@
                                             <DockPanel LastChildFill="False">
                                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                                                     <TextBlock Text="Vlastná teplota" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                                    <TextBox Width="66" Height="36" Padding="8,0" VerticalContentAlignment="Center" VerticalAlignment="Center"
-                                                             Text="{Binding QuickTemperature, UpdateSourceTrigger=PropertyChanged}" ToolTip="Zadaj teplotu v °C" />
+                                                    <views:NumericStepper Width="92" VerticalAlignment="Center"
+                                                                          Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
+                                                                          ToolTip="Teplota v °C – šípkami ▲▼ meníš po 1 °C." />
                                                     <TextBlock Text="°C" VerticalAlignment="Center" Margin="5,0,10,0" Foreground="{StaticResource MutedBrush}" />
                                                     <Button Content="Nastaviť" Style="{StaticResource AccentButton}" Margin="0" Height="36" MinWidth="96"
                                                             VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}" />
@@ -401,11 +402,17 @@
                                                           ToolTip="Keď je zapnuté, spustenie profilu (▶ alebo rýchle tlačidlo) sa naplánuje na zadaný dátum a čas." />
                                                 <StackPanel Orientation="Horizontal" Margin="0,7,0,0" IsEnabled="{Binding UseDelayedStart}">
                                                     <TextBlock Text="Dátum" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                    <TextBox Width="112" Height="32" Padding="8,0" VerticalContentAlignment="Center"
-                                                             Text="{Binding ScheduledStartDateText, UpdateSourceTrigger=LostFocus}" ToolTip="Dátum dd.MM.yyyy" />
-                                                    <TextBlock Text="Čas" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="14,0,6,0" />
-                                                    <TextBox Width="72" Height="32" Padding="8,0" VerticalContentAlignment="Center"
-                                                             Text="{Binding ScheduledStartTime, UpdateSourceTrigger=PropertyChanged}" ToolTip="Čas HH:mm" />
+                                                    <DatePicker Width="140" VerticalAlignment="Center"
+                                                                SelectedDate="{Binding ScheduledStartDate, Mode=TwoWay}"
+                                                                ToolTip="Vyber dátum z kalendára." />
+                                                    <TextBlock Text="Čas" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="16,0,6,0" />
+                                                    <views:NumericStepper Width="66" VerticalAlignment="Center"
+                                                                          Value="{Binding ScheduledStartHour, Mode=TwoWay}" Step="1" Minimum="0" Maximum="23"
+                                                                          ToolTip="Hodina (0–23)" />
+                                                    <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0,4,0" Foreground="{StaticResource MutedBrush}" />
+                                                    <views:NumericStepper Width="66" VerticalAlignment="Center"
+                                                                          Value="{Binding ScheduledStartMinute, Mode=TwoWay}" Step="1" Minimum="0" Maximum="59"
+                                                                          ToolTip="Minúta (0–59)" />
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}" Margin="0,6,0,0"
                                                            TextWrapping="Wrap"

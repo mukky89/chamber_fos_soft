@@ -61,6 +61,61 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===== Users ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Používatelia" Style="{StaticResource Heading}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="Vytvor používateľov a priraď im rolu. Rolu existujúceho zmeníš v zozname a uložíš tlačidlom „Uložiť zmeny“." />
+                    <WrapPanel>
+                        <StackPanel Width="200" Margin="0,0,10,8">
+                            <TextBlock Text="Prihlasovacie meno" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding NewUserName, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Width="160" Margin="0,0,10,8">
+                            <TextBlock Text="Rola" Style="{StaticResource Label}" />
+                            <ComboBox ItemsSource="{Binding UserRoles}" SelectedItem="{Binding NewUserRole}" />
+                        </StackPanel>
+                        <StackPanel Width="200" Margin="0,0,10,8">
+                            <TextBlock Text="Heslo" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding NewUserPassword, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Počiatočné heslo používateľa." />
+                        </StackPanel>
+                        <Button Content="Pridať" Style="{StaticResource AccentButton}" VerticalAlignment="Bottom" Margin="0,0,0,8"
+                                Command="{Binding AddUserCommand}" />
+                    </WrapPanel>
+
+                    <ItemsControl ItemsSource="{Binding Users}" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontFamily="Segoe UI Semibold" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" Margin="10,0" VerticalAlignment="Center"
+                                                  ItemsSource="{Binding DataContext.UserRoles, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                  SelectedItem="{Binding Role, Mode=TwoWay}" />
+                                        <Button Grid.Column="2" Content="Odstrániť" Style="{StaticResource DangerButton}" VerticalAlignment="Center"
+                                                Command="{Binding DataContext.DeleteUserCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Uložiť zmeny" Style="{StaticResource AccentButton}" Command="{Binding SaveUsersCommand}" />
+                        <TextBlock Text="{Binding UserStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center"
+                                   Margin="10,0,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- ===== E-mail notifications ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>

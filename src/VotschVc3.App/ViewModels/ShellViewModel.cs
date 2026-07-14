@@ -78,6 +78,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         MoveChamberDownCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, +1), c => c is not null);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
+        AddUserCommand = new RelayCommand(AddUser,
+            () => CanManage && !string.IsNullOrWhiteSpace(NewUserName) && !string.IsNullOrEmpty(NewUserPassword));
+        DeleteUserCommand = new RelayCommand<User>(DeleteUser, u => CanManage && u is not null);
+        SaveUsersCommand = new RelayCommand(SaveUsers, () => CanManage);
+        RefreshUsers();
 
         // Build chambers from the saved configuration (seed defaults on first run).
         List<ChamberConfig> configs = _configStore.LoadAll();
@@ -315,6 +320,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _currentUser = null;
         _audit.CurrentUser = "—";
         ApplyPermissions();
+        _login.RefreshUsers();
         CurrentView = _login;
         RaiseUserChanged();
     }
@@ -330,6 +336,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         AddChamberCommand.RaiseCanExecuteChanged();
         RemoveChamberCommand.RaiseCanExecuteChanged();
         OpenAdminCommand.RaiseCanExecuteChanged();
+        AddUserCommand.RaiseCanExecuteChanged();
+        DeleteUserCommand.RaiseCanExecuteChanged();
+        SaveUsersCommand.RaiseCanExecuteChanged();
 
         // Non-admins must not linger on the admin screen after a role change.
         if (!CanManage && ReferenceEquals(CurrentView, Admin))
@@ -353,6 +362,119 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         UserRole.Supervisor => "Supervisor",
         _ => "Operátor",
     };
+
+    #endregion
+
+    #region User management (admin)
+
+    /// <summary>All application users (admin management screen).</summary>
+    public ObservableCollection<User> Users { get; } = new();
+
+    /// <summary>Available roles for the role pickers.</summary>
+    public Array UserRoles { get; } = Enum.GetValues(typeof(UserRole));
+
+    private string _newUserName = string.Empty;
+    public string NewUserName
+    {
+        get => _newUserName;
+        set { if (SetProperty(ref _newUserName, value)) AddUserCommand.RaiseCanExecuteChanged(); }
+    }
+
+    private string _newUserPassword = string.Empty;
+    public string NewUserPassword
+    {
+        get => _newUserPassword;
+        set { if (SetProperty(ref _newUserPassword, value)) AddUserCommand.RaiseCanExecuteChanged(); }
+    }
+
+    private UserRole _newUserRole = UserRole.Operator;
+    public UserRole NewUserRole { get => _newUserRole; set => SetProperty(ref _newUserRole, value); }
+
+    private string _userStatus = "Vytvor používateľov a priraď im rolu (mení sa aj rola existujúcich).";
+    public string UserStatus { get => _userStatus; private set => SetProperty(ref _userStatus, value); }
+
+    public RelayCommand AddUserCommand { get; }
+    public RelayCommand<User> DeleteUserCommand { get; }
+    public RelayCommand SaveUsersCommand { get; }
+
+    private void RefreshUsers()
+    {
+        Users.Clear();
+        foreach (User user in _userStore.LoadAll())
+        {
+            Users.Add(user);
+        }
+    }
+
+    private void AddUser()
+    {
+        string name = NewUserName.Trim();
+        if (Users.Any(u => string.Equals(u.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            UserStatus = $"Používateľ „{name}“ už existuje.";
+            return;
+        }
+
+        Users.Add(new User { Name = name, Role = NewUserRole, PasswordHash = User.Hash(NewUserPassword) });
+        PersistUsers();
+        _audit.Log("Systém", "Nový používateľ", $"{name} · {NewUserRole}");
+        UserStatus = $"Používateľ „{name}“ ({RoleLabel(NewUserRole)}) vytvorený.";
+        NewUserName = string.Empty;
+        NewUserPassword = string.Empty;
+        NewUserRole = UserRole.Operator;
+    }
+
+    private void DeleteUser(User? user)
+    {
+        if (user is null)
+        {
+            return;
+        }
+
+        if (string.Equals(user.Name, _currentUser?.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            UserStatus = "Nemôžeš odstrániť práve prihláseného používateľa.";
+            return;
+        }
+
+        if (user.Role == UserRole.Admin && Users.Count(u => u.Role == UserRole.Admin) <= 1)
+        {
+            UserStatus = "Musí ostať aspoň jeden admin.";
+            return;
+        }
+
+        Users.Remove(user);
+        PersistUsers();
+        _audit.Log("Systém", "Odstránený používateľ", user.Name);
+        UserStatus = $"Používateľ „{user.Name}“ odstránený.";
+    }
+
+    private void SaveUsers()
+    {
+        // Role changes are edited in place on the list; block saving away the last admin.
+        if (!Users.Any(u => u.Role == UserRole.Admin))
+        {
+            UserStatus = "Musí ostať aspoň jeden admin – zmeny neuložené.";
+            RefreshUsers();
+            return;
+        }
+
+        PersistUsers();
+        UserStatus = "Zmeny používateľov uložené.";
+    }
+
+    private void PersistUsers()
+    {
+        try
+        {
+            _userStore.SaveAll(Users);
+            _login.RefreshUsers();
+        }
+        catch (Exception ex)
+        {
+            UserStatus = $"Uloženie zlyhalo: {ex.Message}";
+        }
+    }
 
     #endregion
 

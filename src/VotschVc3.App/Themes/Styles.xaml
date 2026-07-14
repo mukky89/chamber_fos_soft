@@ -394,6 +394,27 @@
         </Setter>
     </Style>
 
+    <!-- DatePicker: theme the field to the dark UI (the drop-down calendar keeps the
+         system look). Only setters, no retemplate. -->
+    <Style TargetType="DatePickerTextBox">
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="CaretBrush" Value="White" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="6,0" />
+    </Style>
+
+    <Style TargetType="DatePicker">
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <!-- PasswordBox is NOT a TextBox, so it needs its own white caret (the login
          screen otherwise shows an invisible black caret on the dark background). -->
     <Style TargetType="PasswordBox">
@@ -505,10 +526,13 @@
                                 Background="{StaticResource SurfaceAltBrush}"
                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1.5"
                                 VerticalAlignment="Center">
-                            <TextBlock x:Name="Check" Text="✔" FontSize="12" FontWeight="Bold"
-                                       Foreground="White" TextAlignment="Center"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Visibility="Collapsed" />
+                            <!-- Crisp vector checkmark (the ✔ glyph rendered oversized/misaligned). -->
+                            <Path x:Name="Check" Width="11" Height="11" Stretch="Uniform"
+                                  Stroke="White" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  Data="M1,5 L4.4,8.4 L10,1.6"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Visibility="Collapsed" />
                         </Border>
                         <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"
                                           RecognizesAccessKey="True" />
