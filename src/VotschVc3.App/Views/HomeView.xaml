@@ -297,13 +297,13 @@
                                             <DockPanel LastChildFill="False">
                                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                                                     <TextBlock Text="Vlastná teplota" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                                    <TextBox Width="66" VerticalAlignment="Center"
+                                                    <TextBox Width="66" Height="36" VerticalContentAlignment="Center" VerticalAlignment="Center"
                                                              Text="{Binding QuickTemperature, UpdateSourceTrigger=PropertyChanged}" ToolTip="Zadaj teplotu v °C" />
                                                     <TextBlock Text="°C" VerticalAlignment="Center" Margin="5,0,10,0" Foreground="{StaticResource MutedBrush}" />
-                                                    <Button Content="Nastaviť" Style="{StaticResource AccentButton}" Margin="0"
-                                                            Command="{Binding QuickSetTemperatureCommand}" />
+                                                    <Button Content="Nastaviť" Style="{StaticResource AccentButton}" Margin="0" Height="36" MinWidth="96"
+                                                            VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}" />
                                                 </StackPanel>
-                                                <Button Content="Stop" Style="{StaticResource DangerButton}" DockPanel.Dock="Right" Margin="0"
+                                                <Button Content="Stop" Style="{StaticResource DangerButton}" DockPanel.Dock="Right" Margin="0" Height="36" MinWidth="96"
                                                         VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
                                                         ToolTip="Vypnúť komoru (zastaví reguláciu)." />
                                             </DockPanel>
@@ -351,6 +351,28 @@
                                                         Margin="0" ToolTip="Zastaviť profil" />
                                             </StackPanel>
                                         </Grid>
+
+                                        <!-- Quick profile launch buttons: one click = start that saved profile -->
+                                        <StackPanel Margin="0,10,0,0" Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="Rýchle spustenie profilu" Style="{StaticResource Caption}" Margin="0,0,0,5" />
+                                            <ItemsControl ItemsSource="{Binding History}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Style="{StaticResource PresetChip}" Margin="0,0,7,7"
+                                                                Command="{Binding DataContext.QuickStartProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                ToolTip="Klikni = spusti tento profil na komore">
+                                                            <TextBlock TextTrimming="CharacterEllipsis" MaxWidth="150">
+                                                                <Run Text="▶ " Foreground="{StaticResource OkBrush}" FontFamily="Segoe UI Semibold" /><Run Text="{Binding Name}" />
+                                                            </TextBlock>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
 
                                         <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"
                                                 Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">

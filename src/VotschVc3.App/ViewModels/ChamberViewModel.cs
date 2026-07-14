@@ -72,6 +72,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
         StartSelectedProfileCommand = new AsyncRelayCommand(StartSelectedProfileAsync, CanStartSelectedProfile, ReportError);
+        QuickStartProfileCommand = new AsyncRelayCommand<TestProfile?>(QuickStartProfileAsync,
+            p => p is not null && IsConnected && IsControlAllowed && !IsProfileRunning, ReportError);
         PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning);
         StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Queue.Count > 0, ReportError);
@@ -718,8 +720,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand ToggleEditPresetsCommand { get; }
 
     private List<double> DefaultQuickPresets() => IsPolEko
-        ? new List<double> { 60, 105, 150, 250 }
+        ? new List<double> { 0, 25, 50, 60, 80, 120, 150, 250 }
         : new List<double> { -20, 0, 25, 60 };
+
+    /// <summary>
+    /// The original 4-value POL-EKO preset default. A dryer still carrying exactly
+    /// this set is transparently upgraded to the fuller default on load.
+    /// </summary>
+    private static readonly List<double> LegacyPolEkoPresets = new() { 60, 105, 150, 250 };
 
     /// <summary>Parses "60, 105.5, 150" → presets; invalid tokens are skipped, 1–8 values.</summary>
     private static List<double> ParsePresets(string? text)
@@ -1080,6 +1088,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Starts the profile selected in the history list (▶ on the dashboard card).</summary>
     public AsyncRelayCommand StartSelectedProfileCommand { get; }
 
+    /// <summary>One-click launch of a specific saved profile (quick profile buttons on the card).</summary>
+    public AsyncRelayCommand<TestProfile?> QuickStartProfileCommand { get; }
+
     /// <summary>Pauses or resumes the running profile (⏸ / ▶ on the dashboard card).</summary>
     public RelayCommand PauseResumeProfileCommand { get; }
 
@@ -1176,6 +1187,21 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ApplyProfile(profile);
         }
 
+        return StartProfileAsync();
+    }
+
+    /// <summary>
+    /// Quick profile button: loads the given saved profile into the editor and starts
+    /// it in one click, without picking it from the dropdown first.
+    /// </summary>
+    private Task QuickStartProfileAsync(TestProfile? profile)
+    {
+        if (profile is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        ApplyProfile(profile);
         return StartProfileAsync();
     }
 
@@ -1532,6 +1558,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<TestProfile> History { get; } = new();
 
+    /// <summary>True when there is at least one saved profile (drives the quick-profile buttons).</summary>
+    public bool HasProfiles => History.Count > 0;
+
     private TestProfile? _selectedHistoryProfile;
     public TestProfile? SelectedHistoryProfile
     {
@@ -1583,7 +1612,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             History.Add(profile);
         }
 
+        OnPropertyChanged(nameof(HasProfiles));
         StartSelectedProfileCommand.RaiseCanExecuteChanged();
+        QuickStartProfileCommand.RaiseCanExecuteChanged();
     }
 
     private void SaveToHistory()
@@ -2595,7 +2626,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AutoStopOnAlarm = c.AutoStopOnAlarm;
         AutoReconnect = c.AutoReconnect;
 
-        _quickPresets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
+        List<double> presets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
+        // One-time upgrade: a dryer still carrying the old 4-value default gets the
+        // fuller preset set (0…250 °C) without touching a user's custom presets.
+        if (IsPolEko && presets.SequenceEqual(LegacyPolEkoPresets))
+        {
+            presets = DefaultQuickPresets();
+        }
+
+        _quickPresets = presets;
         OnPropertyChanged(nameof(QuickPresets));
         OnPropertyChanged(nameof(QuickPresetsText));
 
@@ -2642,6 +2681,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickSetTemperatureCommand.RaiseCanExecuteChanged();
         StartProfileCommand.RaiseCanExecuteChanged();
         StartSelectedProfileCommand.RaiseCanExecuteChanged();
+        QuickStartProfileCommand.RaiseCanExecuteChanged();
         PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();

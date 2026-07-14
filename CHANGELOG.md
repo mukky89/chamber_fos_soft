@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.11.0] – 2026-07-14
+
+### Pridané
+- **Rýchle tlačidlá na profily** na karte komory: pod výberom profilu je rad
+  tlačidiel s uloženými profilmi – **jedno kliknutie profil načíta a spustí**.
+  Platí pre komory aj sušiareň (POL-EKO).
+
+### Zmenené
+- **Predvolené rýchle ovládanie pre sušiareň (POL-EKO)** je teraz
+  **0, 25, 50, 60, 80, 120, 150, 250 °C**. Existujúca sušiareň so starou
+  štvorhodnotovou predvoľbou sa pri štarte automaticky povýši na novú sadu
+  (vlastné upravené predvoľby zostávajú nedotknuté).
+- **Zjednotené veľkosti** v riadku „Vlastná teplota" – pole, „Nastaviť" aj
+  „Stop" majú rovnakú výšku (a tlačidlá rovnakú minimálnu šírku).
+
 ## [1.10.0] – 2026-07-14
 
 ### Zmenené
