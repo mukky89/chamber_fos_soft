@@ -68,6 +68,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsControlAllowed, ReportError);
         QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsControlAllowed, ReportError);
         ToggleEditPresetsCommand = new RelayCommand(() => IsEditingPresets = !IsEditingPresets, () => IsManageAllowed);
+        ToggleEditQuickProfilesCommand = new RelayCommand(() => IsEditingQuickProfiles = !IsEditingQuickProfiles, () => IsManageAllowed);
+        AddQuickProfileCommand = new RelayCommand(AddQuickProfile, () => IsManageAllowed && ProfileToPin is not null);
+        RemoveQuickProfileCommand = new RelayCommand<string>(RemoveQuickProfile, n => IsManageAllowed && !string.IsNullOrEmpty(n));
         ToggleEditNameCommand = new RelayCommand(() => IsEditingName = !IsEditingName);
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
@@ -235,9 +238,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 if (!value)
                 {
                     IsEditingPresets = false;
+                    IsEditingQuickProfiles = false;
                 }
 
                 ToggleEditPresetsCommand.RaiseCanExecuteChanged();
+                ToggleEditQuickProfilesCommand.RaiseCanExecuteChanged();
+                AddQuickProfileCommand.RaiseCanExecuteChanged();
+                RemoveQuickProfileCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -1558,8 +1565,88 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<TestProfile> History { get; } = new();
 
-    /// <summary>True when there is at least one saved profile (drives the quick-profile buttons).</summary>
+    /// <summary>True when there is at least one saved profile.</summary>
     public bool HasProfiles => History.Count > 0;
+
+    // ---- Quick-launch profile buttons (curated favourites) ----
+
+    private List<string> _pinnedQuickProfiles = new();
+
+    /// <summary>
+    /// Saved profiles shown as one-click quick-launch buttons on the card. If the admin
+    /// has pinned specific profiles, only those (in pinned order) are shown; otherwise
+    /// every saved profile is shown as a sensible default.
+    /// </summary>
+    public IReadOnlyList<TestProfile> QuickProfiles =>
+        _pinnedQuickProfiles.Count == 0
+            ? History.ToList()
+            : _pinnedQuickProfiles
+                .Select(n => History.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)))
+                .Where(p => p is not null)
+                .Select(p => p!)
+                .ToList();
+
+    /// <summary>True when at least one quick-launch profile button is shown.</summary>
+    public bool HasQuickProfiles => QuickProfiles.Count > 0;
+
+    /// <summary>The pinned profile names (admin editor list, with remove buttons).</summary>
+    public IReadOnlyList<string> PinnedProfileNames => _pinnedQuickProfiles;
+
+    /// <summary>True when the admin has pinned at least one profile (vs. the show-all default).</summary>
+    public bool HasPinnedProfiles => _pinnedQuickProfiles.Count > 0;
+
+    private bool _isEditingQuickProfiles;
+    /// <summary>True while the admin quick-profile editor row is visible on the card.</summary>
+    public bool IsEditingQuickProfiles { get => _isEditingQuickProfiles; set => SetProperty(ref _isEditingQuickProfiles, value); }
+
+    private TestProfile? _profileToPin;
+    /// <summary>Profile selected in the editor combo, ready to be pinned as a quick button.</summary>
+    public TestProfile? ProfileToPin
+    {
+        get => _profileToPin;
+        set { if (SetProperty(ref _profileToPin, value)) AddQuickProfileCommand.RaiseCanExecuteChanged(); }
+    }
+
+    public RelayCommand ToggleEditQuickProfilesCommand { get; }
+    public RelayCommand AddQuickProfileCommand { get; }
+    public RelayCommand<string> RemoveQuickProfileCommand { get; }
+
+    private void AddQuickProfile()
+    {
+        if (ProfileToPin is not { } profile)
+        {
+            return;
+        }
+
+        if (!_pinnedQuickProfiles.Any(n => string.Equals(n, profile.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            _pinnedQuickProfiles.Add(profile.Name);
+            RaiseQuickProfilesChanged();
+            StatusMessage = $"Profil \"{profile.Name}\" pridaný medzi rýchle spustenie.";
+        }
+    }
+
+    private void RemoveQuickProfile(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        if (_pinnedQuickProfiles.RemoveAll(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase)) > 0)
+        {
+            RaiseQuickProfilesChanged();
+        }
+    }
+
+    /// <summary>Notifies the quick-profile bindings and triggers a config save (via QuickProfiles).</summary>
+    private void RaiseQuickProfilesChanged()
+    {
+        OnPropertyChanged(nameof(QuickProfiles));
+        OnPropertyChanged(nameof(HasQuickProfiles));
+        OnPropertyChanged(nameof(PinnedProfileNames));
+        OnPropertyChanged(nameof(HasPinnedProfiles));
+    }
 
     private TestProfile? _selectedHistoryProfile;
     public TestProfile? SelectedHistoryProfile
@@ -1613,6 +1700,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
 
         OnPropertyChanged(nameof(HasProfiles));
+        OnPropertyChanged(nameof(QuickProfiles));
+        OnPropertyChanged(nameof(HasQuickProfiles));
         StartSelectedProfileCommand.RaiseCanExecuteChanged();
         QuickStartProfileCommand.RaiseCanExecuteChanged();
     }
@@ -2638,6 +2727,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(QuickPresets));
         OnPropertyChanged(nameof(QuickPresetsText));
 
+        _pinnedQuickProfiles = c.QuickProfiles is { Count: > 0 } ? new List<string>(c.QuickProfiles) : new List<string>();
+        RaiseQuickProfilesChanged();
+
         _nameplate = c.Nameplate?.Clone() ?? new ChamberNameplate();
         RaiseNameplate();
     }
@@ -2664,6 +2756,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AutoStopOnAlarm = AutoStopOnAlarm,
         AutoReconnect = AutoReconnect,
         QuickPresets = new List<double>(_quickPresets),
+        QuickProfiles = new List<string>(_pinnedQuickProfiles),
         Nameplate = _nameplate.Clone(),
     };
 

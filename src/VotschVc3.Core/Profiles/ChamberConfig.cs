@@ -40,6 +40,12 @@ public sealed class ChamberConfig
     /// </summary>
     public List<double>? QuickPresets { get; set; }
 
+    /// <summary>
+    /// Names of saved profiles pinned as one-click quick-launch buttons on this
+    /// chamber's card. Empty falls back to showing all saved profiles. Editable by admins.
+    /// </summary>
+    public List<string>? QuickProfiles { get; set; }
+
     /// <summary>Nameplate / type-plate details (from the chamber's rating label).</summary>
     public ChamberNameplate? Nameplate { get; set; }
 }

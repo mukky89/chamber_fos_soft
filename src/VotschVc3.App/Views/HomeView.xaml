@@ -297,7 +297,7 @@
                                             <DockPanel LastChildFill="False">
                                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                                                     <TextBlock Text="Vlastná teplota" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                                    <TextBox Width="66" Height="36" VerticalContentAlignment="Center" VerticalAlignment="Center"
+                                                    <TextBox Width="66" Height="36" Padding="8,0" VerticalContentAlignment="Center" VerticalAlignment="Center"
                                                              Text="{Binding QuickTemperature, UpdateSourceTrigger=PropertyChanged}" ToolTip="Zadaj teplotu v °C" />
                                                     <TextBlock Text="°C" VerticalAlignment="Center" Margin="5,0,10,0" Foreground="{StaticResource MutedBrush}" />
                                                     <Button Content="Nastaviť" Style="{StaticResource AccentButton}" Margin="0" Height="36" MinWidth="96"
@@ -352,10 +352,53 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <!-- Quick profile launch buttons: one click = start that saved profile -->
+                                        <!-- Quick profile launch: curated one-click buttons; admin can pick which profiles show -->
                                         <StackPanel Margin="0,10,0,0" Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}}">
-                                            <TextBlock Text="Rýchle spustenie profilu" Style="{StaticResource Caption}" Margin="0,0,0,5" />
-                                            <ItemsControl ItemsSource="{Binding History}">
+                                            <DockPanel LastChildFill="False">
+                                                <TextBlock Text="Rýchle spustenie profilu" Style="{StaticResource Caption}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                                <Button DockPanel.Dock="Right" Content="✎ Upraviť" Style="{StaticResource GhostButton}"
+                                                        Padding="6,1" FontSize="12" Command="{Binding ToggleEditQuickProfilesCommand}"
+                                                        Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
+                                                        ToolTip="Admin: vyber, ktoré profily sa zobrazia ako rýchle tlačidlá." />
+                                            </DockPanel>
+
+                                            <!-- Admin editor: insert an existing profile / remove pinned ones -->
+                                            <StackPanel Margin="0,6,0,8" Visibility="{Binding IsEditingQuickProfiles, Converter={StaticResource BoolToVisibility}}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox Grid.Column="0" ItemsSource="{Binding History}"
+                                                              SelectedItem="{Binding ProfileToPin, Mode=TwoWay}" DisplayMemberPath="Name"
+                                                              ToolTip="Vyber existujúci profil a pridaj ho tlačidlom Pridať." />
+                                                    <Button Grid.Column="1" Content="Pridať" Margin="8,0,0,0" Style="{StaticResource AccentButton}"
+                                                            Command="{Binding AddQuickProfileCommand}" />
+                                                </Grid>
+                                                <ItemsControl ItemsSource="{Binding PinnedProfileNames}" Margin="0,7,0,0"
+                                                              Visibility="{Binding HasPinnedProfiles, Converter={StaticResource BoolToVisibility}}">
+                                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="7" Padding="10,5" Margin="0,0,7,7">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="None" />
+                                                                    <Button Content="✕" Style="{StaticResource GhostButton}" Padding="7,0" Margin="7,0,0,0"
+                                                                            Foreground="{StaticResource DangerBrush}"
+                                                                            Command="{Binding DataContext.RemoveQuickProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            ToolTip="Odobrať z rýchleho spustenia" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                           Text="Prázdny zoznam = zobrazia sa všetky profily. Pridaj konkrétne, ak chceš len vybrané." />
+                                            </StackPanel>
+
+                                            <!-- Launch buttons: full profile name, one click = load + start -->
+                                            <ItemsControl ItemsSource="{Binding QuickProfiles}" Margin="0,5,0,0">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
@@ -365,7 +408,7 @@
                                                                 Command="{Binding DataContext.QuickStartProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                                 CommandParameter="{Binding}"
                                                                 ToolTip="Klikni = spusti tento profil na komore">
-                                                            <TextBlock TextTrimming="CharacterEllipsis" MaxWidth="150">
+                                                            <TextBlock TextWrapping="Wrap" TextTrimming="None" MaxWidth="430">
                                                                 <Run Text="▶ " Foreground="{StaticResource OkBrush}" FontFamily="Segoe UI Semibold" /><Run Text="{Binding Name}" />
                                                             </TextBlock>
                                                         </Button>

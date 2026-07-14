@@ -24,7 +24,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         nameof(ChamberViewModel.AlarmsEnabled), nameof(ChamberViewModel.TempMin), nameof(ChamberViewModel.TempMax),
         nameof(ChamberViewModel.HumMin), nameof(ChamberViewModel.HumMax),
         nameof(ChamberViewModel.AutoStopOnAlarm), nameof(ChamberViewModel.AutoReconnect),
-        nameof(ChamberViewModel.QuickPresets),
+        nameof(ChamberViewModel.QuickPresets), nameof(ChamberViewModel.QuickProfiles),
     }.Concat(ChamberViewModel.NameplatePropertyNames).ToHashSet();
 
     private readonly ProfileStore _store;

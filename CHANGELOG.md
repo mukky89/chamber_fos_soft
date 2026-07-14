@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.12.0] – 2026-07-14
+
+### Pridané
+- **Editovateľné rýchle spustenie profilov.** Admin cez „✎ Upraviť" vyberie
+  z existujúcich profilov, ktoré sa zobrazia ako rýchle tlačidlá (pridať cez
+  výber + „Pridať", odobrať cez ✕). Výber sa ukladá pre každé zariadenie.
+  Prázdny výber = zobrazia sa všetky profily.
+
+### Opravené
+- **Celý názov profilu** na rýchlych tlačidlách (predtým sa orezával „…").
+- **Neviditeľný text v poli „Vlastná teplota"** – zadaná hodnota sa teraz
+  zobrazuje celá (opravené zvislé zarovnanie pri pevnej výške poľa).
+
 ## [1.11.0] – 2026-07-14
 
 ### Pridané
