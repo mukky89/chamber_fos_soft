@@ -4,6 +4,31 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.10.0] – 2026-07-14
+
+### Zmenené
+- **Nový vzhľad hlavnej stránky.** Horné menu „Riadenie klim. komôr" sa
+  presunulo do **bočného panela (sidebar)** vľavo; navigácia je teraz zvislý
+  zoznam a používateľ + odhlásenie sú pripnuté dole.
+- **Preusporiadané panely na karte komory:** poradie je teraz **Teplota →
+  Rýchle ovládanie → Testovací profil** (testovací profil je na konci). Popis
+  komory je na **jednom riadku** (dlhý názov sa oreže s tooltipom).
+- **Pripojenie sa presunulo do nastavení komory.** IP adresa / port,
+  Pripojiť/Odpojiť aj referenčný teplomer sú teraz cez „Nastaviť / ovládať →"
+  (a IP/port aj v Administrácii); karta tak nie je preplnená. Stav pripojenia
+  (guľôčka + IP) zostáva v hlavičke karty.
+- **Rýchle ovládanie prehľadnejšie:** predvoľby ako čipy, vlastná teplota
+  a „Nastaviť" v samostatnom rámiku, tlačidlo **Stop** oddelené vpravo.
+- **Modernejšie tlačidlá testovacieho profilu** (▶ ⏸ ⏹): jemné farebné
+  podfarbenie v pokoji, výraznejší hover so žiarou a farebné odlíšenie.
+
+### Pridané
+- **Ventilátor v grafike sušiarne (POL-EKO)** – točí sa, keď zariadenie beží,
+  a zastaví sa v nečinnosti, rovnako ako pri komorách Vötsch.
+- **Prepínač „Povoliť presúvanie komôr" v Administrácii.** Šípky ◀ ▶ na
+  kartách sú **predvolene skryté**; admin ich zobrazí len keď potrebuje zmeniť
+  poradie komôr.
+
 ## [1.9.4] – 2026-07-13
 
 ### Pridané

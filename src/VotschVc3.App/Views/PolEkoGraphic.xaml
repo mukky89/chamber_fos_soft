@@ -95,6 +95,31 @@
             <Rectangle Canvas.Left="80" Canvas.Top="130" Width="152" Height="200" RadiusX="6" RadiusY="6"
                        Stroke="#FFFFFF" StrokeThickness="1" Opacity="0.5" />
 
+            <!-- ===== Interior circulation fan (spins while running) ===== -->
+            <!-- Recessed grille -->
+            <Ellipse Canvas.Left="122" Canvas.Top="152" Width="68" Height="68"
+                     Stroke="#8A90A0" StrokeThickness="2" Fill="#1A2138" />
+            <!-- Rotating blades -->
+            <Canvas x:Name="FanGroup">
+                <Canvas.RenderTransform>
+                    <RotateTransform x:Name="FanRotate" CenterX="156" CenterY="186" />
+                </Canvas.RenderTransform>
+                <Ellipse Canvas.Left="126" Canvas.Top="179" Width="60" Height="14" Fill="#AEB7D6" Opacity="0.92" />
+                <Ellipse Canvas.Left="126" Canvas.Top="179" Width="60" Height="14" Fill="#AEB7D6" Opacity="0.92">
+                    <Ellipse.RenderTransform>
+                        <RotateTransform Angle="60" CenterX="30" CenterY="7" />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+                <Ellipse Canvas.Left="126" Canvas.Top="179" Width="60" Height="14" Fill="#AEB7D6" Opacity="0.92">
+                    <Ellipse.RenderTransform>
+                        <RotateTransform Angle="120" CenterX="30" CenterY="7" />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+            </Canvas>
+            <!-- Hub -->
+            <Ellipse Canvas.Left="149" Canvas.Top="179" Width="14" Height="14"
+                     Fill="#11141E" Stroke="#4FD6C4" StrokeThickness="2" />
+
             <!-- Model label on the door -->
             <TextBlock Canvas.Left="80" Canvas.Top="318" Text="{Binding TitleText, ElementName=Root}"
                        FontFamily="Segoe UI Semibold" FontSize="10" Foreground="#8A90A6" />
