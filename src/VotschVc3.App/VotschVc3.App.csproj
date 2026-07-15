@@ -40,6 +40,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Sylex logo (branding), shown on the login screen and the sidebar. -->
+    <Resource Include="..\..\assets\sylex-logo-red.png" Link="Assets\sylex-logo-red.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- ASL F100 thermometers: serial comms + USB serial-number enumeration (Windows). -->
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
