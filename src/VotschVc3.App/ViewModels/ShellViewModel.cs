@@ -3,6 +3,7 @@ using System.ComponentModel;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
+using VotschVc3.Core.Protocol;
 using VotschVc3.Core.Security;
 using VotschVc3.Core.Settings;
 
@@ -610,18 +611,20 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private void AddChamber()
     {
         bool polEko = NewChamberProtocol == ChamberProtocol.PolEkoModbus;
+        bool sika = NewChamberProtocol == ChamberProtocol.SikaRestApi;
         var config = new ChamberConfig
         {
             Id = Guid.NewGuid(),
             Name = string.IsNullOrWhiteSpace(NewChamberName) ? $"Komora {Chambers.Count + 1}" : NewChamberName.Trim(),
-            // POL-EKO ovens are temperature-only and speak MODBUS TCP on port 502.
-            Kind = polEko ? ChamberKind.TemperatureOnly : NewChamberKind,
+            // POL-EKO ovens and SIKA baths are temperature-only.
+            Kind = (polEko || sika) ? ChamberKind.TemperatureOnly : NewChamberKind,
             Protocol = NewChamberProtocol,
-            Port = polEko ? 502 : 1080,
+            // POL-EKO speaks MODBUS TCP on port 502, SIKA's REST-API is fixed on port 8081.
+            Port = polEko ? 502 : sika ? SikaRestApiProtocol.DefaultPort : 1080,
             Host = string.IsNullOrWhiteSpace(NewChamberHost) ? "192.168.0.1" : NewChamberHost.Trim(),
             // Vötsch start channel is digital channel 1 (verified running bit);
-            // POL-EKO (MODBUS) does not use this field.
-            StartChannelIndex = polEko ? 0 : 1,
+            // POL-EKO (MODBUS) and SIKA (REST-API) do not use this field.
+            StartChannelIndex = (polEko || sika) ? 0 : 1,
         };
 
         AddChamberInternal(config);

@@ -25,10 +25,13 @@
                         ToolTip="Otvoriť rýchly vytvárač profilov (teplotný sweep)." />
                 <Grid Margin="6,0,10,0">
                     <views:ChamberGraphic Width="34" Height="44" IsRunning="{Binding IsActive}"
-                                          Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                                          Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}" />
                     <views:PolEkoGraphic Width="38" Height="44" IsRunning="{Binding IsActive}"
                                          TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
                                          Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}" />
+                    <views:SikaThermalBathGraphic Width="34" Height="44" IsRunning="{Binding IsActive}"
+                                         TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
+                                         Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{Binding Name}" FontSize="17" FontFamily="Segoe UI Semibold" />
@@ -81,8 +84,8 @@
                                              ToolTip="Vötsch: 2-miestna adresa v rámci ASCII-2. POL-EKO: MODBUS unit ID (zvyčajne 1)." />
                                 </StackPanel>
                             </Grid>
-                            <!-- ASCII-2 specific settings – meaningless for a MODBUS (POL-EKO) device. -->
-                            <StackPanel Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                            <!-- ASCII-2 specific settings – meaningless for a MODBUS (POL-EKO) or REST-API (SIKA) device. -->
+                            <StackPanel Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -106,6 +109,9 @@
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
                                        Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}"
                                        Text="POL-EKO SMART · MODBUS TCP (port 502). Meraná teplota sa číta z input registra; setpoint a štart cez holding registre." />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                       Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}"
+                                       Text="SIKA TP Premium · REST-API cez HTTP (port 8081). Meraná teplota a setpoint sa čítajú príkazom getRegister; zápis cez setSP. Kúpeľ nemá vzdialené vypnutie – beží nepretržite." />
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <Button Content="Pripojiť" Style="{StaticResource AccentButton}" Command="{Binding ConnectCommand}" />
                                 <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
@@ -564,7 +570,7 @@
 
                 <!-- Set-point diagnostics (Vötsch only) -->
                 <Border DockPanel.Dock="Top" Style="{StaticResource Card}"
-                        Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                        Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
                         <TextBlock Text="Diagnostika nastavenia teploty" Style="{StaticResource Heading}" />
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
@@ -620,6 +626,29 @@
                     </StackPanel>
                 </Border>
 
+                <!-- REST-API diagnostics (SIKA only) -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card}"
+                        Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="SIKA REST-API diagnostika" Style="{StaticResource Heading}" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Text="Príkazy z dokumentácie TP Premium REST-API (HTTP GET na port 8081, cesta ajax/…)." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="▶ getInfoReport" Style="{StaticResource AccentButton}"
+                                    Command="{Binding SikaInfoReportCommand}"
+                                    ToolTip="Informácie o zariadení – sériové číslo, typ, dátumy kalibrácie, teplotný rozsah." />
+                            <Button Content="getCalibrationStatus" Margin="8,0,0,0"
+                                    Command="{Binding SikaCalibrationStatusCommand}"
+                                    ToolTip="Aktuálny stav kalibrácie (beží / nebeží, testovací bod, stabilita)." />
+                        </StackPanel>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,8">
+                            <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding DiagResult}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" />
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -657,11 +686,14 @@
                         <Button Grid.Column="2" Content="Vyčistiť" Margin="8,0,0,0" Command="{Binding ClearTerminalCommand}" />
                     </Grid>
                     <TextBlock Grid.Row="2" Style="{StaticResource Caption}" Margin="6,8,6,0" TextWrapping="Wrap"
-                               Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
+                               Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}"
                                Text="Príklady:  $01I  (čítať)   ·   $01E 0050.0 0000.0 0000.0 0000.0 0000.0 0000.0 10000000000000000000000000000000  (zápis)   ·   terminátor sa dopĺňa automaticky." />
                     <TextBlock Grid.Row="2" Style="{StaticResource Caption}" Margin="6,8,6,0" TextWrapping="Wrap"
                                Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}"
                                Text="MODBUS PDU v HEX (funkcia + dáta):  04 0000 0001 = čítať input register 0 (teplota)   ·   03 0001 0001 = čítať holding register 1   ·   odpoveď je HEX ADU." />
+                    <TextBlock Grid.Row="2" Style="{StaticResource Caption}" Margin="6,8,6,0" TextWrapping="Wrap"
+                               Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}"
+                               Text="Príkaz ajax/… (bez alebo s parametrami):  getRegister?register=TRset_TR  (nameraná teplota)   ·   getRegister?register=TRset_SP  (setpoint)   ·   setSP?value=25  (nastaviť a naskočiť na 25 °C)   ·   odpoveď je JSON." />
                 </Grid>
                 </DockPanel>
             </TabItem>

@@ -35,7 +35,7 @@
                     <StackPanel Width="200" Margin="0,0,10,0">
                         <TextBlock Text="Protokol" Style="{StaticResource Label}" />
                         <ComboBox ItemsSource="{Binding ChamberProtocols}" SelectedItem="{Binding NewChamberProtocol}"
-                                  ToolTip="Vötsch ASCII-2 (TCP) alebo POL-EKO MODBUS (SMART, port 502, len teplota)." />
+                                  ToolTip="Vötsch ASCII-2 (TCP) · POL-EKO MODBUS (SMART, port 502, len teplota) · SIKA RestApi (TP Premium REST-API, port 8081, len teplota)." />
                     </StackPanel>
                     <StackPanel Width="170" Margin="0,0,10,0">
                         <TextBlock Text="Typ" Style="{StaticResource Label}" />

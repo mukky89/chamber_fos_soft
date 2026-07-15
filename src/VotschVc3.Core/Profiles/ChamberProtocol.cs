@@ -11,4 +11,11 @@ public enum ChamberProtocol
     /// SLW / CLW incubators). Port 502, one temperature channel, no humidity.
     /// </summary>
     PolEkoModbus,
+
+    /// <summary>
+    /// SIKA TP Premium calibration bath / dry block over its HTTP REST-API
+    /// (port 8081). One temperature channel (the reference sensor), no humidity,
+    /// no remote power on/off.
+    /// </summary>
+    SikaRestApi,
 }

@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.15.0] – 2026-07-15
+
+### Pridané
+- **Nový typ zariadenia: SIKA TP Premium (kalibračný kúpeľ / dry block)** cez
+  HTTP REST-API (port 8081). Meraná teplota a setpoint sa čítajú príkazom
+  `getRegister`, zápis cez `setSP`; v záložke „Surový terminál" pribudla
+  diagnostika `getInfoReport` / `getCalibrationStatus`. Kúpeľ nemá vzdialené
+  vypnutie (REST-API ho neponúka) – beží nepretržite.
+- **Nová vektorová grafika zariadenia** pre SIKA TP Premium – červená skrinka
+  s rotujúcim ventilátorom v mriežke na vrchu (animácia sa zastaví, keď
+  zariadenie nie je aktívne), podľa vzhľadu reálneho prístroja.
+
 ## [1.14.0] – 2026-07-14
 
 ### Pridané

@@ -8,6 +8,7 @@ using VotschVc3.App.Mvvm;
 using VotschVc3.App.Notifications;
 using VotschVc3.Core.Communication;
 using VotschVc3.Core.Communication.PolEko;
+using VotschVc3.Core.Communication.Sika;
 using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
@@ -53,9 +54,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _thermometers = thermometers ?? throw new ArgumentNullException(nameof(thermometers));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
 
-        _client = Protocol == ChamberProtocol.PolEkoModbus
-            ? new PolEkoClient()
-            : new ChamberClient();
+        _client = Protocol switch
+        {
+            ChamberProtocol.PolEkoModbus => new PolEkoClient(),
+            ChamberProtocol.SikaRestApi => new SikaTpClient(),
+            _ => new ChamberClient(),
+        };
         _client.FrameExchanged += OnFrameExchanged;
 
         Segments = new ObservableCollection<SegmentViewModel>();
@@ -107,11 +111,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         InsertReadCommandCommand = new RelayCommand(() => TerminalInput = TestReadFrame);
         InsertWriteCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, true));
         InsertStopCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, false));
-        RunSetpointDiagnosticCommand = new AsyncRelayCommand(RunSetpointDiagnosticAsync, () => IsConnected && !IsPolEko, ReportError);
-        ReadDigitalCommand = new AsyncRelayCommand(ReadDigitalAsync, () => IsConnected && !IsPolEko, ReportError);
-        SimservProbeCommand = new AsyncRelayCommand(SimservProbeAsync, () => IsConnected && !IsPolEko, ReportError);
-        ReadProgramInfoCommand = new AsyncRelayCommand(ReadProgramInfoAsync, () => IsConnected && !IsPolEko, ReportError);
+        RunSetpointDiagnosticCommand = new AsyncRelayCommand(RunSetpointDiagnosticAsync, () => IsConnected && IsAsciiProtocol, ReportError);
+        ReadDigitalCommand = new AsyncRelayCommand(ReadDigitalAsync, () => IsConnected && IsAsciiProtocol, ReportError);
+        SimservProbeCommand = new AsyncRelayCommand(SimservProbeAsync, () => IsConnected && IsAsciiProtocol, ReportError);
+        ReadProgramInfoCommand = new AsyncRelayCommand(ReadProgramInfoAsync, () => IsConnected && IsAsciiProtocol, ReportError);
         ModbusScanCommand = new AsyncRelayCommand(ModbusScanAsync, () => IsConnected && IsPolEko, ReportError);
+        SikaInfoReportCommand = new AsyncRelayCommand(SikaInfoReportAsync, () => IsConnected && IsSika, ReportError);
+        SikaCalibrationStatusCommand = new AsyncRelayCommand(SikaCalibrationStatusAsync, () => IsConnected && IsSika, ReportError);
         InsertSimservSetpointCommand = new RelayCommand(
             () => TerminalInput = SimservProtocol.BuildSetNominalValue(Address, 1, DiagTestTemperature).TrimEnd('\r'));
         InsertSimservStartCommand = new RelayCommand(
@@ -122,6 +128,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             // A sensible first command for the MODBUS terminal (read input register 0).
             _terminalInput = "04 0000 0001";
+        }
+        else if (IsSika)
+        {
+            // A sensible first command for the REST-API terminal (measured reference temperature).
+            _terminalInput = "getRegister?register=TRset_TR";
         }
 
         SeedDefaultProfile();
@@ -149,13 +160,21 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary><c>true</c> for a POL-EKO MODBUS oven (temperature only).</summary>
     public bool IsPolEko => Protocol == ChamberProtocol.PolEkoModbus;
 
+    /// <summary><c>true</c> for a SIKA TP Premium bath / dry block (REST-API, temperature only).</summary>
+    public bool IsSika => Protocol == ChamberProtocol.SikaRestApi;
+
+    /// <summary><c>true</c> for the original Vötsch / Weiss ASCII-2 protocol.</summary>
+    public bool IsAsciiProtocol => Protocol == ChamberProtocol.VotschAscii2;
+
     /// <summary><c>true</c> when the chamber supports humidity control.</summary>
     public bool SupportsHumidity => Kind == ChamberKind.TemperatureHumidity && Protocol == ChamberProtocol.VotschAscii2;
 
     /// <summary>Short capability label for the UI.</summary>
     public string KindLabel => IsPolEko
         ? "POL-EKO · Teplota"
-        : SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
+        : IsSika
+            ? "SIKA TP · Teplota (kúpeľ)"
+            : SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
 
     #region Nameplate (type-plate details)
 
@@ -728,7 +747,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private List<double> DefaultQuickPresets() => IsPolEko
         ? new List<double> { 0, 25, 50, 60, 80, 120, 150, 250 }
-        : new List<double> { -20, 0, 25, 60 };
+        : IsSika
+            ? new List<double> { 0, 25, 60, 100, 150 }
+            : new List<double> { -20, 0, 25, 60 };
 
     /// <summary>
     /// The original 4-value POL-EKO preset default. A dryer still carrying exactly
@@ -1084,7 +1105,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Device temperature envelope used by the profile "smart check".</summary>
     private (double Min, double Max) DeviceTempRange => IsPolEko
         ? (0, 300)    // SLN drying oven: ambient .. +300 °C, no sub-zero capability
-        : (-80, 200); // Vötsch climate chamber
+        : IsSika
+            ? (-50, 165) // SIKA TP Premium bath / dry block (documented MinTemp/MaxTemp example)
+            : (-80, 200); // Vötsch climate chamber
 
     private void ValidateProfile()
     {
@@ -1989,6 +2012,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand SimservProbeCommand { get; }
     public AsyncRelayCommand ReadProgramInfoCommand { get; }
     public AsyncRelayCommand ModbusScanCommand { get; }
+    public AsyncRelayCommand SikaInfoReportCommand { get; }
+    public AsyncRelayCommand SikaCalibrationStatusCommand { get; }
 
     /// <summary>
     /// Dumps a block of POL-EKO MODBUS registers so an undocumented value (e.g. the
@@ -2007,6 +2032,35 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         DiagResult = await poleko.ScanRegistersAsync(64);
         AppLog.Info(Name, "[MODBUS] Sken registrov dokončený.");
     }
+
+    /// <summary>Reads and shows the SIKA <c>getInfoReport</c> (device details, calibration dates, temp range).</summary>
+    private async Task SikaInfoReportAsync()
+    {
+        if (_client is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
+        {
+            DiagResult = "getInfoReport je len pre SIKA REST-API.";
+            return;
+        }
+
+        DiagResult = "Čítam getInfoReport…";
+        DiagResult = await sika.SendRawAsync("getInfoReport");
+        AppLog.Info(Name, "[SIKA] getInfoReport dokončený.");
+    }
+
+    /// <summary>Reads and shows the SIKA <c>getCalibrationStatus</c> (current calibration run, if any).</summary>
+    private async Task SikaCalibrationStatusAsync()
+    {
+        if (_client is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
+        {
+            DiagResult = "getCalibrationStatus je len pre SIKA REST-API.";
+            return;
+        }
+
+        DiagResult = "Čítam getCalibrationStatus…";
+        DiagResult = await sika.SendRawAsync("getCalibrationStatus");
+        AppLog.Info(Name, "[SIKA] getCalibrationStatus dokončený.");
+    }
+
     public RelayCommand InsertSimservSetpointCommand { get; }
     public RelayCommand InsertSimservStartCommand { get; }
 
@@ -2018,9 +2072,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private async Task ReadProgramInfoAsync()
     {
-        if (IsPolEko)
+        if (!IsAsciiProtocol)
         {
-            DiagResult = "Program info je pre Vötsch/Simpac (SIMSERV); POL-EKO používa MODBUS.";
+            DiagResult = "Program info je pre Vötsch/Simpac (SIMSERV); iné protokoly ho nepodporujú.";
             return;
         }
 
@@ -2070,9 +2124,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private async Task SimservProbeAsync()
     {
-        if (IsPolEko)
+        if (!IsAsciiProtocol)
         {
-            DiagResult = "SIMSERV je pre Vötsch/Simpac; POL-EKO používa MODBUS.";
+            DiagResult = "SIMSERV je pre Vötsch/Simpac; iné protokoly ho nepodporujú.";
             return;
         }
 
@@ -2133,9 +2187,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private async Task RunSetpointDiagnosticAsync()
     {
-        if (IsPolEko)
+        if (!IsAsciiProtocol)
         {
-            DiagResult = "Diagnostika je pre Vötsch ASCII-2; POL-EKO použi cez MODBUS terminál.";
+            DiagResult = "Diagnostika je pre Vötsch ASCII-2; použi terminál daný protokolom zariadenia.";
             return;
         }
 
@@ -2182,7 +2236,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private async Task ReadDigitalAsync()
     {
-        if (IsPolEko)
+        if (!IsAsciiProtocol)
         {
             return;
         }

@@ -151,11 +151,15 @@
                                         <views:ChamberGraphic Width="128" Height="172"
                                                               IsRunning="{Binding IsActive}"
                                                               TitleText="{Binding KindLabel}"
-                                                              Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                                                              Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}" />
                                         <views:PolEkoGraphic Width="128" Height="172"
                                                              IsRunning="{Binding IsActive}"
                                                              TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
                                                              Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}" />
+                                        <views:SikaThermalBathGraphic Width="128" Height="162"
+                                                             IsRunning="{Binding IsActive}"
+                                                             TemperatureText="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}"
+                                                             Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}" />
                                     </Grid>
 
                                     <StackPanel Grid.Column="1" Margin="14,0,0,0">
