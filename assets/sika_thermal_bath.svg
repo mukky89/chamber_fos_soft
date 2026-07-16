@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="560" viewBox="0 0 360 560" fill="none" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <linearGradient id="redBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ef4d4a"/>
+      <stop offset="0.45" stop-color="#d92f30"/>
+      <stop offset="1" stop-color="#a81c26"/>
+    </linearGradient>
+    <linearGradient id="blackPanel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2b30"/>
+      <stop offset="1" stop-color="#121215"/>
+    </linearGradient>
+    <linearGradient id="topCap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a40"/>
+      <stop offset="1" stop-color="#17171a"/>
+    </linearGradient>
+    <linearGradient id="screenBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16202b"/>
+      <stop offset="1" stop-color="#0a1016"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2f3f6"/>
+      <stop offset="0.5" stop-color="#c6cad2"/>
+      <stop offset="1" stop-color="#9aa0ac"/>
+    </linearGradient>
+    <radialGradient id="screenGlow" cx="0.5" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#1d2c3c"/>
+      <stop offset="1" stop-color="#0a1016"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ground shadow -->
+  <ellipse cx="180" cy="518" rx="138" ry="14" fill="#000" opacity="0.15"/>
+
+  <!-- carrying handle -->
+  <path d="M118 100 L118 46 Q118 30 134 30 L226 30 Q242 30 242 46 L242 100"
+        stroke="#141417" stroke-width="18" stroke-linecap="round"/>
+  <path d="M118 100 L118 46 Q118 30 134 30 L226 30 Q242 30 242 46 L242 100"
+        stroke="#2e2e34" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- bent reference probe sticking out of the top well -->
+  <path d="M212 102 C212 74 206 60 192 56 C182 53 174 58 172 66"
+        stroke="#c9ccd3" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="172" cy="66" r="3" fill="#c9ccd3"/>
+  <rect x="205" y="92" width="14" height="12" rx="3" fill="#7d828c"/>
+
+  <!-- black top cap -->
+  <rect x="60" y="98" width="240" height="46" rx="10" fill="url(#topCap)" stroke="#0c0c0e" stroke-width="1.5"/>
+  <!-- calibration well opening -->
+  <ellipse cx="212" cy="112" rx="13" ry="6" fill="#08080a" stroke="#4a4a52" stroke-width="1.5"/>
+  <!-- SIKA badge on the top cap -->
+  <rect x="146" y="122" width="68" height="15" rx="2.5" fill="url(#steel)" stroke="#6d727c" stroke-width="1"/>
+  <text x="180" y="133.5" text-anchor="middle" font-size="11" font-weight="bold" letter-spacing="3" fill="#17171a">SIKA</text>
+
+  <!-- red cabinet (slightly wider at the bottom, like the real unit) -->
+  <path d="M80 142 L280 142 Q294 142 295 156 L306 484 Q306 500 290 500 L70 500 Q54 500 54 484 L65 156 Q66 142 80 142 Z"
+        fill="url(#redBody)" stroke="#7e121c" stroke-width="1.5"/>
+  <!-- glossy highlight on the left red edge -->
+  <path d="M78 156 L72 480" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity="0.16"/>
+
+  <!-- black front panel: full width around the screen, tapering below -->
+  <path d="M88 150 L272 150 Q284 150 284 162 L284 320 L242 496 L118 496 L76 320 L76 162 Q76 150 88 150 Z"
+        fill="url(#blackPanel)" stroke="#0b0b0d" stroke-width="1.5"/>
+
+  <!-- ===== touchscreen with live temperature chart ===== -->
+  <rect x="88" y="168" width="184" height="140" rx="7" fill="url(#screenGlow)" stroke="#04070a" stroke-width="2"/>
+  <!-- title bar -->
+  <rect x="88" y="168" width="184" height="17" rx="7" fill="#1c2836"/>
+  <rect x="88" y="178" width="184" height="7" fill="#1c2836"/>
+  <text x="96" y="180" font-size="7" fill="#7d93a8">sika_program.wgd</text>
+  <text x="252" y="180.5" text-anchor="end" font-size="8.5" font-weight="bold" fill="#eaf4fb">25.463 °C</text>
+  <circle cx="262" cy="176.5" r="4.5" fill="#233242" stroke="#3c4f63" stroke-width="1"/>
+  <text x="262" y="179" text-anchor="middle" font-size="6.5" fill="#9fb4c7">✕</text>
+
+  <!-- chart grid -->
+  <g stroke="#25384b" stroke-width="0.8">
+    <line x1="100" y1="196" x2="100" y2="288"/>
+    <line x1="131" y1="196" x2="131" y2="288"/>
+    <line x1="162" y1="196" x2="162" y2="288"/>
+    <line x1="193" y1="196" x2="193" y2="288"/>
+    <line x1="224" y1="196" x2="224" y2="288"/>
+    <line x1="100" y1="196" x2="248" y2="196"/>
+    <line x1="100" y1="219" x2="248" y2="219"/>
+    <line x1="100" y1="242" x2="248" y2="242"/>
+    <line x1="100" y1="265" x2="248" y2="265"/>
+    <line x1="100" y1="288" x2="248" y2="288"/>
+  </g>
+  <!-- y-axis tick labels (suggested) -->
+  <g fill="#4d6377" font-size="5">
+    <text x="97" y="198" text-anchor="end">30</text>
+    <text x="97" y="244" text-anchor="end">25</text>
+    <text x="97" y="290" text-anchor="end">20</text>
+  </g>
+  <!-- temperature trace -->
+  <path d="M100 250 L118 246 C130 243 138 241 150 240.5 L190 240 L248 240"
+        stroke="#59d9b0" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="248" cy="240" r="2.5" fill="#59d9b0"/>
+
+  <!-- side buttons of the SIKA UI -->
+  <g>
+    <circle cx="261" cy="206" r="6.5" fill="#2b3a4b" stroke="#44586d" stroke-width="1"/>
+    <text x="261" y="208.5" text-anchor="middle" font-size="5" fill="#a9bccd">off</text>
+    <circle cx="261" cy="224" r="6.5" fill="#2b3a4b" stroke="#44586d" stroke-width="1"/>
+    <text x="261" y="226.5" text-anchor="middle" font-size="5" fill="#a9bccd">▶</text>
+    <circle cx="261" cy="242" r="6.5" fill="#2b3a4b" stroke="#44586d" stroke-width="1"/>
+    <text x="261" y="244.5" text-anchor="middle" font-size="5" fill="#a9bccd">DB</text>
+  </g>
+  <!-- bottom bar -->
+  <rect x="230" y="294" width="18" height="9" rx="2" fill="#233242"/>
+  <rect x="251" y="294" width="18" height="9" rx="2" fill="#233242"/>
+  <text x="212" y="301.5" text-anchor="end" font-size="6" fill="#7d93a8">auto scale</text>
+
+  <!-- ===== connector + cable ===== -->
+  <circle cx="146" cy="420" r="11" fill="url(#steel)" stroke="#6d727c" stroke-width="1.5"/>
+  <g stroke="#7d828c" stroke-width="1">
+    <line x1="137" y1="414" x2="140" y2="417"/>
+    <line x1="146" y1="409" x2="146" y2="413"/>
+    <line x1="155" y1="414" x2="152" y2="417"/>
+  </g>
+  <circle cx="146" cy="420" r="5" fill="#1a1a1e"/>
+  <path d="M146 430 C146 462 140 486 142 540" stroke="#0e0e11" stroke-width="9" stroke-linecap="round"/>
+  <path d="M146 430 C146 462 140 486 142 540" stroke="#2c2c32" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- ===== USB ports ===== -->
+  <g>
+    <rect x="192" y="414" width="16" height="7" rx="1" fill="#0b0b0d" stroke="#3c3c44" stroke-width="1"/>
+    <rect x="212" y="414" width="16" height="7" rx="1" fill="#0b0b0d" stroke="#3c3c44" stroke-width="1"/>
+    <rect x="195" y="416" width="10" height="3" fill="#2e2e36"/>
+    <rect x="215" y="416" width="10" height="3" fill="#2e2e36"/>
+  </g>
+
+  <!-- ===== power switch + fuse label ===== -->
+  <text x="166" y="462" text-anchor="end" font-size="5.5" fill="#b9bcc4">2x T6.3AH</text>
+  <text x="166" y="469" text-anchor="end" font-size="5.5" fill="#b9bcc4">250V</text>
+  <rect x="172" y="448" width="28" height="36" rx="3" fill="#0b0b0d" stroke="#3c3c44" stroke-width="1.5"/>
+  <rect x="177" y="453" width="18" height="26" rx="2" fill="#1d1d22"/>
+  <text x="186" y="463" text-anchor="middle" font-size="8" font-weight="bold" fill="#d4d7dd">I</text>
+  <circle cx="186" cy="471" r="3" stroke="#d4d7dd" stroke-width="1.4" fill="none"/>
+
+  <!-- feet -->
+  <rect x="70" y="500" width="22" height="13" rx="5" fill="#141417"/>
+  <rect x="268" y="500" width="22" height="13" rx="5" fill="#141417"/>
+</svg>

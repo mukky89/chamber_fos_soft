@@ -1,25 +1,26 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Media.Animation;
 
 namespace VotschVc3.App.Views;
 
 /// <summary>
-/// Scalable vector graphic of a SIKA TP Premium calibration bath / dry block:
-/// a red cabinet with the top cooling-fan grille, a small touchscreen showing
-/// the current reference temperature, and the "ext. Ref." connector / I/O
-/// panel from the real unit. When <see cref="IsRunning"/> is <c>false</c> the
-/// cabinet is washed dark and the fan stops spinning, mirroring the idle look
-/// of <see cref="PolEkoGraphic"/>.
+/// Scalable vector graphic of the SIKA TP Premium dry-block calibrator drawn
+/// after the real unit: red cabinet with a black front panel, carrying handle,
+/// a bent reference probe in the top calibration well, and the touchscreen
+/// showing the live reference temperature over a trend chart. While
+/// <see cref="IsRunning"/> is <c>true</c> the trace endpoint pulses; when
+/// <c>false</c> the cabinet is washed dark, mirroring the idle look of
+/// <see cref="PolEkoGraphic"/>.
 /// </summary>
 public partial class SikaThermalBathGraphic : UserControl
 {
-    private readonly DoubleAnimation _fanSpin = new()
+    private readonly DoubleAnimation _tracePulse = new()
     {
-        From = 0,
-        To = 360,
-        Duration = new Duration(TimeSpan.FromSeconds(1.6)),
+        From = 1.0,
+        To = 0.2,
+        Duration = new Duration(TimeSpan.FromSeconds(0.9)),
+        AutoReverse = true,
         RepeatBehavior = RepeatBehavior.Forever,
     };
 
@@ -33,7 +34,7 @@ public partial class SikaThermalBathGraphic : UserControl
         nameof(TitleText), typeof(string), typeof(SikaThermalBathGraphic),
         new PropertyMetadata("SIKA TP"));
 
-    /// <summary>Model label shown under the reading.</summary>
+    /// <summary>Model label shown in the touchscreen title bar.</summary>
     public string TitleText
     {
         get => (string)GetValue(TitleTextProperty);
@@ -55,7 +56,7 @@ public partial class SikaThermalBathGraphic : UserControl
         nameof(IsRunning), typeof(bool), typeof(SikaThermalBathGraphic),
         new PropertyMetadata(true, OnIsRunningChanged));
 
-    /// <summary>When <c>false</c> the bath is greyed out and the fan stops.</summary>
+    /// <summary>When <c>false</c> the bath is greyed out and the trace pulse stops.</summary>
     public bool IsRunning
     {
         get => (bool)GetValue(IsRunningProperty);
@@ -77,12 +78,13 @@ public partial class SikaThermalBathGraphic : UserControl
 
         if (IsRunning)
         {
-            FanRotate.BeginAnimation(RotateTransform.AngleProperty, _fanSpin);
+            TraceDot.BeginAnimation(OpacityProperty, _tracePulse);
         }
         else
         {
-            // Remove the animation and hold the current angle so the fan visibly stops.
-            FanRotate.BeginAnimation(RotateTransform.AngleProperty, null);
+            // Remove the animation and hold full opacity so the dot visibly freezes.
+            TraceDot.BeginAnimation(OpacityProperty, null);
+            TraceDot.Opacity = 1.0;
         }
     }
 }

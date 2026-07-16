@@ -57,7 +57,8 @@ Samostatný vektorový obrázok komory je aj v [`assets/chamber.svg`](assets/cha
 ```
 VotschVc3.sln
 ├─ assets/
-│  └─ chamber.svg               ← samostatná SVG grafika komory (rotujúci ventilátor)
+│  ├─ chamber.svg               ← samostatná SVG grafika komory (rotujúci ventilátor)
+│  └─ sika_thermal_bath.svg     ← samostatná SVG grafika SIKA TP kalibrátora
 ├─ src/
 │  ├─ VotschVc3.Core/           ← jadro, platform-nezávislé (net8.0), testovateľné
 │  │  ├─ Protocol/              Ascii2Protocol, ChamberReading, DigitalChannels
