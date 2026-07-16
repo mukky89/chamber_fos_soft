@@ -4,6 +4,28 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.16.0] – 2026-07-16
+
+### Pridané
+- **Časová os zariadení (Gantt) na vrchu hlavného prehľadu:** riadok pre každé
+  zariadenie s pruhom od štartu bežiaceho profilu po jeho odhadovaný koniec
+  (odložený štart sa kreslí ako priesvitný plánovaný pruh). Zariadenie zapnuté
+  **manuálne bez profilu** má otvorený pruh s **∞** – beží „do nekonečna",
+  kým sa nevypne. Čiarkovaná zvislá čiara ukazuje „teraz", os sa
+  automaticky prispôsobuje rozsahu časov.
+- **Rad profilov na karte zariadenia:** až **3 uložené profily** sa dajú
+  pridať do radu a spustiť za sebou – po skončení jedného sa hneď spustí
+  ďalší. Karta ukazuje poradie, celkové trvanie radu a stav `x/3`; časová os
+  zobrazuje celý rad ako jeden pruh od–do.
+
+### Zmenené
+- **SIKA TP Premium má novú grafiku podľa fotky reálneho prístroja:**
+  červené telo s čiernym predným panelom, rukoväť, ohnutá referenčná sonda
+  v kalibračnej šachte, dotykový displej s trendovým grafom a živou teplotou,
+  konektor s káblom, USB porty a kolískový vypínač s poistkovým štítkom.
+  Počas behu pulzuje koncový bod krivky na displeji; v pokoji je prístroj
+  stmavený. SVG verzia je v `assets/sika_thermal_bath.svg`.
+
 ## [1.15.0] – 2026-07-15
 
 ### Pridané

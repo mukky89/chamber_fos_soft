@@ -3,143 +3,168 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Name="Root">
     <Viewbox Stretch="Uniform">
-        <Canvas Width="260" Height="320">
+        <Canvas Width="360" Height="560">
 
-            <!-- ===== Shadow ===== -->
-            <Ellipse Canvas.Left="30" Canvas.Top="286" Width="200" Height="22" Fill="#24000000" />
+            <!-- ===== Ground shadow ===== -->
+            <Ellipse Canvas.Left="42" Canvas.Top="504" Width="276" Height="28" Fill="#26000000" />
 
-            <!-- ===== Feet ===== -->
-            <Rectangle Canvas.Left="46" Canvas.Top="278" Width="12" Height="10" RadiusX="2" RadiusY="2" Fill="#26262A" />
-            <Rectangle Canvas.Left="202" Canvas.Top="278" Width="12" Height="10" RadiusX="2" RadiusY="2" Fill="#26262A" />
+            <!-- ===== Carrying handle ===== -->
+            <Path Stroke="#141417" StrokeThickness="18" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  Data="M118,100 L118,46 Q118,30 134,30 L226,30 Q242,30 242,46 L242,100" />
+            <Path Stroke="#2E2E34" StrokeThickness="12" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  Data="M118,100 L118,46 Q118,30 134,30 L226,30 Q242,30 242,46 L242,100" />
 
-            <!-- ===== Heating-coil tubes (protrude above the body) ===== -->
-            <Path Stroke="#8A2E14" StrokeThickness="9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="{x:Null}">
-                <Path.Data>
-                    <PathGeometry>
-                        <PathFigure StartPoint="86,70" IsClosed="False">
-                            <LineSegment Point="86,26" />
-                            <ArcSegment Point="112,26" Size="13,13" SweepDirection="Clockwise" />
-                            <LineSegment Point="112,70" />
-                        </PathFigure>
-                    </PathGeometry>
-                </Path.Data>
-            </Path>
-            <Path Stroke="#B5401E" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="{x:Null}">
-                <Path.Data>
-                    <PathGeometry>
-                        <PathFigure StartPoint="86,70" IsClosed="False">
-                            <LineSegment Point="86,26" />
-                            <ArcSegment Point="112,26" Size="13,13" SweepDirection="Clockwise" />
-                            <LineSegment Point="112,70" />
-                        </PathFigure>
-                    </PathGeometry>
-                </Path.Data>
-            </Path>
-            <Path Stroke="#8A2E14" StrokeThickness="9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="{x:Null}">
-                <Path.Data>
-                    <PathGeometry>
-                        <PathFigure StartPoint="140,70" IsClosed="False">
-                            <LineSegment Point="140,32" />
-                            <ArcSegment Point="164,32" Size="12,12" SweepDirection="Clockwise" />
-                            <LineSegment Point="164,70" />
-                        </PathFigure>
-                    </PathGeometry>
-                </Path.Data>
-            </Path>
-            <Path Stroke="#B5401E" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="{x:Null}">
-                <Path.Data>
-                    <PathGeometry>
-                        <PathFigure StartPoint="140,70" IsClosed="False">
-                            <LineSegment Point="140,32" />
-                            <ArcSegment Point="164,32" Size="12,12" SweepDirection="Clockwise" />
-                            <LineSegment Point="164,70" />
-                        </PathFigure>
-                    </PathGeometry>
-                </Path.Data>
-            </Path>
+            <!-- ===== Bent reference probe sticking out of the calibration well ===== -->
+            <Path Stroke="#C9CCD3" StrokeThickness="4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  Data="M212,102 C212,74 206,60 192,56 C182,53 174,58 172,66" />
+            <Ellipse Canvas.Left="169" Canvas.Top="63" Width="6" Height="6" Fill="#C9CCD3" />
+            <Rectangle Canvas.Left="205" Canvas.Top="92" Width="14" Height="12" RadiusX="3" RadiusY="3" Fill="#7D828C" />
 
-            <!-- ===== Body (red cabinet) ===== -->
-            <Rectangle Canvas.Left="30" Canvas.Top="70" Width="200" Height="216" RadiusX="20" RadiusY="20"
-                       Stroke="#8E1420" StrokeThickness="1.5">
-                <Rectangle.Fill>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#EA4646" Offset="0" />
-                        <GradientStop Color="#D9302F" Offset="0.5" />
-                        <GradientStop Color="#B81F28" Offset="1" />
-                    </LinearGradientBrush>
-                </Rectangle.Fill>
-            </Rectangle>
-            <!-- Body highlight -->
-            <Rectangle Canvas.Left="40" Canvas.Top="80" Width="8" Height="196" RadiusX="4" RadiusY="4"
-                       Fill="#FFFFFF" Opacity="0.16" />
-
-            <!-- ===== Screen ===== -->
-            <Rectangle Canvas.Left="54" Canvas.Top="90" Width="152" Height="60" RadiusX="7" RadiusY="7"
+            <!-- ===== Black top cap with the well and SIKA badge ===== -->
+            <Rectangle Canvas.Left="60" Canvas.Top="98" Width="240" Height="46" RadiusX="10" RadiusY="10"
                        Stroke="#0C0C0E" StrokeThickness="1.5">
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#22262E" Offset="0" />
-                        <GradientStop Color="#0A0C10" Offset="1" />
+                        <GradientStop Color="#3A3A40" Offset="0" />
+                        <GradientStop Color="#17171A" Offset="1" />
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
-            <TextBlock Canvas.Left="54" Canvas.Top="98" Width="152" TextAlignment="Center"
-                       Text="{Binding TitleText, ElementName=Root}"
-                       FontFamily="Segoe UI Semibold" FontSize="9" Foreground="#E6A6A6" />
-            <Ellipse x:Name="RunDot" Canvas.Left="188" Canvas.Top="99" Width="6" Height="6" Fill="#4FD6C4" />
-            <TextBlock Canvas.Left="54" Canvas.Top="114" Width="152" TextAlignment="Center"
-                       FontFamily="Consolas" FontSize="22" FontWeight="Bold" Foreground="#F5FAFF">
+            <Ellipse Canvas.Left="199" Canvas.Top="106" Width="26" Height="12" Fill="#08080A"
+                     Stroke="#4A4A52" StrokeThickness="1.5" />
+            <Rectangle Canvas.Left="146" Canvas.Top="122" Width="68" Height="15" RadiusX="2.5" RadiusY="2.5"
+                       Stroke="#6D727C" StrokeThickness="1">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#F2F3F6" Offset="0" />
+                        <GradientStop Color="#C6CAD2" Offset="0.5" />
+                        <GradientStop Color="#9AA0AC" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <TextBlock Canvas.Left="146" Canvas.Top="123" Width="68" TextAlignment="Center"
+                       Text="S I K A" FontFamily="Segoe UI" FontWeight="Bold" FontSize="10" Foreground="#17171A" />
+
+            <!-- ===== Red cabinet (slightly wider at the bottom, like the real unit) ===== -->
+            <Path Stroke="#7E121C" StrokeThickness="1.5"
+                  Data="M80,142 L280,142 Q294,142 295,156 L306,484 Q306,500 290,500 L70,500 Q54,500 54,484 L65,156 Q66,142 80,142 Z">
+                <Path.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#EF4D4A" Offset="0" />
+                        <GradientStop Color="#D92F30" Offset="0.45" />
+                        <GradientStop Color="#A81C26" Offset="1" />
+                    </LinearGradientBrush>
+                </Path.Fill>
+            </Path>
+            <Path Stroke="#FFFFFF" StrokeThickness="7" Opacity="0.16"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M78,156 L72,480" />
+
+            <!-- ===== Black front panel: full width around the screen, tapering below ===== -->
+            <Path Stroke="#0B0B0D" StrokeThickness="1.5"
+                  Data="M88,150 L272,150 Q284,150 284,162 L284,320 L242,496 L118,496 L76,320 L76,162 Q76,150 88,150 Z">
+                <Path.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#2B2B30" Offset="0" />
+                        <GradientStop Color="#121215" Offset="1" />
+                    </LinearGradientBrush>
+                </Path.Fill>
+            </Path>
+
+            <!-- ===== Touchscreen with the live temperature chart ===== -->
+            <Rectangle Canvas.Left="88" Canvas.Top="168" Width="184" Height="140" RadiusX="7" RadiusY="7"
+                       Stroke="#04070A" StrokeThickness="2">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#1D2C3C" Offset="0" />
+                        <GradientStop Color="#0A1016" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <!-- Title bar -->
+            <Rectangle Canvas.Left="88" Canvas.Top="168" Width="184" Height="17" RadiusX="7" RadiusY="7" Fill="#1C2836" />
+            <Rectangle Canvas.Left="88" Canvas.Top="178" Width="184" Height="7" Fill="#1C2836" />
+            <TextBlock Canvas.Left="96" Canvas.Top="171" FontFamily="Segoe UI" FontSize="8" Foreground="#7D93A8"
+                       Text="{Binding TitleText, ElementName=Root}" />
+            <Ellipse x:Name="RunDot" Canvas.Left="258" Canvas.Top="173" Width="7" Height="7" Fill="#4FD6C4" />
+
+            <!-- Chart grid -->
+            <Line X1="100" Y1="196" X2="100" Y2="288" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="137" Y1="196" X2="137" Y2="288" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="174" Y1="196" X2="174" Y2="288" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="211" Y1="196" X2="211" Y2="288" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="248" Y1="196" X2="248" Y2="288" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="100" Y1="196" X2="248" Y2="196" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="100" Y1="219" X2="248" Y2="219" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="100" Y1="242" X2="248" Y2="242" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="100" Y1="265" X2="248" Y2="265" Stroke="#25384B" StrokeThickness="0.8" />
+            <Line X1="100" Y1="288" X2="248" Y2="288" Stroke="#25384B" StrokeThickness="0.8" />
+
+            <!-- Big temperature readout (the value the operator must see from afar) -->
+            <TextBlock Canvas.Left="88" Canvas.Top="198" Width="164" TextAlignment="Center"
+                       FontFamily="Consolas" FontSize="28" FontWeight="Bold" Foreground="#F5FAFF">
                 <Run Text="{Binding TemperatureText, ElementName=Root, Mode=OneWay}" /><Run Text=" °C" />
             </TextBlock>
 
-            <!-- ===== Fan (front-facing, spins while running) ===== -->
-            <Ellipse Canvas.Left="70" Canvas.Top="176" Width="80" Height="80" Fill="#F2F3F5" Stroke="#C7CBD3" StrokeThickness="2" />
-            <Ellipse Canvas.Left="78" Canvas.Top="184" Width="64" Height="64" Fill="#E7E9ED" Stroke="#B9BEC8" StrokeThickness="1.5" />
+            <!-- Temperature trace -->
+            <Path Stroke="#59D9B0" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  Data="M100,262 L124,258 C138,255 146,254 158,253.5 L200,253 L248,253" />
+            <Ellipse x:Name="TraceDot" Canvas.Left="244" Canvas.Top="249" Width="8" Height="8" Fill="#59D9B0" />
 
-            <Canvas x:Name="FanGroup">
-                <Canvas.RenderTransform>
-                    <RotateTransform x:Name="FanRotate" CenterX="110" CenterY="216" />
-                </Canvas.RenderTransform>
-                <Ellipse Canvas.Left="86" Canvas.Top="211" Width="48" Height="10" Fill="#8A90A0" Opacity="0.85" />
-                <Ellipse Canvas.Left="86" Canvas.Top="211" Width="48" Height="10" Fill="#8A90A0" Opacity="0.85">
-                    <Ellipse.RenderTransform>
-                        <RotateTransform Angle="60" CenterX="24" CenterY="5" />
-                    </Ellipse.RenderTransform>
-                </Ellipse>
-                <Ellipse Canvas.Left="86" Canvas.Top="211" Width="48" Height="10" Fill="#8A90A0" Opacity="0.85">
-                    <Ellipse.RenderTransform>
-                        <RotateTransform Angle="120" CenterX="24" CenterY="5" />
-                    </Ellipse.RenderTransform>
-                </Ellipse>
-                <Ellipse Canvas.Left="86" Canvas.Top="211" Width="48" Height="10" Fill="#8A90A0" Opacity="0.85">
-                    <Ellipse.RenderTransform>
-                        <RotateTransform Angle="180" CenterX="24" CenterY="5" />
-                    </Ellipse.RenderTransform>
-                </Ellipse>
-                <Ellipse Canvas.Left="86" Canvas.Top="211" Width="48" Height="10" Fill="#8A90A0" Opacity="0.85">
-                    <Ellipse.RenderTransform>
-                        <RotateTransform Angle="240" CenterX="24" CenterY="5" />
-                    </Ellipse.RenderTransform>
-                </Ellipse>
-                <Ellipse Canvas.Left="86" Canvas.Top="211" Width="48" Height="10" Fill="#8A90A0" Opacity="0.85">
-                    <Ellipse.RenderTransform>
-                        <RotateTransform Angle="300" CenterX="24" CenterY="5" />
-                    </Ellipse.RenderTransform>
-                </Ellipse>
-            </Canvas>
+            <!-- SIKA UI side buttons -->
+            <Ellipse Canvas.Left="254" Canvas.Top="199" Width="13" Height="13" Fill="#2B3A4B" Stroke="#44586D" StrokeThickness="1" />
+            <Ellipse Canvas.Left="254" Canvas.Top="217" Width="13" Height="13" Fill="#2B3A4B" Stroke="#44586D" StrokeThickness="1" />
+            <Ellipse Canvas.Left="254" Canvas.Top="235" Width="13" Height="13" Fill="#2B3A4B" Stroke="#44586D" StrokeThickness="1" />
 
-            <!-- Grille ribs on top of the blades -->
-            <Line X1="76" Y1="216" X2="144" Y2="216" Stroke="#9AA0AC" StrokeThickness="1.6" Opacity="0.9" />
-            <Line X1="83" Y1="192" X2="137" Y2="240" Stroke="#9AA0AC" StrokeThickness="1.4" Opacity="0.75" />
-            <Line X1="137" Y1="192" X2="83" Y2="240" Stroke="#9AA0AC" StrokeThickness="1.4" Opacity="0.75" />
-            <!-- Hub -->
-            <Ellipse Canvas.Left="102" Canvas.Top="208" Width="16" Height="16" Fill="#DADDE2" Stroke="#8B909C" StrokeThickness="1.5" />
-            <Ellipse Canvas.Left="107" Canvas.Top="213" Width="6" Height="6" Fill="#C0202A" />
+            <!-- Bottom bar of the SIKA UI -->
+            <Rectangle Canvas.Left="230" Canvas.Top="294" Width="18" Height="9" RadiusX="2" RadiusY="2" Fill="#233242" />
+            <Rectangle Canvas.Left="251" Canvas.Top="294" Width="18" Height="9" RadiusX="2" RadiusY="2" Fill="#233242" />
+            <TextBlock Canvas.Left="152" Canvas.Top="295" Width="60" TextAlignment="Right"
+                       FontFamily="Segoe UI" FontSize="6" Foreground="#7D93A8" Text="auto scale" />
 
-            <!-- ===== Idle veil ===== -->
-            <Rectangle x:Name="IdleVeil" Canvas.Left="30" Canvas.Top="70" Width="200" Height="216"
-                       RadiusX="20" RadiusY="20" Fill="#5A0E12" Opacity="0.55"
-                       IsHitTestVisible="False" Visibility="Collapsed" />
+            <!-- ===== Connector + cable ===== -->
+            <Ellipse Canvas.Left="135" Canvas.Top="409" Width="22" Height="22" Stroke="#6D727C" StrokeThickness="1.5">
+                <Ellipse.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#F2F3F6" Offset="0" />
+                        <GradientStop Color="#C6CAD2" Offset="0.5" />
+                        <GradientStop Color="#9AA0AC" Offset="1" />
+                    </LinearGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <Ellipse Canvas.Left="141" Canvas.Top="415" Width="10" Height="10" Fill="#1A1A1E" />
+            <Path Stroke="#0E0E11" StrokeThickness="9" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  Data="M146,430 C146,462 140,486 142,540" />
+            <Path Stroke="#2C2C32" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  Data="M146,430 C146,462 140,486 142,540" />
+
+            <!-- ===== USB ports ===== -->
+            <Rectangle Canvas.Left="192" Canvas.Top="414" Width="16" Height="7" RadiusX="1" RadiusY="1"
+                       Fill="#0B0B0D" Stroke="#3C3C44" StrokeThickness="1" />
+            <Rectangle Canvas.Left="212" Canvas.Top="414" Width="16" Height="7" RadiusX="1" RadiusY="1"
+                       Fill="#0B0B0D" Stroke="#3C3C44" StrokeThickness="1" />
+            <Rectangle Canvas.Left="195" Canvas.Top="416" Width="10" Height="3" Fill="#2E2E36" />
+            <Rectangle Canvas.Left="215" Canvas.Top="416" Width="10" Height="3" Fill="#2E2E36" />
+
+            <!-- ===== Fuse label + power switch ===== -->
+            <TextBlock Canvas.Left="120" Canvas.Top="452" Width="46" TextAlignment="Right"
+                       FontFamily="Segoe UI" FontSize="6" Foreground="#B9BCC4">
+                <Run Text="2x T6.3AH" /><LineBreak /><Run Text="250V" />
+            </TextBlock>
+            <Rectangle Canvas.Left="172" Canvas.Top="448" Width="28" Height="36" RadiusX="3" RadiusY="3"
+                       Fill="#0B0B0D" Stroke="#3C3C44" StrokeThickness="1.5" />
+            <Rectangle Canvas.Left="177" Canvas.Top="453" Width="18" Height="26" RadiusX="2" RadiusY="2" Fill="#1D1D22" />
+            <TextBlock Canvas.Left="177" Canvas.Top="455" Width="18" TextAlignment="Center"
+                       FontFamily="Segoe UI" FontWeight="Bold" FontSize="8" Foreground="#D4D7DD" Text="I" />
+            <Ellipse Canvas.Left="183" Canvas.Top="468" Width="6" Height="6"
+                     Stroke="#D4D7DD" StrokeThickness="1.4" Fill="{x:Null}" />
+
+            <!-- ===== Feet ===== -->
+            <Rectangle Canvas.Left="70" Canvas.Top="500" Width="22" Height="13" RadiusX="5" RadiusY="5" Fill="#141417" />
+            <Rectangle Canvas.Left="268" Canvas.Top="500" Width="22" Height="13" RadiusX="5" RadiusY="5" Fill="#141417" />
+
+            <!-- ===== Idle veil (device switched off) ===== -->
+            <Path x:Name="IdleVeil" Fill="#5A0E12" Opacity="0.55" IsHitTestVisible="False" Visibility="Collapsed"
+                  Data="M80,142 L280,142 Q294,142 295,156 L306,484 Q306,500 290,500 L70,500 Q54,500 54,484 L65,156 Q66,142 80,142 Z" />
         </Canvas>
     </Viewbox>
 </UserControl>

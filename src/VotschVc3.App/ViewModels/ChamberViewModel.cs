@@ -87,6 +87,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
         RemoveFromQueueCommand = new RelayCommand(RemoveFromQueue, () => SelectedQueueItem is not null);
         ClearQueueCommand = new RelayCommand(() => { Queue.Clear(); RefreshQueueCommands(); });
+        AddToChainCommand = new RelayCommand(AddToChain,
+            () => SelectedHistoryProfile is not null && ProfileChain.Count < MaxChainedProfiles);
+        RemoveFromChainCommand = new RelayCommand<TestProfile>(RemoveFromChain, p => p is not null);
+        ClearChainCommand = new RelayCommand(() => ProfileChain.Clear(), () => ProfileChain.Count > 0);
+        StartChainCommand = new AsyncRelayCommand(StartChainAsync,
+            () => IsConnected && IsControlAllowed && !IsProfileRunning && ProfileChain.Count > 0, ReportError);
+        ProfileChain.CollectionChanged += (_, _) => OnChainChanged();
         AddSegmentCommand = new RelayCommand(AddSegment);
         AddSegmentBeforeCommand = new RelayCommand(() => InsertSegment(0), () => SelectedSegment is not null);
         AddSegmentAfterCommand = new RelayCommand(() => InsertSegment(1), () => SelectedSegment is not null);
@@ -1027,6 +1034,18 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private void RaiseActivity()
     {
+        // Track when the device became active, so the dashboard timeline (Gantt)
+        // can anchor the start of a manual-run bar.
+        if (IsActive)
+        {
+            _activeSince ??= DateTime.Now;
+        }
+        else
+        {
+            _activeSince = null;
+        }
+
+        OnPropertyChanged(nameof(ActiveSince));
         OnPropertyChanged(nameof(IsActive));
         OnPropertyChanged(nameof(StateLabel));
         OnPropertyChanged(nameof(ActivityLabel));
@@ -1047,6 +1066,31 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>True while a control mode (profile or manual) is active — drives the badge visibility.</summary>
     public bool HasControlMode => !string.IsNullOrEmpty(ControlModeBadge);
+
+    // ---- Dashboard timeline (Gantt) anchors ----
+
+    private DateTime? _activeSince;
+
+    /// <summary>When the app first observed the device active (profile or manual).
+    /// Start of a manual-run bar on the dashboard timeline; <c>null</c> while idle.</summary>
+    public DateTime? ActiveSince => _activeSince;
+
+    /// <summary>Actual start of the running profile / profile chain (dashboard timeline).</summary>
+    public DateTime? ProfileRunStart => _profileActualStart;
+
+    /// <summary>Estimated end of the running profile / profile chain (dashboard timeline).</summary>
+    public DateTime? ProfileRunEnd => _profileEstimatedEnd;
+
+    /// <summary>Planned duration of the editor profile incl. cycles — anchors the
+    /// timeline bar while a delayed start is still waiting for its scheduled time.</summary>
+    public TimeSpan PlannedProfileDuration =>
+        TimeSpan.FromMinutes(Segments.Sum(s => s.DurationMinutes) * Math.Max(1, Cycles));
+
+    private void RaiseGanttTimes()
+    {
+        OnPropertyChanged(nameof(ProfileRunStart));
+        OnPropertyChanged(nameof(ProfileRunEnd));
+    }
 
     private void StartCountdown()
     {
@@ -1195,6 +1239,71 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         RemoveFromQueueCommand.RaiseCanExecuteChanged();
     }
 
+    // ---- Rad profilov na dashboarde: max 3 uložené profily spustené za sebou ----
+
+    /// <summary>Maximum profiles that can be chained back-to-back from the dashboard.</summary>
+    public const int MaxChainedProfiles = 3;
+
+    /// <summary>Saved profiles queued on the dashboard card to run back-to-back, in order.</summary>
+    public ObservableCollection<TestProfile> ProfileChain { get; } = new();
+
+    /// <summary>True when at least one profile is in the dashboard chain.</summary>
+    public bool HasChainedProfiles => ProfileChain.Count > 0;
+
+    /// <summary>"1/3" fill indicator of the dashboard chain.</summary>
+    public string ChainCountText => $"{ProfileChain.Count}/{MaxChainedProfiles}";
+
+    /// <summary>Total duration of all chained profiles (incl. cycles).</summary>
+    public string ChainDurationText =>
+        "Spolu " + FormatDuration(TimeSpan.FromTicks(ProfileChain.Sum(p => p.TotalDuration.Ticks)));
+
+    public RelayCommand AddToChainCommand { get; }
+    public RelayCommand<TestProfile> RemoveFromChainCommand { get; }
+    public RelayCommand ClearChainCommand { get; }
+    public AsyncRelayCommand StartChainCommand { get; }
+
+    private void AddToChain()
+    {
+        if (SelectedHistoryProfile is not { } profile)
+        {
+            return;
+        }
+
+        if (ProfileChain.Count >= MaxChainedProfiles)
+        {
+            ShowActionInfo($"Rad je plný – maximálne {MaxChainedProfiles} profily za sebou.");
+            return;
+        }
+
+        ProfileChain.Add(profile);
+    }
+
+    private void RemoveFromChain(TestProfile? profile)
+    {
+        if (profile is not null)
+        {
+            ProfileChain.Remove(profile);
+        }
+    }
+
+    private void OnChainChanged()
+    {
+        OnPropertyChanged(nameof(HasChainedProfiles));
+        OnPropertyChanged(nameof(ChainCountText));
+        OnPropertyChanged(nameof(ChainDurationText));
+        AddToChainCommand.RaiseCanExecuteChanged();
+        ClearChainCommand.RaiseCanExecuteChanged();
+        StartChainCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>Runs the dashboard chain (1–3 profiles back-to-back) and empties it afterwards.</summary>
+    private async Task StartChainAsync()
+    {
+        List<TestProfile> profiles = ProfileChain.ToList();
+        await RunSequenceAsync(profiles);
+        ProfileChain.Clear();
+    }
+
     private void SeedDefaultProfile()
     {
         if (SupportsHumidity)
@@ -1308,12 +1417,20 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
             _profileActualStart = DateTime.Now;
             _profileEstimatedEnd = DateTime.Now + TimeSpan.FromTicks(profiles.Sum(p => p.TotalDuration.Ticks));
+            RaiseGanttTimes();
             StartCountdown();
             RecalculateTiming();
 
             for (int i = 0; i < profiles.Count; i++)
             {
                 TestProfile profile = profiles[i];
+                if (profiles.Count > 1)
+                {
+                    // Load the chained profile into the editor so the preview chart,
+                    // name and "now" marker follow the profile that actually runs.
+                    ApplyProfile(profile);
+                }
+
                 ShowActionInfo($"▶ Spustený profil „{profile.Name}\" ({i + 1}/{profiles.Count})");
                 _audit.Log(Name, "Štart profilu", $"{profile.Name} ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov)");
                 AppLog.Info(Name, $"Štart profilu \"{profile.Name}\" ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov, {profile.Segments.Count} segmentov).");
@@ -1363,6 +1480,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _activeRunner = null;
             _profileActualStart = null;
             _profileEstimatedEnd = null;
+            RaiseGanttTimes();
             StopCountdown();
             _profileCts?.Dispose();
             _profileCts = null;
@@ -1705,6 +1823,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 LoadFromHistoryCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
                 StartSelectedProfileCommand.RaiseCanExecuteChanged();
+                AddToChainCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(HasProfilePreview));
                 BuildProfilePreview();
             }
@@ -2854,6 +2973,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();
+        StartChainCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();
         RunSetpointDiagnosticCommand.RaiseCanExecuteChanged();
         ReadDigitalCommand.RaiseCanExecuteChanged();
