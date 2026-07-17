@@ -404,6 +404,11 @@
                                                         Padding="6,1" FontSize="12" Command="{Binding ToggleEditQuickProfilesCommand}"
                                                         Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
                                                         ToolTip="Admin: vyber, ktoré profily sa zobrazia ako rýchle tlačidlá." />
+                                                <Button DockPanel.Dock="Right" Content="✕ Zrušiť profil" Style="{StaticResource GhostButton}"
+                                                        Padding="6,1" FontSize="12" Margin="0,0,8,0"
+                                                        Foreground="{StaticResource DangerBrush}"
+                                                        Command="{Binding CancelProfileCommand}"
+                                                        ToolTip="Zastaví spustený profil (ak beží) a odoberie ho z karty, aby nezostal svietiť ako testovací profil." />
                                             </DockPanel>
 
                                             <!-- Admin editor: insert an existing profile / remove pinned ones -->

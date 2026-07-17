@@ -83,6 +83,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             p => p is not null && IsConnected && IsControlAllowed && !IsProfileRunning, ReportError);
         PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning);
+        CancelProfileCommand = new RelayCommand(CancelProfile, CanCancelProfile);
         StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Queue.Count > 0, ReportError);
         AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
         RemoveFromQueueCommand = new RelayCommand(RemoveFromQueue, () => SelectedQueueItem is not null);
@@ -1196,6 +1197,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand PauseResumeProfileCommand { get; }
 
     public RelayCommand StopProfileCommand { get; }
+
+    /// <summary>Cancels a quick-started (or loaded) profile and clears it off the card.</summary>
+    public RelayCommand CancelProfileCommand { get; }
     public RelayCommand AddSegmentCommand { get; }
     public RelayCommand AddSegmentBeforeCommand { get; }
     public RelayCommand AddSegmentAfterCommand { get; }
@@ -1591,6 +1595,36 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _profileCts?.Cancel();
     }
 
+    private bool CanCancelProfile() =>
+        IsProfileRunning || Segments.Count > 0 || SelectedHistoryProfile is not null;
+
+    /// <summary>
+    /// Cancels a quick-started (or otherwise loaded) profile: stops the run if any,
+    /// then clears the profile out of the editor / preview so the card stops showing
+    /// it as the active "testovací profil". The running profile executes from a
+    /// snapshot (see <see cref="BuildProfile"/>), so clearing the editor is safe.
+    /// </summary>
+    private void CancelProfile()
+    {
+        bool wasRunning = IsProfileRunning;
+        if (wasRunning)
+        {
+            StopProfile();
+        }
+
+        Segments.Clear();
+        SelectedSegment = null;
+        ProfileName = "Profil 1";
+        SelectedHistoryProfile = null;
+        RecalculateTiming();
+        OnPropertyChanged(nameof(HasProfilePreview));
+        BuildProfilePreview();
+        RefreshCommands();
+        ShowActionInfo(wasRunning
+            ? "✕ Profil zastavený a odobraný z karty."
+            : "✕ Profil odobraný z karty.");
+    }
+
     private void AddSegment()
     {
         var segment = new SegmentViewModel(new ProfileSegment
@@ -1677,6 +1711,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StartSelectedProfileCommand.RaiseCanExecuteChanged();
         SaveToHistoryCommand.RaiseCanExecuteChanged();
         ExportProfileCommand.RaiseCanExecuteChanged();
+        CancelProfileCommand.RaiseCanExecuteChanged();
         RecalculateTiming();
     }
 
@@ -1829,6 +1864,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
                 StartSelectedProfileCommand.RaiseCanExecuteChanged();
                 AddToChainCommand.RaiseCanExecuteChanged();
+                CancelProfileCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(HasProfilePreview));
                 BuildProfilePreview();
             }
@@ -2998,6 +3034,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickStartProfileCommand.RaiseCanExecuteChanged();
         PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
+        CancelProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();
         StartChainCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();

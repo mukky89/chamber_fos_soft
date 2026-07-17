@@ -13,6 +13,11 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
   prepíše na správnu hodnotu, aj keby ju niekto medzitým zmenil, a chýbajúce
   zariadenie sa doplní.
 
+- **Zrušenie rýchlo spusteného profilu:** v sekcii „Rýchle spustenie profilu"
+  pribudlo tlačidlo **„✕ Zrušiť profil"** – zastaví bežiaci profil (ak beží) a
+  odoberie ho z karty, takže už nezostane svietiť ako testovací profil.
+  Tlačidlo je aktívne len keď je čo rušiť.
+
 ### Zmenené
 - **Pevné poradie zariadení „na tvrdo":** Komora 1, Komora 2, Komora 3,
   Sušiareň, Sylex SIKA, Polytech SIKA. Uplatní sa pri každom štarte (má
