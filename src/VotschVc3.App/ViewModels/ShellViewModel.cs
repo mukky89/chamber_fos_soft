@@ -135,29 +135,18 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             }
         }
 
-        // One-time: apply the known Sylex SIKA parameters (nameplate + temperature
-        // range -50…165 °C read from the device's system info). If a "Sylex SIKA"
-        // already exists its nameplate/range is filled in; otherwise it is added as
-        // an ordinary (non-forced) device. Guarded by a marker so a later manual
-        // removal or edit is respected.
-        string sylexMarker = System.IO.Path.Combine(dir, ".chambers_sylex_sika_v1");
-        bool sylexApplied = false;
-        if (!seeded && !reseeded && !System.IO.File.Exists(sylexMarker))
+        // One-time clean-up of the SIKA baths (earlier builds left duplicated /
+        // inconsistently named entries). Remove every SIKA REST-API chamber and
+        // re-add exactly the two canonical ones – "SIKA Sylex" (10.88.5.81) and
+        // "SIKA PolyTech" (10.88.6.28) – with the correct nameplate and range.
+        // Guarded by a marker so a later manual rename / IP edit is respected.
+        string sikaResetMarker = System.IO.Path.Combine(dir, ".chambers_sika_reset_v2");
+        bool sikaReset = false;
+        if (!seeded && !reseeded && !System.IO.File.Exists(sikaResetMarker))
         {
-            ChamberConfig? sylex = configs.FirstOrDefault(c => c.Name == "Sylex SIKA");
-            if (sylex is null)
-            {
-                configs.Add(DefaultSylexSikaConfig());
-                sylexApplied = true;
-            }
-            else
-            {
-                ChamberConfig d = DefaultSylexSikaConfig();
-                sylex.Nameplate = d.Nameplate;
-                sylex.TempMin = d.TempMin;
-                sylex.TempMax = d.TempMax;
-                sylexApplied = true;
-            }
+            configs.RemoveAll(c => c.Protocol == ChamberProtocol.SikaRestApi);
+            configs.AddRange(DefaultSikaConfigs());
+            sikaReset = true;
         }
 
         // Every start: force the known lab devices into a fixed display order
@@ -171,7 +160,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             AddChamberInternal(config);
         }
 
-        if (seeded || reseeded || renamed || addedExtras || sylexApplied || reordered)
+        if (seeded || reseeded || renamed || addedExtras || sikaReset || reordered)
         {
             SaveConfigs();
         }
@@ -194,9 +183,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
                 System.IO.File.WriteAllText(extraChambersMarker, DateTimeOffset.Now.ToString("o"));
             }
 
-            if (!System.IO.File.Exists(sylexMarker))
+            if (!System.IO.File.Exists(sikaResetMarker))
             {
-                System.IO.File.WriteAllText(sylexMarker, DateTimeOffset.Now.ToString("o"));
+                System.IO.File.WriteAllText(sikaResetMarker, DateTimeOffset.Now.ToString("o"));
             }
         }
         catch
@@ -659,7 +648,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _ => null,
     };
 
-    private static List<ChamberConfig> DefaultConfigs() => new()
+    private static List<ChamberConfig> DefaultConfigs() => new List<ChamberConfig>()
     {
         // Vötsch VT3 7034 – temperature only. ASCII-2 port 2049 (may change per site).
         new ChamberConfig
@@ -691,38 +680,56 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         },
         DefaultPolEkoConfig(),
         DefaultKomora3FoiConfig(),
-        DefaultSylexSikaConfig(),
+    }.Concat(DefaultSikaConfigs()).ToList();
+
+    /// <summary>The two lab SIKA TP Premium calibration baths (REST-API), in display order.</summary>
+    private static List<ChamberConfig> DefaultSikaConfigs() => new()
+    {
+        SikaSylexConfig(),
+        SikaPolytechConfig(),
     };
 
-    /// <summary>
-    /// Sylex SIKA TP Premium calibration bath (REST-API). Nameplate and the allowed
-    /// temperature range (-50…165 °C) come from the device's own system information.
-    /// An ordinary device (not forced) – the IP can be changed / it can be removed.
-    /// </summary>
-    private static ChamberConfig DefaultSylexSikaConfig() => new()
+    /// <summary>Builds a SIKA TP Premium bath config (REST-API, temperature only, -50…165 °C).</summary>
+    private static ChamberConfig SikaBathConfig(string name, string host, ChamberNameplate nameplate) => new()
     {
-        Name = "Sylex SIKA",
+        Name = name,
         Kind = ChamberKind.TemperatureOnly,
         Protocol = ChamberProtocol.SikaRestApi,
-        Host = "10.88.5.81",
+        Host = host,
         Port = SikaRestApiProtocol.DefaultPort,
         StartChannelIndex = 0,
         TempMin = -50,
         TempMax = 165,
-        Nameplate = new ChamberNameplate
-        {
-            Manufacturer = "SIKA",
-            Model = "TP3M165E.2",
-            SerialNumber = "2219005",
-            OrderNumber = "SIKA",
-            YearOfConstruction = "2022",
-            SystemNumber = "001927", // HardwareSerial
-            FirstCalibration = "2022-05-09",
-            NextCalibration = "2025-05-09",
-            Notes = "SIKA TP Premium · SW 28.17 · Firmware V 1.15 · ARM Rev. 1 · rozsah -50…+165 °C. "
-                  + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
-        },
+        Nameplate = nameplate,
     };
+
+    /// <summary>
+    /// SIKA Sylex – nameplate + range from the device's system information
+    /// (TP3M165E.2, s/n 2219005). Ordinary device: IP can be changed / removed.
+    /// </summary>
+    private static ChamberConfig SikaSylexConfig() => SikaBathConfig("SIKA Sylex", "10.88.5.81", new ChamberNameplate
+    {
+        Manufacturer = "SIKA",
+        Model = "TP3M165E.2",
+        SerialNumber = "2219005",
+        OrderNumber = "SIKA",
+        YearOfConstruction = "2022",
+        SystemNumber = "001927", // HardwareSerial
+        FirstCalibration = "2022-05-09",
+        NextCalibration = "2025-05-09",
+        Notes = "SIKA TP Premium · SW 28.17 · Firmware V 1.15 · ARM Rev. 1 · rozsah -50…+165 °C. "
+              + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
+    });
+
+    /// <summary>SIKA PolyTech – SIKA TP Premium bath at its fixed lab IP.</summary>
+    private static ChamberConfig SikaPolytechConfig() => SikaBathConfig("SIKA PolyTech", "10.88.6.28", new ChamberNameplate
+    {
+        Manufacturer = "SIKA",
+        Model = "TP Premium",
+        OrderNumber = "SIKA",
+        Notes = "SIKA TP Premium · rozsah -50…+165 °C. "
+              + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
+    });
 
     /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>
     private static ChamberConfig DefaultPolEkoConfig() => new()
@@ -758,7 +765,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private static readonly string[] ForcedChamberOrder =
     {
-        "Komora 1", "Komora 2", "Komora 3", "Sušiareň",
+        "Komora 1", "Komora 2", "Komora 3", "Sušiareň", "SIKA Sylex", "SIKA PolyTech",
     };
 
     private static int ForcedOrderRank(ChamberConfig c)

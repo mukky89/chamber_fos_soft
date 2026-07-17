@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.20.1] – 2026-07-17
+
+### Opravené
+- **Poriadok v SIKA zariadeniach.** Predošlé buildy nechali duplicitné /
+  nekonzistentne pomenované SIKA kúpele („Sika Sylex", „Sylex Sika"…).
+  Jednorazová oprava odstráni všetky SIKA REST-API záznamy a vytvorí presne
+  dva správne: **SIKA Sylex** (`10.88.5.81`) a **SIKA PolyTech** (`10.88.6.28`),
+  s rozsahom -50…+165 °C a štítkom (Sylex má reálne údaje zo systémovej
+  informácie prístroja). Sú to bežné zariadenia – IP sa dá zmeniť, dajú sa
+  odobrať. Pevné poradie: … Sušiareň, SIKA Sylex, SIKA PolyTech.
+
 ## [1.20.0] – 2026-07-17
 
 ### Opravené
