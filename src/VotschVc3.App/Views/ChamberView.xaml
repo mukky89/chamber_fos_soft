@@ -724,6 +724,48 @@
                                        Text="Premenovanie a odobratie zariadenia je dostupné len pre administrátora." />
                         </StackPanel>
                     </Border>
+
+                    <!-- ===== Device lock (safety) ===== -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Zámok zariadenia" Style="{StaticResource Heading}" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                       Text="Zamknutie zariadenia zablokuje všetky ovládacie tlačidlá (teplota, profily, stop…), aby počas behu nedošlo k neúmyselnému stlačeniu. Zamykať/odomykať sa dá aj priamo na karte zariadenia." />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Command="{Binding ToggleLockCommand}" Style="{StaticResource AccentButton}" Padding="14,7" MinWidth="150">
+                                    <TextBlock>
+                                        <Run Text="{Binding LockGlyph, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding LockButtonText, Mode=OneWay}" />
+                                    </TextBlock>
+                                </Button>
+                                <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" FontFamily="Segoe UI Semibold"
+                                           Foreground="{StaticResource DangerBrush}"
+                                           Text="{Binding LockStateLabel}"
+                                           Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+
+                            <!-- Optional unlock password (admin only). Empty = lock releases without a password. -->
+                            <StackPanel Margin="0,14,0,0" Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Heslo na odomknutie (voliteľné)" Style="{StaticResource Label}" />
+                                <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,6"
+                                           Text="Ak nastavíš heslo, odomknutie ho bude vyžadovať. Prázdne pole + „Nastaviť heslo" heslo odstráni (odomkne sa jedným klikom)." />
+                                <StackPanel Orientation="Horizontal">
+                                    <PasswordBox x:Name="LockPasswordBox" Width="180" Height="34" VerticalContentAlignment="Center"
+                                                 Background="{StaticResource SurfaceAltBrush}" Padding="8,0" />
+                                    <Button Content="Nastaviť heslo" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="12,6"
+                                            Tag="{Binding ElementName=LockPasswordBox}" Click="SetLockPassword_Click" />
+                                    <Button Content="Odstrániť heslo" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="12,6"
+                                            Foreground="{StaticResource DangerBrush}"
+                                            Command="{Binding ClearLockPasswordCommand}"
+                                            Visibility="{Binding HasLockPassword, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
+                                           Text="Heslo na odomknutie je nastavené."
+                                           Foreground="{StaticResource OkBrush}"
+                                           Visibility="{Binding HasLockPassword, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="Údaje zo štítku zariadenia" Style="{StaticResource Heading}" />

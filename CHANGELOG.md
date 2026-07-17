@@ -17,6 +17,13 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
   pribudlo tlačidlo **„✕ Zrušiť profil"** – zastaví bežiaci profil (ak beží) a
   odoberie ho z karty, takže už nezostane svietiť ako testovací profil.
   Tlačidlo je aktívne len keď je čo rušiť.
+- **Zámok zariadenia (bezpečnosť):** tlačidlom **🔒 Zamknúť / 🔓 Odomknúť** na
+  karte (aj v nastaveniach zariadenia) sa dá zariadenie uzamknúť – **všetky
+  ovládacie tlačidlá** (teplota, predvoľby, profily, štart/stop…) sa
+  zablokujú, aby počas behu profilu alebo temperovania nedošlo k neúmyselnému
+  stlačeniu. Odomknutie sa dá **voliteľne chrániť heslom** (nastavuje admin v
+  nastaveniach zariadenia); bez hesla sa odomkne jedným klikom. Stav zámku sa
+  ukladá pre každé zariadenie.
 
 ### Zmenené
 - **Pevné poradie zariadení „na tvrdo":** Komora 1, Komora 2, Komora 3,

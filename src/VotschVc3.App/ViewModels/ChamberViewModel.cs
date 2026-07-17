@@ -68,23 +68,26 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, () => !IsConnected, ReportError);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, () => IsConnected, ReportError);
         ReadOnceCommand = new AsyncRelayCommand(ReadOnceAsync, () => IsConnected, ReportError);
-        ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected && IsControlAllowed, ReportError);
-        StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsControlAllowed, ReportError);
-        QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsControlAllowed, ReportError);
+        ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected && IsOperable, ReportError);
+        StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsOperable, ReportError);
+        QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsOperable, ReportError);
         ToggleEditPresetsCommand = new RelayCommand(() => IsEditingPresets = !IsEditingPresets, () => IsManageAllowed);
         ToggleEditQuickProfilesCommand = new RelayCommand(() => IsEditingQuickProfiles = !IsEditingQuickProfiles, () => IsManageAllowed);
         AddQuickProfileCommand = new RelayCommand(AddQuickProfile, () => IsManageAllowed && ProfileToPin is not null);
         RemoveQuickProfileCommand = new RelayCommand<string>(RemoveQuickProfile, n => IsManageAllowed && !string.IsNullOrEmpty(n));
         ToggleEditNameCommand = new RelayCommand(() => IsEditingName = !IsEditingName);
+        ToggleLockCommand = new RelayCommand(ToggleLock);
+        CancelUnlockCommand = new RelayCommand(() => IsUnlockPromptOpen = false);
+        ClearLockPasswordCommand = new RelayCommand(() => SetLockPassword(null), () => IsManageAllowed);
 
-        StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Segments.Count > 0, ReportError);
+        StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsOperable && !IsProfileRunning && Segments.Count > 0, ReportError);
         StartSelectedProfileCommand = new AsyncRelayCommand(StartSelectedProfileAsync, CanStartSelectedProfile, ReportError);
         QuickStartProfileCommand = new AsyncRelayCommand<TestProfile?>(QuickStartProfileAsync,
-            p => p is not null && IsConnected && IsControlAllowed && !IsProfileRunning, ReportError);
-        PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning);
-        StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning);
+            p => p is not null && IsConnected && IsOperable && !IsProfileRunning, ReportError);
+        PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning && IsUnlocked);
+        StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning && IsUnlocked);
         CancelProfileCommand = new RelayCommand(CancelProfile, CanCancelProfile);
-        StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsControlAllowed && !IsProfileRunning && Queue.Count > 0, ReportError);
+        StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsOperable && !IsProfileRunning && Queue.Count > 0, ReportError);
         AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
         RemoveFromQueueCommand = new RelayCommand(RemoveFromQueue, () => SelectedQueueItem is not null);
         ClearQueueCommand = new RelayCommand(() => { Queue.Clear(); RefreshQueueCommands(); });
@@ -93,7 +96,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         RemoveFromChainCommand = new RelayCommand<TestProfile>(RemoveFromChain, p => p is not null);
         ClearChainCommand = new RelayCommand(() => ProfileChain.Clear(), () => ProfileChain.Count > 0);
         StartChainCommand = new AsyncRelayCommand(StartChainAsync,
-            () => IsConnected && IsControlAllowed && !IsProfileRunning && ProfileChain.Count > 0, ReportError);
+            () => IsConnected && IsOperable && !IsProfileRunning && ProfileChain.Count > 0, ReportError);
         ProfileChain.CollectionChanged += (_, _) => OnChainChanged();
         AddSegmentCommand = new RelayCommand(AddSegment);
         AddSegmentBeforeCommand = new RelayCommand(() => InsertSegment(0), () => SelectedSegment is not null);
@@ -247,6 +250,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _isControlAllowed, value))
             {
+                OnPropertyChanged(nameof(IsOperable));
                 RefreshCommands();
                 AppLog.Info(Name, value
                     ? "Ovládanie povolené (rola Supervisor/Admin)."
@@ -257,6 +261,137 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Sets whether the current user may operate this chamber.</summary>
     public void SetControlAllowed(bool allowed) => IsControlAllowed = allowed;
+
+    #region Device lock (safety)
+
+    private bool _isLocked;
+    /// <summary>
+    /// When <c>true</c> the device is locked: every control command is disabled and the
+    /// dashboard control panels are greyed out, so a running profile / temperature can't
+    /// be changed by an accidental button press. Persisted per device.
+    /// </summary>
+    public bool IsLocked
+    {
+        get => _isLocked;
+        private set
+        {
+            if (SetProperty(ref _isLocked, value))
+            {
+                OnPropertyChanged(nameof(IsUnlocked));
+                OnPropertyChanged(nameof(IsOperable));
+                OnPropertyChanged(nameof(LockGlyph));
+                OnPropertyChanged(nameof(LockButtonText));
+                OnPropertyChanged(nameof(LockStateLabel));
+                RefreshCommands();
+                AppLog.Info(Name, value ? "Zariadenie zamknuté (ovládanie zablokované)." : "Zariadenie odomknuté.");
+            }
+        }
+    }
+
+    /// <summary><c>true</c> when the device is not locked (used to enable the control panels).</summary>
+    public bool IsUnlocked => !IsLocked;
+
+    /// <summary>True when the user may actually operate the device: allowed by role AND not locked.</summary>
+    public bool IsOperable => IsControlAllowed && !IsLocked;
+
+    private string? _lockPasswordHash;
+    /// <summary>SHA-256 hash of the optional unlock password (persisted); empty = no password.</summary>
+    public string? LockPasswordHash
+    {
+        get => _lockPasswordHash;
+        private set
+        {
+            if (SetProperty(ref _lockPasswordHash, value))
+            {
+                OnPropertyChanged(nameof(HasLockPassword));
+            }
+        }
+    }
+
+    /// <summary><c>true</c> when releasing the lock requires a password.</summary>
+    public bool HasLockPassword => !string.IsNullOrEmpty(_lockPasswordHash);
+
+    private bool _isUnlockPromptOpen;
+    /// <summary>True while the inline "enter password to unlock" prompt is shown on the card.</summary>
+    public bool IsUnlockPromptOpen
+    {
+        get => _isUnlockPromptOpen;
+        private set => SetProperty(ref _isUnlockPromptOpen, value);
+    }
+
+    /// <summary>🔒 while locked, 🔓 while unlocked – for the lock toggle button.</summary>
+    public string LockGlyph => IsLocked ? "🔒" : "🔓";
+
+    /// <summary>Caption for the lock toggle button.</summary>
+    public string LockButtonText => IsLocked ? "Odomknúť" : "Zamknúť";
+
+    /// <summary>Short badge text shown while the device is locked.</summary>
+    public string LockStateLabel => HasLockPassword ? "🔒 Zamknuté (heslo)" : "🔒 Zamknuté";
+
+    /// <summary>Toggles the lock: locks immediately, or starts the unlock (password prompt if set).</summary>
+    public RelayCommand ToggleLockCommand { get; }
+
+    /// <summary>Closes the inline unlock password prompt without unlocking.</summary>
+    public RelayCommand CancelUnlockCommand { get; }
+
+    /// <summary>Removes the unlock password (admin, in device settings).</summary>
+    public RelayCommand ClearLockPasswordCommand { get; }
+
+    private void ToggleLock()
+    {
+        if (!IsLocked)
+        {
+            IsLocked = true;
+            IsUnlockPromptOpen = false;
+            ShowActionInfo(HasLockPassword
+                ? "🔒 Zariadenie zamknuté (odomknutie vyžaduje heslo)."
+                : "🔒 Zariadenie zamknuté.");
+            return;
+        }
+
+        // Locked: a password releases it via the inline prompt; otherwise unlock now.
+        if (HasLockPassword)
+        {
+            IsUnlockPromptOpen = true;
+        }
+        else
+        {
+            Unlock();
+        }
+    }
+
+    /// <summary>Verifies the entered password (if any) and releases the lock. Called from the view.</summary>
+    public void TryUnlock(string? password)
+    {
+        if (HasLockPassword &&
+            !string.Equals(_lockPasswordHash, User.Hash(password ?? string.Empty), StringComparison.OrdinalIgnoreCase))
+        {
+            StatusMessage = "Nesprávne heslo – zariadenie zostáva zamknuté.";
+            return;
+        }
+
+        Unlock();
+    }
+
+    private void Unlock()
+    {
+        IsUnlockPromptOpen = false;
+        IsLocked = false;
+        ShowActionInfo("🔓 Zariadenie odomknuté.");
+    }
+
+    /// <summary>
+    /// Sets or clears the unlock password (admin, in device settings). An empty value
+    /// removes the password so the lock can be released with a single click.
+    /// </summary>
+    public void SetLockPassword(string? password)
+    {
+        LockPasswordHash = string.IsNullOrWhiteSpace(password) ? null : User.Hash(password);
+        OnPropertyChanged(nameof(LockStateLabel));
+        StatusMessage = HasLockPassword ? "Heslo zámku nastavené." : "Heslo zámku odstránené.";
+    }
+
+    #endregion
 
     private bool _isManageAllowed;
     /// <summary><c>true</c> only for admins; gates per-device configuration (e.g. quick presets).</summary>
@@ -277,6 +412,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 ToggleEditQuickProfilesCommand.RaiseCanExecuteChanged();
                 AddQuickProfileCommand.RaiseCanExecuteChanged();
                 RemoveQuickProfileCommand.RaiseCanExecuteChanged();
+                ClearLockPasswordCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -1343,7 +1479,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private Task StartQueueAsync() => RunSequenceAsync(Queue.Select(q => q.Profile).ToList());
 
     private bool CanStartSelectedProfile() =>
-        IsConnected && IsControlAllowed && !IsProfileRunning &&
+        IsConnected && IsOperable && !IsProfileRunning &&
         (SelectedHistoryProfile is not null || Segments.Count > 0);
 
     /// <summary>
@@ -1596,7 +1732,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     }
 
     private bool CanCancelProfile() =>
-        IsProfileRunning || Segments.Count > 0 || SelectedHistoryProfile is not null;
+        IsUnlocked && (IsProfileRunning || Segments.Count > 0 || SelectedHistoryProfile is not null);
 
     /// <summary>
     /// Cancels a quick-started (or otherwise loaded) profile: stops the run if any,
@@ -2989,6 +3125,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         _nameplate = c.Nameplate?.Clone() ?? new ChamberNameplate();
         RaiseNameplate();
+
+        LockPasswordHash = c.LockPasswordHash;
+        IsLocked = c.IsLocked;
     }
 
     /// <summary>Captures the current configuration for persistence.</summary>
@@ -3015,6 +3154,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickPresets = new List<double>(_quickPresets),
         QuickProfiles = new List<string>(_pinnedQuickProfiles),
         Nameplate = _nameplate.Clone(),
+        IsLocked = IsLocked,
+        LockPasswordHash = LockPasswordHash,
     };
 
     #endregion

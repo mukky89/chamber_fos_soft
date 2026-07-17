@@ -154,7 +154,41 @@
                                             Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}"
                                             ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
+                                    <!-- Lock toggle: always enabled so a locked device can be unlocked. -->
+                                    <Button DockPanel.Dock="Right" Margin="0,0,8,0" Padding="12,9" FontSize="13"
+                                            Style="{StaticResource GhostButton}" Command="{Binding ToggleLockCommand}"
+                                            ToolTip="Zamkne/odomkne zariadenie – v zamknutom stave sú všetky ovládacie tlačidlá neaktívne (ochrana pred neúmyselným stlačením počas behu).">
+                                        <TextBlock>
+                                            <Run Text="{Binding LockGlyph, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding LockButtonText, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </Button>
                                 </DockPanel>
+
+                                <!-- Locked badge + inline unlock prompt (kept outside the disabled body). -->
+                                <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,10"
+                                        Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource DangerBrush}" BorderThickness="1"
+                                        Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                                       Text="{Binding LockStateLabel}" FontFamily="Segoe UI Semibold" FontSize="13"
+                                                       Foreground="{StaticResource DangerBrush}" />
+                                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Style="{StaticResource Caption}"
+                                                       Text="Ovládanie je uzamknuté" />
+                                        </DockPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                    Visibility="{Binding IsUnlockPromptOpen, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="Heslo:" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <PasswordBox x:Name="UnlockPass" Width="150" Height="32" VerticalContentAlignment="Center"
+                                                         Background="{StaticResource SurfaceAltBrush}" Padding="8,0"
+                                                         KeyDown="UnlockPassword_KeyDown" />
+                                            <Button Content="Odomknúť" Style="{StaticResource AccentButton}" Margin="8,0,0,0" Padding="12,4"
+                                                    Tag="{Binding ElementName=UnlockPass}" Click="Unlock_Click" />
+                                            <Button Content="Zrušiť" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="12,4"
+                                                    Command="{Binding CancelUnlockCommand}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
 
                                 <!-- ===== ① Header: graphic + name + badges + state ===== -->
                                 <Grid>
@@ -254,6 +288,11 @@
                                         </TextBlock>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- Control panels: disabled (greyed) while the device is locked, so a running
+                                     profile / temperature can't be changed by an accidental press. Readouts above
+                                     stay bright; the lock toggle lives in the top bar (always enabled). -->
+                                <StackPanel IsEnabled="{Binding IsUnlocked}">
 
                                 <!-- ===== ⑤ Quick control ===== -->
                                 <Border Style="{StaticResource Section}">
@@ -525,6 +564,7 @@
                                         </Border>
                                     </StackPanel>
                                 </Border>
+                                </StackPanel>
                                 <!-- Pripojenie (IP/port), referenčný teplomer, odobratie a premenovanie
                                      zariadenia sú v obrazovke „Nastaviť / ovládať →" (hore na karte). -->
                             </StackPanel>

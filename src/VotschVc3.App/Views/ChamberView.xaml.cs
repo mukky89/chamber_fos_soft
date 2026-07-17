@@ -65,6 +65,17 @@ public partial class ChamberView : UserControl
         }
     }
 
+    // The lock password uses a PasswordBox (Password can't be data-bound), so the
+    // entered value is read here and handed to the view model to hash and store.
+    private void SetLockPassword_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: PasswordBox box } && _viewModel is not null)
+        {
+            _viewModel.SetLockPassword(box.Password);
+            box.Clear();
+        }
+    }
+
     private void ToggleMaximize_Click(object sender, RoutedEventArgs e)
     {
         Window? window = Window.GetWindow(this);

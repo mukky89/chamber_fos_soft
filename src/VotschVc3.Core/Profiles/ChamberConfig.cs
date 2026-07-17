@@ -48,4 +48,16 @@ public sealed class ChamberConfig
 
     /// <summary>Nameplate / type-plate details (from the chamber's rating label).</summary>
     public ChamberNameplate? Nameplate { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> the device is locked: all control buttons are disabled so a
+    /// running profile / temperature can't be changed by an accidental press.
+    /// </summary>
+    public bool IsLocked { get; set; }
+
+    /// <summary>
+    /// SHA-256 hash of the optional unlock password. <c>null</c>/empty means the lock
+    /// can be released without a password (a quick safety lock).
+    /// </summary>
+    public string? LockPasswordHash { get; set; }
 }
