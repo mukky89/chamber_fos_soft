@@ -4,6 +4,27 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.18.0] – 2026-07-17
+
+### Pridané
+- **Druhý kalibračný kúpeľ „Sylex SIKA"** (SIKA REST-API) na IP `10.88.5.81`.
+  Obe SIKA zariadenia (Polytech `10.88.6.28`, Sylex `10.88.5.81`) majú IP
+  nastavenú **„na tvrdo"** – pri každom štarte sa IP (a REST-API port)
+  prepíše na správnu hodnotu, aj keby ju niekto medzitým zmenil, a chýbajúce
+  zariadenie sa doplní.
+
+### Zmenené
+- **Pevné poradie zariadení „na tvrdo":** Komora 1, Komora 2, Komora 3,
+  Sušiareň, Sylex SIKA, Polytech SIKA. Uplatní sa pri každom štarte (má
+  prednosť pred ručným preusporiadaním po reštarte).
+
+### Opravené
+- **Odložený štart – neviditeľné hodiny/minúty:** polia času (NumericStepper)
+  boli v zakázanom (sivom) kontajneri, takže ich vlastný TextBox sa vykreslil
+  prázdny a po zaškrtnutí sa text neobnovil. Sekcia je teraz vždy aktívna a
+  keď je „Odložený štart" vypnutý, len sa stlmí (nedá sa klikať) – hodnoty
+  hodín a minút sú tak vždy viditeľné.
+
 ## [1.17.0] – 2026-07-17
 
 ### Pridané

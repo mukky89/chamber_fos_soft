@@ -466,7 +466,23 @@
                                             <StackPanel>
                                                 <CheckBox Content="Odložený štart" IsChecked="{Binding UseDelayedStart}"
                                                           ToolTip="Keď je zapnuté, spustenie profilu (▶ alebo rýchle tlačidlo) sa naplánuje na zadaný dátum a čas." />
-                                                <StackPanel Orientation="Horizontal" Margin="0,7,0,0" IsEnabled="{Binding UseDelayedStart}">
+                                                <!-- Keep the fields IsEnabled=true (dim via Opacity + block hit-testing when
+                                                     the checkbox is off) so the NumericStepper's custom-templated TextBox always
+                                                     renders its value; a control that starts inside a disabled subtree shows blank
+                                                     text until focused, which is why the hour/minute used to look empty. -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                                    <StackPanel.Style>
+                                                        <Style TargetType="StackPanel">
+                                                            <Setter Property="Opacity" Value="1" />
+                                                            <Setter Property="IsHitTestVisible" Value="True" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding UseDelayedStart}" Value="False">
+                                                                    <Setter Property="Opacity" Value="0.55" />
+                                                                    <Setter Property="IsHitTestVisible" Value="False" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </StackPanel.Style>
                                                     <TextBlock Text="Dátum" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                                     <DatePicker Width="140" VerticalAlignment="Center"
                                                                 SelectedDate="{Binding ScheduledStartDate, Mode=TwoWay}"
