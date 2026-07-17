@@ -19,4 +19,10 @@ public sealed class UiSettings
     /// original, roomier layout).
     /// </summary>
     public bool CompactMode { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> the fleet timeline (Gantt) is shown at the top of the
+    /// dashboard. On by default; can be hidden to save vertical space.
+    /// </summary>
+    public bool ShowTimeline { get; set; } = true;
 }

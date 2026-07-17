@@ -74,6 +74,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenAdminCommand = new RelayCommand(() => CurrentView = Admin, () => CanManage);
         GoHomeCommand = new RelayCommand(GoHome);
         LogoutCommand = new RelayCommand(Logout);
+        ToggleTimelineCommand = new RelayCommand(() => ShowTimeline = !ShowTimeline);
         AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
         RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1 && CanManage);
         MoveChamberUpCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, -1), c => c is not null);
@@ -134,15 +135,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             }
         }
 
-        // Every start: make sure both SIKA baths exist and force their IP "na tvrdo"
-        // to the fixed lab endpoints (see ForcedSikaChambers). Unlike the migrations
-        // above this is not marker-guarded – the addresses are pinned and must not
-        // drift, even if edited in the UI.
-        bool sikaPinned = PinForcedSikaHosts(configs);
-
         // Every start: force the known lab devices into a fixed display order
-        // (Komora 1/2/3, Sušiareň, Sylex SIKA, Polytech SIKA). Also "na tvrdo",
-        // so it wins over any manual reordering after a restart.
+        // (Komora 1/2/3, Sušiareň). Also "na tvrdo", so it wins over any manual
+        // reordering after a restart. SIKA baths are no longer forced defaults –
+        // they are ordinary devices an admin adds / removes manually.
         bool reordered = ApplyForcedOrder(configs);
 
         foreach (ChamberConfig config in configs)
@@ -150,7 +146,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             AddChamberInternal(config);
         }
 
-        if (seeded || reseeded || renamed || addedExtras || sikaPinned || reordered)
+        if (seeded || reseeded || renamed || addedExtras || reordered)
         {
             SaveConfigs();
         }
@@ -335,6 +331,33 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             OnPropertyChanged();
         }
     }
+
+    /// <summary>
+    /// Persisted toggle: whether the fleet timeline (Gantt) is shown on the
+    /// dashboard. On by default; can be hidden to free up vertical space.
+    /// </summary>
+    public bool ShowTimeline
+    {
+        get => _ui.ShowTimeline;
+        set
+        {
+            if (_ui.ShowTimeline == value)
+            {
+                return;
+            }
+
+            _ui.ShowTimeline = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TimelineToggleText));
+        }
+    }
+
+    /// <summary>Caption for the show/hide-timeline toggle button.</summary>
+    public string TimelineToggleText => ShowTimeline ? "▾ Skryť" : "▸ Zobraziť";
+
+    /// <summary>Shows / hides the dashboard timeline.</summary>
+    public RelayCommand ToggleTimelineCommand { get; }
 
     private void SaveUiSettings()
     {
@@ -637,8 +660,6 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             },
         },
         DefaultPolEkoConfig(),
-        DefaultPolytechSikaConfig(),
-        DefaultSylexSikaConfig(),
         DefaultKomora3FoiConfig(),
     };
 
@@ -654,67 +675,6 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         TempMin = 0,
         TempMax = 300, // SLN drying oven range is up to +300 °C
     };
-
-    /// <summary>
-    /// Hard-pinned SIKA calibration baths (name → fixed lab IP). These endpoints
-    /// are wired to fixed addresses, so <see cref="PinForcedSikaHosts"/> forces the
-    /// Host back to these values on every start – the IP is set "na tvrdo" and
-    /// cannot drift even if it is edited in the UI.
-    /// </summary>
-    private static readonly (string Name, string Host)[] ForcedSikaChambers =
-    {
-        ("Polytech SIKA", "10.88.6.28"),
-        ("Sylex SIKA", "10.88.5.81"),
-    };
-
-    /// <summary>The pre-configured Polytech SIKA TP Premium calibration bath (REST-API).</summary>
-    private static ChamberConfig DefaultPolytechSikaConfig() => SikaChamberConfig("Polytech SIKA", "10.88.6.28");
-
-    /// <summary>The pre-configured Sylex SIKA TP Premium calibration bath (REST-API).</summary>
-    private static ChamberConfig DefaultSylexSikaConfig() => SikaChamberConfig("Sylex SIKA", "10.88.5.81");
-
-    /// <summary>Builds a SIKA TP Premium bath config (REST-API, temperature only) at a fixed IP.</summary>
-    private static ChamberConfig SikaChamberConfig(string name, string host) => new()
-    {
-        Name = name,
-        Kind = ChamberKind.TemperatureOnly,
-        Protocol = ChamberProtocol.SikaRestApi,
-        Host = host,
-        Port = SikaRestApiProtocol.DefaultPort,
-        StartChannelIndex = 0,
-    };
-
-    /// <summary>
-    /// Ensures every <see cref="ForcedSikaChambers"/> entry exists and pins its Host
-    /// (and REST-API port) to the fixed lab IP – the SIKA addresses are wired "na
-    /// tvrdo". Runs on every start; returns <c>true</c> if anything was added or a
-    /// drifted IP was corrected (so the caller re-saves the config).
-    /// </summary>
-    private static bool PinForcedSikaHosts(List<ChamberConfig> configs)
-    {
-        bool changed = false;
-        foreach ((string name, string host) in ForcedSikaChambers)
-        {
-            ChamberConfig? existing = configs.FirstOrDefault(c => c.Name == name);
-            if (existing is null)
-            {
-                configs.Add(SikaChamberConfig(name, host));
-                changed = true;
-                continue;
-            }
-
-            if (existing.Host != host || existing.Port != SikaRestApiProtocol.DefaultPort ||
-                existing.Protocol != ChamberProtocol.SikaRestApi)
-            {
-                existing.Host = host;
-                existing.Port = SikaRestApiProtocol.DefaultPort;
-                existing.Protocol = ChamberProtocol.SikaRestApi;
-                changed = true;
-            }
-        }
-
-        return changed;
-    }
 
     /// <summary>
     /// Komora 3 — FOI: another temperature + humidity climate chamber (different
@@ -737,7 +697,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private static readonly string[] ForcedChamberOrder =
     {
-        "Komora 1", "Komora 2", "Komora 3", "Sušiareň", "Sylex SIKA", "Polytech SIKA",
+        "Komora 1", "Komora 2", "Komora 3", "Sušiareň",
     };
 
     private static int ForcedOrderRank(ChamberConfig c)

@@ -115,12 +115,18 @@
                 <StackPanel>
                     <DockPanel LastChildFill="False">
                         <TextBlock Text="Časová os zariadení" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
-                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,2" FontSize="12"
+                                VerticalAlignment="Center" Command="{Binding ToggleTimelineCommand}"
+                                Content="{Binding TimelineToggleText}"
+                                ToolTip="Skryť / zobraziť časovú os (šetrí miesto na obrazovke)." />
+                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,12,0"
+                                   Visibility="{Binding ShowTimeline, Converter={StaticResource BoolToVisibility}}">
                             <Run Text="■" Foreground="{StaticResource AccentBrush}" /><Run Text=" profil (od–do)    " />
                             <Run Text="■" Foreground="{StaticResource OkBrush}" /><Run Text=" manuálny beh · ∞ = kým sa nevypne" />
                         </TextBlock>
                     </DockPanel>
                     <views:FleetGanttView Chambers="{Binding Chambers}" Margin="0,10,0,0"
+                                          Visibility="{Binding ShowTimeline, Converter={StaticResource BoolToVisibility}}"
                                           ToolTip="Prejdi myšou po pruhu – ukáže profil a časy od–do." />
                 </StackPanel>
             </Border>
@@ -548,11 +554,11 @@
                                                                 SelectedDate="{Binding ScheduledStartDate, Mode=TwoWay}"
                                                                 ToolTip="Vyber dátum z kalendára." />
                                                     <TextBlock Text="Čas" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="16,0,6,0" />
-                                                    <views:NumericStepper Width="66" VerticalAlignment="Center"
+                                                    <views:NumericStepper Width="74" VerticalAlignment="Center"
                                                                           Value="{Binding ScheduledStartHour, Mode=TwoWay}" Step="1" Minimum="0" Maximum="23"
                                                                           ToolTip="Hodina (0–23)" />
                                                     <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0,4,0" Foreground="{StaticResource MutedBrush}" />
-                                                    <views:NumericStepper Width="66" VerticalAlignment="Center"
+                                                    <views:NumericStepper Width="74" VerticalAlignment="Center"
                                                                           Value="{Binding ScheduledStartMinute, Mode=TwoWay}" Step="1" Minimum="0" Maximum="59"
                                                                           ToolTip="Minúta (0–59)" />
                                                 </StackPanel>

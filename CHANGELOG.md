@@ -4,6 +4,29 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.19.0] – 2026-07-17
+
+### Pridané
+- **Skrytie časovej osi:** na karte „Časová os zariadení" pribudlo tlačidlo
+  **▾ Skryť / ▸ Zobraziť** – časová os sa dá schovať a ušetriť miesto na
+  obrazovke. Voľba sa ukladá.
+
+### Zmenené
+- **Odstránené predvolené zariadenia Sylex SIKA a Polytech SIKA.** Už sa
+  automaticky nepridávajú ani im nie je „na tvrdo" vnucovaná IP – SIKA kúpele
+  sú teraz bežné zariadenia, ktoré admin pridá/odoberie/prepíše ručne. Existujúce
+  sa nemažú automaticky (mohli by byť práve v používaní) – odober ich v
+  nastaveniach zariadenia, ak ich nechceš.
+
+### Opravené
+- **Kalendár odloženého štartu je v tmavom režime** – tmavé pozadie, svetlý
+  text, akcentové zvýraznenie dnešného/vybraného dňa (predtým systémový svetlý
+  kalendár).
+- **Hodiny/minúty odloženého štartu sa opäť nezobrazovali:** NumericStepper má
+  teraz vlastný, izolovaný vzhľad textového poľa nezávislý od globálneho štýlu
+  (ktorý v niektorých vnorených rozloženiach nechal pole prázdne), plus mierne
+  širšie polia.
+
 ## [1.18.0] – 2026-07-17
 
 ### Pridané

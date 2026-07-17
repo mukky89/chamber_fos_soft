@@ -3,6 +3,30 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Name="Root">
     <UserControl.Resources>
+        <!-- Explicit, self-contained TextBox style so the value text always renders,
+             independent of the global implicit TextBox template (which, in some nested
+             / initially-disabled layouts, left the box blank). -->
+        <Style x:Key="StepperTextBox" TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="CaretBrush" Value="White" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="7,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center" Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Tiny ▲ / ▼ nudge button. -->
         <Style x:Key="StepperButton" TargetType="RepeatButton">
             <Setter Property="Background" Value="Transparent" />
@@ -39,9 +63,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="24" />
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="ValueBox" Grid.Column="0" BorderThickness="0" Background="Transparent"
-                     VerticalContentAlignment="Center" Padding="9,0" FontSize="13"
-                     Foreground="{StaticResource TextBrush}" CaretBrush="White"
+            <TextBox x:Name="ValueBox" Grid.Column="0" Style="{StaticResource StepperTextBox}"
                      Text="{Binding Value, ElementName=Root, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
