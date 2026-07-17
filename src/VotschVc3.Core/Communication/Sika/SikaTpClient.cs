@@ -9,10 +9,16 @@ namespace VotschVc3.Core.Communication.Sika;
 /// <c>getRegister</c>, writes a set point via <c>setSP</c>. Temperature only –
 /// no humidity channel, and the API exposes no remote power on/off, so
 /// <see cref="StopAsync"/> cannot switch the bath off (it runs continuously).
+/// All HTTP requests are serialised through <see cref="_ioGate"/> (live
+/// polling, the manual terminal and a <c>setSP</c> write never interleave on
+/// the wire) – the device's embedded web server answered concurrent requests
+/// with sporadic 404s / stale bodies otherwise, which made <c>setSP</c> look
+/// like it had no effect on the real bath.
 /// </summary>
 public sealed class SikaTpClient : IChamberDevice
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly SemaphoreSlim _ioGate = new(1, 1);
     private readonly Func<ChamberConnectionSettings, HttpClient> _httpFactory;
 
     private HttpClient? _http;
@@ -140,12 +146,24 @@ public sealed class SikaTpClient : IChamberDevice
         return response;
     }
 
+    /// <summary>
+    /// Issues one GET, serialised behind <see cref="_ioGate"/> so it never overlaps
+    /// another request on the wire (see the class summary for why that matters).
+    /// </summary>
     private async Task<string> GetAsync(string url, CancellationToken cancellationToken)
     {
-        HttpClient http = _http ?? throw new InvalidOperationException("Not connected to the SIKA device.");
-        using HttpResponseMessage response = await http.GetAsync(url, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            HttpClient http = _http ?? throw new InvalidOperationException("Not connected to the SIKA device.");
+            using HttpResponseMessage response = await http.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
     }
 
     private void RaiseFrame(string request, string response) =>
@@ -162,6 +180,7 @@ public sealed class SikaTpClient : IChamberDevice
     {
         DisposeHttp();
         _gate.Dispose();
+        _ioGate.Dispose();
         return ValueTask.CompletedTask;
     }
 }

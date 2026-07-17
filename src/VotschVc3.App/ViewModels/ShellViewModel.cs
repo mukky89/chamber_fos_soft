@@ -118,12 +118,34 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             }
         }
 
+        // One-time: add the Polytech SIKA bath and the new Komora 3 — FOI climate
+        // chamber for labs that already have a saved config (so a fresh reseed
+        // doesn't wipe their existing IP edits). Guarded by its own marker and
+        // matched by Host so a user who later removes one of these doesn't get
+        // it silently re-added.
+        string extraChambersMarker = System.IO.Path.Combine(dir, ".chambers_add_polytech_foi_v1");
+        bool addedExtras = false;
+        if (!seeded && !reseeded && !System.IO.File.Exists(extraChambersMarker))
+        {
+            if (!configs.Any(c => c.Host == "10.88.6.28"))
+            {
+                configs.Add(DefaultPolytechSikaConfig());
+                addedExtras = true;
+            }
+
+            if (!configs.Any(c => c.Host == "10.88.5.233"))
+            {
+                configs.Add(DefaultKomora3FoiConfig());
+                addedExtras = true;
+            }
+        }
+
         foreach (ChamberConfig config in configs)
         {
             AddChamberInternal(config);
         }
 
-        if (seeded || reseeded || renamed)
+        if (seeded || reseeded || renamed || addedExtras)
         {
             SaveConfigs();
         }
@@ -139,6 +161,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             if (!System.IO.File.Exists(namesMarker))
             {
                 System.IO.File.WriteAllText(namesMarker, DateTimeOffset.Now.ToString("o"));
+            }
+
+            if (!System.IO.File.Exists(extraChambersMarker))
+            {
+                System.IO.File.WriteAllText(extraChambersMarker, DateTimeOffset.Now.ToString("o"));
             }
         }
         catch
@@ -584,6 +611,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             },
         },
         DefaultPolEkoConfig(),
+        DefaultPolytechSikaConfig(),
+        DefaultKomora3FoiConfig(),
     };
 
     /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>
@@ -597,6 +626,31 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         Address = 1,
         TempMin = 0,
         TempMax = 300, // SLN drying oven range is up to +300 °C
+    };
+
+    /// <summary>The pre-configured Polytech SIKA TP Premium calibration bath (REST-API).</summary>
+    private static ChamberConfig DefaultPolytechSikaConfig() => new()
+    {
+        Name = "Polytech SIKA",
+        Kind = ChamberKind.TemperatureOnly,
+        Protocol = ChamberProtocol.SikaRestApi,
+        Host = "10.88.6.28",
+        Port = SikaRestApiProtocol.DefaultPort,
+        StartChannelIndex = 0,
+    };
+
+    /// <summary>
+    /// Komora 3 — FOI: another temperature + humidity climate chamber (different
+    /// model than Komora 1/2, but the same Vötsch ASCII-2 communication protocol).
+    /// </summary>
+    private static ChamberConfig DefaultKomora3FoiConfig() => new()
+    {
+        Name = "Komora 3 - FOI",
+        Kind = ChamberKind.TemperatureHumidity,
+        Protocol = ChamberProtocol.VotschAscii2,
+        Host = "10.88.5.233",
+        Port = 2049,
+        StartChannelIndex = 1,
     };
 
     private void AddChamberInternal(ChamberConfig config)

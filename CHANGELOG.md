@@ -4,6 +4,33 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.17.0] – 2026-07-17
+
+### Pridané
+- **Polytech SIKA** (kalibračný kúpeľ, REST-API) na IP `10.88.6.28` a
+  **Komora 3 - FOI** (klimatická komora teplota + vlhkosť, rovnaký Vötsch
+  ASCII-2 protokol ako Komora 1/2) na IP `10.88.5.233` – pridané ako nové
+  predvolené zariadenia. Jednorazová migrácia ich doplní aj do už bežiacich
+  inštalácií (podľa IP, takže sa nepridajú duplicitne, ak si ich niekto medzitým
+  premenoval alebo odstránil).
+- **Kopírovať** tlačidlo v „Surový terminál" – skopíruje celý zobrazený
+  TX/RX log do schránky.
+
+### Zmenené
+- **„Vyčistiť" v Surovom termináli** teraz vymaže aj výsledok diagnostiky
+  (getInfoReport, MODBUS sken a pod.), nielen TX/RX log.
+- **SIKA grafika:** čierny predný panel je teraz výrazne tmavší a kontrastnejší
+  keď je zariadenie online, a vybledne do sivej keď nie je – jasnejší signál,
+  že kúpeľ naozaj komunikuje (predtým vyzeral rovnako v oboch stavoch).
+
+### Opravené
+- **SIKA REST-API klient teraz serializuje všetky HTTP požiadavky** (živé
+  čítanie, zápis setpointu, surový terminál) tak, ako to už robia ASCII-2 aj
+  MODBUS klienti. Bez tohto zámku vedela paralelná požiadavka (napr. `setSP`
+  počas prebiehajúceho pollingu) na embedded webserveri kúpeľa skončiť
+  náhodným 404 alebo neaplikovaným zápisom – to vyzeralo, akoby nastavenie
+  teploty nemalo na reálne zariadenie žiadny vplyv.
+
 ## [1.16.0] – 2026-07-16
 
 ### Pridané

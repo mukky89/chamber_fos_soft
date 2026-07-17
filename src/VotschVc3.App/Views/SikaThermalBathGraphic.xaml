@@ -59,8 +59,11 @@
             <Path Stroke="#FFFFFF" StrokeThickness="7" Opacity="0.16"
                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M78,156 L72,480" />
 
-            <!-- ===== Black front panel: full width around the screen, tapering below ===== -->
-            <Path Stroke="#0B0B0D" StrokeThickness="1.5"
+            <!-- ===== Black front panel: full width around the screen, tapering below.
+                 Fill/stroke are swapped in code-behind between a deep, high-contrast
+                 black (online) and a washed-out grey (offline) so the panel itself
+                 signals whether the device is really online, not just the veil. ===== -->
+            <Path x:Name="FrontPanel" Stroke="#0B0B0D" StrokeThickness="1.5"
                   Data="M88,150 L272,150 Q284,150 284,162 L284,320 L242,496 L118,496 L76,320 L76,162 Q76,150 88,150 Z">
                 <Path.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">

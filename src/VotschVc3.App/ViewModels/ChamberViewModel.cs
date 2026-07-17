@@ -113,7 +113,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         BrowseRecordingPathCommand = new RelayCommand(BrowseRecordingPath);
 
         SendTerminalCommand = new AsyncRelayCommand(SendTerminalAsync, () => IsConnected && !string.IsNullOrWhiteSpace(TerminalInput), ReportError);
-        ClearTerminalCommand = new RelayCommand(() => TerminalLines.Clear());
+        ClearTerminalCommand = new RelayCommand(() =>
+        {
+            TerminalLines.Clear();
+            DiagResult = string.Empty;
+        });
+        CopyTerminalCommand = new RelayCommand(CopyTerminalToClipboard);
 
         InsertReadCommandCommand = new RelayCommand(() => TerminalInput = TestReadFrame);
         InsertWriteCommandCommand = new RelayCommand(() => TerminalInput = BuildWriteFrame(DiagTestTemperature, true));
@@ -2111,7 +2116,28 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand SendTerminalCommand { get; }
     public RelayCommand ClearTerminalCommand { get; }
 
+    /// <summary>Copies the whole visible TX/RX log to the clipboard (one frame per line).</summary>
+    public RelayCommand CopyTerminalCommand { get; }
+
     private async Task SendTerminalAsync() => await _client.SendRawAsync(TerminalInput);
+
+    private void CopyTerminalToClipboard()
+    {
+        if (TerminalLines.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            Clipboard.SetText(string.Join(Environment.NewLine, TerminalLines));
+            ShowActionInfo("✔ Terminál skopírovaný do schránky.");
+        }
+        catch
+        {
+            // The clipboard can be momentarily locked by another process; ignore.
+        }
+    }
 
     #region Set-point diagnostics (Vötsch ASCII-2)
 
