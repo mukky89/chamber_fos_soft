@@ -133,7 +133,23 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource Card}" Width="500" Margin="7">
+                        <!-- Compact mode shrinks the whole card (graphic + text + spacing) via a
+                             layout-scale, so more devices fit; toggled by the admin, reverts to the
+                             original roomy layout when off. -->
+                        <Border Width="500" Margin="7">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DataContext.CompactMode, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                            <Setter Property="LayoutTransform">
+                                                <Setter.Value>
+                                                    <ScaleTransform ScaleX="0.8" ScaleY="0.8" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <StackPanel>
 
                                 <!-- ===== Top bar: reorder (admin) + primary "open device" action ===== -->

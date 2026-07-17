@@ -747,7 +747,7 @@
                             <StackPanel Margin="0,14,0,0" Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}">
                                 <TextBlock Text="Heslo na odomknutie (voliteľné)" Style="{StaticResource Label}" />
                                 <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,6"
-                                           Text="Ak nastavíš heslo, odomknutie ho bude vyžadovať. Prázdne pole + „Nastaviť heslo" heslo odstráni (odomkne sa jedným klikom)." />
+                                           Text="Ak nastavíš heslo, odomknutie ho bude vyžadovať. Prázdne pole + „Nastaviť heslo“ heslo odstráni (odomkne sa jedným klikom)." />
                                 <StackPanel Orientation="Horizontal">
                                     <PasswordBox x:Name="LockPasswordBox" Width="180" Height="34" VerticalContentAlignment="Center"
                                                  Background="{StaticResource SurfaceAltBrush}" Padding="8,0" />

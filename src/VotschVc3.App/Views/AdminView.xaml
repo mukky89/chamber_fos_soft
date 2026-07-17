@@ -58,6 +58,10 @@
                               IsChecked="{Binding AllowChamberReorder}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
                                Text="Keď je zapnuté, na kartách komôr sa adminovi zobrazia šípky na zmenu poradia. Vypnuté = poradie sa nedá omylom prehodiť." />
+                    <CheckBox Content="Kompaktný režim nástenky (menšie karty a text)" Margin="0,12,0,0"
+                              IsChecked="{Binding CompactMode}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
+                               Text="Zmenší karty, grafiku a text, aby sa na obrazovku zmestilo viac zariadení. Vypnuté = pôvodné, priestrannejšie zobrazenie." />
                 </StackPanel>
             </Border>
 

@@ -12,4 +12,11 @@ public sealed class UiSettings
     /// default so operators never see the controls by accident.
     /// </summary>
     public bool AllowChamberReorder { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> the dashboard uses a compact layout – smaller cards,
+    /// graphics and text – so more devices fit on screen. Off by default (the
+    /// original, roomier layout).
+    /// </summary>
+    public bool CompactMode { get; set; }
 }

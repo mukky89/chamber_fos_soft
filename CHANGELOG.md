@@ -24,6 +24,9 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
   stlačeniu. Odomknutie sa dá **voliteľne chrániť heslom** (nastavuje admin v
   nastaveniach zariadenia); bez hesla sa odomkne jedným klikom. Stav zámku sa
   ukladá pre každé zariadenie.
+- **Kompaktný režim nástenky** (Administrácia → Rozloženie nástenky): zmenší
+  karty, grafiku a text, aby sa na obrazovku zmestilo viac zariadení.
+  Nastaviteľné, dá sa kedykoľvek vypnúť a vrátiť sa k pôvodnému zobrazeniu.
 
 ### Zmenené
 - **Pevné poradie zariadení „na tvrdo":** Komora 1, Komora 2, Komora 3,

@@ -315,6 +315,27 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     public bool IsReorderAllowed => CanManage && _ui.AllowChamberReorder;
 
+    /// <summary>
+    /// Admin toggle (persisted): compact dashboard layout. When on, the cards,
+    /// device graphics and text shrink so more devices fit on one screen; the
+    /// original layout returns when it is switched off. Off by default.
+    /// </summary>
+    public bool CompactMode
+    {
+        get => _ui.CompactMode;
+        set
+        {
+            if (_ui.CompactMode == value)
+            {
+                return;
+            }
+
+            _ui.CompactMode = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+        }
+    }
+
     private void SaveUiSettings()
     {
         try
