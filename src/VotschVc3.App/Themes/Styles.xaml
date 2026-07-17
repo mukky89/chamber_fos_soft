@@ -478,9 +478,14 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{StaticResource BorderBrush}" />
                         </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
+                        <!-- CalendarButton (month/year cell) marks the current selection
+                             via HasSelectedDays, not IsSelected. -->
+                        <Trigger Property="HasSelectedDays" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{StaticResource AccentBrush}" />
                             <Setter Property="Foreground" Value="White" />
+                        </Trigger>
+                        <Trigger Property="IsInactive" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

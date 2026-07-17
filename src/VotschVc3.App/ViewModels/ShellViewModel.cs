@@ -135,6 +135,31 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             }
         }
 
+        // One-time: apply the known Sylex SIKA parameters (nameplate + temperature
+        // range -50…165 °C read from the device's system info). If a "Sylex SIKA"
+        // already exists its nameplate/range is filled in; otherwise it is added as
+        // an ordinary (non-forced) device. Guarded by a marker so a later manual
+        // removal or edit is respected.
+        string sylexMarker = System.IO.Path.Combine(dir, ".chambers_sylex_sika_v1");
+        bool sylexApplied = false;
+        if (!seeded && !reseeded && !System.IO.File.Exists(sylexMarker))
+        {
+            ChamberConfig? sylex = configs.FirstOrDefault(c => c.Name == "Sylex SIKA");
+            if (sylex is null)
+            {
+                configs.Add(DefaultSylexSikaConfig());
+                sylexApplied = true;
+            }
+            else
+            {
+                ChamberConfig d = DefaultSylexSikaConfig();
+                sylex.Nameplate = d.Nameplate;
+                sylex.TempMin = d.TempMin;
+                sylex.TempMax = d.TempMax;
+                sylexApplied = true;
+            }
+        }
+
         // Every start: force the known lab devices into a fixed display order
         // (Komora 1/2/3, Sušiareň). Also "na tvrdo", so it wins over any manual
         // reordering after a restart. SIKA baths are no longer forced defaults –
@@ -146,7 +171,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             AddChamberInternal(config);
         }
 
-        if (seeded || reseeded || renamed || addedExtras || reordered)
+        if (seeded || reseeded || renamed || addedExtras || sylexApplied || reordered)
         {
             SaveConfigs();
         }
@@ -167,6 +192,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             if (!System.IO.File.Exists(extraChambersMarker))
             {
                 System.IO.File.WriteAllText(extraChambersMarker, DateTimeOffset.Now.ToString("o"));
+            }
+
+            if (!System.IO.File.Exists(sylexMarker))
+            {
+                System.IO.File.WriteAllText(sylexMarker, DateTimeOffset.Now.ToString("o"));
             }
         }
         catch
@@ -661,6 +691,37 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         },
         DefaultPolEkoConfig(),
         DefaultKomora3FoiConfig(),
+        DefaultSylexSikaConfig(),
+    };
+
+    /// <summary>
+    /// Sylex SIKA TP Premium calibration bath (REST-API). Nameplate and the allowed
+    /// temperature range (-50…165 °C) come from the device's own system information.
+    /// An ordinary device (not forced) – the IP can be changed / it can be removed.
+    /// </summary>
+    private static ChamberConfig DefaultSylexSikaConfig() => new()
+    {
+        Name = "Sylex SIKA",
+        Kind = ChamberKind.TemperatureOnly,
+        Protocol = ChamberProtocol.SikaRestApi,
+        Host = "10.88.5.81",
+        Port = SikaRestApiProtocol.DefaultPort,
+        StartChannelIndex = 0,
+        TempMin = -50,
+        TempMax = 165,
+        Nameplate = new ChamberNameplate
+        {
+            Manufacturer = "SIKA",
+            Model = "TP3M165E.2",
+            SerialNumber = "2219005",
+            OrderNumber = "SIKA",
+            YearOfConstruction = "2022",
+            SystemNumber = "001927", // HardwareSerial
+            FirstCalibration = "2022-05-09",
+            NextCalibration = "2025-05-09",
+            Notes = "SIKA TP Premium · SW 28.17 · Firmware V 1.15 · ARM Rev. 1 · rozsah -50…+165 °C. "
+                  + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
+        },
     };
 
     /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>
@@ -757,6 +818,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             // Vötsch start channel is digital channel 1 (verified running bit);
             // POL-EKO (MODBUS) and SIKA (REST-API) do not use this field.
             StartChannelIndex = (polEko || sika) ? 0 : 1,
+            // Allowed temperature range: POL-EKO ovens up to +300 °C, SIKA TP baths
+            // -50…+165 °C; Vötsch keeps the ChamberConfig default (editable per device).
+            TempMin = sika ? -50 : polEko ? 0 : -45,
+            TempMax = sika ? 165 : polEko ? 300 : 190,
         };
 
         AddChamberInternal(config);

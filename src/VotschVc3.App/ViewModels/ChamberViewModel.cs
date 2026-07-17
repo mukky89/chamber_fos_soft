@@ -836,13 +836,48 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand ApplySetpointCommand { get; }
     public AsyncRelayCommand StopChamberCommand { get; }
 
+    /// <summary>
+    /// Guards a manual / quick temperature set point against the device's allowed
+    /// range [<see cref="TempMin"/>, <see cref="TempMax"/>]. Returns <c>false</c> and
+    /// shows a clear message when the value is out of range, so the app never sends a
+    /// set point the device would reject or that is unsafe.
+    /// </summary>
+    private bool IsTemperatureInRange(double celsius)
+    {
+        if (celsius < TempMin || celsius > TempMax)
+        {
+            string msg = $"⚠ {celsius:0.#} °C je mimo povoleného rozsahu zariadenia [{TempMin:0.#}…{TempMax:0.#} °C].";
+            ShowActionInfo(msg);
+            StatusMessage = msg;
+            AppLog.Warn(Name, msg);
+            return false;
+        }
+
+        return true;
+    }
+
     private async Task ApplySetpointAsync()
     {
+        // Enforce the device's allowed temperature range before anything is sent.
+        if (!IsTemperatureInRange(ManualTemperature))
+        {
+            return;
+        }
+
         DigitalChannels digital = ParseDigitalText();
         digital.StartChannelIndex = StartChannelIndex;
         digital.Start = true;
 
         bool humidity = SupportsHumidity && ControlHumidity;
+        if (humidity && (ManualHumidity < HumMin || ManualHumidity > HumMax))
+        {
+            string msg = $"⚠ {ManualHumidity:0.#} % je mimo povoleného rozsahu vlhkosti [{HumMin:0.#}…{HumMax:0.#} %].";
+            ShowActionInfo(msg);
+            StatusMessage = msg;
+            AppLog.Warn(Name, msg);
+            return;
+        }
+
         // Only send the humidity control variable to humidity chambers; a temp-only
         // Simpac answers SET NOMINAL on channel 2 with -8 (variable not found).
         var setpoints = humidity

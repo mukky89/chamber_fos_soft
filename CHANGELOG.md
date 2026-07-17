@@ -4,6 +4,25 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.20.0] – 2026-07-17
+
+### Opravené
+- **Build padal** kvôli tmavému štýlu kalendára – `CalendarButton` nemá
+  vlastnosť `IsSelected` (použitá `HasSelectedDays`). Aplikácia sa opäť
+  skompiluje.
+
+### Pridané
+- **Povolený teplotný rozsah pre každé zariadenie sa teraz vynucuje.** Pri
+  nastavovaní teploty (aj rýchle predvoľby) sa hodnota mimo rozsahu zariadenia
+  `[TempMin…TempMax]` odmietne so zrozumným hlásením a nič sa nepošle. Rovnako
+  pri vlhkosti. Predvolené rozsahy: SIKA -50…+165 °C, POL-EKO 0…+300 °C,
+  Vötsch -45…+190 °C (editovateľné pri každom zariadení).
+- **Sylex SIKA s reálnymi parametrami zo štítku zariadenia** (TP3M165E.2, s/n
+  2219005, HW 001927, SW 28.17 / FW V 1.15, kalibrácia 2022-05-09 → 2025-05-09,
+  rozsah -50…+165 °C). Doplní sa jednorazovo aj do existujúcej inštalácie
+  (ak „Sylex SIKA" existuje, len sa doplní štítok a rozsah). Ide o bežné
+  zariadenie – IP sa dá zmeniť a dá sa odobrať.
+
 ## [1.19.0] – 2026-07-17
 
 ### Pridané
