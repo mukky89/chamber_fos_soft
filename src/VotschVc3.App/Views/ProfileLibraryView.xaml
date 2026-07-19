@@ -19,11 +19,31 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="↻ Obnoviť" Command="{Binding RefreshHistoryCommand}"
-                        ToolTip="Znovu načíta uložené profily zo súboru (automaticky sa obnovia aj pri vstupe sem)." />
-                <Button Content="Nový" Command="{Binding NewProfileCommand}" />
-                <Button Content="Import…" Command="{Binding ImportProfileCommand}" />
-                <Button Content="Export…" Command="{Binding ExportProfileCommand}" />
+                <Button Command="{Binding RefreshHistoryCommand}"
+                        ToolTip="Znovu načíta uložené profily zo súboru (automaticky sa obnovia aj pri vstupe sem).">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Refresh}" />
+                        <TextBlock Text="Obnoviť" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding NewProfileCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Add}" />
+                        <TextBlock Text="Nový" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ImportProfileCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Import}" />
+                        <TextBlock Text="Import…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ExportProfileCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Export}" />
+                        <TextBlock Text="Export…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
 

@@ -150,12 +150,22 @@
                             <ColumnDefinition Width="8" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="Uložiť do knižnice" Style="{StaticResource AccentButton}"
+                        <Button Grid.Column="0" Style="{StaticResource AccentButton}"
                                 HorizontalAlignment="Stretch" Command="{Binding SaveToLibraryCommand}"
-                                ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice." />
-                        <Button Grid.Column="2" Content="✎ Editovať profil" HorizontalAlignment="Stretch"
+                                ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice.">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
+                                <TextBlock Text="Uložiť do knižnice" Style="{StaticResource IconLabel}" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="2" HorizontalAlignment="Stretch"
                                 Command="{Binding EditInEditorCommand}"
-                                ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov." />
+                                ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov.">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
+                                <TextBlock Text="Editovať profil" Style="{StaticResource IconLabel}" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <Separator Margin="0,10,0,8" Background="{StaticResource BorderBrush}" />

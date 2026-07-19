@@ -4,6 +4,16 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.24.0] – 2026-07-19
+
+### Pridané
+- **Vlastné vektorové ikony (XAML).** Nová knižnica `Themes/Icons.xaml` s
+  ostrými, tému-rešpektujúcimi ikonami (prefarbia sa podľa tlačidla, ostré pri
+  každom DPI). Nasadené na hlavné menu vľavo (Editor, Rýchly profil, Teplomery,
+  Záznamy, Audit, App log, Changelog, Administrácia, Odhlásiť, Ukončiť) a na
+  kľúčové tlačidlá (Editor profilov: Obnoviť/Nový/Import/Export; Rýchly profil:
+  Uložiť/Editovať). Knižnica je pripravená na rozšírenie do zvyšku appky.
+
 ## [1.23.0] – 2026-07-19
 
 ### Zmenené / opravené
