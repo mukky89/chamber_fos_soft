@@ -868,6 +868,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ShowActionInfo(msg);
             StatusMessage = msg;
             AppLog.Warn(Name, msg);
+            DesktopNotifier.Notify($"Teplota mimo rozsahu · {Name}", msg, DesktopNotificationKind.Warning);
             return false;
         }
 
@@ -893,6 +894,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ShowActionInfo(msg);
             StatusMessage = msg;
             AppLog.Warn(Name, msg);
+            DesktopNotifier.Notify($"Vlhkosť mimo rozsahu · {Name}", msg, DesktopNotificationKind.Warning);
             return;
         }
 
@@ -2047,18 +2049,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private List<string> _pinnedQuickProfiles = new();
 
     /// <summary>
-    /// Saved profiles shown as one-click quick-launch buttons on the card. If the admin
-    /// has pinned specific profiles, only those (in pinned order) are shown; otherwise
-    /// every saved profile is shown as a sensible default.
+    /// Saved profiles shown as one-click quick-launch buttons on the card. Only the
+    /// profiles the admin explicitly pinned (in pinned order) are shown – nothing is
+    /// shown until at least one is selected, so the card stays uncluttered.
     /// </summary>
     public IReadOnlyList<TestProfile> QuickProfiles =>
-        _pinnedQuickProfiles.Count == 0
-            ? History.ToList()
-            : _pinnedQuickProfiles
-                .Select(n => History.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)))
-                .Where(p => p is not null)
-                .Select(p => p!)
-                .ToList();
+        _pinnedQuickProfiles
+            .Select(n => History.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)))
+            .Where(p => p is not null)
+            .Select(p => p!)
+            .ToList();
+
+    /// <summary>True when no quick-launch profile is pinned yet (drives the "configure" hint).</summary>
+    public bool HasNoQuickProfiles => QuickProfiles.Count == 0;
 
     /// <summary>True when at least one quick-launch profile button is shown.</summary>
     public bool HasQuickProfiles => QuickProfiles.Count > 0;
@@ -2118,6 +2121,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         OnPropertyChanged(nameof(QuickProfiles));
         OnPropertyChanged(nameof(HasQuickProfiles));
+        OnPropertyChanged(nameof(HasNoQuickProfiles));
         OnPropertyChanged(nameof(PinnedProfileNames));
         OnPropertyChanged(nameof(HasPinnedProfiles));
     }
@@ -3323,6 +3327,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         StatusMessage = $"Chyba: {ex.Message}";
         AppLog.Error(Name, ex);
+        DesktopNotifier.Notify($"Chyba · {Name}", ex.Message, DesktopNotificationKind.Warning);
     }
 
     private static void RunOnUi(Action action)

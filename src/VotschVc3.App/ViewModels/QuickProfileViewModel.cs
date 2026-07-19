@@ -537,7 +537,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         IsDeleteArmed = false;
     }
 
-    /// <summary>Deletes the saved profile whose name matches the current one (two-click confirm).</summary>
+    /// <summary>Deletes the saved profile whose name matches the current one (with confirmation).</summary>
     private void DeleteFromLibrary()
     {
         string name = (ProfileName ?? string.Empty).Trim();
@@ -550,20 +550,16 @@ public sealed class QuickProfileViewModel : ObservableObject
             return;
         }
 
-        if (!IsDeleteArmed)
+        bool confirmed = Views.ConfirmDialog.Ask(
+            $"Naozaj vymazať profil „{existing.Name}“ z knižnice? Túto akciu nie je možné vrátiť.",
+            "Vymazať profil",
+            "Vymazať");
+        if (!confirmed)
         {
-            IsDeleteArmed = true;
-            _deleteArmCts?.Cancel();
-            _deleteArmCts = new System.Threading.CancellationTokenSource();
-            System.Threading.CancellationToken token = _deleteArmCts.Token;
-            _ = Task.Delay(TimeSpan.FromSeconds(3), token).ContinueWith(
-                _ => IsDeleteArmed = false,
-                token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-            Status = $"Vymazať profil „{existing.Name}“ z knižnice? Potvrď druhým klikom do 3 sekúnd.";
+            Status = "Mazanie zrušené.";
             return;
         }
 
-        DisarmDelete();
         _store.Delete(existing.Id);
         IsSaveSuccess = false;
         Status = $"Profil „{existing.Name}“ vymazaný z knižnice.";

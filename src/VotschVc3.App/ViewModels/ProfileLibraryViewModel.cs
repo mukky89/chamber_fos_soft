@@ -316,24 +316,19 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             return;
         }
 
-        if (!IsDeleteArmed)
+        bool confirmed = Views.ConfirmDialog.Ask(
+            $"Naozaj vymazať profil „{profile.Name}“ z knižnice? Túto akciu nie je možné vrátiť.",
+            "Vymazať profil",
+            "Vymazať");
+        if (!confirmed)
         {
-            // First click only arms the confirmation; it auto-reverts after 3 s.
-            IsDeleteArmed = true;
-            _deleteArmCts?.Cancel();
-            _deleteArmCts = new CancellationTokenSource();
-            CancellationToken token = _deleteArmCts.Token;
-            _ = Task.Delay(TimeSpan.FromSeconds(3), token).ContinueWith(
-                _ => IsDeleteArmed = false,
-                token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-            StatusMessage = $"Zmazať profil \"{profile.Name}\"? Potvrď druhým klikom do 3 sekúnd.";
+            StatusMessage = "Mazanie zrušené.";
             return;
         }
 
-        DisarmDelete();
         _store.Delete(profile.Id);
         RefreshHistory();
-        StatusMessage = $"Profil \"{profile.Name}\" odstránený.";
+        StatusMessage = $"Profil „{profile.Name}“ odstránený.";
     }
 
     private void RefreshHistory()

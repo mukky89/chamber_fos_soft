@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.23.0] – 2026-07-19
+
+### Zmenené / opravené
+- **Mazanie profilov cez potvrdzovacie okno.** V Editore profilov aj v Rýchlom
+  vytváračovi sa pri mazaní zobrazí tmavé potvrdzovacie okno „Naozaj vymazať?"
+  (namiesto dvojkliku), takže mazanie vybraného profilu funguje jednoznačne.
+- **Rýchly vytvárač – krajšie usporiadanie tlačidiel.** Primárne akcie (Uložiť,
+  Editovať) v jednom riadku, oddeľovač a pod ním Nový vľavo / Vymazať vpravo.
+- **Rýchle spustenie na karte zariadenia už nezobrazuje všetky profily.**
+  Zobrazia sa iba profily, ktoré admin výslovne pridá cez „✎ Upraviť"; keď nie
+  je pridaný žiadny, ukáže sa nápoveda.
+- **Upozornenia aj ako popup notifikácie.** Teplota/vlhkosť mimo rozsahu a chyby
+  operácií sa teraz hlásia aj cez systémové popup (tray) notifikácie so zvukom,
+  nielen v stavovom riadku (alarmy fungovali takto už predtým).
+
 ## [1.22.0] – 2026-07-19
 
 ### Pridané

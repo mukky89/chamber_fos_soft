@@ -12,6 +12,9 @@ public enum DesktopNotificationKind
     /// <summary>A profile / queue finished successfully.</summary>
     Success,
 
+    /// <summary>A non-critical warning (out-of-range value, failed action…).</summary>
+    Warning,
+
     /// <summary>An alarm was raised (limit exceeded, connection lost…).</summary>
     Alarm,
 }
@@ -59,12 +62,22 @@ public static class DesktopNotifier
     {
         try
         {
-            (kind == DesktopNotificationKind.Alarm ? SystemSounds.Hand : SystemSounds.Asterisk).Play();
+            (kind switch
+            {
+                DesktopNotificationKind.Alarm => SystemSounds.Hand,
+                DesktopNotificationKind.Warning => SystemSounds.Exclamation,
+                _ => SystemSounds.Asterisk,
+            }).Play();
 
             EnsureTrayIcon();
             _tray?.ShowBalloonTip(
                 8000, title, string.IsNullOrWhiteSpace(message) ? title : message,
-                kind == DesktopNotificationKind.Alarm ? WinForms.ToolTipIcon.Error : WinForms.ToolTipIcon.Info);
+                kind switch
+                {
+                    DesktopNotificationKind.Alarm => WinForms.ToolTipIcon.Error,
+                    DesktopNotificationKind.Warning => WinForms.ToolTipIcon.Warning,
+                    _ => WinForms.ToolTipIcon.Info,
+                });
 
             FlashTaskbarIfInactive();
         }

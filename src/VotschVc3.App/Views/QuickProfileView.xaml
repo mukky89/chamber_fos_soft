@@ -143,20 +143,32 @@
                         <TextBlock Text="Rovnomerne skráti všetky plata." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
 
-                    <WrapPanel Margin="0,8,0,0">
-                        <Button Content="Uložiť do knižnice" Style="{StaticResource AccentButton}"
-                                Margin="0,0,7,7" Command="{Binding SaveToLibraryCommand}"
+                    <!-- Primary actions on one row (Save = accent, Edit alongside). -->
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="Uložiť do knižnice" Style="{StaticResource AccentButton}"
+                                HorizontalAlignment="Stretch" Command="{Binding SaveToLibraryCommand}"
                                 ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice." />
-                        <Button Content="✎ Editovať profil" Margin="0,0,7,7"
+                        <Button Grid.Column="2" Content="✎ Editovať profil" HorizontalAlignment="Stretch"
                                 Command="{Binding EditInEditorCommand}"
                                 ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov." />
-                        <Button Content="Nový / začať odznova" Margin="0,0,7,7"
-                                Command="{Binding NewCommand}"
+                    </Grid>
+
+                    <Separator Margin="0,10,0,8" Background="{StaticResource BorderBrush}" />
+
+                    <!-- Secondary + destructive, clearly separated. -->
+                    <Grid>
+                        <Button HorizontalAlignment="Left" Content="↺ Nový / začať odznova"
+                                Style="{StaticResource GhostButton}" Command="{Binding NewCommand}"
                                 ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
-                        <Button Content="{Binding DeleteButtonText}" Style="{StaticResource DangerButton}" Margin="0,0,7,7"
-                                Command="{Binding DeleteFromLibraryCommand}"
-                                ToolTip="Vymaže z knižnice profil s aktuálnym názvom (potvrdenie druhým klikom do 3 s)." />
-                    </WrapPanel>
+                        <Button HorizontalAlignment="Right" Content="Vymazať z knižnice"
+                                Style="{StaticResource DangerButton}" Command="{Binding DeleteFromLibraryCommand}"
+                                ToolTip="Vymaže z knižnice profil s aktuálnym názvom (s potvrdením)." />
+                    </Grid>
 
                     <!-- Prominent confirmation after a successful save. -->
                     <Border Margin="0,4,0,0" CornerRadius="8" Padding="10,8"
