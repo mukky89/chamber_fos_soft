@@ -143,11 +143,32 @@
                         <TextBlock Text="Rovnomerne skráti všetky plata." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
 
-                    <Button Content="Uložiť do knižnice" Style="{StaticResource AccentButton}"
-                            Margin="0,8,0,0" HorizontalAlignment="Left"
-                            Command="{Binding SaveToLibraryCommand}" />
+                    <WrapPanel Margin="0,8,0,0">
+                        <Button Content="Uložiť do knižnice" Style="{StaticResource AccentButton}"
+                                Margin="0,0,7,7" Command="{Binding SaveToLibraryCommand}"
+                                ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice." />
+                        <Button Content="✎ Editovať profil" Margin="0,0,7,7"
+                                Command="{Binding EditInEditorCommand}"
+                                ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov." />
+                        <Button Content="Nový / začať odznova" Margin="0,0,7,7"
+                                Command="{Binding NewCommand}"
+                                ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
+                        <Button Content="{Binding DeleteButtonText}" Style="{StaticResource DangerButton}" Margin="0,0,7,7"
+                                Command="{Binding DeleteFromLibraryCommand}"
+                                ToolTip="Vymaže z knižnice profil s aktuálnym názvom (potvrdenie druhým klikom do 3 s)." />
+                    </WrapPanel>
+
+                    <!-- Prominent confirmation after a successful save. -->
+                    <Border Margin="0,4,0,0" CornerRadius="8" Padding="10,8"
+                            Background="{StaticResource SurfaceAltBrush}"
+                            BorderBrush="{StaticResource OkBrush}" BorderThickness="1"
+                            Visibility="{Binding IsSaveSuccess, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding Status}" Foreground="{StaticResource OkBrush}"
+                                   FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                    </Border>
                     <TextBlock Text="{Binding Status}" Style="{StaticResource Caption}"
-                               TextWrapping="Wrap" Margin="0,8,0,0" />
+                               TextWrapping="Wrap" Margin="0,8,0,0"
+                               Visibility="{Binding IsSaveSuccess, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
                 </StackPanel>
             </Border>
 

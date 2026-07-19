@@ -359,6 +359,18 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         StatusMessage = $"Profily obnovené zo súboru ({History.Count}).";
     }
 
+    /// <summary>Reloads the library and opens the profile with the given id in the editor (used by the quick builder).</summary>
+    public void OpenForEditing(Guid id)
+    {
+        RefreshHistory();
+        TestProfile? match = History.FirstOrDefault(p => p.Id == id);
+        if (match is not null)
+        {
+            SelectedHistoryProfile = match; // auto-loads it into the editor
+            StatusMessage = $"Profil \"{match.Name}\" otvorený z rýchleho vytvárača.";
+        }
+    }
+
     private void DuplicateProfile()
     {
         if (SelectedHistoryProfile is not { } source)

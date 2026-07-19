@@ -57,6 +57,7 @@ public partial class MainWindow : Window
     /// <summary>
     /// Asks the operator to confirm before the app is really closed (so a lab test
     /// isn't stopped by accident). Called from the Exit button and the tray menu.
+    /// Uses a dark-themed dialog offering exit, hide-to-tray or cancel.
     /// </summary>
     public void RequestExit()
     {
@@ -66,19 +67,20 @@ public partial class MainWindow : Window
             RestoreFromTray();
         }
 
-        MessageBoxResult result = MessageBox.Show(
-            this,
-            "Naozaj chcete ukončiť aplikáciu?\n\nRiadenie a monitorovanie zariadení sa zastaví. "
-            + "Ak chcete appku len skryť, zatvorte okno krížikom – ostane bežať v oznamovacej oblasti (tray).",
-            "Ukončiť aplikáciu",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning,
-            MessageBoxResult.No);
+        var dialog = new ExitDialog { Owner = this };
+        dialog.ShowDialog();
 
-        if (result == MessageBoxResult.Yes)
+        switch (dialog.Choice)
         {
-            _exitConfirmed = true;
-            Close();
+            case ExitChoice.Exit:
+                _exitConfirmed = true;
+                Close();
+                break;
+            case ExitChoice.MinimizeToTray:
+                Hide();
+                DesktopNotifier.ShowMinimizedToTrayHint();
+                break;
+            // Cancel: keep running, do nothing.
         }
     }
 }

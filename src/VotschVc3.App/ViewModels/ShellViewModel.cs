@@ -60,6 +60,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         Thermometers = new ThermometersViewModel();
         Admin = new AdminViewModel(this);
         QuickProfile = new QuickProfileViewModel(_store);
+        // "Editovať profil" in the quick builder saves the profile and jumps to the editor.
+        QuickProfile.OpenInEditorRequested = OpenQuickProfileInEditor;
         Chambers = new ObservableCollection<ChamberViewModel>();
 
         // Commands must exist before chambers are built (AddChamberInternal uses them).
@@ -280,6 +282,13 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             chamber.ReloadProfiles();
             CurrentView = chamber;
         }
+    }
+
+    /// <summary>Opens the profile just built in the quick builder inside the standalone editor.</summary>
+    private void OpenQuickProfileInEditor(Guid profileId)
+    {
+        ProfileLibrary.OpenForEditing(profileId);
+        CurrentView = ProfileLibrary;
     }
 
     private void GoHome()

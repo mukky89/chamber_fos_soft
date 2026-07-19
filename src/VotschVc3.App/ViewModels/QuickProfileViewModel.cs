@@ -24,9 +24,18 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         SaveToLibraryCommand = new RelayCommand(SaveToLibrary);
+        EditInEditorCommand = new RelayCommand(EditInEditor);
+        NewCommand = new RelayCommand(NewProfile);
+        DeleteFromLibraryCommand = new RelayCommand(DeleteFromLibrary);
         ResetNameCommand = new RelayCommand(EnableAutoName);
         Recalculate(); // also generates the initial automatic name
     }
+
+    /// <summary>
+    /// Set by the shell so the "Editovať profil" action can hand the saved profile
+    /// over to the standalone profile editor (opens it there, loaded and ready).
+    /// </summary>
+    public Action<Guid>? OpenInEditorRequested { get; set; }
 
     /// <summary>True while the name is being set programmatically, so the user-edit
     /// detection in <see cref="ProfileName"/> ignores our own writes.</summary>
@@ -174,11 +183,24 @@ public sealed class QuickProfileViewModel : ObservableObject
     private string _status = "Nastav rozsah a kroky, potom ulož do knižnice.";
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
 
+    private bool _isSaveSuccess;
+    /// <summary>True right after a successful save/update, so the view can show a green confirmation banner.</summary>
+    public bool IsSaveSuccess { get => _isSaveSuccess; private set => SetProperty(ref _isSaveSuccess, value); }
+
     private string _namePatternHint = string.Empty;
     /// <summary>Human-readable preview of the naming pattern used for the generated name.</summary>
     public string NamePatternHint { get => _namePatternHint; private set => SetProperty(ref _namePatternHint, value); }
 
     public RelayCommand SaveToLibraryCommand { get; }
+
+    /// <summary>Saves the profile and opens it in the standalone profile editor.</summary>
+    public RelayCommand EditInEditorCommand { get; }
+
+    /// <summary>Resets every parameter to defaults – start a new quick profile from scratch.</summary>
+    public RelayCommand NewCommand { get; }
+
+    /// <summary>Deletes the profile with the current name from the shared library (two-click confirm).</summary>
+    public RelayCommand DeleteFromLibraryCommand { get; }
 
     /// <summary>Re-enables automatic naming and regenerates the name from the parameters.</summary>
     public RelayCommand ResetNameCommand { get; }
@@ -414,31 +436,137 @@ public sealed class QuickProfileViewModel : ObservableObject
         TempPreview = new[] { new ChartSeries("Teplota", TempBrush, pts) };
     }
 
+    /// <summary>
+    /// Upserts the current sweep into the shared library (matched by name so re-saving
+    /// updates instead of duplicating) and returns the persisted profile.
+    /// </summary>
+    private TestProfile Persist(out bool created)
+    {
+        TestProfile profile = BuildProfile();
+        TestProfile? existing = _store.LoadAll()
+            .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+        created = existing is null;
+        if (existing is not null)
+        {
+            profile.Id = existing.Id;
+        }
+
+        _store.Save(profile);
+        return profile;
+    }
+
     private void SaveToLibrary()
     {
+        DisarmDelete();
         try
         {
-            TestProfile profile = BuildProfile();
-
-            // Upsert by name so re-saving the same sweep updates it instead of
-            // creating duplicates in the shared library.
-            TestProfile? existing = _store.LoadAll()
-                .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (existing is not null)
-            {
-                profile.Id = existing.Id;
-            }
-
-            _store.Save(profile);
-            Status = (existing is null
-                    ? $"Profil \"{profile.Name}\" uložený do knižnice"
-                    : $"Profil \"{profile.Name}\" aktualizovaný v knižnici") +
-                $" ({profile.Segments.Count} segmentov, {Format(profile.SinglePassDuration.TotalMinutes)}). Otvor ho v Editore profilov.";
+            TestProfile profile = Persist(out bool created);
+            IsSaveSuccess = true;
+            Status = (created
+                    ? $"✔ Profil „{profile.Name}“ uložený do knižnice"
+                    : $"✔ Profil „{profile.Name}“ aktualizovaný v knižnici") +
+                $" ({profile.Segments.Count} segmentov, {Format(profile.SinglePassDuration.TotalMinutes)}). " +
+                "Nájdeš ho v Editore profilov aj v rýchlom spustení na karte komory.";
         }
         catch (Exception ex)
         {
+            IsSaveSuccess = false;
             Status = $"Uloženie zlyhalo: {ex.Message}";
         }
+    }
+
+    /// <summary>Saves the profile and asks the shell to open it in the standalone profile editor.</summary>
+    private void EditInEditor()
+    {
+        DisarmDelete();
+        try
+        {
+            TestProfile profile = Persist(out _);
+            IsSaveSuccess = true;
+            Status = $"✔ Profil „{profile.Name}“ uložený a otvorený v Editore profilov.";
+            OpenInEditorRequested?.Invoke(profile.Id);
+        }
+        catch (Exception ex)
+        {
+            IsSaveSuccess = false;
+            Status = $"Otvorenie v editore zlyhalo: {ex.Message}";
+        }
+    }
+
+    /// <summary>Resets every parameter to its default – starts a brand-new quick profile.</summary>
+    private void NewProfile()
+    {
+        DisarmDelete();
+        NamePrefix = string.Empty;
+        LowTemperature = -20;
+        HighTemperature = 60;
+        UseTemperatureStep = false;
+        IntermediateSteps = 7;
+        TemperatureStep = 10;
+        PlateauMinutes = 30;
+        RampMinutes = 20;
+        IncludeDescending = true;
+        DoublePeak = true;
+        PeakDipCelsius = 10;
+        StartFromCurrent = true;
+        StartTemperature = 25;
+        StartRampMinutes = 60;
+        ShortenByHours = 0;
+        EnableAutoName(); // back to an auto-generated name
+        IsSaveSuccess = false;
+        Status = "Nový rýchly profil – parametre vynulované na predvolené.";
+    }
+
+    private System.Threading.CancellationTokenSource? _deleteArmCts;
+
+    private bool _isDeleteArmed;
+    /// <summary>Two-step delete of the library copy: the first click arms, the second (within 3 s) deletes.</summary>
+    public bool IsDeleteArmed
+    {
+        get => _isDeleteArmed;
+        private set { if (SetProperty(ref _isDeleteArmed, value)) OnPropertyChanged(nameof(DeleteButtonText)); }
+    }
+
+    /// <summary>Delete button caption reflecting the confirmation state.</summary>
+    public string DeleteButtonText => IsDeleteArmed ? "Naozaj vymazať?" : "Vymazať z knižnice";
+
+    private void DisarmDelete()
+    {
+        _deleteArmCts?.Cancel();
+        _deleteArmCts = null;
+        IsDeleteArmed = false;
+    }
+
+    /// <summary>Deletes the saved profile whose name matches the current one (two-click confirm).</summary>
+    private void DeleteFromLibrary()
+    {
+        string name = (ProfileName ?? string.Empty).Trim();
+        TestProfile? existing = _store.LoadAll()
+            .FirstOrDefault(p => string.Equals(p.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            IsSaveSuccess = false;
+            Status = $"Profil „{name}“ nie je v knižnici – niet čo vymazať.";
+            return;
+        }
+
+        if (!IsDeleteArmed)
+        {
+            IsDeleteArmed = true;
+            _deleteArmCts?.Cancel();
+            _deleteArmCts = new System.Threading.CancellationTokenSource();
+            System.Threading.CancellationToken token = _deleteArmCts.Token;
+            _ = Task.Delay(TimeSpan.FromSeconds(3), token).ContinueWith(
+                _ => IsDeleteArmed = false,
+                token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+            Status = $"Vymazať profil „{existing.Name}“ z knižnice? Potvrď druhým klikom do 3 sekúnd.";
+            return;
+        }
+
+        DisarmDelete();
+        _store.Delete(existing.Id);
+        IsSaveSuccess = false;
+        Status = $"Profil „{existing.Name}“ vymazaný z knižnice.";
     }
 
     private static string Format(double minutes)

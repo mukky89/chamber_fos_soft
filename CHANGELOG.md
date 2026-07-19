@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.22.0] – 2026-07-19
+
+### Pridané
+- **Rýchly profil – potvrdenie po uložení:** po uložení sa zobrazí výrazná zelená
+  hláška s názvom profilu a počtom segmentov.
+- **Rýchly profil – Nový / Vymazať / Editovať profil:** tlačidlá „Nový / začať
+  odznova" (vynuluje parametre), „Vymazať z knižnice" (s potvrdením) a
+  **„✎ Editovať profil"**, ktoré profil uloží a **presunie do Editora profilov**.
+- **Log teplôt pre každý profil:** počas behu profilu sa do
+  `Dokumenty\VotschVc3\profil-logy\` ukladá CSV so **setpointom a nameranou
+  teplotou komory** (pri klimakomorách aj vlhkosť), jeden súbor na spustenie.
+- **Krajšie okno na ukončenie aplikácie:** namiesto systémového dialógu sa
+  zobrazí tmavé okno v štýle aplikácie s možnosťami **Ukončiť / Skryť do tray /
+  Zrušiť**. Opravená aj zle zobrazená ikona tlačidla „Ukončiť aplikáciu".
+
 ## [1.21.0] – 2026-07-19
 
 ### Pridané

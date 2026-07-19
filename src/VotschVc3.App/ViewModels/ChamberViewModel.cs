@@ -36,6 +36,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private CancellationTokenSource? _profileCts;
     private bool _powerOffOnProfileCancel;
     private CsvRecorder? _recorder;
+    private ProfileTemperatureLog? _profileTempLog;
     private DateTime? _profileActualStart;
     private DateTime? _profileEstimatedEnd;
     private System.Windows.Threading.DispatcherTimer? _countdownTimer;
@@ -1310,6 +1311,49 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ProfileRunEnd));
     }
 
+    /// <summary>Folder under the user's Documents where per-profile temperature logs are written.</summary>
+    private static readonly string ProfileLogDirectory = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VotschVc3", "profil-logy");
+
+    /// <summary>Opens a fresh per-profile temperature log for the run that is starting.</summary>
+    private void OpenProfileTemperatureLog(string profileName)
+    {
+        try
+        {
+            _profileTempLog?.Dispose();
+            _profileTempLog = new ProfileTemperatureLog(
+                ProfileLogDirectory, profileName, Name, SupportsHumidity, DateTime.Now);
+            AppLog.Info(Name, $"Log teplôt profilu: {_profileTempLog.FilePath}");
+        }
+        catch (Exception ex)
+        {
+            _profileTempLog = null;
+            AppLog.Warn(Name, $"Nepodarilo sa otvoriť log teplôt profilu: {ex.Message}");
+        }
+    }
+
+    /// <summary>Closes the per-profile temperature log at the end of a run.</summary>
+    private void CloseProfileTemperatureLog()
+    {
+        try
+        {
+            if (_profileTempLog is { } log)
+            {
+                AppLog.Info(Name, $"Log teplôt profilu uložený ({log.RowCount} riadkov): {log.FilePath}");
+            }
+
+            _profileTempLog?.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            _profileTempLog = null;
+        }
+    }
+
     private void StartCountdown()
     {
         if (_countdownTimer is null)
@@ -1650,6 +1694,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             RaiseGanttTimes();
             StartCountdown();
             RecalculateTiming();
+            OpenProfileTemperatureLog(profiles.Count > 1 ? $"Fronta ({profiles.Count} profilov)" : profiles[0].Name);
 
             for (int i = 0; i < profiles.Count; i++)
             {
@@ -1712,6 +1757,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileEstimatedEnd = null;
             RaiseGanttTimes();
             StopCountdown();
+            CloseProfileTemperatureLog();
             _profileCts?.Dispose();
             _profileCts = null;
             RecalculateTiming();
@@ -1745,6 +1791,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             // Advance the "now" marker on the profile preview.
             _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
             BuildProfilePreview();
+
+            // Per-profile temperature record (set point vs measured chamber temperature).
+            _profileTempLog?.Log(DateTime.Now, e.TemperatureSetpoint, MeasuredTemperature,
+                e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
         });
 
         await runner.RunAsync(profile, startTemp, startHum, token);
@@ -3294,6 +3344,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopPolling();
         StopProfile();
         StopRecording();
+        CloseProfileTemperatureLog();
         if (_selectedReferenceThermometer is not null)
         {
             _selectedReferenceThermometer.PropertyChanged -= OnReferenceChanged;

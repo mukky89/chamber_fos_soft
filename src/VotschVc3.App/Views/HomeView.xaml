@@ -88,7 +88,7 @@
                     </Border>
                     <Button Content="Odhlásiť" Style="{StaticResource NavButton}" Margin="0,6,0,0"
                             Command="{Binding LogoutCommand}" />
-                    <Button Content="⏻ Ukončiť aplikáciu" Style="{StaticResource NavButton}" Margin="0,6,0,0"
+                    <Button Content="✕  Ukončiť aplikáciu" Style="{StaticResource NavButton}" Margin="0,6,0,0"
                             Foreground="{StaticResource DangerBrush}" Click="Exit_Click"
                             ToolTip="Úplne ukončí aplikáciu (s potvrdením). Krížik okno len skryje do oznamovacej oblasti." />
                 </StackPanel>
