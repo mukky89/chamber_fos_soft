@@ -4,6 +4,37 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.21.0] – 2026-07-19
+
+### Pridané
+- **Časová os zariadení:** hustejšie hodinové značky na osi X a druhý riadok s
+  názvom dňa a dátumom (napr. „Ne 20.07.", „Po 21.07."), aby bola viacdňová os
+  čitateľná.
+- **Rýchly vytvárač profilov:**
+  - Všetky číselné polia majú teraz krokovadlo (▲/▼) so správne viditeľnou
+    hodnotou vnútri.
+  - **Dvojitý vrchol** je zapnutý ako predvolený.
+  - Nová predvolená možnosť **„Nábeh z aktuálnej teploty"** – na začiatku sa
+    pridá rampa z aktuálnej (predvolene 25 °C) na prvú teplotu za 60 min.
+  - Okrem „od–do" sa dá zadať aj **požadovaný krok teploty** medzi min a max;
+    počet krokov sa dopočíta a profil sa vygeneruje.
+- **Editor profilov:**
+  - Zoznam profilov sa **obnoví pri každom vstupe** a pribudlo tlačidlo **↻ Obnoviť**.
+  - **Duplikovať profil** – vytvorí kópiu s príponou „COPY" v názve.
+  - **Prepínanie medzi profilmi na jeden klik** (výber = načítanie do editora).
+  - **Graf je hore a „zamrznutý"** (neroluje) a je vyšší, aby sa lepšie ovládal
+    a bolo vidno, ako profil vzniká.
+- **Bezpečnostný zámok automaticky** – pri spustení rýchleho/testovacieho
+  profilu aj pri manuálnom nastavení sa zariadenie zamkne (pred zmenou alebo
+  zastavením ho treba odomknúť).
+- **Krajší progress bar** (zaoblený, farebný, s percentami) na karte aj úplne
+  hore pri zariadení; k dokončeniu profilu sa dopĺňa **názov dňa**.
+- **Info o dokončení profilu** (deň, dátum, čas a odpočet) je aj v hlavnom
+  info hore, hneď pod názvom profilu.
+- **Zatvorenie do oznamovacej oblasti (tray):** krížik okno len skryje a
+  aplikácia beží ďalej. Ukončiť sa dá iba tlačidlom **⏻ Ukončiť aplikáciu**
+  (alebo z menu tray ikony) – vždy s potvrdzovacou otázkou.
+
 ## [1.20.1] – 2026-07-17
 
 ### Opravené

@@ -27,6 +27,33 @@ public static class DesktopNotifier
 {
     private static WinForms.NotifyIcon? _tray;
 
+    /// <summary>Invoked when the user asks to re-open the app from the tray (double-click or menu).</summary>
+    public static Action? ShowRequested { get; set; }
+
+    /// <summary>Invoked when the user picks "Ukončiť" from the tray menu.</summary>
+    public static Action? ExitRequested { get; set; }
+
+    /// <summary>
+    /// Ensures the tray icon exists and shows a short balloon telling the operator the
+    /// app keeps running in the background (used when the window is closed to the tray).
+    /// </summary>
+    public static void ShowMinimizedToTrayHint()
+    {
+        try
+        {
+            EnsureTrayIcon();
+            _tray?.ShowBalloonTip(
+                4000,
+                "Beží na pozadí",
+                "Aplikácia je stále spustená a riadi zariadenia. Otvoríš ju dvojklikom na ikonu v oznamovacej oblasti alebo cez menu ikony → Zobraziť.",
+                WinForms.ToolTipIcon.Info);
+        }
+        catch
+        {
+            // Best-effort only.
+        }
+    }
+
     /// <summary>Shows a notification with a sound appropriate for <paramref name="kind"/>.</summary>
     public static void Notify(string title, string message, DesktopNotificationKind kind)
     {
@@ -80,6 +107,13 @@ public static class DesktopNotifier
             Visible = true,
             Text = "Riadenie laboratórnych zariadení",
         };
+
+        // Right-click menu: re-open the app or exit; double-click re-opens it.
+        var menu = new WinForms.ContextMenuStrip();
+        menu.Items.Add("Zobraziť aplikáciu", null, (_, _) => ShowRequested?.Invoke());
+        menu.Items.Add("Ukončiť…", null, (_, _) => ExitRequested?.Invoke());
+        _tray.ContextMenuStrip = menu;
+        _tray.DoubleClick += (_, _) => ShowRequested?.Invoke();
     }
 
     private static void FlashTaskbarIfInactive()

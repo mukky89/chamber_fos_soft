@@ -58,17 +58,36 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Style="{StaticResource QpField}">
                             <TextBlock Text="Od (°C)" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding LowTemperature, UpdateSourceTrigger=LostFocus}" />
+                            <views:NumericStepper Value="{Binding LowTemperature, Mode=TwoWay}" Step="5" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Style="{StaticResource QpField}">
                             <TextBlock Text="Do (°C)" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding HighTemperature, UpdateSourceTrigger=LostFocus}" />
+                            <views:NumericStepper Value="{Binding HighTemperature, Mode=TwoWay}" Step="5" />
                         </StackPanel>
                     </Grid>
 
-                    <StackPanel Style="{StaticResource QpField}">
+                    <!-- Two ways to choose the intermediate temperatures: a fixed count of
+                         steps, or a requested °C step between the endpoints (then generate). -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <RadioButton Content="Počet krokov" IsChecked="{Binding UseStepCount, Mode=OneWay}"
+                                     Click="UseStepCount_Click" VerticalAlignment="Center"
+                                     ToolTip="Zadáš, koľko teplôt má byť medzi krajnými bodmi." />
+                        <RadioButton Content="Krok teploty (°C)" IsChecked="{Binding UseTemperatureStep, Mode=TwoWay}"
+                                     Margin="16,0,0,0" VerticalAlignment="Center"
+                                     ToolTip="Zadáš požadovaný rozdiel medzi susednými teplotami – počet krokov sa dopočíta." />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource QpField}"
+                                Visibility="{Binding UseStepCount, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Text="Počet teplôt medzi krajnými (medzikroky)" Style="{StaticResource Label}" />
-                        <TextBox Text="{Binding IntermediateSteps, UpdateSourceTrigger=LostFocus}" />
+                        <views:NumericStepper Value="{Binding IntermediateSteps, Mode=TwoWay}" Step="1" Minimum="0" Maximum="50" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource QpField}"
+                                Visibility="{Binding UseTemperatureStep, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Krok teploty medzi min a max (°C)" Style="{StaticResource Label}" />
+                        <views:NumericStepper Value="{Binding TemperatureStep, Mode=TwoWay}" Step="1" Minimum="0.1" Maximum="200" />
+                        <TextBlock Text="Počet krokov sa dopočíta z rozsahu a vygeneruje sa." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
 
                     <Grid>
@@ -79,11 +98,11 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Style="{StaticResource QpField}">
                             <TextBlock Text="Dĺžka plata (min)" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding PlateauMinutes, UpdateSourceTrigger=LostFocus}" />
+                            <views:NumericStepper Value="{Binding PlateauMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Style="{StaticResource QpField}">
                             <TextBlock Text="Dĺžka nábehu (min)" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding RampMinutes, UpdateSourceTrigger=LostFocus}" />
+                            <views:NumericStepper Value="{Binding RampMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
                         </StackPanel>
                     </Grid>
 
@@ -95,13 +114,32 @@
                     <StackPanel Style="{StaticResource QpField}"
                                 Visibility="{Binding DoublePeak, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Text="Pokles medzi vrcholmi (°C)" Style="{StaticResource Label}" />
-                        <TextBox Text="{Binding PeakDipCelsius, UpdateSourceTrigger=LostFocus}" />
+                        <views:NumericStepper Value="{Binding PeakDipCelsius, Mode=TwoWay}" Step="1" Minimum="0" />
                     </StackPanel>
+
+                    <CheckBox Content="Nábeh z aktuálnej teploty" IsChecked="{Binding StartFromCurrent}"
+                              Margin="0,0,0,6"
+                              ToolTip="Na začiatku pridá rampu z aktuálnej teploty komory na prvú nastavenú teplotu, aby profil neskočil rovno na prvý setpoint." />
+                    <Grid Visibility="{Binding StartFromCurrent, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Style="{StaticResource QpField}">
+                            <TextBlock Text="Z teploty (°C)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding StartTemperature, Mode=TwoWay}" Step="1" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Style="{StaticResource QpField}">
+                            <TextBlock Text="Dĺžka nábehu (min)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding StartRampMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
+                        </StackPanel>
+                    </Grid>
 
                     <TextBlock Text="Optimalizácia" Style="{StaticResource Heading}" Margin="0,4,0,4" />
                     <StackPanel Style="{StaticResource QpField}">
                         <TextBlock Text="Skrátiť celkový čas o (hodín)" Style="{StaticResource Label}" />
-                        <TextBox Text="{Binding ShortenByHours, UpdateSourceTrigger=LostFocus}" />
+                        <views:NumericStepper Value="{Binding ShortenByHours, Mode=TwoWay}" Step="0.5" Minimum="0" />
                         <TextBlock Text="Rovnomerne skráti všetky plata." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
 

@@ -22,9 +22,12 @@ public partial class FleetGanttView : UserControl
 {
     private const double LabelWidth = 170;
     private const double RowHeight = 30;
-    private const double AxisHeight = 24;
+    private const double AxisHeight = 34;
     private const double BarHeight = 18;
     private const double PadRight = 14;
+
+    /// <summary>Slovak day-of-week abbreviations, indexed by <see cref="DayOfWeek"/> (Sunday = 0).</summary>
+    private static readonly string[] SkDayNames = { "Ne", "Po", "Ut", "St", "Št", "Pi", "So" };
 
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly List<ChamberViewModel> _hooked = new();
@@ -206,17 +209,22 @@ public partial class FleetGanttView : UserControl
         Func<DateTime, double> x)
     {
         TimeSpan span = winEnd - winStart;
+
+        // Denser hour ticks than before, so more hours are labelled on the X axis.
         int stepMinutes = span.TotalHours switch
         {
-            <= 3 => 30,
-            <= 8 => 60,
-            <= 16 => 120,
-            <= 36 => 360,
-            <= 72 => 720,
-            _ => 1440,
+            <= 2 => 15,
+            <= 4 => 30,
+            <= 10 => 60,
+            <= 20 => 120,
+            <= 48 => 180,
+            <= 96 => 360,
+            _ => 720,
         };
 
         bool multiDay = span.TotalHours > 20;
+
+        // Hour ticks + "HH:mm" labels; midnight lines are drawn stronger as day breaks.
         DateTime tick = winStart.Date + TimeSpan.FromMinutes(
             Math.Ceiling((winStart - winStart.Date).TotalMinutes / stepMinutes) * stepMinutes);
 
@@ -228,13 +236,30 @@ public partial class FleetGanttView : UserControl
                 continue;
             }
 
+            bool midnight = tick is { Hour: 0, Minute: 0 };
             PlotCanvas.Children.Add(new Line
             {
                 X1 = tx, X2 = tx, Y1 = 0, Y2 = rowsHeight,
-                Stroke = GridBrush, StrokeThickness = 1, Opacity = 0.55,
+                Stroke = GridBrush, StrokeThickness = midnight ? 1.4 : 1, Opacity = midnight ? 0.85 : 0.5,
             });
-            string label = multiDay ? $"{tick:dd.MM HH:mm}" : $"{tick:HH:mm}";
-            AddText(label, tx - (multiDay ? 30 : 14), rowsHeight + 4, MutedBrush, 10);
+            AddText($"{tick:HH:mm}", tx - 14, rowsHeight + 3, MutedBrush, 10);
+        }
+
+        // Second label row: the day name + date for each day the window spans, so a
+        // multi-day timeline reads clearly ("Ne 20.07.", "Po 21.07." …).
+        if (multiDay)
+        {
+            for (DateTime day = winStart.Date; day <= winEnd; day = day.AddDays(1))
+            {
+                DateTime anchor = day < winStart ? winStart : day;
+                double dx = x(anchor);
+                if (dx > plotX + plotW - 4)
+                {
+                    continue;
+                }
+
+                AddText($"{SkDayNames[(int)day.DayOfWeek]} {day:dd.MM.}", dx + 3, rowsHeight + 16, TextBrush, 10.5);
+            }
         }
     }
 

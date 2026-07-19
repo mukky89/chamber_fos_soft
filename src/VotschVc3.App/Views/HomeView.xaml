@@ -88,6 +88,9 @@
                     </Border>
                     <Button Content="Odhlásiť" Style="{StaticResource NavButton}" Margin="0,6,0,0"
                             Command="{Binding LogoutCommand}" />
+                    <Button Content="⏻ Ukončiť aplikáciu" Style="{StaticResource NavButton}" Margin="0,6,0,0"
+                            Foreground="{StaticResource DangerBrush}" Click="Exit_Click"
+                            ToolTip="Úplne ukončí aplikáciu (s potvrdením). Krížik okno len skryje do oznamovacej oblasti." />
                 </StackPanel>
 
                 <!-- Navigation -->
@@ -272,6 +275,20 @@
                                         </StackPanel>
                                         <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
                                                    Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                        <!-- Completion (day + time + countdown) right under the profile name. -->
+                                        <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
+                                                   Foreground="{StaticResource OkBrush}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Visibility="{Binding HasProfileCompletion, Converter={StaticResource BoolToVisibility}}"
+                                                   ToolTip="Predpokladané dokončenie profilu (deň, dátum a čas) a zostávajúci čas." />
+                                        <!-- Slim progress bar right at the top of the device card while a profile runs. -->
+                                        <Grid Margin="0,6,0,0"
+                                              Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}">
+                                            <ProgressBar Style="{StaticResource ProfileProgressBar}" Height="12"
+                                                         Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
+                                            <TextBlock Text="{Binding ProfileProgress, StringFormat={}{0:0} %, Mode=OneWay}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI Semibold" FontSize="10" Foreground="White" />
+                                        </Grid>
                                     </StackPanel>
                                 </Grid>
 
@@ -573,12 +590,18 @@
                                             <StackPanel>
                                                 <views:ChartView Height="210" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
                                                                  ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode." />
-                                                <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,6,0,0">
-                                                    <ProgressBar Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" Height="6" />
-                                                    <TextBlock Text="{Binding ProfileTimeRemaining}" FontFamily="Segoe UI Semibold" FontSize="15"
-                                                               Foreground="{StaticResource TextBrush}" Margin="0,5,0,0" />
+                                                <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,8,0,0">
+                                                    <Grid>
+                                                        <ProgressBar Style="{StaticResource ProfileProgressBar}"
+                                                                     Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
+                                                        <TextBlock Text="{Binding ProfileProgress, StringFormat={}{0:0} %, Mode=OneWay}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding ProfileTimeRemaining}" FontFamily="Segoe UI Semibold" FontSize="16"
+                                                               Foreground="{StaticResource TextBrush}" Margin="0,7,0,0" />
                                                     <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}"
-                                                               Margin="0,2,0,0" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
+                                                               Margin="0,2,0,0" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
                                                     <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}"
                                                                Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>

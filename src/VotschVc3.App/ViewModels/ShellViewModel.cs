@@ -66,7 +66,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
         OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
-        OpenProfileLibraryCommand = new RelayCommand(() => CurrentView = ProfileLibrary);
+        OpenProfileLibraryCommand = new RelayCommand(() =>
+        {
+            // Always show the latest saved profiles when entering the editor.
+            ProfileLibrary.RefreshFromStore();
+            CurrentView = ProfileLibrary;
+        });
         OpenQuickProfileCommand = new RelayCommand(() => CurrentView = QuickProfile);
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
         OpenAppLogCommand = new RelayCommand(() => CurrentView = AppLog);
