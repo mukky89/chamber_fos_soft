@@ -170,12 +170,17 @@
 
                     <Separator Margin="0,10,0,8" Background="{StaticResource BorderBrush}" />
 
-                    <!-- Secondary + destructive, clearly separated. -->
+                    <!-- Secondary + destructive in separate columns so they never overlap. -->
                     <Grid>
-                        <Button HorizontalAlignment="Left" Content="↺ Nový / začať odznova"
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" MinWidth="8" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" HorizontalAlignment="Left" Content="↺ Nový / začať odznova"
                                 Style="{StaticResource GhostButton}" Command="{Binding NewCommand}"
                                 ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
-                        <Button HorizontalAlignment="Right" Content="Vymazať z knižnice"
+                        <Button Grid.Column="2" HorizontalAlignment="Right" Content="Vymazať z knižnice"
                                 Style="{StaticResource DangerButton}" Command="{Binding DeleteFromLibraryCommand}"
                                 ToolTip="Vymaže z knižnice profil s aktuálnym názvom (s potvrdením)." />
                     </Grid>

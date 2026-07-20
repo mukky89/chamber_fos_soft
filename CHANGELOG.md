@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.24.1] – 2026-07-19
+
+### Opravené
+- **Prekrývajúce sa tlačidlá** v Rýchlom vytváračovi (Nový / Vymazať) – teraz
+  sú v samostatných stĺpcoch a neprekrývajú sa ani pri užšom okne.
+- **Prihlasovacie okno** už nezobrazuje nápovedu s predvolenými účtami
+  (admin/operator) – odstránené.
+
 ## [1.24.0] – 2026-07-19
 
 ### Pridané
