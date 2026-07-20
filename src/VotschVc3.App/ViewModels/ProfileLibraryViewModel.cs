@@ -37,6 +37,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         SaveToHistoryCommand = new RelayCommand(SaveToHistory, () => Segments.Count > 0);
         LoadFromHistoryCommand = new RelayCommand(LoadFromHistory, () => SelectedHistoryProfile is not null);
         DeleteFromHistoryCommand = new RelayCommand(DeleteFromHistory, () => SelectedHistoryProfile is not null);
+        DuplicateProfileCommand = new RelayCommand(DuplicateProfile, () => SelectedHistoryProfile is not null);
+        RefreshHistoryCommand = new RelayCommand(RefreshFromStore);
         ImportProfileCommand = new RelayCommand(ImportProfile);
         ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
 
@@ -103,6 +105,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
     public ObservableCollection<TestProfile> History { get; } = new();
 
+    private bool _suppressAutoLoad;
+
     private TestProfile? _selectedHistoryProfile;
     public TestProfile? SelectedHistoryProfile
     {
@@ -114,6 +118,15 @@ public sealed class ProfileLibraryViewModel : ObservableObject
                 DisarmDelete(); // a different profile is selected – confirmation no longer applies
                 LoadFromHistoryCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
+                DuplicateProfileCommand.RaiseCanExecuteChanged();
+
+                // Single click = load into the editor (standard list behaviour), unless the
+                // selection was set programmatically (e.g. during a refresh).
+                if (!_suppressAutoLoad && value is not null)
+                {
+                    ApplyProfile(value);
+                    StatusMessage = $"Profil \"{value.Name}\" načítaný.";
+                }
             }
         }
     }
@@ -132,6 +145,12 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     public RelayCommand SaveToHistoryCommand { get; }
     public RelayCommand LoadFromHistoryCommand { get; }
     public RelayCommand DeleteFromHistoryCommand { get; }
+
+    /// <summary>Duplicates the selected saved profile (name suffixed with " COPY").</summary>
+    public RelayCommand DuplicateProfileCommand { get; }
+
+    /// <summary>Reloads the saved-profile list from disk (also used on entering the editor).</summary>
+    public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ImportProfileCommand { get; }
     public RelayCommand ExportProfileCommand { get; }
 
@@ -297,33 +316,86 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             return;
         }
 
-        if (!IsDeleteArmed)
+        bool confirmed = Views.ConfirmDialog.Ask(
+            $"Naozaj vymazať profil „{profile.Name}“ z knižnice? Túto akciu nie je možné vrátiť.",
+            "Vymazať profil",
+            "Vymazať");
+        if (!confirmed)
         {
-            // First click only arms the confirmation; it auto-reverts after 3 s.
-            IsDeleteArmed = true;
-            _deleteArmCts?.Cancel();
-            _deleteArmCts = new CancellationTokenSource();
-            CancellationToken token = _deleteArmCts.Token;
-            _ = Task.Delay(TimeSpan.FromSeconds(3), token).ContinueWith(
-                _ => IsDeleteArmed = false,
-                token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-            StatusMessage = $"Zmazať profil \"{profile.Name}\"? Potvrď druhým klikom do 3 sekúnd.";
+            StatusMessage = "Mazanie zrušené.";
             return;
         }
 
-        DisarmDelete();
         _store.Delete(profile.Id);
         RefreshHistory();
-        StatusMessage = $"Profil \"{profile.Name}\" odstránený.";
+        StatusMessage = $"Profil „{profile.Name}“ odstránený.";
     }
 
     private void RefreshHistory()
     {
+        Guid? selectedId = SelectedHistoryProfile?.Id;
+        _suppressAutoLoad = true;
         History.Clear();
         foreach (TestProfile profile in _store.LoadAll())
         {
             History.Add(profile);
         }
+
+        // Keep the previous selection pointed at the reloaded instance (so refreshing
+        // doesn't clear the list selection or reload the editor).
+        SelectedHistoryProfile = selectedId is { } id ? History.FirstOrDefault(p => p.Id == id) : null;
+        _suppressAutoLoad = false;
+    }
+
+    /// <summary>Reloads the saved profiles from disk. Called on entering the editor and by the ↻ button.</summary>
+    public void RefreshFromStore()
+    {
+        RefreshHistory();
+        StatusMessage = $"Profily obnovené zo súboru ({History.Count}).";
+    }
+
+    /// <summary>Reloads the library and opens the profile with the given id in the editor (used by the quick builder).</summary>
+    public void OpenForEditing(Guid id)
+    {
+        RefreshHistory();
+        TestProfile? match = History.FirstOrDefault(p => p.Id == id);
+        if (match is not null)
+        {
+            SelectedHistoryProfile = match; // auto-loads it into the editor
+            StatusMessage = $"Profil \"{match.Name}\" otvorený z rýchleho vytvárača.";
+        }
+    }
+
+    private void DuplicateProfile()
+    {
+        if (SelectedHistoryProfile is not { } source)
+        {
+            return;
+        }
+
+        var copy = new TestProfile
+        {
+            Id = Guid.NewGuid(),
+            Name = $"{source.Name} COPY",
+            Kind = source.Kind,
+            Cycles = source.Cycles,
+            CreatedAt = DateTimeOffset.Now,
+            Segments = source.Segments.Select(s => new ProfileSegment
+            {
+                Name = s.Name,
+                TargetTemperature = s.TargetTemperature,
+                TargetHumidity = s.TargetHumidity,
+                Duration = s.Duration,
+                IsRamp = s.IsRamp,
+                GuaranteedSoak = s.GuaranteedSoak,
+                SoakTolerance = s.SoakTolerance,
+            }).ToList(),
+        };
+
+        _store.Save(copy);
+        RefreshHistory();
+        SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == copy.Id); // loads the copy into the editor
+        StatusMessage = $"Profil \"{source.Name}\" duplikovaný ako \"{copy.Name}\".";
     }
 
     private void ImportProfile()

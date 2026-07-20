@@ -8,6 +8,15 @@ public partial class HomeView : UserControl
 {
     public HomeView() => InitializeComponent();
 
+    /// <summary>Exit button: routes to the window's confirmed-exit flow (the only real way out).</summary>
+    private void Exit_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (System.Windows.Window.GetWindow(this) is MainWindow window)
+        {
+            window.RequestExit();
+        }
+    }
+
     // Unlock uses a PasswordBox (Password can't be data-bound), so the value is
     // read here and handed to the chamber's view model. Each card has its own
     // PasswordBox in the DataTemplate namescope; sender/Tag resolve the right one.

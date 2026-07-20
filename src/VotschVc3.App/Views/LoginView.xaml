@@ -77,10 +77,6 @@
                     <Button Content="Prihlásiť sa" Style="{StaticResource AccentButton}"
                             HorizontalAlignment="Stretch" Margin="0,18,0,0" Padding="14,10" Click="Login_Click" />
 
-                    <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="12,9" Margin="0,18,0,0">
-                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
-                                   Text="Predvolené: admin / admin (plný prístup) · operator / operator (len čítanie). Používateľov a role spravuje admin v Administrácii." />
-                    </Border>
 
                     <DockPanel LastChildFill="False" Margin="0,12,0,0">
                         <TextBlock Text="{Binding DataContext.AppVersion, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=''}"

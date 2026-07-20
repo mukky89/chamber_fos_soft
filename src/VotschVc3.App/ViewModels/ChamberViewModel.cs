@@ -36,6 +36,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private CancellationTokenSource? _profileCts;
     private bool _powerOffOnProfileCancel;
     private CsvRecorder? _recorder;
+    private ProfileTemperatureLog? _profileTempLog;
     private DateTime? _profileActualStart;
     private DateTime? _profileEstimatedEnd;
     private System.Windows.Threading.DispatcherTimer? _countdownTimer;
@@ -378,6 +379,23 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         IsUnlockPromptOpen = false;
         IsLocked = false;
         ShowActionInfo("🔓 Zariadenie odomknuté.");
+    }
+
+    /// <summary>
+    /// Locks the device automatically when a run starts (test profile, quick profile or
+    /// manual set point), so a running test / temperature can't be changed by an accidental
+    /// button press. No-op when the user can't control the device or it is already locked.
+    /// </summary>
+    private void AutoLockOnRun(string reason)
+    {
+        if (!IsControlAllowed || IsLocked)
+        {
+            return;
+        }
+
+        IsLocked = true;
+        IsUnlockPromptOpen = false;
+        ShowActionInfo($"🔒 Zariadenie automaticky zamknuté ({reason}). Pred zmenou alebo zastavením ho odomkni.");
     }
 
     /// <summary>
@@ -850,6 +868,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ShowActionInfo(msg);
             StatusMessage = msg;
             AppLog.Warn(Name, msg);
+            DesktopNotifier.Notify($"Teplota mimo rozsahu · {Name}", msg, DesktopNotificationKind.Warning);
             return false;
         }
 
@@ -875,6 +894,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ShowActionInfo(msg);
             StatusMessage = msg;
             AppLog.Warn(Name, msg);
+            DesktopNotifier.Notify($"Vlhkosť mimo rozsahu · {Name}", msg, DesktopNotificationKind.Warning);
             return;
         }
 
@@ -889,6 +909,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         await _client.WriteSetpointsAsync(setpoints, digital);
         SetManualStarted(true);
         ShowActionInfo($"✔ Nastavené {summary} · štart ZAPNUTÝ");
+        // Safety: lock the device after a manual set point so it can't be changed by accident.
+        AutoLockOnRun("manuálne ovládanie");
         _audit.Log(Name, "Setpoint", summary);
         AppLog.Info(Name, $"Setpoint zapísaný: {summary}. Skontroluj v logu odpoveď regulátora (RX) na príkaz TX $..E…");
     }
@@ -1237,6 +1259,28 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Live "time left" countdown of the running profile (updates every second).</summary>
     public string ProfileTimeRemaining { get => _profileTimeRemaining; private set => SetProperty(ref _profileTimeRemaining, value); }
 
+    private string _profileCompletionText = string.Empty;
+    /// <summary>
+    /// Compact completion line for the card header (under the profile name): the day
+    /// name, date and time the profile finishes plus the live remaining countdown,
+    /// e.g. "🏁 Koniec: Ut 21.07.2026 09:20 · zostáva 38:38:55".
+    /// </summary>
+    public string ProfileCompletionText { get => _profileCompletionText; private set { if (SetProperty(ref _profileCompletionText, value)) OnPropertyChanged(nameof(HasProfileCompletion)); } }
+
+    /// <summary>True while a completion line is available (a profile is running with a known end).</summary>
+    public bool HasProfileCompletion => !string.IsNullOrEmpty(ProfileCompletionText);
+
+    /// <summary>Slovak full day-of-week names, indexed by <see cref="DayOfWeek"/> (Sunday = 0).</summary>
+    private static readonly string[] SkDayNamesFull =
+        { "Nedeľa", "Pondelok", "Utorok", "Streda", "Štvrtok", "Piatok", "Sobota" };
+
+    /// <summary>Slovak short day-of-week abbreviations, indexed by <see cref="DayOfWeek"/> (Sunday = 0).</summary>
+    private static readonly string[] SkDayNamesShort = { "Ne", "Po", "Ut", "St", "Št", "Pi", "So" };
+
+    private static string DayFull(DateTime d) => SkDayNamesFull[(int)d.DayOfWeek];
+
+    private static string DayShort(DateTime d) => SkDayNamesShort[(int)d.DayOfWeek];
+
     /// <summary>Prominent control-mode badge: "PROFIL", "MANUÁL" or empty when idle.</summary>
     public string ControlModeBadge =>
         IsProfileRunning ? "PROFIL" : ((_readRunning ?? _manualStarted) ? "MANUÁL" : string.Empty);
@@ -1269,6 +1313,49 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ProfileRunEnd));
     }
 
+    /// <summary>Folder under the user's Documents where per-profile temperature logs are written.</summary>
+    private static readonly string ProfileLogDirectory = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VotschVc3", "profil-logy");
+
+    /// <summary>Opens a fresh per-profile temperature log for the run that is starting.</summary>
+    private void OpenProfileTemperatureLog(string profileName)
+    {
+        try
+        {
+            _profileTempLog?.Dispose();
+            _profileTempLog = new ProfileTemperatureLog(
+                ProfileLogDirectory, profileName, Name, SupportsHumidity, DateTime.Now);
+            AppLog.Info(Name, $"Log teplôt profilu: {_profileTempLog.FilePath}");
+        }
+        catch (Exception ex)
+        {
+            _profileTempLog = null;
+            AppLog.Warn(Name, $"Nepodarilo sa otvoriť log teplôt profilu: {ex.Message}");
+        }
+    }
+
+    /// <summary>Closes the per-profile temperature log at the end of a run.</summary>
+    private void CloseProfileTemperatureLog()
+    {
+        try
+        {
+            if (_profileTempLog is { } log)
+            {
+                AppLog.Info(Name, $"Log teplôt profilu uložený ({log.RowCount} riadkov): {log.FilePath}");
+            }
+
+            _profileTempLog?.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            _profileTempLog = null;
+        }
+    }
+
     private void StartCountdown()
     {
         if (_countdownTimer is null)
@@ -1285,6 +1372,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         _countdownTimer?.Stop();
         ProfileTimeRemaining = string.Empty;
+        ProfileCompletionText = string.Empty;
     }
 
     private void UpdateCountdown()
@@ -1292,6 +1380,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         if (!IsProfileRunning || _profileEstimatedEnd is not { } end)
         {
             ProfileTimeRemaining = string.Empty;
+            ProfileCompletionText = string.Empty;
             return;
         }
 
@@ -1301,9 +1390,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             left = TimeSpan.Zero;
         }
 
-        ProfileTimeRemaining = left.TotalHours >= 1
-            ? $"Zostáva {(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}"
-            : $"Zostáva {left.Minutes:00}:{left.Seconds:00}";
+        string hms = left.TotalHours >= 1
+            ? $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}"
+            : $"{left.Minutes:00}:{left.Seconds:00}";
+        ProfileTimeRemaining = $"Zostáva {hms}";
+
+        // Compact completion line for the card header, incl. the day name of completion.
+        ProfileCompletionText = $"🏁 Koniec: {DayShort(end)} {end:dd.MM.yyyy} {end:HH:mm} · zostáva {hms}";
     }
 
     private double _profileProgress;
@@ -1588,6 +1681,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ProfileProgress = 0;
         _profileNowFraction = 0; // fresh run: the preview "now" marker starts at the beginning
 
+        // Safety: lock the device the moment a test/quick profile starts.
+        AutoLockOnRun(profiles.Count > 1 ? "spustená fronta profilov" : "spustený profil");
+
         try
         {
             if (UseDelayedStart && ScheduledStart > DateTime.Now)
@@ -1600,6 +1696,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             RaiseGanttTimes();
             StartCountdown();
             RecalculateTiming();
+            OpenProfileTemperatureLog(profiles.Count > 1 ? $"Fronta ({profiles.Count} profilov)" : profiles[0].Name);
 
             for (int i = 0; i < profiles.Count; i++)
             {
@@ -1662,6 +1759,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileEstimatedEnd = null;
             RaiseGanttTimes();
             StopCountdown();
+            CloseProfileTemperatureLog();
             _profileCts?.Dispose();
             _profileCts = null;
             RecalculateTiming();
@@ -1695,6 +1793,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             // Advance the "now" marker on the profile preview.
             _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
             BuildProfilePreview();
+
+            // Per-profile temperature record (set point vs measured chamber temperature).
+            _profileTempLog?.Log(DateTime.Now, e.TemperatureSetpoint, MeasuredTemperature,
+                e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
         });
 
         await runner.RunAsync(profile, startTemp, startHum, token);
@@ -1906,18 +2008,18 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         if (IsProfileRunning && _profileActualStart is { } start)
         {
             DateTime end = start + total;
-            ProfileScheduleText = $"Spustené {start:HH:mm:ss} · koniec ~ {end:HH:mm:ss} ({end:d})";
+            ProfileScheduleText = $"Spustené {start:HH:mm:ss} · koniec ~ {DayFull(end)} {end:dd.MM.yyyy} {end:HH:mm:ss}";
         }
         else if (UseDelayedStart)
         {
             DateTime begin = ScheduledStart;
             DateTime end = begin + total;
-            ProfileScheduleText = $"Štart {begin:dd.MM HH:mm} · koniec ~ {end:HH:mm} ({end:d})";
+            ProfileScheduleText = $"Štart {DayShort(begin)} {begin:dd.MM HH:mm} · koniec ~ {DayFull(end)} {end:dd.MM.yyyy} {end:HH:mm}";
         }
         else
         {
             DateTime end = DateTime.Now + total;
-            ProfileScheduleText = $"Ak spustíš teraz, koniec ~ {end:HH:mm} ({end:d})";
+            ProfileScheduleText = $"Ak spustíš teraz, koniec ~ {DayFull(end)} {end:dd.MM.yyyy} {end:HH:mm}";
         }
 
         BuildPreviewCharts();
@@ -1947,18 +2049,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private List<string> _pinnedQuickProfiles = new();
 
     /// <summary>
-    /// Saved profiles shown as one-click quick-launch buttons on the card. If the admin
-    /// has pinned specific profiles, only those (in pinned order) are shown; otherwise
-    /// every saved profile is shown as a sensible default.
+    /// Saved profiles shown as one-click quick-launch buttons on the card. Only the
+    /// profiles the admin explicitly pinned (in pinned order) are shown – nothing is
+    /// shown until at least one is selected, so the card stays uncluttered.
     /// </summary>
     public IReadOnlyList<TestProfile> QuickProfiles =>
-        _pinnedQuickProfiles.Count == 0
-            ? History.ToList()
-            : _pinnedQuickProfiles
-                .Select(n => History.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)))
-                .Where(p => p is not null)
-                .Select(p => p!)
-                .ToList();
+        _pinnedQuickProfiles
+            .Select(n => History.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)))
+            .Where(p => p is not null)
+            .Select(p => p!)
+            .ToList();
+
+    /// <summary>True when no quick-launch profile is pinned yet (drives the "configure" hint).</summary>
+    public bool HasNoQuickProfiles => QuickProfiles.Count == 0;
 
     /// <summary>True when at least one quick-launch profile button is shown.</summary>
     public bool HasQuickProfiles => QuickProfiles.Count > 0;
@@ -2018,6 +2121,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         OnPropertyChanged(nameof(QuickProfiles));
         OnPropertyChanged(nameof(HasQuickProfiles));
+        OnPropertyChanged(nameof(HasNoQuickProfiles));
         OnPropertyChanged(nameof(PinnedProfileNames));
         OnPropertyChanged(nameof(HasPinnedProfiles));
     }
@@ -3223,6 +3327,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         StatusMessage = $"Chyba: {ex.Message}";
         AppLog.Error(Name, ex);
+        DesktopNotifier.Notify($"Chyba · {Name}", ex.Message, DesktopNotificationKind.Warning);
     }
 
     private static void RunOnUi(Action action)
@@ -3244,6 +3349,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopPolling();
         StopProfile();
         StopRecording();
+        CloseProfileTemperatureLog();
         if (_selectedReferenceThermometer is not null)
         {
             _selectedReferenceThermometer.PropertyChanged -= OnReferenceChanged;

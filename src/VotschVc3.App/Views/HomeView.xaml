@@ -86,21 +86,73 @@
                             <Run Text="{Binding CurrentRoleLabel, Mode=OneWay}" />
                         </TextBlock>
                     </Border>
-                    <Button Content="Odhlásiť" Style="{StaticResource NavButton}" Margin="0,6,0,0"
-                            Command="{Binding LogoutCommand}" />
+                    <Button Style="{StaticResource NavButton}" Margin="0,6,0,0" Command="{Binding LogoutCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Logout}" />
+                            <TextBlock Text="Odhlásiť" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Margin="0,6,0,0"
+                            Foreground="{StaticResource DangerBrush}" Click="Exit_Click"
+                            ToolTip="Úplne ukončí aplikáciu (s potvrdením). Krížik okno len skryje do oznamovacej oblasti.">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Power}" />
+                            <TextBlock Text="Ukončiť aplikáciu" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <!-- Navigation -->
                 <StackPanel VerticalAlignment="Top">
-                    <Button Content="Editor profilov" Style="{StaticResource NavButton}" Command="{Binding OpenProfileLibraryCommand}" />
-                    <Button Content="Rýchly profil" Style="{StaticResource NavButton}" Command="{Binding OpenQuickProfileCommand}" />
-                    <Button Content="Teplomery ASL F100" Style="{StaticResource NavButton}" Command="{Binding OpenThermometersCommand}" />
-                    <Button Content="Prehliadač záznamov" Style="{StaticResource NavButton}" Command="{Binding OpenRecordingViewerCommand}" />
-                    <Button Content="Audit trail" Style="{StaticResource NavButton}" Command="{Binding OpenAuditCommand}" />
-                    <Button Content="App log" Style="{StaticResource NavButton}" Command="{Binding OpenAppLogCommand}" />
-                    <Button Content="Changelog" Style="{StaticResource NavButton}" Command="{Binding OpenChangelogCommand}" />
-                    <Button Content="Administrácia" Style="{StaticResource NavButton}" Command="{Binding OpenAdminCommand}"
-                            Visibility="{Binding IsAdmin, Converter={StaticResource BoolToVisibility}}" />
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenProfileLibraryCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
+                            <TextBlock Text="Editor profilov" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenQuickProfileCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Bolt}" />
+                            <TextBlock Text="Rýchly profil" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenThermometersCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Thermometer}" />
+                            <TextBlock Text="Teplomery ASL F100" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenRecordingViewerCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Chart}" />
+                            <TextBlock Text="Prehliadač záznamov" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenAuditCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.List}" />
+                            <TextBlock Text="Audit trail" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenAppLogCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Document}" />
+                            <TextBlock Text="App log" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenChangelogCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Book}" />
+                            <TextBlock Text="Changelog" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenAdminCommand}"
+                            Visibility="{Binding IsAdmin, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Gear}" />
+                            <TextBlock Text="Administrácia" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -272,6 +324,20 @@
                                         </StackPanel>
                                         <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
                                                    Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                        <!-- Completion (day + time + countdown) right under the profile name. -->
+                                        <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
+                                                   Foreground="{StaticResource OkBrush}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Visibility="{Binding HasProfileCompletion, Converter={StaticResource BoolToVisibility}}"
+                                                   ToolTip="Predpokladané dokončenie profilu (deň, dátum a čas) a zostávajúci čas." />
+                                        <!-- Slim progress bar right at the top of the device card while a profile runs. -->
+                                        <Grid Margin="0,6,0,0"
+                                              Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}">
+                                            <ProgressBar Style="{StaticResource ProfileProgressBar}" Height="12"
+                                                         Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
+                                            <TextBlock Text="{Binding ProfileProgress, StringFormat={}{0:0} %, Mode=OneWay}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI Semibold" FontSize="10" Foreground="White" />
+                                        </Grid>
                                     </StackPanel>
                                 </Grid>
 
@@ -504,8 +570,13 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
                                                 <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,0"
-                                                           Text="Prázdny zoznam = zobrazia sa všetky profily. Pridaj konkrétne, ak chceš len vybrané." />
+                                                           Text="Zobrazia sa iba tu pridané profily. Vyber v zozname vyššie tie, ktoré chceš mať ako rýchle spustenie." />
                                             </StackPanel>
+
+                                            <!-- Empty-state hint when nothing is pinned yet. -->
+                                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,0"
+                                                       Visibility="{Binding HasNoQuickProfiles, Converter={StaticResource BoolToVisibility}}"
+                                                       Text="Žiadne rýchle spustenie nie je nastavené. Admin ho pridá cez „✎ Upraviť“." />
 
                                             <!-- Launch buttons: full profile name, one click = load + start -->
                                             <ItemsControl ItemsSource="{Binding QuickProfiles}" Margin="0,5,0,0">
@@ -573,12 +644,18 @@
                                             <StackPanel>
                                                 <views:ChartView Height="210" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
                                                                  ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode." />
-                                                <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,6,0,0">
-                                                    <ProgressBar Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" Height="6" />
-                                                    <TextBlock Text="{Binding ProfileTimeRemaining}" FontFamily="Segoe UI Semibold" FontSize="15"
-                                                               Foreground="{StaticResource TextBrush}" Margin="0,5,0,0" />
+                                                <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,8,0,0">
+                                                    <Grid>
+                                                        <ProgressBar Style="{StaticResource ProfileProgressBar}"
+                                                                     Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
+                                                        <TextBlock Text="{Binding ProfileProgress, StringFormat={}{0:0} %, Mode=OneWay}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding ProfileTimeRemaining}" FontFamily="Segoe UI Semibold" FontSize="16"
+                                                               Foreground="{StaticResource TextBrush}" Margin="0,7,0,0" />
                                                     <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}"
-                                                               Margin="0,2,0,0" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
+                                                               Margin="0,2,0,0" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
                                                     <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}"
                                                                Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>

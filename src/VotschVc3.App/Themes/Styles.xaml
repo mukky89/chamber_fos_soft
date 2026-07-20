@@ -677,6 +677,33 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
+    <!-- Prominent, rounded gradient progress bar for the running-profile card. -->
+    <Style x:Key="ProfileProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border CornerRadius="8" Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" ClipToBounds="True">
+                        <Grid>
+                            <Border x:Name="PART_Track" CornerRadius="8" />
+                            <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="8">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="{StaticResource OkColor}" Offset="0" />
+                                        <GradientStop Color="{StaticResource AccentColor}" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ===== DataGrid ===== -->
     <Style TargetType="DataGrid">
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />

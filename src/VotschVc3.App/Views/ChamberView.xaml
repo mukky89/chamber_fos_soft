@@ -372,8 +372,17 @@
                                         <TextBlock Text="{Binding ProfileScheduleText}" Style="{StaticResource Caption}" HorizontalAlignment="Right" />
                                     </StackPanel>
                                 </Grid>
-                                <ProgressBar Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
-                                <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                                <Grid>
+                                    <ProgressBar Style="{StaticResource ProfileProgressBar}"
+                                                 Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
+                                    <TextBlock Text="{Binding ProfileProgress, StringFormat={}{0:0} %, Mode=OneWay}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White" />
+                                </Grid>
+                                <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="13"
+                                           Foreground="{StaticResource OkBrush}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                           Visibility="{Binding HasProfileCompletion, Converter={StaticResource BoolToVisibility}}" />
+                                <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}" Margin="0,6,0,0" />
 
                                 <Separator Margin="0,12,0,8" Background="{StaticResource BorderBrush}" />
                                 <DockPanel LastChildFill="False" Margin="0,0,0,6">

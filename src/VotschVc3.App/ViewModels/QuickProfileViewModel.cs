@@ -24,9 +24,18 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         SaveToLibraryCommand = new RelayCommand(SaveToLibrary);
+        EditInEditorCommand = new RelayCommand(EditInEditor);
+        NewCommand = new RelayCommand(NewProfile);
+        DeleteFromLibraryCommand = new RelayCommand(DeleteFromLibrary);
         ResetNameCommand = new RelayCommand(EnableAutoName);
         Recalculate(); // also generates the initial automatic name
     }
+
+    /// <summary>
+    /// Set by the shell so the "Editovať profil" action can hand the saved profile
+    /// over to the standalone profile editor (opens it there, loaded and ready).
+    /// </summary>
+    public Action<Guid>? OpenInEditorRequested { get; set; }
 
     /// <summary>True while the name is being set programmatically, so the user-edit
     /// detection in <see cref="ProfileName"/> ignores our own writes.</summary>
@@ -71,7 +80,7 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     private double _lowTemperature = -20;
-    public double LowTemperature { get => _lowTemperature; set { if (SetProperty(ref _lowTemperature, value)) Recalculate(); } }
+    public double LowTemperature { get => _lowTemperature; set { if (SetProperty(ref _lowTemperature, value)) { OnPropertyChanged(nameof(HasLeadIn)); Recalculate(); } } }
 
     private double _highTemperature = 60;
     public double HighTemperature { get => _highTemperature; set { if (SetProperty(ref _highTemperature, value)) Recalculate(); } }
@@ -79,6 +88,25 @@ public sealed class QuickProfileViewModel : ObservableObject
     private int _intermediateSteps = 7;
     /// <summary>Number of temperatures strictly between the low and high endpoints.</summary>
     public int IntermediateSteps { get => _intermediateSteps; set { if (SetProperty(ref _intermediateSteps, Math.Clamp(value, 0, 50))) Recalculate(); } }
+
+    private bool _useTemperatureStep;
+    /// <summary>
+    /// When on, the number of intermediate temperatures is derived from a requested
+    /// temperature step (<see cref="TemperatureStep"/>) between the endpoints instead of
+    /// the explicit <see cref="IntermediateSteps"/> count.
+    /// </summary>
+    public bool UseTemperatureStep
+    {
+        get => _useTemperatureStep;
+        set { if (SetProperty(ref _useTemperatureStep, value)) { OnPropertyChanged(nameof(UseStepCount)); Recalculate(); } }
+    }
+
+    /// <summary>Inverse of <see cref="UseTemperatureStep"/> – true when the explicit step count is used.</summary>
+    public bool UseStepCount => !UseTemperatureStep;
+
+    private double _temperatureStep = 10;
+    /// <summary>Requested temperature difference (°C) between two consecutive setpoints.</summary>
+    public double TemperatureStep { get => _temperatureStep; set { if (SetProperty(ref _temperatureStep, Math.Max(0.1, value))) Recalculate(); } }
 
     private double _plateauMinutes = 30;
     /// <summary>Base plateau (soak) length at each temperature, before optimisation.</summary>
@@ -92,12 +120,33 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>Also sweep back down from the high temperature to the low one.</summary>
     public bool IncludeDescending { get => _includeDescending; set { if (SetProperty(ref _includeDescending, value)) Recalculate(); } }
 
-    private bool _doublePeak;
+    private bool _doublePeak = true;
     /// <summary>
     /// Split the peak into two highest points with a plateau <see cref="PeakDipCelsius"/>
-    /// lower between them, so a temperature change occurs at the top.
+    /// lower between them, so a temperature change occurs at the top. On by default.
     /// </summary>
     public bool DoublePeak { get => _doublePeak; set { if (SetProperty(ref _doublePeak, value)) Recalculate(); } }
+
+    private bool _startFromCurrent = true;
+    /// <summary>
+    /// Prepend a ramp from the current chamber temperature (assumed
+    /// <see cref="StartTemperature"/> for the preview) to the first sweep temperature,
+    /// over <see cref="StartRampMinutes"/> minutes. On by default, so a run always eases
+    /// from the actual temperature to the first setpoint instead of jumping to it.
+    /// </summary>
+    public bool StartFromCurrent { get => _startFromCurrent; set { if (SetProperty(ref _startFromCurrent, value)) { OnPropertyChanged(nameof(HasLeadIn)); Recalculate(); } } }
+
+    private double _startTemperature = 25;
+    /// <summary>Assumed current temperature (°C) the initial ramp starts from (preview only;
+    /// a real run ramps from the chamber's measured temperature).</summary>
+    public double StartTemperature { get => _startTemperature; set { if (SetProperty(ref _startTemperature, value)) { OnPropertyChanged(nameof(HasLeadIn)); Recalculate(); } } }
+
+    private double _startRampMinutes = 60;
+    /// <summary>Length (min) of the initial ramp from the current temperature to the first setpoint.</summary>
+    public double StartRampMinutes { get => _startRampMinutes; set { if (SetProperty(ref _startRampMinutes, Math.Max(0, value))) { OnPropertyChanged(nameof(HasLeadIn)); Recalculate(); } } }
+
+    /// <summary>True when an initial lead-in ramp is actually added (enabled, non-zero, and not already at the first setpoint).</summary>
+    public bool HasLeadIn => StartFromCurrent && StartRampMinutes > 0 && Math.Abs(StartTemperature - LowTemperature) > 0.05;
 
     private double _peakDipCelsius = 10;
     /// <summary>How much lower (°C) the notch between the two peaks is.</summary>
@@ -134,16 +183,39 @@ public sealed class QuickProfileViewModel : ObservableObject
     private string _status = "Nastav rozsah a kroky, potom ulož do knižnice.";
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
 
+    private bool _isSaveSuccess;
+    /// <summary>True right after a successful save/update, so the view can show a green confirmation banner.</summary>
+    public bool IsSaveSuccess { get => _isSaveSuccess; private set => SetProperty(ref _isSaveSuccess, value); }
+
     private string _namePatternHint = string.Empty;
     /// <summary>Human-readable preview of the naming pattern used for the generated name.</summary>
     public string NamePatternHint { get => _namePatternHint; private set => SetProperty(ref _namePatternHint, value); }
 
     public RelayCommand SaveToLibraryCommand { get; }
 
+    /// <summary>Saves the profile and opens it in the standalone profile editor.</summary>
+    public RelayCommand EditInEditorCommand { get; }
+
+    /// <summary>Resets every parameter to defaults – start a new quick profile from scratch.</summary>
+    public RelayCommand NewCommand { get; }
+
+    /// <summary>Deletes the profile with the current name from the shared library (two-click confirm).</summary>
+    public RelayCommand DeleteFromLibraryCommand { get; }
+
     /// <summary>Re-enables automatic naming and regenerates the name from the parameters.</summary>
     public RelayCommand ResetNameCommand { get; }
 
-    private int TemperaturePointCount() => Math.Max(2, IntermediateSteps + 2);
+    private int TemperaturePointCount()
+    {
+        if (UseTemperatureStep && TemperatureStep > 0)
+        {
+            double span = Math.Abs(HighTemperature - LowTemperature);
+            int intervals = Math.Max(1, (int)Math.Round(span / TemperatureStep));
+            return intervals + 1;
+        }
+
+        return Math.Max(2, IntermediateSteps + 2);
+    }
 
     private int PlateauCount()
     {
@@ -189,7 +261,16 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         double plateau = EffectivePlateauMinutes();
         List<double> up = AscendingTemps();
-        var segs = new List<ProfileSegment> { Plateau(up[0], plateau) };
+        var segs = new List<ProfileSegment>();
+
+        // Optional lead-in: ease from the current temperature to the first setpoint,
+        // so the run ramps up over StartRampMinutes instead of jumping straight to it.
+        if (HasLeadIn)
+        {
+            segs.Add(Ramp(up[0], StartRampMinutes));
+        }
+
+        segs.Add(Plateau(up[0], plateau));
 
         for (int i = 1; i < up.Count; i++)
         {
@@ -256,21 +337,26 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         double plateau = EffectivePlateauMinutes();
-        double optimized = RampCount() * RampMinutes + PlateauCount() * plateau;
-        double baseTotal = RampCount() * RampMinutes + PlateauCount() * PlateauMinutes;
+        double leadIn = HasLeadIn ? StartRampMinutes : 0;
+        double optimized = leadIn + RampCount() * RampMinutes + PlateauCount() * plateau;
+        double baseTotal = leadIn + RampCount() * RampMinutes + PlateauCount() * PlateauMinutes;
 
         BaseTotalText = Format(baseTotal);
         OptimizedTotalText = Format(optimized);
         EffectivePlateauText = $"{plateau:0.#} min / plato";
-        SegmentCount = RampCount() + PlateauCount();
+        SegmentCount = RampCount() + PlateauCount() + (HasLeadIn ? 1 : 0);
 
         double delta = up.Count > 1 ? (HighTemperature - LowTemperature) / (up.Count - 1) : 0;
         RampRateText = RampMinutes > 0
             ? $"{Math.Abs(delta) / RampMinutes:0.##} °C/min  ({Math.Abs(delta):0.#} °C / krok)"
             : "skok (0 min)";
 
-        Summary = $"{LowTemperature:0.#} → {HighTemperature:0.#} °C, {IntermediateSteps} medzikrokov" +
-            (IncludeDescending ? " a späť dole" : string.Empty);
+        Summary = $"{LowTemperature:0.#} → {HighTemperature:0.#} °C, " +
+            (UseTemperatureStep
+                ? $"krok {TemperatureStep:0.#} °C ({TemperaturePointCount()} bodov)"
+                : $"{IntermediateSteps} medzikrokov") +
+            (IncludeDescending ? " a späť dole" : string.Empty) +
+            (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty);
 
         UpdateAutoName();
         BuildPreview();
@@ -326,7 +412,9 @@ public sealed class QuickProfileViewModel : ObservableObject
         List<ProfileSegment> segs = BuildSegments();
         var pts = new List<Point>();
         double t = 0;
-        double start = segs.Count > 0 ? segs[0].TargetTemperature : LowTemperature;
+        double start = HasLeadIn
+            ? StartTemperature
+            : (segs.Count > 0 ? segs[0].TargetTemperature : LowTemperature);
         pts.Add(new Point(0, start));
 
         foreach (ProfileSegment s in segs)
@@ -348,31 +436,133 @@ public sealed class QuickProfileViewModel : ObservableObject
         TempPreview = new[] { new ChartSeries("Teplota", TempBrush, pts) };
     }
 
+    /// <summary>
+    /// Upserts the current sweep into the shared library (matched by name so re-saving
+    /// updates instead of duplicating) and returns the persisted profile.
+    /// </summary>
+    private TestProfile Persist(out bool created)
+    {
+        TestProfile profile = BuildProfile();
+        TestProfile? existing = _store.LoadAll()
+            .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+        created = existing is null;
+        if (existing is not null)
+        {
+            profile.Id = existing.Id;
+        }
+
+        _store.Save(profile);
+        return profile;
+    }
+
     private void SaveToLibrary()
     {
+        DisarmDelete();
         try
         {
-            TestProfile profile = BuildProfile();
-
-            // Upsert by name so re-saving the same sweep updates it instead of
-            // creating duplicates in the shared library.
-            TestProfile? existing = _store.LoadAll()
-                .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (existing is not null)
-            {
-                profile.Id = existing.Id;
-            }
-
-            _store.Save(profile);
-            Status = (existing is null
-                    ? $"Profil \"{profile.Name}\" uložený do knižnice"
-                    : $"Profil \"{profile.Name}\" aktualizovaný v knižnici") +
-                $" ({profile.Segments.Count} segmentov, {Format(profile.SinglePassDuration.TotalMinutes)}). Otvor ho v Editore profilov.";
+            TestProfile profile = Persist(out bool created);
+            IsSaveSuccess = true;
+            Status = (created
+                    ? $"✔ Profil „{profile.Name}“ uložený do knižnice"
+                    : $"✔ Profil „{profile.Name}“ aktualizovaný v knižnici") +
+                $" ({profile.Segments.Count} segmentov, {Format(profile.SinglePassDuration.TotalMinutes)}). " +
+                "Nájdeš ho v Editore profilov aj v rýchlom spustení na karte komory.";
         }
         catch (Exception ex)
         {
+            IsSaveSuccess = false;
             Status = $"Uloženie zlyhalo: {ex.Message}";
         }
+    }
+
+    /// <summary>Saves the profile and asks the shell to open it in the standalone profile editor.</summary>
+    private void EditInEditor()
+    {
+        DisarmDelete();
+        try
+        {
+            TestProfile profile = Persist(out _);
+            IsSaveSuccess = true;
+            Status = $"✔ Profil „{profile.Name}“ uložený a otvorený v Editore profilov.";
+            OpenInEditorRequested?.Invoke(profile.Id);
+        }
+        catch (Exception ex)
+        {
+            IsSaveSuccess = false;
+            Status = $"Otvorenie v editore zlyhalo: {ex.Message}";
+        }
+    }
+
+    /// <summary>Resets every parameter to its default – starts a brand-new quick profile.</summary>
+    private void NewProfile()
+    {
+        DisarmDelete();
+        NamePrefix = string.Empty;
+        LowTemperature = -20;
+        HighTemperature = 60;
+        UseTemperatureStep = false;
+        IntermediateSteps = 7;
+        TemperatureStep = 10;
+        PlateauMinutes = 30;
+        RampMinutes = 20;
+        IncludeDescending = true;
+        DoublePeak = true;
+        PeakDipCelsius = 10;
+        StartFromCurrent = true;
+        StartTemperature = 25;
+        StartRampMinutes = 60;
+        ShortenByHours = 0;
+        EnableAutoName(); // back to an auto-generated name
+        IsSaveSuccess = false;
+        Status = "Nový rýchly profil – parametre vynulované na predvolené.";
+    }
+
+    private System.Threading.CancellationTokenSource? _deleteArmCts;
+
+    private bool _isDeleteArmed;
+    /// <summary>Two-step delete of the library copy: the first click arms, the second (within 3 s) deletes.</summary>
+    public bool IsDeleteArmed
+    {
+        get => _isDeleteArmed;
+        private set { if (SetProperty(ref _isDeleteArmed, value)) OnPropertyChanged(nameof(DeleteButtonText)); }
+    }
+
+    /// <summary>Delete button caption reflecting the confirmation state.</summary>
+    public string DeleteButtonText => IsDeleteArmed ? "Naozaj vymazať?" : "Vymazať z knižnice";
+
+    private void DisarmDelete()
+    {
+        _deleteArmCts?.Cancel();
+        _deleteArmCts = null;
+        IsDeleteArmed = false;
+    }
+
+    /// <summary>Deletes the saved profile whose name matches the current one (with confirmation).</summary>
+    private void DeleteFromLibrary()
+    {
+        string name = (ProfileName ?? string.Empty).Trim();
+        TestProfile? existing = _store.LoadAll()
+            .FirstOrDefault(p => string.Equals(p.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            IsSaveSuccess = false;
+            Status = $"Profil „{name}“ nie je v knižnici – niet čo vymazať.";
+            return;
+        }
+
+        bool confirmed = Views.ConfirmDialog.Ask(
+            $"Naozaj vymazať profil „{existing.Name}“ z knižnice? Túto akciu nie je možné vrátiť.",
+            "Vymazať profil",
+            "Vymazať");
+        if (!confirmed)
+        {
+            Status = "Mazanie zrušené.";
+            return;
+        }
+
+        _store.Delete(existing.Id);
+        IsSaveSuccess = false;
+        Status = $"Profil „{existing.Name}“ vymazaný z knižnice.";
     }
 
     private static string Format(double minutes)

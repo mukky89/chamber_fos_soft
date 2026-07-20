@@ -19,9 +19,31 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Nový" Command="{Binding NewProfileCommand}" />
-                <Button Content="Import…" Command="{Binding ImportProfileCommand}" />
-                <Button Content="Export…" Command="{Binding ExportProfileCommand}" />
+                <Button Command="{Binding RefreshHistoryCommand}"
+                        ToolTip="Znovu načíta uložené profily zo súboru (automaticky sa obnovia aj pri vstupe sem).">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Refresh}" />
+                        <TextBlock Text="Obnoviť" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding NewProfileCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Add}" />
+                        <TextBlock Text="Nový" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ImportProfileCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Import}" />
+                        <TextBlock Text="Import…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ExportProfileCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Export}" />
+                        <TextBlock Text="Export…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
 
@@ -31,75 +53,15 @@
                 <ColumnDefinition Width="{Binding IsSegmentsExpanded, Converter={StaticResource BoolToGridLength}, ConverterParameter=380}" />
             </Grid.ColumnDefinitions>
 
-            <!-- Editor -->
-            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
-                <StackPanel>
+            <!-- Editor: the live chart is pinned at the top ("frozen") so you see the
+                 profile build up while you edit the segments in the scrolling area below. -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Style="{StaticResource Card}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*" />
-                            <ColumnDefinition Width="12" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="12" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Názov profilu" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="Typ" Style="{StaticResource Label}" />
-                            <ComboBox ItemsSource="{Binding ChamberKinds}" SelectedItem="{Binding Kind}" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="4">
-                            <TextBlock Text="Počet cyklov" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding Cycles, UpdateSourceTrigger=PropertyChanged}" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="1" Style="{StaticResource Card}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <DataGrid Grid.Column="0" ItemsSource="{Binding Segments}" SelectedItem="{Binding SelectedSegment, Mode=TwoWay}"
-                                  ScrollViewer.VerticalScrollBarVisibility="Disabled" MinHeight="160">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Názov" Width="*" Binding="{Binding Name}" />
-                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Cieľ °C" Width="84" Binding="{Binding TargetTemperature, StringFormat=0.0}" />
-                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Cieľ %" Width="84" Binding="{Binding TargetHumidity, StringFormat=0.0, TargetNullValue=''}" />
-                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Trvanie (min)" Width="108" Binding="{Binding DurationMinutes, StringFormat=0.##}" />
-                                <DataGridCheckBoxColumn Header="Rampa" Width="56" Binding="{Binding IsRamp, UpdateSourceTrigger=PropertyChanged}" />
-                                <DataGridCheckBoxColumn Header="Soak" Width="52" Binding="{Binding GuaranteedSoak, UpdateSourceTrigger=PropertyChanged}" />
-                                <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Tol °C" Width="60" Binding="{Binding SoakTolerance, StringFormat=0.0}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                        <StackPanel Grid.Column="1" Margin="12,0,0,0" Width="130">
-                            <Button Content="Pridať na koniec" Command="{Binding AddSegmentCommand}" Margin="0,0,0,6" />
-                            <Button Content="Vložiť pred" Command="{Binding AddSegmentBeforeCommand}" Margin="0,0,0,6" />
-                            <Button Content="Vložiť za" Command="{Binding AddSegmentAfterCommand}" Margin="0,0,0,6" />
-                            <Button Content="Odobrať" Command="{Binding RemoveSegmentCommand}" Margin="0,0,0,6" />
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="6" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="↑" Command="{Binding MoveSegmentUpCommand}" Margin="0" />
-                                <Button Grid.Column="2" Content="↓" Command="{Binding MoveSegmentDownCommand}" Margin="0" />
-                            </Grid>
-                            <Button Content="⤢ Rozbaliť" Style="{StaticResource GhostButton}"
-                                    Command="{Binding ToggleSegmentsExpandCommand}" Margin="0,4,0,0" />
-                            <Button Content="⛶ Celá obrazovka" Style="{StaticResource GhostButton}"
-                                    Click="ToggleMaximize_Click" Margin="0,2,0,0" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="2" Style="{StaticResource Card}"
+                <Border Grid.Row="0" Style="{StaticResource Card}"
                         Visibility="{Binding IsSegmentsExpanded, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                     <StackPanel>
                         <DockPanel LastChildFill="False" Margin="0,0,0,4">
@@ -112,14 +74,82 @@
                         <TextBlock Text="{Binding ProfileWarnings}" Foreground="{StaticResource DangerBrush}"
                                    FontFamily="Segoe UI Semibold" Margin="0,0,0,4"
                                    Visibility="{Binding HasProfileWarnings, Converter={StaticResource BoolToVisibility}}" />
-                        <views:ProfileEditorChart Height="150" Segments="{Binding Segments}" />
-                        <views:ChartView Height="100" Margin="0,6,0,0" Unit=" %"
+                        <views:ProfileEditorChart Height="300" Segments="{Binding Segments}" />
+                        <views:ChartView Height="120" Margin="0,6,0,0" Unit=" %"
                                          Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}"
                                          Series="{Binding HumPreview}" />
                     </StackPanel>
                 </Border>
-                </StackPanel>
-            </ScrollViewer>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+                    <StackPanel>
+
+                    <Border Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Názov profilu" Style="{StaticResource Label}" />
+                                <TextBox Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Typ" Style="{StaticResource Label}" />
+                                <ComboBox ItemsSource="{Binding ChamberKinds}" SelectedItem="{Binding Kind}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Počet cyklov" Style="{StaticResource Label}" />
+                                <TextBox Text="{Binding Cycles, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <DataGrid Grid.Column="0" ItemsSource="{Binding Segments}" SelectedItem="{Binding SelectedSegment, Mode=TwoWay}"
+                                      ScrollViewer.VerticalScrollBarVisibility="Disabled" MinHeight="160">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Názov" Width="*" Binding="{Binding Name}" />
+                                    <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Cieľ °C" Width="84" Binding="{Binding TargetTemperature, StringFormat=0.0}" />
+                                    <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Cieľ %" Width="84" Binding="{Binding TargetHumidity, StringFormat=0.0, TargetNullValue=''}" />
+                                    <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Trvanie (min)" Width="108" Binding="{Binding DurationMinutes, StringFormat=0.##}" />
+                                    <DataGridCheckBoxColumn Header="Rampa" Width="56" Binding="{Binding IsRamp, UpdateSourceTrigger=PropertyChanged}" />
+                                    <DataGridCheckBoxColumn Header="Soak" Width="52" Binding="{Binding GuaranteedSoak, UpdateSourceTrigger=PropertyChanged}" />
+                                    <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Tol °C" Width="60" Binding="{Binding SoakTolerance, StringFormat=0.0}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" Width="130">
+                                <Button Content="Pridať na koniec" Command="{Binding AddSegmentCommand}" Margin="0,0,0,6" />
+                                <Button Content="Vložiť pred" Command="{Binding AddSegmentBeforeCommand}" Margin="0,0,0,6" />
+                                <Button Content="Vložiť za" Command="{Binding AddSegmentAfterCommand}" Margin="0,0,0,6" />
+                                <Button Content="Odobrať" Command="{Binding RemoveSegmentCommand}" Margin="0,0,0,6" />
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="6" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="↑" Command="{Binding MoveSegmentUpCommand}" Margin="0" />
+                                    <Button Grid.Column="2" Content="↓" Command="{Binding MoveSegmentDownCommand}" Margin="0" />
+                                </Grid>
+                                <Button Content="⤢ Rozbaliť" Style="{StaticResource GhostButton}"
+                                        Command="{Binding ToggleSegmentsExpandCommand}" Margin="0,4,0,0" />
+                                <Button Content="⛶ Celá obrazovka" Style="{StaticResource GhostButton}"
+                                        Click="ToggleMaximize_Click" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
 
             <!-- History -->
             <Border Grid.Column="1" Style="{StaticResource Card}"
@@ -132,8 +162,10 @@
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" LastChildFill="False">
                         <TextBlock Text="Uložené profily" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
-                        <TextBlock Text="dvojklik = načítať" Style="{StaticResource Caption}"
-                                   DockPanel.Dock="Right" VerticalAlignment="Center" />
+                        <Button DockPanel.Dock="Right" Content="↻" Style="{StaticResource GhostButton}" Padding="8,1"
+                                Command="{Binding RefreshHistoryCommand}" ToolTip="Obnoviť zoznam zo súboru" />
+                        <TextBlock Text="klik = načítať" Style="{StaticResource Caption}"
+                                   DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
                     </DockPanel>
                     <ListBox Grid.Row="1" ItemsSource="{Binding History}"
                              SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
@@ -153,7 +185,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="10,7"
-                                        ToolTip="Dvojklik načíta profil do editora (teploty aj všetky parametre).">
+                                        ToolTip="Klik načíta profil do editora (teploty aj všetky parametre).">
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
                                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0">
@@ -172,6 +204,9 @@
                     <StackPanel Grid.Row="2" Margin="0,10,0,0">
                         <Button Content="Uložiť aktuálny" Style="{StaticResource AccentButton}" Margin="0,0,0,8"
                                 HorizontalAlignment="Stretch" Command="{Binding SaveToHistoryCommand}" />
+                        <Button Content="Duplikovať (COPY)" Margin="0,0,0,8" HorizontalAlignment="Stretch"
+                                Command="{Binding DuplicateProfileCommand}"
+                                ToolTip="Vytvorí kópiu vybraného profilu s príponou „COPY“ v názve a načíta ju do editora." />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />

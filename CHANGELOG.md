@@ -4,6 +4,85 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.24.1] – 2026-07-19
+
+### Opravené
+- **Prekrývajúce sa tlačidlá** v Rýchlom vytváračovi (Nový / Vymazať) – teraz
+  sú v samostatných stĺpcoch a neprekrývajú sa ani pri užšom okne.
+- **Prihlasovacie okno** už nezobrazuje nápovedu s predvolenými účtami
+  (admin/operator) – odstránené.
+
+## [1.24.0] – 2026-07-19
+
+### Pridané
+- **Vlastné vektorové ikony (XAML).** Nová knižnica `Themes/Icons.xaml` s
+  ostrými, tému-rešpektujúcimi ikonami (prefarbia sa podľa tlačidla, ostré pri
+  každom DPI). Nasadené na hlavné menu vľavo (Editor, Rýchly profil, Teplomery,
+  Záznamy, Audit, App log, Changelog, Administrácia, Odhlásiť, Ukončiť) a na
+  kľúčové tlačidlá (Editor profilov: Obnoviť/Nový/Import/Export; Rýchly profil:
+  Uložiť/Editovať). Knižnica je pripravená na rozšírenie do zvyšku appky.
+
+## [1.23.0] – 2026-07-19
+
+### Zmenené / opravené
+- **Mazanie profilov cez potvrdzovacie okno.** V Editore profilov aj v Rýchlom
+  vytváračovi sa pri mazaní zobrazí tmavé potvrdzovacie okno „Naozaj vymazať?"
+  (namiesto dvojkliku), takže mazanie vybraného profilu funguje jednoznačne.
+- **Rýchly vytvárač – krajšie usporiadanie tlačidiel.** Primárne akcie (Uložiť,
+  Editovať) v jednom riadku, oddeľovač a pod ním Nový vľavo / Vymazať vpravo.
+- **Rýchle spustenie na karte zariadenia už nezobrazuje všetky profily.**
+  Zobrazia sa iba profily, ktoré admin výslovne pridá cez „✎ Upraviť"; keď nie
+  je pridaný žiadny, ukáže sa nápoveda.
+- **Upozornenia aj ako popup notifikácie.** Teplota/vlhkosť mimo rozsahu a chyby
+  operácií sa teraz hlásia aj cez systémové popup (tray) notifikácie so zvukom,
+  nielen v stavovom riadku (alarmy fungovali takto už predtým).
+
+## [1.22.0] – 2026-07-19
+
+### Pridané
+- **Rýchly profil – potvrdenie po uložení:** po uložení sa zobrazí výrazná zelená
+  hláška s názvom profilu a počtom segmentov.
+- **Rýchly profil – Nový / Vymazať / Editovať profil:** tlačidlá „Nový / začať
+  odznova" (vynuluje parametre), „Vymazať z knižnice" (s potvrdením) a
+  **„✎ Editovať profil"**, ktoré profil uloží a **presunie do Editora profilov**.
+- **Log teplôt pre každý profil:** počas behu profilu sa do
+  `Dokumenty\VotschVc3\profil-logy\` ukladá CSV so **setpointom a nameranou
+  teplotou komory** (pri klimakomorách aj vlhkosť), jeden súbor na spustenie.
+- **Krajšie okno na ukončenie aplikácie:** namiesto systémového dialógu sa
+  zobrazí tmavé okno v štýle aplikácie s možnosťami **Ukončiť / Skryť do tray /
+  Zrušiť**. Opravená aj zle zobrazená ikona tlačidla „Ukončiť aplikáciu".
+
+## [1.21.0] – 2026-07-19
+
+### Pridané
+- **Časová os zariadení:** hustejšie hodinové značky na osi X a druhý riadok s
+  názvom dňa a dátumom (napr. „Ne 20.07.", „Po 21.07."), aby bola viacdňová os
+  čitateľná.
+- **Rýchly vytvárač profilov:**
+  - Všetky číselné polia majú teraz krokovadlo (▲/▼) so správne viditeľnou
+    hodnotou vnútri.
+  - **Dvojitý vrchol** je zapnutý ako predvolený.
+  - Nová predvolená možnosť **„Nábeh z aktuálnej teploty"** – na začiatku sa
+    pridá rampa z aktuálnej (predvolene 25 °C) na prvú teplotu za 60 min.
+  - Okrem „od–do" sa dá zadať aj **požadovaný krok teploty** medzi min a max;
+    počet krokov sa dopočíta a profil sa vygeneruje.
+- **Editor profilov:**
+  - Zoznam profilov sa **obnoví pri každom vstupe** a pribudlo tlačidlo **↻ Obnoviť**.
+  - **Duplikovať profil** – vytvorí kópiu s príponou „COPY" v názve.
+  - **Prepínanie medzi profilmi na jeden klik** (výber = načítanie do editora).
+  - **Graf je hore a „zamrznutý"** (neroluje) a je vyšší, aby sa lepšie ovládal
+    a bolo vidno, ako profil vzniká.
+- **Bezpečnostný zámok automaticky** – pri spustení rýchleho/testovacieho
+  profilu aj pri manuálnom nastavení sa zariadenie zamkne (pred zmenou alebo
+  zastavením ho treba odomknúť).
+- **Krajší progress bar** (zaoblený, farebný, s percentami) na karte aj úplne
+  hore pri zariadení; k dokončeniu profilu sa dopĺňa **názov dňa**.
+- **Info o dokončení profilu** (deň, dátum, čas a odpočet) je aj v hlavnom
+  info hore, hneď pod názvom profilu.
+- **Zatvorenie do oznamovacej oblasti (tray):** krížik okno len skryje a
+  aplikácia beží ďalej. Ukončiť sa dá iba tlačidlom **⏻ Ukončiť aplikáciu**
+  (alebo z menu tray ikony) – vždy s potvrdzovacou otázkou.
+
 ## [1.20.1] – 2026-07-17
 
 ### Opravené
