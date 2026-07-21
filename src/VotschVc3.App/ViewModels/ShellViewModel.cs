@@ -200,8 +200,58 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             // A missing marker only means the one-time seed check runs again; harmless.
         }
 
+        // Bundled default profiles: import once on first run (marker-guarded).
+        SeedDefaultProfiles(dir);
+
         // Start at the login screen.
         _currentView = _login;
+    }
+
+    /// <summary>
+    /// Imports the profiles bundled with the build (embedded <c>seed-profiles.json</c>)
+    /// into the shared library the first time this build version runs. Guarded by a
+    /// versioned marker so a user's later edits / deletions are respected, and existing
+    /// profiles (matched by id or name) are never duplicated. Bump the marker version
+    /// when new default profiles are added to re-run the import for the additions.
+    /// </summary>
+    private void SeedDefaultProfiles(string dir)
+    {
+        string marker = System.IO.Path.Combine(dir, ".seed_profiles_v1");
+        if (System.IO.File.Exists(marker))
+        {
+            return;
+        }
+
+        try
+        {
+            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            using (System.IO.Stream? stream = assembly.GetManifestResourceStream("seed-profiles.json"))
+            {
+                if (stream is not null)
+                {
+                    using var reader = new System.IO.StreamReader(stream);
+                    List<TestProfile> seeds = ProfileFile.Deserialize(reader.ReadToEnd());
+                    List<TestProfile> existing = _store.LoadAll();
+                    foreach (TestProfile profile in seeds)
+                    {
+                        bool duplicate = existing.Any(e =>
+                            e.Id == profile.Id ||
+                            string.Equals(e.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+                        if (!duplicate)
+                        {
+                            _store.Save(profile);
+                        }
+                    }
+                }
+            }
+
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(marker, DateTimeOffset.Now.ToString("o"));
+        }
+        catch
+        {
+            // Seeding must never crash startup; a missing marker just retries next launch.
+        }
     }
 
     public ObservableCollection<ChamberViewModel> Chambers { get; }

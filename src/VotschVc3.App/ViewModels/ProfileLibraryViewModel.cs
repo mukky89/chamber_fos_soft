@@ -42,6 +42,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         ImportProfileCommand = new RelayCommand(ImportProfile);
         BulkImportCommand = new RelayCommand(BulkImport);
         ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
+        ExportLibraryCommand = new RelayCommand(ExportLibrary);
         ExpandAllCommand = new RelayCommand(() => SetAllExpanded(true));
         CollapseAllCommand = new RelayCommand(() => SetAllExpanded(false));
         ClearFilterCommand = new RelayCommand(() => { FilterText = string.Empty; SelectedTag = AllTagsOption; });
@@ -197,6 +198,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     /// <summary>Opens the bulk-import tool (many files at once, renamed + standardised).</summary>
     public RelayCommand BulkImportCommand { get; }
     public RelayCommand ExportProfileCommand { get; }
+
+    /// <summary>Exports the whole library to one JSON file (importable / bundleable as seed profiles).</summary>
+    public RelayCommand ExportLibraryCommand { get; }
 
     /// <summary>Expands every sensor group in the library tree.</summary>
     public RelayCommand ExpandAllCommand { get; }
@@ -566,6 +570,40 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         {
             RefreshFromStore();
             StatusMessage = "Hromadný import dokončený – knižnica obnovená.";
+        }
+    }
+
+    private void ExportLibrary()
+    {
+        List<TestProfile> all = _store.LoadAll();
+        if (all.Count == 0)
+        {
+            StatusMessage = "Knižnica je prázdna – niet čo exportovať.";
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Exportovať profily do súboru",
+            Filter = "Profily (*.json)|*.json",
+            DefaultExt = ".json",
+            FileName = $"profily-{DateTime.Now:yyyyMMdd}.json",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            ProfileFile.Write(dialog.FileName, all);
+            StatusMessage = $"Exportovaných {all.Count} profilov do {dialog.FileName}. " +
+                "Tento súbor sa dá spätne importovať alebo pribaliť do buildu ako predvolené profily.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export knižnice zlyhal: {ex.Message}";
         }
     }
 

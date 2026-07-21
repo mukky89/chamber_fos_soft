@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.29.0] – 2026-07-21
+
+### Pridané
+- **Export celej knižnice profilov do súboru.** Tlačidlo „Export knižnice…“
+  v Editore profilov uloží všetky profily do jedného JSON súboru. Súbor sa dá
+  spätne importovať (aj hromadne) alebo pribaliť do buildu ako predvolené profily.
+- **Predvolené profily súčasťou buildu.** Aplikácia pri prvom spustení naimportuje
+  profily pribalené v builde (embedded `seed-profiles.json`) do knižnice
+  (jednorazovo, chránené markerom – neskoršie úpravy/mazania používateľa sa
+  rešpektujú, existujúce profily sa neduplikujú).
+
 ## [1.28.0] – 2026-07-21
 
 ### Pridané

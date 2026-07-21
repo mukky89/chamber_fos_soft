@@ -17,7 +17,7 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.28.0</Version>
+    <Version>1.29.0</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -37,6 +37,8 @@
   <ItemGroup>
     <!-- Embed the changelog so it can be shown inside the app. -->
     <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+    <!-- Default profiles bundled with the build; imported once on first run. -->
+    <EmbeddedResource Include="seed-profiles.json" LogicalName="seed-profiles.json" />
   </ItemGroup>
 
   <ItemGroup>
