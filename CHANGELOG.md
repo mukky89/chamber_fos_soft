@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.35.0] – 2026-07-21
+
+### Pridané
+- **Cyklovanie v rýchlom vytváračovi.** Pribudol „Počet cyklov“ a voľba
+  „Cyklovať len telo“ – opakuje sa iba sweep, kým začiatočný nábeh na prvú
+  teplotu a koncový nábeh na izbovú teplotu prebehnú len raz. Celkový čas aj
+  názov profilu zohľadňujú cyklovanie.
+
 ## [1.34.0] – 2026-07-21
 
 ### Pridané

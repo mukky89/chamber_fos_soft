@@ -155,6 +155,15 @@
                         </StackPanel>
                     </Grid>
 
+                    <TextBlock Text="Cyklovanie" Style="{StaticResource Heading}" Margin="0,4,0,4" />
+                    <StackPanel Style="{StaticResource QpField}">
+                        <TextBlock Text="Počet cyklov" Style="{StaticResource Label}" />
+                        <views:NumericStepper Value="{Binding Cycles, Mode=TwoWay}" Step="1" Minimum="1" />
+                        <CheckBox Content="Cyklovať len telo (nábeh a koniec len raz)" IsChecked="{Binding CycleBodyOnly}"
+                                  Margin="0,6,0,0"
+                                  ToolTip="Opakuje sa iba sweep; začiatočný nábeh na prvú teplotu a koncový nábeh na izbovú teplotu prebehnú len raz." />
+                    </StackPanel>
+
                     <TextBlock Text="Optimalizácia" Style="{StaticResource Heading}" Margin="0,4,0,4" />
                     <StackPanel Style="{StaticResource QpField}">
                         <TextBlock Text="Skrátiť celkový čas o (hodín)" Style="{StaticResource Label}" />
