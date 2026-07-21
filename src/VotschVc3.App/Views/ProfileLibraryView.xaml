@@ -138,11 +138,11 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Snímače (profil môže byť pre viac snímačov)" Style="{StaticResource Label}" />
-                                    <views:TagEditor Items="{Binding EditorSensors}" Suggestions="{Binding KnownSensors}" />
+                                    <views:TagEditor Items="{Binding EditorSensors, Mode=OneWay}" Suggestions="{Binding KnownSensors}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Tagy" Style="{StaticResource Label}" />
-                                    <views:TagEditor Items="{Binding EditorTags}" Suggestions="{Binding KnownTags}" />
+                                    <views:TagEditor Items="{Binding EditorTags, Mode=OneWay}" Suggestions="{Binding KnownTags}" />
                                 </StackPanel>
                             </Grid>
 

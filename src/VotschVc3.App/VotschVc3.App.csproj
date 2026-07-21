@@ -17,7 +17,7 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.33.0</Version>
+    <Version>1.33.1</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 

@@ -16,10 +16,11 @@ public partial class TagEditor : UserControl
 {
     public TagEditor() => InitializeComponent();
 
+    // One-way by default: the bound collection is mutated in place (add/remove),
+    // never reassigned, so the control never needs to write the property back.
     public static readonly DependencyProperty ItemsProperty = DependencyProperty.Register(
         nameof(Items), typeof(ObservableCollection<string>), typeof(TagEditor),
-        new FrameworkPropertyMetadata(null,
-            FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnItemsChanged));
+        new PropertyMetadata(null, OnItemsChanged));
 
     /// <summary>The selected values (chips). Mutated in place on add/remove.</summary>
     public ObservableCollection<string> Items

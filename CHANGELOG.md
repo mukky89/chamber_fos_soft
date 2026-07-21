@@ -4,6 +4,13 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.33.1] – 2026-07-21
+
+### Opravené
+- **Pád editora profilov pri snímačoch/tagoch.** Chip editor (snímače/tagy)
+  padal na „TwoWay binding cannot work on read-only property“ – väzba je teraz
+  OneWay (kolekcia sa upravuje na mieste).
+
 ## [1.33.0] – 2026-07-21
 
 ### Pridané
