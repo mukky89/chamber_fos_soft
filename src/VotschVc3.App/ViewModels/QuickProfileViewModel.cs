@@ -28,7 +28,46 @@ public sealed class QuickProfileViewModel : ObservableObject
         NewCommand = new RelayCommand(NewProfile);
         DeleteFromLibraryCommand = new RelayCommand(DeleteFromLibrary);
         ResetNameCommand = new RelayCommand(EnableAutoName);
+        LoadKnownValues();
         Recalculate(); // also generates the initial automatic name
+    }
+
+    /// <summary>Sensors the profile is for (chips).</summary>
+    public ObservableCollection<string> EditorSensors { get; } = new();
+
+    /// <summary>Tags of the profile (chips).</summary>
+    public ObservableCollection<string> EditorTags { get; } = new();
+
+    /// <summary>Known sensor names from the library (suggestions).</summary>
+    public ObservableCollection<string> KnownSensors { get; } = new();
+
+    /// <summary>Known tags from the library (suggestions).</summary>
+    public ObservableCollection<string> KnownTags { get; } = new();
+
+    private string _customer = string.Empty;
+    public string Customer { get => _customer; set => SetProperty(ref _customer, value); }
+
+    private string _project = string.Empty;
+    public string Project { get => _project; set => SetProperty(ref _project, value); }
+
+    private void LoadKnownValues()
+    {
+        List<TestProfile> all = _store.LoadAll();
+        foreach (string s in all.SelectMany(p => p.Sensors ?? new List<string>())
+                     .Where(s => !string.IsNullOrWhiteSpace(s))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase))
+        {
+            KnownSensors.Add(s);
+        }
+
+        foreach (string t in all.SelectMany(p => p.Tags ?? new List<string>())
+                     .Where(t => !string.IsNullOrWhiteSpace(t))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase))
+        {
+            KnownTags.Add(t);
+        }
     }
 
     /// <summary>
@@ -401,6 +440,10 @@ public sealed class QuickProfileViewModel : ObservableObject
             Cycles = cyc,
             CycleStartIndex = start,
             CycleEndIndex = end,
+            Customer = Customer.Trim(),
+            Project = Project.Trim(),
+            Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            Tags = EditorTags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             CreatedAt = DateTimeOffset.Now,
             Segments = segs,
         };
@@ -641,6 +684,10 @@ public sealed class QuickProfileViewModel : ObservableObject
         EndHoldMinutes = 60;
         Cycles = 1;
         CycleBodyOnly = true;
+        Customer = string.Empty;
+        Project = string.Empty;
+        EditorSensors.Clear();
+        EditorTags.Clear();
         EnableAutoName(); // back to an auto-generated name
         IsSaveSuccess = false;
         Status = "Nový rýchly profil – parametre vynulované na predvolené.";

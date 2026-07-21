@@ -56,6 +56,32 @@
                                    TextWrapping="Wrap" Margin="0,2,0,0" />
                     </StackPanel>
 
+                    <Grid Style="{StaticResource QpField}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Zákazník" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Customer, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Projekt" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Project, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Style="{StaticResource QpField}">
+                        <TextBlock Text="Snímače" Style="{StaticResource Label}" />
+                        <views:TagEditor Items="{Binding EditorSensors, Mode=OneWay}" Suggestions="{Binding KnownSensors}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource QpField}">
+                        <TextBlock Text="Tagy" Style="{StaticResource Label}" />
+                        <views:TagEditor Items="{Binding EditorTags, Mode=OneWay}" Suggestions="{Binding KnownTags}" />
+                    </StackPanel>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

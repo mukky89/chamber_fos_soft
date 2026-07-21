@@ -4,6 +4,13 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.38.2] – 2026-07-21
+
+### Pridané
+- **Rýchly vytvárač – snímače, zákazník, projekt, tagy.** Rovnaké polia ako v
+  editore profilov (snímače a tagy cez chip editor s návrhmi z knižnice), aby sa
+  aj rýchlo vytvorený profil dal hneď zaradiť.
+
 ## [1.38.1] – 2026-07-21
 
 ### Zmenené
