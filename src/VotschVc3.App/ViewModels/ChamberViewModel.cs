@@ -1604,18 +1604,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    // Cycle region carried through load → run, so a profile marked in the library
-    // editor still repeats only its marked segments when launched on the chamber.
-    private int _loadedCycleStart = -1;
-    private int _loadedCycleEnd = -1;
-
+    // On the chamber dashboard the cycle count repeats the WHOLE profile N times –
+    // no start/end region distinction (that lives only in the profile editor). So the
+    // region is left unset (-1/-1 = whole profile), regardless of any region the
+    // loaded profile was designed with.
     private TestProfile BuildProfile() => new()
     {
         Name = ProfileName,
         Kind = Kind,
         Cycles = Cycles,
-        CycleStartIndex = _loadedCycleStart,
-        CycleEndIndex = _loadedCycleEnd,
+        CycleStartIndex = -1,
+        CycleEndIndex = -1,
         CreatedAt = DateTimeOffset.Now,
         Segments = Segments.Select(s => s.ToModel()).ToList(),
     };
@@ -2337,8 +2336,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         ProfileName = profile.Name;
         Cycles = profile.Cycles;
-        _loadedCycleStart = profile.CycleStartIndex;
-        _loadedCycleEnd = profile.CycleEndIndex;
 
         Segments.Clear();
         foreach (ProfileSegment segment in profile.Segments)

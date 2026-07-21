@@ -279,7 +279,8 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Počet cyklov" Style="{StaticResource Label}" />
-                                    <TextBox Text="{Binding Cycles, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Cycles, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Zopakuje CELÝ profil toľkokrát (bez rozlišovania začiatočného/koncového nábehu)." />
                                 </StackPanel>
                                 <StackPanel Grid.Column="4">
                                     <TextBlock Text="Interval zápisu (s)" Style="{StaticResource Label}" />

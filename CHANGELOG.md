@@ -4,6 +4,13 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.37.1] – 2026-07-21
+
+### Zmenené
+- **Cykly na paneli komory = celý profil.** „Počet cyklov" na komore zopakuje
+  celý profil N-krát bez rozlišovania začiatočného/koncového nábehu (región sa
+  používa len v editore/rýchlom vytváračovi).
+
 ## [1.37.0] – 2026-07-21
 
 ### Zmenené
