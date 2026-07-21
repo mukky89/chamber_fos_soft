@@ -433,24 +433,20 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Builds a compact, technical profile name that still carries every important
-    /// parameter. Shorter than the human-readable <see cref="ComposeSummary"/> preview
-    /// text – e.g. <c>-20→60 °C · 7 kr · ↕ · 2 vrch · nábeh 25°/60m · koniec 25°/60m</c>.
+    /// Builds a compact, technical profile name: temperature range, number of steps,
+    /// the °C step between them, plateau length and the total profile duration –
+    /// e.g. <c>-20→60 °C · 9 krokov · krok 10 °C · ↕ · plato 30m · Σ 1d 2h</c>.
     /// Optionally prefixed with <see cref="NamePrefix"/>.
     /// </summary>
     private string ComposeAutoName()
     {
-        string steps = UseTemperatureStep
-            ? $"Δ{TemperatureStep:0.#} °C ({TemperaturePointCount()} b)"
-            : $"{IntermediateSteps} kr";
-
+        int points = TemperaturePointCount();
+        double step = points > 1 ? Math.Abs(HighTemperature - LowTemperature) / (points - 1) : 0;
         double plateau = EffectivePlateauMinutes();
+
         string core =
-            $"{LowTemperature:0.#}→{HighTemperature:0.#} °C · {steps}" +
+            $"{LowTemperature:0.#}→{HighTemperature:0.#} °C · {points} krokov · krok {step:0.#} °C" +
             (IncludeDescending ? " · ↕" : string.Empty) +
-            (DoublePeak ? " · 2 vrch" : string.Empty) +
-            (HasLeadIn ? $" · nábeh {StartTemperature:0.#}°/{StartRampMinutes:0}m" : string.Empty) +
-            (EndAtSafeTemperature ? $" · koniec {EndTemperature:0.#}°/{Math.Max(60, EndHoldMinutes):0}m" : string.Empty) +
             $" · plato {plateau:0.#}m · Σ {FormatDurationCompact(TotalMinutes(plateau))}";
 
         string prefix = NamePrefix?.Trim() ?? string.Empty;

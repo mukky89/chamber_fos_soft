@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.4] – 2026-07-21
+
+### Zmenené
+- **Upravený obsah generovaného názvu profilu.** Názov teraz obsahuje počet
+  krokov, teplotný krok (°C), dĺžku plata a celkové trvanie; vypustené sú nábeh,
+  koncové plato a dvojitý vrchol. Napr.
+  `-20→60 °C · 9 krokov · krok 10 °C · ↕ · plato 30m · Σ 1d 2h`.
+
 ## [1.25.3] – 2026-07-21
 
 ### Pridané / zmenené
