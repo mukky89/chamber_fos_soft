@@ -38,6 +38,13 @@
                         <TextBlock Text="Import…" Style="{StaticResource IconLabel}" />
                     </StackPanel>
                 </Button>
+                <Button Command="{Binding BulkImportCommand}"
+                        ToolTip="Hromadný import viacerých profilov naraz – premenovanie a úprava podľa štandardu (nábeh na prvú teplotu + koniec na izbovú).">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.List}" />
+                        <TextBlock Text="Hromadný import…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
                 <Button Command="{Binding ExportProfileCommand}">
                     <StackPanel Orientation="Horizontal">
                         <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Export}" />

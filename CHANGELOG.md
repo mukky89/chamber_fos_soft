@@ -4,6 +4,19 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.26.0] – 2026-07-21
+
+### Pridané
+- **Nástroj na hromadný import profilov.** V Editore profilov (tlačidlo
+  „Hromadný import…“) sa dá naraz načítať viacero súborov (CSV/TXT/JSON/BEdit),
+  každý premenovať a jedným krokom uložiť do knižnice. Voliteľná spoločná
+  predpona názvu a výber typu komory pre celú dávku.
+- **Štandardizácia profilu.** Pri importe (predvolene zapnuté) sa na každý profil
+  aplikuje štandard: **začiatočný nábeh na prvú teplotu** a **koncový nábeh na
+  izbovú teplotu** (25 °C) s voliteľným koncovým platom (min.). Dĺžky nábehov,
+  izbová teplota aj plato sú nastaviteľné; pri ukladaní sa profily zlučujú podľa
+  názvu (upsert), takže opätovný import aktualizuje namiesto duplikovania.
+
 ## [1.25.4] – 2026-07-21
 
 ### Zmenené

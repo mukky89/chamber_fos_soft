@@ -30,4 +30,25 @@ public sealed class TestProfile
 
     /// <summary>Total duration including all cycles.</summary>
     public TimeSpan TotalDuration => SinglePassDuration * Math.Max(1, Cycles);
+
+    /// <summary>Deep copy of the profile (segments included). The copy keeps the same
+    /// <see cref="Id"/>; callers that persist a copy as a new profile assign a fresh one.</summary>
+    public TestProfile Clone() => new()
+    {
+        Id = Id,
+        Name = Name,
+        Kind = Kind,
+        CreatedAt = CreatedAt,
+        Cycles = Cycles,
+        Segments = Segments.Select(s => new ProfileSegment
+        {
+            Name = s.Name,
+            TargetTemperature = s.TargetTemperature,
+            TargetHumidity = s.TargetHumidity,
+            Duration = s.Duration,
+            IsRamp = s.IsRamp,
+            GuaranteedSoak = s.GuaranteedSoak,
+            SoakTolerance = s.SoakTolerance,
+        }).ToList(),
+    };
 }

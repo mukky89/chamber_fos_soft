@@ -40,6 +40,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         DuplicateProfileCommand = new RelayCommand(DuplicateProfile, () => SelectedHistoryProfile is not null);
         RefreshHistoryCommand = new RelayCommand(RefreshFromStore);
         ImportProfileCommand = new RelayCommand(ImportProfile);
+        BulkImportCommand = new RelayCommand(BulkImport);
         ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
 
         SeedDefaultProfile();
@@ -152,6 +153,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     /// <summary>Reloads the saved-profile list from disk (also used on entering the editor).</summary>
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ImportProfileCommand { get; }
+
+    /// <summary>Opens the bulk-import tool (many files at once, renamed + standardised).</summary>
+    public RelayCommand BulkImportCommand { get; }
     public RelayCommand ExportProfileCommand { get; }
 
     private void SeedDefaultProfile()
@@ -420,6 +424,16 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Import zlyhal: {ex.Message}";
+        }
+    }
+
+    private void BulkImport()
+    {
+        bool imported = Views.BulkImportWindow.Show(_store);
+        if (imported)
+        {
+            RefreshFromStore();
+            StatusMessage = "Hromadný import dokončený – knižnica obnovená.";
         }
     }
 
