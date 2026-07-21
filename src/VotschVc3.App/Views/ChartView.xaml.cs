@@ -91,8 +91,31 @@ public partial class ChartView : UserControl
         set => SetValue(EmptyTextProperty, value);
     }
 
+    public static readonly DependencyProperty CycleStartXProperty = DependencyProperty.Register(
+        nameof(CycleStartX), typeof(double), typeof(ChartView),
+        new PropertyMetadata(double.NaN, OnVisualChanged));
+
+    /// <summary>X value (same unit as the series, e.g. minutes) where the cycled region starts.</summary>
+    public double CycleStartX { get => (double)GetValue(CycleStartXProperty); set => SetValue(CycleStartXProperty, value); }
+
+    public static readonly DependencyProperty CycleEndXProperty = DependencyProperty.Register(
+        nameof(CycleEndX), typeof(double), typeof(ChartView),
+        new PropertyMetadata(double.NaN, OnVisualChanged));
+
+    /// <summary>X value where the cycled region ends.</summary>
+    public double CycleEndX { get => (double)GetValue(CycleEndXProperty); set => SetValue(CycleEndXProperty, value); }
+
+    public static readonly DependencyProperty CycleCountProperty = DependencyProperty.Register(
+        nameof(CycleCount), typeof(int), typeof(ChartView),
+        new PropertyMetadata(1, OnVisualChanged));
+
+    /// <summary>Repeat count; the cycle band is drawn only when &gt; 1.</summary>
+    public int CycleCount { get => (int)GetValue(CycleCountProperty); set => SetValue(CycleCountProperty, value); }
+
     private static void OnVisualChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
         ((ChartView)d).Redraw();
+
+    private Brush AccentBrush => TryFindResource("AccentBrush") as Brush ?? Brushes.SteelBlue;
 
     private Brush MutedBrush => TryFindResource("MutedBrush") as Brush ?? Brushes.Gray;
 
@@ -147,6 +170,27 @@ public partial class ChartView : UserControl
         _minX = minX; _maxX = maxX; _minY = minY; _maxY = maxY; _plotW = plotW; _plotH = plotH;
         _hoverSeries = series.FirstOrDefault(s => !s.Dashed) ?? series[0];
         _hasPlot = true;
+
+        // Cycled-region band (behind the series): shows what repeats and how many times.
+        if (CycleCount > 1 && !double.IsNaN(CycleStartX) && !double.IsNaN(CycleEndX) && CycleEndX > CycleStartX)
+        {
+            double bx1 = ToPx(Math.Clamp(CycleStartX, minX, maxX));
+            double bx2 = ToPx(Math.Clamp(CycleEndX, minX, maxX));
+            var band = new System.Windows.Shapes.Rectangle
+            {
+                Width = Math.Max(0, bx2 - bx1), Height = plotH, Fill = AccentBrush, Opacity = 0.14,
+            };
+            Canvas.SetLeft(band, bx1);
+            Canvas.SetTop(band, PadTop);
+            PlotCanvas.Children.Add(band);
+
+            foreach (double bx in new[] { bx1, bx2 })
+            {
+                AddLine(bx, PadTop, bx, PadTop + plotH, AccentBrush, 1.5, dashed: true);
+            }
+
+            AddText($"⟲ cyklus ×{CycleCount}", bx1 + 4, PadTop + 2, AccentBrush, 11);
+        }
 
         // Horizontal gridlines + Y labels.
         for (int i = 0; i <= 4; i++)

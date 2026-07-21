@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.37.0] – 2026-07-21
+
+### Zmenené
+- **Krajšie tagy.** Tagy v strome aj v editore (chip editor) majú čistejší,
+  jemnejší vzhľad (menej krikľavé, lepšie rozostupy).
+- **Cyklovaný úsek v grafe rýchleho vytvárača.** Keď je zapnuté cyklovanie
+  (predvolene vypnuté), v náhľadovom grafe sa vyznačí pásmo cyklovaného úseku
+  a počet cyklov (rovnako ako v editore profilov).
+- **Rýchly vytvárač – ukotvené tlačidlá.** Parametre vľavo sú v posuvateľnej
+  oblasti a dôležité akcie (Uložiť / Editovať / Nový / Vymazať) sú ukotvené dole,
+  takže je vidno, že vyššie sú ďalšie nastavenia.
+
 ## [1.36.1] – 2026-07-21
 
 ### Zmenené

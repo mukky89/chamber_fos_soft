@@ -28,8 +28,14 @@
             </Grid.ColumnDefinitions>
 
             <!-- ===== Vstupy ===== -->
-            <Border Grid.Column="0" Style="{StaticResource Card}" VerticalAlignment="Top">
-                <StackPanel>
+            <Border Grid.Column="0" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+                        <StackPanel>
                     <TextBlock Text="Parametre sweepu" Style="{StaticResource Heading}" />
 
                     <StackPanel Style="{StaticResource QpField}">
@@ -170,10 +176,14 @@
                         <views:NumericStepper Value="{Binding ShortenByHours, Mode=TwoWay}" Step="0.5" Minimum="0" />
                         <TextBlock Text="Rovnomerne skráti všetky plata." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
 
+                    <!-- Pinned actions: always visible so the scroll above clearly has more. -->
+                    <StackPanel Grid.Row="1" Margin="0,10,0,0">
                     <!-- Primary actions stacked full-width: the icon and full label
                          always fit (a 360-wide column cannot hold both side by side). -->
-                    <Button Margin="0,10,0,0" Style="{StaticResource AccentButton}"
+                    <Button Margin="0,0,0,0" Style="{StaticResource AccentButton}"
                             HorizontalAlignment="Stretch" Command="{Binding SaveToLibraryCommand}"
                             ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice.">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -211,7 +221,8 @@
                     <TextBlock Text="{Binding Status}" Style="{StaticResource Caption}"
                                TextWrapping="Wrap" Margin="0,8,0,0"
                                Visibility="{Binding IsSaveSuccess, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
-                </StackPanel>
+                    </StackPanel>
+                </Grid>
             </Border>
 
             <!-- ===== Náhľad + výpočty ===== -->
@@ -230,7 +241,10 @@
                     </StackPanel>
 
                     <views:ChartView Grid.Row="1" Series="{Binding TempPreview}" Unit=" °C"
-                                     EmptyText="Zadaj parametre" MinHeight="240" Margin="0,8,0,8" />
+                                     EmptyText="Zadaj parametre" MinHeight="240" Margin="0,8,0,8"
+                                     CycleStartX="{Binding CyclePreviewStartMinutes}"
+                                     CycleEndX="{Binding CyclePreviewEndMinutes}"
+                                     CycleCount="{Binding Cycles}" />
 
                     <WrapPanel Grid.Row="2">
                         <StackPanel Margin="0,0,28,0">

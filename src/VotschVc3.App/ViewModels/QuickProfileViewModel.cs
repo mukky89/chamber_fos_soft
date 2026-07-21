@@ -522,7 +522,43 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         TempPreview = new[] { new ChartSeries("Teplota", TempBrush, pts) };
+
+        // Cycled region (minutes) for the preview band: the body between the lead-in
+        // ramp and the closing ramp/hold when "body only", otherwise the whole profile.
+        double startMin = 0, endMin = t;
+        if (Cycles > 1)
+        {
+            if (CycleBodyOnly)
+            {
+                int bodyStart = HasLeadIn ? 1 : 0;
+                int bodyEnd = segs.Count - 1 - (EndAtSafeTemperature ? 2 : 0);
+                double cum = 0, s0 = 0, s1 = t;
+                for (int i = 0; i < segs.Count; i++)
+                {
+                    if (i == bodyStart) s0 = cum;
+                    cum += segs[i].Duration.TotalMinutes;
+                    if (i == bodyEnd) s1 = cum;
+                }
+
+                if (bodyEnd >= bodyStart)
+                {
+                    startMin = s0;
+                    endMin = s1;
+                }
+            }
+        }
+
+        CyclePreviewStartMinutes = startMin;
+        CyclePreviewEndMinutes = endMin;
     }
+
+    private double _cyclePreviewStartMinutes;
+    /// <summary>Start (min) of the cycled region for the preview band.</summary>
+    public double CyclePreviewStartMinutes { get => _cyclePreviewStartMinutes; private set => SetProperty(ref _cyclePreviewStartMinutes, value); }
+
+    private double _cyclePreviewEndMinutes;
+    /// <summary>End (min) of the cycled region for the preview band.</summary>
+    public double CyclePreviewEndMinutes { get => _cyclePreviewEndMinutes; private set => SetProperty(ref _cyclePreviewEndMinutes, value); }
 
     /// <summary>
     /// Upserts the current sweep into the shared library (matched by name so re-saving
