@@ -425,13 +425,24 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Builds the automatic profile name from the same description shown under
-    /// "Náhľad profilu" (see <see cref="ComposeSummary"/>), optionally prefixed with
-    /// <see cref="NamePrefix"/>.
+    /// Builds a compact, technical profile name that still carries every important
+    /// parameter. Shorter than the human-readable <see cref="ComposeSummary"/> preview
+    /// text – e.g. <c>-20→60 °C · 7 kr · ↕ · 2 vrch · nábeh 25°/60m · koniec 25°/60m</c>.
+    /// Optionally prefixed with <see cref="NamePrefix"/>.
     /// </summary>
     private string ComposeAutoName()
     {
-        string core = ComposeSummary();
+        string steps = UseTemperatureStep
+            ? $"Δ{TemperatureStep:0.#} °C ({TemperaturePointCount()} b)"
+            : $"{IntermediateSteps} kr";
+
+        string core =
+            $"{LowTemperature:0.#}→{HighTemperature:0.#} °C · {steps}" +
+            (IncludeDescending ? " · ↕" : string.Empty) +
+            (DoublePeak ? " · 2 vrch" : string.Empty) +
+            (HasLeadIn ? $" · nábeh {StartTemperature:0.#}°/{StartRampMinutes:0}m" : string.Empty) +
+            (EndAtSafeTemperature ? $" · koniec {EndTemperature:0.#}°/{Math.Max(60, EndHoldMinutes):0}m" : string.Empty);
+
         string prefix = NamePrefix?.Trim() ?? string.Empty;
         return prefix.Length > 0 ? $"{prefix} {core}" : core;
     }

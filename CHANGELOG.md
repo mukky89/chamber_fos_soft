@@ -7,10 +7,11 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 ## [1.25.1] – 2026-07-21
 
 ### Zmenené / opravené
-- **Automatický názov profilu = text náhľadu.** V Rýchlom vytváračovi sa
-  generovaný názov teraz zhoduje s popisom pod „Náhľad profilu" (rozsah, krok/
-  medzikroky, obojsmernosť, 2 vrcholy, nábeh aj koncové plato), takže názov
-  presne odráža nastavené parametre.
+- **Kompaktný technický názov profilu.** V Rýchlom vytváračovi má generovaný
+  názov krátky technický tvar so všetkými dôležitými parametrami, napr.
+  `-20→60 °C · 7 kr · ↕ · 2 vrch · nábeh 25°/60m · koniec 25°/60m`
+  (rozsah, krok/medzikroky, obojsmernosť ↕, 2 vrcholy, nábeh aj koncové plato).
+  Podrobný čitateľný popis ostáva pod „Náhľad profilu".
 - **Orezané tlačidlá v Rýchlom vytváračovi.** „Uložiť do knižnice",
   „Editovať profil", „Nový" a „Vymazať z knižnice" sú teraz na plnú šírku pod
   sebou – ikonka aj celý text sú vždy viditeľné (predtým sa v úzkom stĺpci
