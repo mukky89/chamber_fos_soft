@@ -49,6 +49,10 @@ public sealed class BulkImportViewModel : ObservableObject
     /// <summary>Comma-separated tags applied to every profile in the batch.</summary>
     public string CommonTagsText { get => _commonTagsText; set => SetProperty(ref _commonTagsText, value); }
 
+    private bool _generateStandardName = true;
+    /// <summary>When on, each profile's name is generated from the standard; the source name is kept as OriginalName.</summary>
+    public bool GenerateStandardName { get => _generateStandardName; set => SetProperty(ref _generateStandardName, value); }
+
     private bool _applyStandard = true;
     /// <summary>When on, each profile gets the standard starting/closing ramps applied on import.</summary>
     public bool ApplyStandard
@@ -193,28 +197,13 @@ public sealed class BulkImportViewModel : ObservableObject
 
         foreach (BulkImportItemViewModel item in included)
         {
-            string finalName = ComposeName(item.Name);
-            if (string.IsNullOrWhiteSpace(finalName))
-            {
-                item.StatusText = "⚠ prázdny názov – preskočené";
-                skipped++;
-                continue;
-            }
-
-            if (!seen.Add(finalName))
-            {
-                item.StatusText = "⚠ duplicitný názov v dávke – preskočené";
-                skipped++;
-                continue;
-            }
-
             try
             {
                 TestProfile profile = item.Raw.Clone();
-                profile.Name = finalName;
                 profile.Kind = Kind;
                 profile.Sensors = SplitValues(CommonSensorName);
                 profile.Tags = SplitValues(CommonTagsText);
+                profile.OriginalName = item.Raw.Name; // keep the source name as the "old name"
                 if (Kind == ChamberKind.TemperatureOnly)
                 {
                     foreach (ProfileSegment segment in profile.Segments)
@@ -228,6 +217,21 @@ public sealed class BulkImportViewModel : ObservableObject
                     ProfileStandardizer.Standardize(profile, BuildOptions());
                 }
 
+                // Name: generated from the profile (standard) or the edited/prefixed name.
+                string baseName = GenerateStandardName
+                    ? ProfileNaming.StandardName(profile)
+                    : ComposeName(item.Name);
+                if (string.IsNullOrWhiteSpace(baseName))
+                {
+                    item.StatusText = "⚠ prázdny názov – preskočené";
+                    skipped++;
+                    continue;
+                }
+
+                string finalName = UniqueName(baseName, seen);
+                seen.Add(finalName);
+                profile.Name = finalName;
+
                 // Upsert by name so re-importing updates instead of duplicating.
                 TestProfile? existing = _store.LoadAll()
                     .FirstOrDefault(p => string.Equals(p.Name.Trim(), finalName, StringComparison.OrdinalIgnoreCase));
@@ -236,8 +240,8 @@ public sealed class BulkImportViewModel : ObservableObject
                 _store.Save(profile);
 
                 item.StatusText = existing is null
-                    ? $"✔ uložený ({profile.Segments.Count} segm.)"
-                    : $"✔ aktualizovaný ({profile.Segments.Count} segm.)";
+                    ? $"✔ uložený „{finalName}“ ({profile.Segments.Count} segm.)"
+                    : $"✔ aktualizovaný „{finalName}“ ({profile.Segments.Count} segm.)";
                 saved++;
             }
             catch (Exception ex)
@@ -255,6 +259,26 @@ public sealed class BulkImportViewModel : ObservableObject
         Status = $"Hotovo: uložených {saved}" +
             (failed > 0 ? $", zlyhalo {failed}" : string.Empty) +
             (skipped > 0 ? $", preskočených {skipped}" : string.Empty) + ".";
+    }
+
+    /// <summary>Returns <paramref name="baseName"/>, suffixed " #2", " #3"… if already used in this batch.</summary>
+    private static string UniqueName(string baseName, HashSet<string> used)
+    {
+        if (!used.Contains(baseName))
+        {
+            return baseName;
+        }
+
+        int n = 2;
+        string candidate;
+        do
+        {
+            candidate = $"{baseName} #{n}";
+            n++;
+        }
+        while (used.Contains(candidate));
+
+        return candidate;
     }
 
     private static List<string> SplitValues(string text) => (text ?? string.Empty)

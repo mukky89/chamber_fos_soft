@@ -112,8 +112,18 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Názov profilu" Style="{StaticResource Label}" />
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock Text="Názov profilu" Style="{StaticResource Label}" DockPanel.Dock="Left" />
+                                        <Button DockPanel.Dock="Right" Content="⟳ Podľa štandardu" Style="{StaticResource GhostButton}"
+                                                Padding="8,1" Command="{Binding GenerateStandardNameCommand}"
+                                                ToolTip="Vygeneruje názov podľa štandardu; pôvodný sa uloží ako „Starý názov“." />
+                                    </DockPanel>
                                     <TextBox Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                               Visibility="{Binding HasOriginalName, Converter={StaticResource BoolToVisibility}}">
+                                        <Run Text="Starý názov: " Foreground="{StaticResource MutedBrush}" />
+                                        <Run Text="{Binding OriginalName, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                                    </TextBlock>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Typ" Style="{StaticResource Label}" />

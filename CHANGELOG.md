@@ -4,6 +4,15 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.31.0] – 2026-07-21
+
+### Pridané
+- **„Starý názov“ + generovaný názov podľa štandardu.** Pri importe (jednotlivom
+  aj hromadnom) sa pôvodný názov profilu zo súboru uloží ako „Starý názov“ a
+  aplikácia vygeneruje nový názov podľa štandardu (rozsah teplôt · počet segmentov
+  · trvanie, s prefixom snímačov). V editore je tlačidlo „⟳ Podľa štandardu“ a
+  v hromadnom importe voľba „Generovať názov podľa štandardu“.
+
 ## [1.30.0] – 2026-07-21
 
 ### Zmenené

@@ -43,6 +43,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         BulkImportCommand = new RelayCommand(BulkImport);
         ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
         ExportLibraryCommand = new RelayCommand(ExportLibrary);
+        GenerateStandardNameCommand = new RelayCommand(GenerateStandardName, () => Segments.Count > 0);
         ExpandAllCommand = new RelayCommand(() => SetAllExpanded(true));
         CollapseAllCommand = new RelayCommand(() => SetAllExpanded(false));
         ClearFilterCommand = new RelayCommand(() => { FilterText = string.Empty; SelectedTag = AllTagsOption; });
@@ -91,6 +92,16 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
     private string _profileName = "Nový profil";
     public string ProfileName { get => _profileName; set => SetProperty(ref _profileName, value); }
+
+    private string _originalName = string.Empty;
+    /// <summary>Original (imported) name, preserved when the app generates a standardized name.</summary>
+    public string OriginalName
+    {
+        get => _originalName;
+        set { if (SetProperty(ref _originalName, value)) OnPropertyChanged(nameof(HasOriginalName)); }
+    }
+
+    public bool HasOriginalName => !string.IsNullOrWhiteSpace(OriginalName);
 
     /// <summary>Sensors the edited profile is for (chips; one profile can serve several).</summary>
     public ObservableCollection<string> EditorSensors { get; } = new();
@@ -206,6 +217,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     /// <summary>Exports the whole library to one JSON file (importable / bundleable as seed profiles).</summary>
     public RelayCommand ExportLibraryCommand { get; }
 
+    /// <summary>Moves the current name to "old name" and generates a standardized name from the profile.</summary>
+    public RelayCommand GenerateStandardNameCommand { get; }
+
     /// <summary>Expands every sensor group in the library tree.</summary>
     public RelayCommand ExpandAllCommand { get; }
 
@@ -233,6 +247,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private TestProfile BuildProfile() => new()
     {
         Name = ProfileName,
+        OriginalName = OriginalName,
         Kind = Kind,
         Cycles = Cycles,
         Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
@@ -254,6 +269,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     {
         Kind = profile.Kind;
         ProfileName = profile.Name;
+        OriginalName = profile.OriginalName ?? string.Empty;
         ReplaceAll(EditorSensors, profile.Sensors);
         ReplaceAll(EditorTags, profile.Tags);
         Cycles = profile.Cycles;
@@ -267,9 +283,22 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Recalculate();
     }
 
+    private void GenerateStandardName()
+    {
+        TestProfile profile = BuildProfile();
+        if (string.IsNullOrWhiteSpace(OriginalName))
+        {
+            OriginalName = ProfileName; // preserve the current name as the "old name"
+        }
+
+        ProfileName = ProfileNaming.StandardName(profile);
+        StatusMessage = $"Názov vygenerovaný podľa štandardu (pôvodný uložený ako „Starý názov“).";
+    }
+
     private void NewProfile()
     {
         ProfileName = "Nový profil";
+        OriginalName = string.Empty;
         EditorSensors.Clear();
         EditorTags.Clear();
         Cycles = 1;
@@ -594,8 +623,13 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         try
         {
             ProfileImportResult result = ProfileImporter.ImportFile(dialog.FileName, Kind);
+
+            // Keep the source name as the "old name" and generate a standardized name.
+            result.Profile.OriginalName = result.Profile.Name;
+            result.Profile.Name = ProfileNaming.StandardName(result.Profile);
             ApplyProfile(result.Profile);
-            StatusMessage = $"Importované ({result.FormatDescription}), {result.Profile.Segments.Count} segmentov.";
+            StatusMessage = $"Importované ({result.FormatDescription}), {result.Profile.Segments.Count} segmentov · " +
+                $"názov vygenerovaný, pôvodný „{result.Profile.OriginalName}“ uložený ako Starý názov.";
         }
         catch (Exception ex)
         {

@@ -65,8 +65,12 @@
                     </StackPanel>
                 </Grid>
 
+                <CheckBox Content="Generovať názov podľa štandardu (pôvodný sa uloží ako Starý názov)"
+                          IsChecked="{Binding GenerateStandardName}" Margin="0,10,0,0"
+                          ToolTip="Názov každého profilu sa vygeneruje z jeho parametrov; pôvodný názov zo súboru sa zachová ako „Starý názov“." />
+
                 <CheckBox Content="Aplikovať štandard (nábeh na prvú teplotu + koniec na izbovú)"
-                          IsChecked="{Binding ApplyStandard}" Margin="0,10,0,4"
+                          IsChecked="{Binding ApplyStandard}" Margin="0,8,0,4"
                           ToolTip="Každý profil dostane začiatočný nábeh na prvú teplotu a koncový nábeh (a plato) na izbovú teplotu." />
 
                 <Grid Visibility="{Binding ApplyStandard, Converter={StaticResource BoolToVisibility}}" Margin="0,4,0,0">

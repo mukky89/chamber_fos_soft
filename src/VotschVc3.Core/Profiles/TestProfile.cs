@@ -12,6 +12,10 @@ public sealed class TestProfile
     /// <summary>Display name of the profile.</summary>
     public string Name { get; set; } = "New profile";
 
+    /// <summary>Original name as it came from the imported file, kept when the app generates
+    /// a new standardized <see cref="Name"/>. Empty for profiles authored directly in the app.</summary>
+    public string OriginalName { get; set; } = string.Empty;
+
     /// <summary>Which chamber type the profile was authored for.</summary>
     public ChamberKind Kind { get; set; } = ChamberKind.TemperatureHumidity;
 
@@ -43,6 +47,7 @@ public sealed class TestProfile
     {
         Id = Id,
         Name = Name,
+        OriginalName = OriginalName,
         Kind = Kind,
         CreatedAt = CreatedAt,
         Cycles = Cycles,
