@@ -231,7 +231,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private void SeedDefaultProfiles(string dir)
     {
-        string marker = System.IO.Path.Combine(dir, ".seed_profiles_v4");
+        string marker = System.IO.Path.Combine(dir, ".seed_profiles_v5");
         if (System.IO.File.Exists(marker))
         {
             return;

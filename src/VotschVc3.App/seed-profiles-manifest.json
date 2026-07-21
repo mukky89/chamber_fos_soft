@@ -22,19 +22,6 @@
   "tags": []
  },
  {
-  "file": "-30 +60C 10x.b02",
-  "name": "30 +60C 10x",
-  "originalName": "-30 +60C 10x.b02",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": [
-   "10×"
-  ]
- },
- {
   "file": "-30 +60C 10x v2.b02",
   "name": "30 +60C 10x v2",
   "originalName": "-30 +60C 10x v2.b02",
@@ -62,28 +49,6 @@
   "file": "-40 + 80 test 2h funk.b01",
   "name": "40 + 80 test 2h funk",
   "originalName": "-40 + 80 test 2h funk.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "120 h.b01",
-  "name": "120 h",
-  "originalName": "120 h.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "150c2h.b01",
-  "name": "150c2h",
-  "originalName": "150c2h.b01",
   "customer": "",
   "project": "",
   "sensors": [
@@ -125,42 +90,9 @@
   "tags": []
  },
  {
-  "file": "40h 80c.b01",
-  "name": "40h 80c",
-  "originalName": "40h 80c.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "4h80c.b02",
-  "name": "4h80c",
-  "originalName": "4h80c.b02",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
   "file": "4h80c100C.b02",
   "name": "4h80c100C",
   "originalName": "4h80c100C.b02",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "5h 80c.b01",
-  "name": "5h 80c",
-  "originalName": "5h 80c.b01",
   "customer": "",
   "project": "",
   "sensors": [
@@ -184,17 +116,6 @@
   "name": "bez -20C",
   "originalName": "bez -20C.b02",
   "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "biele lepidlo.b01",
-  "name": "biele lepidlo",
-  "originalName": "biele lepidlo.b01",
-  "customer": "Lepidlo",
   "project": "",
   "sensors": [
    "Ostatné"
@@ -245,17 +166,6 @@
   "project": "",
   "sensors": [
    "CTP-01"
-  ],
-  "tags": []
- },
- {
-  "file": "Denex profil.b01",
-  "name": "Denex profil",
-  "originalName": "Denex profil.b01",
-  "customer": "Denex",
-  "project": "",
-  "sensors": [
-   "Ostatné"
   ],
   "tags": []
  },
@@ -382,17 +292,6 @@
   "tags": []
  },
  {
-  "file": "FOI-test - k#U00f3pia.b01",
-  "name": "FOI-test - kópia",
-  "originalName": "FOI-test - kópia.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
   "file": "FOI-test2.b01",
   "name": "FOI-test2",
   "originalName": "FOI-test2.b01",
@@ -461,17 +360,6 @@
   ]
  },
  {
-  "file": "FOS - TESTY +120 4h.b01",
-  "name": "FOS - TESTY +120 4h",
-  "originalName": "FOS - TESTY +120 4h.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "FOS Testy"
-  ],
-  "tags": []
- },
- {
   "file": "FOS - TESTY +20+40-MS Systems.b01",
   "name": "FOS - TESTY +20+40-MS Systems",
   "originalName": "FOS - TESTY +20+40-MS Systems.b01",
@@ -486,28 +374,6 @@
   "file": "FOS - TESTY -20+60.b01",
   "name": "FOS - TESTY -20+60",
   "originalName": "FOS - TESTY -20+60.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "FOS Testy"
-  ],
-  "tags": []
- },
- {
-  "file": "FOS - TESTY 5h@70C.b02",
-  "name": "FOS - TESTY 5h@70C",
-  "originalName": "FOS - TESTY 5h@70C.b02",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "FOS Testy"
-  ],
-  "tags": []
- },
- {
-  "file": "FOS - TESTY 80C 5h .b01",
-  "name": "FOS - TESTY 80C 5h",
-  "originalName": "FOS - TESTY 80C 5h .b01",
   "customer": "",
   "project": "",
   "sensors": [
@@ -1546,34 +1412,10 @@
   ]
  },
  {
-  "file": "fos4tempy zihanie.b01",
-  "name": "fos4tempy zihanie",
-  "originalName": "fos4tempy zihanie.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "FOS4Temp"
-  ],
-  "tags": [
-   "žíhanie"
-  ]
- },
- {
   "file": "Gabo_S-line-5_25.b02",
   "name": "Gabo S-line-5 25",
   "originalName": "Gabo_S-line-5_25.b02",
   "customer": "Gabo",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "GHT Photonics test.b01",
-  "name": "GHT Photonics test",
-  "originalName": "GHT Photonics test.b01",
-  "customer": "GHT Photonics",
   "project": "",
   "sensors": [
    "Ostatné"
@@ -1844,17 +1686,6 @@
   "tags": []
  },
  {
-  "file": "hs-01 test 1.b02",
-  "name": "hs-01 test 1",
-  "originalName": "hs-01 test 1.b02",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "HS-01"
-  ],
-  "tags": []
- },
- {
   "file": "HT TEMP 0C to 170C 1h.b02",
   "name": "HT TEMP 0C to 170C 1h",
   "originalName": "HT TEMP 0C to 170C 1h.b02",
@@ -1938,60 +1769,6 @@
   ]
  },
  {
-  "file": "humidity testo new test 2.b01",
-  "name": "humidity testo new test 2",
-  "originalName": "humidity testo new test 2.b01",
-  "customer": "Testo",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": [
-   "vlhkosť"
-  ]
- },
- {
-  "file": "humidity testo new test 3.b01",
-  "name": "humidity testo new test 3",
-  "originalName": "humidity testo new test 3.b01",
-  "customer": "Testo",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": [
-   "vlhkosť"
-  ]
- },
- {
-  "file": "humidity testo new test 4.b01",
-  "name": "humidity testo new test 4",
-  "originalName": "humidity testo new test 4.b01",
-  "customer": "Testo",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": [
-   "vlhkosť"
-  ]
- },
- {
-  "file": "IEC 61300 2 17 Cold C enviroment.b01",
-  "name": "IEC 61300 2 17 Cold C enviroment",
-  "originalName": "IEC 61300 2 17 Cold C enviroment.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "IEC 61300"
-  ],
-  "tags": [
-   "IEC 61300-2-17",
-   "chlad",
-   "env C"
-  ]
- },
- {
   "file": "IEC 61300 2 17 Cold U enviromen {-25C}.b01",
   "name": "IEC 61300 2 17 Cold U enviromen {-25C}",
   "originalName": "IEC 61300 2 17 Cold U enviromen {-25C}.b01",
@@ -2004,51 +1781,6 @@
    "IEC 61300-2-17",
    "chlad",
    "env U"
-  ]
- },
- {
-  "file": "IEC 61300 2 18 Dry heat C enviroment {+60C}.b01",
-  "name": "IEC 61300 2 18 Dry heat C enviroment {+60C}",
-  "originalName": "IEC 61300 2 18 Dry heat C enviroment {+60C}.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "IEC 61300"
-  ],
-  "tags": [
-   "IEC 61300-2-18",
-   "suché teplo",
-   "env C"
-  ]
- },
- {
-  "file": "IEC 61300 2 18 Dry heat U enviroment {+70C}.b01",
-  "name": "IEC 61300 2 18 Dry heat U enviroment {+70C}",
-  "originalName": "IEC 61300 2 18 Dry heat U enviroment {+70C}.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "IEC 61300"
-  ],
-  "tags": [
-   "IEC 61300-2-18",
-   "suché teplo",
-   "env U"
-  ]
- },
- {
-  "file": "IEC 61300 2 19 Damp heat {steady state} C enviroment {+40C- 95%}.b01",
-  "name": "IEC 61300 2 19 Damp heat {steady state} C enviroment {+40C- 95%}",
-  "originalName": "IEC 61300 2 19 Damp heat {steady state} C enviroment {+40C- 95%}.b01",
-  "customer": "",
-  "project": "",
-  "sensors": [
-   "IEC 61300"
-  ],
-  "tags": [
-   "IEC 61300-2-19",
-   "vlhkosť",
-   "env C"
   ]
  },
  {
@@ -2195,17 +1927,6 @@
   "tags": []
  },
  {
-  "file": "katka_profil.b01",
-  "name": "katka profil",
-  "originalName": "katka_profil.b01",
-  "customer": "Katka",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
   "file": "kolumbia mad 15,25,35 3h.b01",
   "name": "kolumbia mad 15,25,35 3h",
   "originalName": "kolumbia mad 15,25,35 3h.b01",
@@ -2239,17 +1960,6 @@
   "tags": [
    "žíhanie"
   ]
- },
- {
-  "file": "luna profil.b02",
-  "name": "luna profil",
-  "originalName": "luna profil.b02",
-  "customer": "Luna",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
  },
  {
   "file": "Luna wafer.b02",
@@ -2307,19 +2017,6 @@
   "tags": []
  },
  {
-  "file": "msa- vypekanie.b01",
-  "name": "msa- vypekanie",
-  "originalName": "msa- vypekanie.b01",
-  "customer": "MSA",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": [
-   "vypekanie"
-  ]
- },
- {
   "file": "nove_zihanie.b01",
   "name": "nove zihanie",
   "originalName": "nove_zihanie.b01",
@@ -2372,17 +2069,6 @@
   "name": "polytech temp",
   "originalName": "polytech_temp.b02",
   "customer": "PolyTech",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "pred luna testom.b01",
-  "name": "pred luna testom",
-  "originalName": "pred luna testom.b01",
-  "customer": "Luna",
   "project": "",
   "sensors": [
    "Ostatné"
@@ -2842,17 +2528,6 @@
   "name": "valmet -20 120",
   "originalName": "valmet -20 120.b01",
   "customer": "Valmet",
-  "project": "",
-  "sensors": [
-   "Ostatné"
-  ],
-  "tags": []
- },
- {
-  "file": "vanda test.b01",
-  "name": "vanda test",
-  "originalName": "vanda test.b01",
-  "customer": "Vanda",
   "project": "",
   "sensors": [
    "Ostatné"

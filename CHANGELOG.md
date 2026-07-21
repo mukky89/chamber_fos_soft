@@ -4,6 +4,13 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.38.1] – 2026-07-21
+
+### Zmenené
+- **Seed knižnica: 199 profilov.** Z pribaleného balíka vyhodených 27 profilov,
+  ktoré sa nedali spoľahlivo naparsovať (žiadny čitateľný teplotný program).
+  Re-seed (marker v5).
+
 ## [1.38.0] – 2026-07-21
 
 ### Pridané
