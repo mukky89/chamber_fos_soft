@@ -213,6 +213,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         public string File { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string OriginalName { get; set; } = string.Empty;
+        public string Customer { get; set; } = string.Empty;
+        public string Project { get; set; } = string.Empty;
         public List<string> Sensors { get; set; } = new();
         public List<string> Tags { get; set; } = new();
     }
@@ -229,7 +231,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private void SeedDefaultProfiles(string dir)
     {
-        string marker = System.IO.Path.Combine(dir, ".seed_profiles_v2");
+        string marker = System.IO.Path.Combine(dir, ".seed_profiles_v3");
         if (System.IO.File.Exists(marker))
         {
             return;
@@ -295,6 +297,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
                     manifest.TryGetValue(entry.FullName, out SeedEntry? meta);
                     profile.OriginalName = meta?.OriginalName ?? entry.FullName;
                     profile.Name = string.IsNullOrWhiteSpace(meta?.Name) ? entry.FullName : meta!.Name;
+                    profile.Customer = meta?.Customer ?? string.Empty;
+                    profile.Project = meta?.Project ?? string.Empty;
                     profile.Sensors = meta?.Sensors is { Count: > 0 } ? new List<string>(meta.Sensors) : new List<string> { "Ostatné" };
                     profile.Tags = meta?.Tags is not null ? new List<string>(meta.Tags) : new List<string>();
 

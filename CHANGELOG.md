@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.36.1] – 2026-07-21
+
+### Zmenené
+- **Seed profily: Zákazník a Projekt.** Firmy z názvov (Sentea, Marmota, Isense,
+  Danieli, GHT Photonics, FBGS, Siemens…) sa priradia ako **Zákazník**, lokality
+  (Stuttgart) ako **Projekt**; skutočné kódy snímačov (D-0x, TP-01, TC…) ostávajú
+  v snímačoch. Re-seed sa spustí znova (marker v3).
+
 ## [1.36.0] – 2026-07-21
 
 ### Pridané

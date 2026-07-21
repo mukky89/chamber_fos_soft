@@ -3,6 +3,8 @@
   "file": "!Metrology- chamber calibration.b01",
   "name": "!Metrology- chamber calibration",
   "originalName": "!Metrology- chamber calibration.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Metrológia"
   ],
@@ -12,6 +14,8 @@
   "file": "-20+100c.b02",
   "name": "20+100c",
   "originalName": "-20+100c.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -21,6 +25,8 @@
   "file": "-30 +60C 10x.b02",
   "name": "30 +60C 10x",
   "originalName": "-30 +60C 10x.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -32,6 +38,8 @@
   "file": "-30 +60C 10x v2.b02",
   "name": "30 +60C 10x v2",
   "originalName": "-30 +60C 10x v2.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -43,6 +51,8 @@
   "file": "-40 + 80 test 2h.b01",
   "name": "40 + 80 test 2h",
   "originalName": "-40 + 80 test 2h.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -52,6 +62,8 @@
   "file": "-40 + 80 test 2h funk.b01",
   "name": "40 + 80 test 2h funk",
   "originalName": "-40 + 80 test 2h funk.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -61,6 +73,8 @@
   "file": "120 h.b01",
   "name": "120 h",
   "originalName": "120 h.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -70,6 +84,8 @@
   "file": "150c2h.b01",
   "name": "150c2h",
   "originalName": "150c2h.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -79,6 +95,8 @@
   "file": "30+50.b02",
   "name": "30+50",
   "originalName": "30+50.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -88,6 +106,8 @@
   "file": "30C a potom -20 + 60 1,3h.b01",
   "name": "30C a potom -20 + 60 1,3h",
   "originalName": "30C a potom -20 + 60 1,3h.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -97,6 +117,8 @@
   "file": "40 + 80c 2h.b02",
   "name": "40 + 80c 2h",
   "originalName": "40 + 80c 2h.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -106,6 +128,8 @@
   "file": "40h 80c.b01",
   "name": "40h 80c",
   "originalName": "40h 80c.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -115,6 +139,8 @@
   "file": "4h80c.b02",
   "name": "4h80c",
   "originalName": "4h80c.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -124,6 +150,8 @@
   "file": "4h80c100C.b02",
   "name": "4h80c100C",
   "originalName": "4h80c100C.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -133,6 +161,8 @@
   "file": "5h 80c.b01",
   "name": "5h 80c",
   "originalName": "5h 80c.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -142,6 +172,8 @@
   "file": "AC 1000 .b01",
   "name": "AC 1000",
   "originalName": "AC 1000 .b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "AC 1000"
   ],
@@ -151,6 +183,8 @@
   "file": "bez -20C.b02",
   "name": "bez -20C",
   "originalName": "bez -20C.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -160,8 +194,10 @@
   "file": "biele lepidlo.b01",
   "name": "biele lepidlo",
   "originalName": "biele lepidlo.b01",
+  "customer": "Lepidlo",
+  "project": "",
   "sensors": [
-   "Lepidlo"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -169,8 +205,10 @@
   "file": "bolt.b02",
   "name": "bolt",
   "originalName": "bolt.b02",
+  "customer": "Bolt",
+  "project": "",
   "sensors": [
-   "Bolt"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -178,6 +216,8 @@
   "file": "Change of Temperature super EE enviroment {-55C +70C} .b01",
   "name": "Change of Temperature super EE enviroment {-55C +70C}",
   "originalName": "Change of Temperature super EE enviroment {-55C +70C} .b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -190,8 +230,10 @@
   "file": "channel tunnel.b01",
   "name": "channel tunnel",
   "originalName": "channel tunnel.b01",
+  "customer": "Channel Tunnel",
+  "project": "",
   "sensors": [
-   "Channel Tunnel"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -199,6 +241,8 @@
   "file": "CTP-01.b02",
   "name": "CTP-01",
   "originalName": "CTP-01.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "CTP-01"
   ],
@@ -208,8 +252,10 @@
   "file": "Denex profil.b01",
   "name": "Denex profil",
   "originalName": "Denex profil.b01",
+  "customer": "Denex",
+  "project": "",
   "sensors": [
-   "Denex"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -217,8 +263,10 @@
   "file": "Denex profil + zihanie.b01",
   "name": "Denex profil + zihanie",
   "originalName": "Denex profil + zihanie.b01",
+  "customer": "Denex",
+  "project": "",
   "sensors": [
-   "Denex"
+   "Ostatné"
   ],
   "tags": [
    "žíhanie"
@@ -228,6 +276,8 @@
   "file": "DTP 30 - 180.b01",
   "name": "DTP 30 - 180",
   "originalName": "DTP 30 - 180.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "DTP-30",
    "DTP"
@@ -238,6 +288,8 @@
   "file": "DTP-02 10 - 170 1h.b02",
   "name": "DTP-02 10 - 170 1h",
   "originalName": "DTP-02 10 - 170 1h.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "DTP-02",
    "DTP"
@@ -248,6 +300,8 @@
   "file": "DTP-02 10 - 170 1h_funkcne.b02",
   "name": "DTP-02 10 - 170 1h funkcne",
   "originalName": "DTP-02 10 - 170 1h_funkcne.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "DTP-02",
    "DTP"
@@ -258,6 +312,8 @@
   "file": "DTP-02 10 - 170 2h.b02",
   "name": "DTP-02 10 - 170 2h",
   "originalName": "DTP-02 10 - 170 2h.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "DTP-02",
    "DTP"
@@ -268,6 +324,8 @@
   "file": "DTP-02 10 - 170 2h kratky.b02",
   "name": "DTP-02 10 - 170 2h kratky",
   "originalName": "DTP-02 10 - 170 2h kratky.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "DTP-02",
    "DTP"
@@ -280,6 +338,8 @@
   "file": "DTP-02 10 - 170 3h.b02",
   "name": "DTP-02 10 - 170 3h",
   "originalName": "DTP-02 10 - 170 3h.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "DTP-02",
    "DTP"
@@ -290,6 +350,8 @@
   "file": "DTP03 test.b01",
   "name": "DTP03 test",
   "originalName": "DTP03 test.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "DTP-03"
   ],
@@ -299,8 +361,10 @@
   "file": "Epsimon special temp .b01",
   "name": "Epsimon special temp",
   "originalName": "Epsimon special temp .b01",
+  "customer": "Epsimon",
+  "project": "",
   "sensors": [
-   "Epsimon"
+   "Ostatné"
   ],
   "tags": [
    "custom"
@@ -310,8 +374,10 @@
   "file": "FOI-test.b01",
   "name": "FOI-test",
   "originalName": "FOI-test.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "FOI"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -319,8 +385,10 @@
   "file": "FOI-test - k#U00f3pia.b01",
   "name": "FOI-test - kópia",
   "originalName": "FOI-test - kópia.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "FOI"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -328,8 +396,10 @@
   "file": "FOI-test2.b01",
   "name": "FOI-test2",
   "originalName": "FOI-test2.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "FOI"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -337,6 +407,8 @@
   "file": "FOS - D-02 new profile -20+60.b01",
   "name": "FOS - D-02 new profile -20+60",
   "originalName": "FOS - D-02 new profile -20+60.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-02"
   ],
@@ -346,8 +418,10 @@
   "file": "FOS - marmota 2h 5-40.b01",
   "name": "FOS - marmota 2h 5-40",
   "originalName": "FOS - marmota 2h 5-40.b01",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "Marmota"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -355,8 +429,10 @@
   "file": "FOS - marmota test 2h.b01",
   "name": "FOS - marmota test 2h",
   "originalName": "FOS - marmota test 2h.b01",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "Marmota"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -364,8 +440,10 @@
   "file": "FOS - marmota test 2h dole.b01",
   "name": "FOS - marmota test 2h dole",
   "originalName": "FOS - marmota test 2h dole.b01",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "Marmota"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -373,6 +451,8 @@
   "file": "FOS - TESTY +0_+40Ch_2h_plato_10xlopp.b01",
   "name": "FOS - TESTY +0 +40Ch 2h plato 10xlopp",
   "originalName": "FOS - TESTY +0_+40Ch_2h_plato_10xlopp.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "FOS Testy"
   ],
@@ -384,6 +464,8 @@
   "file": "FOS - TESTY +120 4h.b01",
   "name": "FOS - TESTY +120 4h",
   "originalName": "FOS - TESTY +120 4h.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "FOS Testy"
   ],
@@ -393,8 +475,9 @@
   "file": "FOS - TESTY +20+40-MS Systems.b01",
   "name": "FOS - TESTY +20+40-MS Systems",
   "originalName": "FOS - TESTY +20+40-MS Systems.b01",
+  "customer": "MS Systems",
+  "project": "",
   "sensors": [
-   "MS Systems",
    "FOS Testy"
   ],
   "tags": []
@@ -403,6 +486,8 @@
   "file": "FOS - TESTY -20+60.b01",
   "name": "FOS - TESTY -20+60",
   "originalName": "FOS - TESTY -20+60.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "FOS Testy"
   ],
@@ -412,6 +497,8 @@
   "file": "FOS - TESTY 5h@70C.b02",
   "name": "FOS - TESTY 5h@70C",
   "originalName": "FOS - TESTY 5h@70C.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "FOS Testy"
   ],
@@ -421,6 +508,8 @@
   "file": "FOS - TESTY 80C 5h .b01",
   "name": "FOS - TESTY 80C 5h",
   "originalName": "FOS - TESTY 80C 5h .b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "FOS Testy"
   ],
@@ -430,6 +519,8 @@
   "file": "FOS-Cal -20 - 60 2h_plato.b02",
   "name": "FOS-Cal -20 - 60 2h plato",
   "originalName": "FOS-Cal -20 - 60 2h_plato.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -442,6 +533,8 @@
   "file": "FOS-Cal, -5,10,25,40 - 3h.b02",
   "name": "FOS-Cal, -5,10,25,40 - 3h",
   "originalName": "FOS-Cal, -5,10,25,40 - 3h.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -453,6 +546,8 @@
   "file": "FOS-Cal, 0 - 40, 2hplato 10c skoky.b02",
   "name": "FOS-Cal, 0 - 40, 2hplato 10c skoky",
   "originalName": "FOS-Cal, 0 - 40, 2hplato 10c skoky.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -465,8 +560,10 @@
   "file": "FOS-Cal-Actphast, 10 - 80.b02",
   "name": "FOS-Cal-Actphast, 10 - 80",
   "originalName": "FOS-Cal-Actphast, 10 - 80.b02",
+  "customer": "Actphast",
+  "project": "",
   "sensors": [
-   "Actphast"
+   "Ostatné"
   ],
   "tags": [
    "kalibrácia"
@@ -476,8 +573,10 @@
   "file": "FOS-Cal-Actphast, 30 - 80.b01",
   "name": "FOS-Cal-Actphast, 30 - 80",
   "originalName": "FOS-Cal-Actphast, 30 - 80.b01",
+  "customer": "Actphast",
+  "project": "",
   "sensors": [
-   "Actphast"
+   "Ostatné"
   ],
   "tags": [
    "kalibrácia"
@@ -487,6 +586,8 @@
   "file": "FOS-Cal-D-04, -10 50.4h.b02",
   "name": "FOS-Cal-D-04, -10 50.4h",
   "originalName": "FOS-Cal-D-04, -10 50.4h.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-04"
   ],
@@ -498,6 +599,8 @@
   "file": "FOS-Cal-D-04, custom.b01",
   "name": "FOS-Cal-D-04, custom",
   "originalName": "FOS-Cal-D-04, custom.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-04"
   ],
@@ -510,6 +613,8 @@
   "file": "FOS-Cal-D-0x, -10-30 short.b01",
   "name": "FOS-Cal-D-0x, -10-30 short",
   "originalName": "FOS-Cal-D-0x, -10-30 short.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -523,6 +628,8 @@
   "file": "FOS-Cal-D-0x, -15-30 2,5h short.b01",
   "name": "FOS-Cal-D-0x, -15-30 2,5h short",
   "originalName": "FOS-Cal-D-0x, -15-30 2,5h short.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -536,6 +643,8 @@
   "file": "FOS-Cal-D-0x, -15-30 2,5h short opacny profil.b01",
   "name": "FOS-Cal-D-0x, -15-30 2,5h short opacny profil",
   "originalName": "FOS-Cal-D-0x, -15-30 2,5h short opacny profil.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -550,6 +659,8 @@
   "file": "FOS-Cal-D-0x, -15-30 short.b01",
   "name": "FOS-Cal-D-0x, -15-30 short",
   "originalName": "FOS-Cal-D-0x, -15-30 short.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -563,6 +674,8 @@
   "file": "FOS-Cal-D-0x, -20 +50c 1.30hplato SC-01.b01",
   "name": "FOS-Cal-D-0x, -20 +50c 1.30hplato SC-01",
   "originalName": "FOS-Cal-D-0x, -20 +50c 1.30hplato SC-01.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x",
    "SC-01"
@@ -577,6 +690,8 @@
   "file": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01.b01",
   "name": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01",
   "originalName": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x",
    "SC-01"
@@ -591,6 +706,8 @@
   "file": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01 + zihanie.b01",
   "name": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01 + zihanie",
   "originalName": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01 + zihanie.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x",
    "SC-01"
@@ -606,6 +723,8 @@
   "file": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01_OPACNY PROFIL.b01",
   "name": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01 OPACNY PROFIL",
   "originalName": "FOS-Cal-D-0x, -20 +50c 2hplato SC-01_OPACNY PROFIL.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x",
    "SC-01"
@@ -621,6 +740,8 @@
   "file": "FOS-Cal-D-0x, -20 - +50 1,30h plato SC-01.b02",
   "name": "FOS-Cal-D-0x, -20 - +50 1,30h plato SC-01",
   "originalName": "FOS-Cal-D-0x, -20 - +50 1,30h plato SC-01.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x",
    "SC-01"
@@ -635,6 +756,8 @@
   "file": "FOS-Cal-D-0x, -20 - +50 4h plato SC-01.b02",
   "name": "FOS-Cal-D-0x, -20 - +50 4h plato SC-01",
   "originalName": "FOS-Cal-D-0x, -20 - +50 4h plato SC-01.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x",
    "SC-01"
@@ -649,6 +772,8 @@
   "file": "FOS-Cal-D-0x, -20 - 35C.b02",
   "name": "FOS-Cal-D-0x, -20 - 35C",
   "originalName": "FOS-Cal-D-0x, -20 - 35C.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -661,6 +786,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60.b01",
   "name": "FOS-Cal-D-0x, -20 - 60",
   "originalName": "FOS-Cal-D-0x, -20 - 60.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -673,6 +800,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 1.30hplato.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 1.30hplato",
   "originalName": "FOS-Cal-D-0x, -20 - 60 1.30hplato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -686,6 +815,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 1.30hplato short.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 1.30hplato short",
   "originalName": "FOS-Cal-D-0x, -20 - 60 1.30hplato short.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -700,6 +831,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 2.30hplat_odlozeny start.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 2.30hplat odlozeny start",
   "originalName": "FOS-Cal-D-0x, -20 - 60 2.30hplat_odlozeny start.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -713,6 +846,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 2.30hplat_odlozeny start_30C.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 2.30hplat odlozeny start 30C",
   "originalName": "FOS-Cal-D-0x, -20 - 60 2.30hplat_odlozeny start_30C.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -726,6 +861,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 2.30hplato.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 2.30hplato",
   "originalName": "FOS-Cal-D-0x, -20 - 60 2.30hplato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -739,6 +876,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 2.30hplato + 72h 60c.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 2.30hplato + 72h 60c",
   "originalName": "FOS-Cal-D-0x, -20 - 60 2.30hplato + 72h 60c.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -752,9 +891,10 @@
   "file": "FOS-Cal-D-0x, -20 - 60 2.30hplatoMarmota bez -temp.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 2.30hplatoMarmota bez -temp",
   "originalName": "FOS-Cal-D-0x, -20 - 60 2.30hplatoMarmota bez -temp.b01",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "D-0x",
-   "Marmota"
+   "D-0x"
   ],
   "tags": [
    "kalibrácia",
@@ -766,6 +906,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 2hplato.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 2hplato",
   "originalName": "FOS-Cal-D-0x, -20 - 60 2hplato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -779,6 +921,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 2hplato2.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 2hplato2",
   "originalName": "FOS-Cal-D-0x, -20 - 60 2hplato2.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -792,6 +936,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 3h plato.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 3h plato",
   "originalName": "FOS-Cal-D-0x, -20 - 60 3h plato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -805,6 +951,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 4h plato.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 4h plato",
   "originalName": "FOS-Cal-D-0x, -20 - 60 4h plato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -818,6 +966,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 4h plato_odlozeny start.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 4h plato odlozeny start",
   "originalName": "FOS-Cal-D-0x, -20 - 60 4h plato_odlozeny start.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -832,6 +982,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 5h plato.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 5h plato",
   "originalName": "FOS-Cal-D-0x, -20 - 60 5h plato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -845,9 +997,10 @@
   "file": "FOS-Cal-D-0x, -20 - 60 fugro special profil 2h.b02",
   "name": "FOS-Cal-D-0x, -20 - 60 fugro special profil 2h",
   "originalName": "FOS-Cal-D-0x, -20 - 60 fugro special profil 2h.b02",
+  "customer": "Fugro",
+  "project": "",
   "sensors": [
-   "D-0x",
-   "Fugro"
+   "D-0x"
   ],
   "tags": [
    "kalibrácia",
@@ -859,6 +1012,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 short.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 short",
   "originalName": "FOS-Cal-D-0x, -20 - 60 short.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -872,6 +1027,8 @@
   "file": "FOS-Cal-D-0x, -20 - 60 short2.b01",
   "name": "FOS-Cal-D-0x, -20 - 60 short2",
   "originalName": "FOS-Cal-D-0x, -20 - 60 short2.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -885,6 +1042,8 @@
   "file": "FOS-Cal-D-0x, -20 - 80 2.30hplato.b02",
   "name": "FOS-Cal-D-0x, -20 - 80 2.30hplato",
   "originalName": "FOS-Cal-D-0x, -20 - 80 2.30hplato.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -898,6 +1057,8 @@
   "file": "FOS-Cal-D-0x, 0 - 60 1.30hplato.b01",
   "name": "FOS-Cal-D-0x, 0 - 60 1.30hplato",
   "originalName": "FOS-Cal-D-0x, 0 - 60 1.30hplato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -911,6 +1072,8 @@
   "file": "FOS-Cal-D-0x, 0 - 60 2hplato.b01",
   "name": "FOS-Cal-D-0x, 0 - 60 2hplato",
   "originalName": "FOS-Cal-D-0x, 0 - 60 2hplato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -924,6 +1087,8 @@
   "file": "FOS-Cal-D-0x, 30 - 80 short.b02",
   "name": "FOS-Cal-D-0x, 30 - 80 short",
   "originalName": "FOS-Cal-D-0x, 30 - 80 short.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "D-0x"
   ],
@@ -937,8 +1102,10 @@
   "file": "FOS-Cal-GA drilling, -20 +160.b02",
   "name": "FOS-Cal-GA drilling, -20 +160",
   "originalName": "FOS-Cal-GA drilling, -20 +160.b02",
+  "customer": "GA drilling",
+  "project": "",
   "sensors": [
-   "GA drilling"
+   "Ostatné"
   ],
   "tags": [
    "kalibrácia"
@@ -948,8 +1115,10 @@
   "file": "FOS-Cal-GA drilling, 20 +180.b02",
   "name": "FOS-Cal-GA drilling, 20 +180",
   "originalName": "FOS-Cal-GA drilling, 20 +180.b02",
+  "customer": "GA drilling",
+  "project": "",
   "sensors": [
-   "GA drilling"
+   "Ostatné"
   ],
   "tags": [
    "kalibrácia"
@@ -959,6 +1128,8 @@
   "file": "FOS-Cal-HS-01, 0 az 150c 2,h.b01",
   "name": "FOS-Cal-HS-01, 0 az 150c 2,h",
   "originalName": "FOS-Cal-HS-01, 0 az 150c 2,h.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HS-01"
   ],
@@ -970,6 +1141,8 @@
   "file": "FOS-Cal-HS-01-master.b02",
   "name": "FOS-Cal-HS-01-master",
   "originalName": "FOS-Cal-HS-01-master.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HS-01"
   ],
@@ -982,6 +1155,8 @@
   "file": "FOS-Cal-HS-01-master_4h plato.b02",
   "name": "FOS-Cal-HS-01-master 4h plato",
   "originalName": "FOS-Cal-HS-01-master_4h plato.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HS-01"
   ],
@@ -995,8 +1170,10 @@
   "file": "FOS-Cal-kolumbia  1.30hplato.b01",
   "name": "FOS-Cal-kolumbia 1.30hplato",
   "originalName": "FOS-Cal-kolumbia  1.30hplato.b01",
+  "customer": "Kolumbia",
+  "project": "",
   "sensors": [
-   "Kolumbia"
+   "Ostatné"
   ],
   "tags": [
    "kalibrácia",
@@ -1007,8 +1184,10 @@
   "file": "FOS-Cal-Poseidon- 0 +45, 2,5h plato 2.b02",
   "name": "FOS-Cal-Poseidon- 0 +45, 2,5h plato 2",
   "originalName": "FOS-Cal-Poseidon- 0 +45, 2,5h plato 2.b02",
+  "customer": "Poseidon",
+  "project": "",
   "sensors": [
-   "Poseidon"
+   "Ostatné"
   ],
   "tags": [
    "kalibrácia",
@@ -1019,6 +1198,8 @@
   "file": "FOS-Cal-SAT-01.b01",
   "name": "FOS-Cal-SAT-01",
   "originalName": "FOS-Cal-SAT-01.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -1030,6 +1211,8 @@
   "file": "FOS-Cal-SAT-01v2.b02",
   "name": "FOS-Cal-SAT-01v2",
   "originalName": "FOS-Cal-SAT-01v2.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -1041,6 +1224,8 @@
   "file": "FOS-Cal-SAT-01v3.b02",
   "name": "FOS-Cal-SAT-01v3",
   "originalName": "FOS-Cal-SAT-01v3.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -1052,6 +1237,8 @@
   "file": "FOS-Cal-SAT-01v3 zihanie plus kal.b01",
   "name": "FOS-Cal-SAT-01v3 zihanie plus kal",
   "originalName": "FOS-Cal-SAT-01v3 zihanie plus kal.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -1064,6 +1251,8 @@
   "file": "FOS-Cal-STS-04, -50 +150.b01",
   "name": "FOS-Cal-STS-04, -50 +150",
   "originalName": "FOS-Cal-STS-04, -50 +150.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "STS-04"
   ],
@@ -1075,6 +1264,8 @@
   "file": "FOS-Cal-STS-04, -50 +180.b01",
   "name": "FOS-Cal-STS-04, -50 +180",
   "originalName": "FOS-Cal-STS-04, -50 +180.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "STS-04"
   ],
@@ -1086,6 +1277,8 @@
   "file": "FOS-Cal-SWS-02HT, 0 +100.b01",
   "name": "FOS-Cal-SWS-02HT, 0 +100",
   "originalName": "FOS-Cal-SWS-02HT, 0 +100.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SWS-02HT",
    "SWS"
@@ -1098,6 +1291,8 @@
   "file": "FOS-Cal-SWS-02HT, 0 +150.b01",
   "name": "FOS-Cal-SWS-02HT, 0 +150",
   "originalName": "FOS-Cal-SWS-02HT, 0 +150.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SWS-02HT",
    "SWS"
@@ -1110,6 +1305,8 @@
   "file": "FOS-Cal-TC-03x, -20 +180 4x.b01",
   "name": "FOS-Cal-TC-03x, -20 +180 4x",
   "originalName": "FOS-Cal-TC-03x, -20 +180 4x.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-03x",
    "TC"
@@ -1123,6 +1320,8 @@
   "file": "FOS-Cal-TC-03x, -22.5  +157 4x.b01",
   "name": "FOS-Cal-TC-03x, -22.5 +157 4x",
   "originalName": "FOS-Cal-TC-03x, -22.5  +157 4x.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-03x",
    "TC"
@@ -1136,6 +1335,8 @@
   "file": "FOS-Cal-TC-03x, -22.5  +157 NEW.b01",
   "name": "FOS-Cal-TC-03x, -22.5 +157 NEW",
   "originalName": "FOS-Cal-TC-03x, -22.5  +157 NEW.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-03x",
    "TC"
@@ -1149,6 +1350,8 @@
   "file": "FOS-Cal-TC-03x, 90C to -20C.b02",
   "name": "FOS-Cal-TC-03x, 90C to -20C",
   "originalName": "FOS-Cal-TC-03x, 90C to -20C.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-03x",
    "TC"
@@ -1162,6 +1365,8 @@
   "file": "FOS-Cal-TC-X01 -22.5  +180.b01",
   "name": "FOS-Cal-TC-X01 -22.5 +180",
   "originalName": "FOS-Cal-TC-X01 -22.5  +180.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-X01",
    "TC"
@@ -1174,6 +1379,8 @@
   "file": "FOS-Cal-TC-X01 -22.5  +180 2h plato.b01",
   "name": "FOS-Cal-TC-X01 -22.5 +180 2h plato",
   "originalName": "FOS-Cal-TC-X01 -22.5  +180 2h plato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-X01",
    "TC"
@@ -1187,6 +1394,8 @@
   "file": "FOS-Cal-TC-X01, -22.5  +157.b02",
   "name": "FOS-Cal-TC-X01, -22.5 +157",
   "originalName": "FOS-Cal-TC-X01, -22.5  +157.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-X01",
    "TC"
@@ -1199,6 +1408,8 @@
   "file": "FOS-Cal-TC-X01, -22.5  +157 - 2.b01",
   "name": "FOS-Cal-TC-X01, -22.5 +157 - 2",
   "originalName": "FOS-Cal-TC-X01, -22.5  +157 - 2.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-X01",
    "TC"
@@ -1211,6 +1422,8 @@
   "file": "FOS-Cal-TC-X01, 0  +157.b02",
   "name": "FOS-Cal-TC-X01, 0 +157",
   "originalName": "FOS-Cal-TC-X01, 0  +157.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-X01",
    "TC"
@@ -1223,6 +1436,8 @@
   "file": "FOS-Cal-TC-X01, 60  +157.b02",
   "name": "FOS-Cal-TC-X01, 60 +157",
   "originalName": "FOS-Cal-TC-X01, 60  +157.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-X01",
    "TC"
@@ -1235,6 +1450,8 @@
   "file": "FOS-Cal-TP-01 -20+110.b02",
   "name": "FOS-Cal-TP-01 -20+110",
   "originalName": "FOS-Cal-TP-01 -20+110.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1246,6 +1463,8 @@
   "file": "FOS-Cal-TP-01 FBGS, -22.5  +112.5 4 xshort x.b02",
   "name": "FOS-Cal-TP-01 FBGS, -22.5 +112.5 4 xshort x",
   "originalName": "FOS-Cal-TP-01 FBGS, -22.5  +112.5 4 xshort x.b02",
+  "customer": "FBGS",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1258,6 +1477,8 @@
   "file": "FOS-Cal-TP-01 FBGS, -22.5  +112.5 4x.b02",
   "name": "FOS-Cal-TP-01 FBGS, -22.5 +112.5 4x",
   "originalName": "FOS-Cal-TP-01 FBGS, -22.5  +112.5 4x.b02",
+  "customer": "FBGS",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1270,6 +1491,8 @@
   "file": "FOS-Cal-TP-01, -20 +110.b01",
   "name": "FOS-Cal-TP-01, -20 +110",
   "originalName": "FOS-Cal-TP-01, -20 +110.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1281,6 +1504,8 @@
   "file": "FOS-Cal-TP-01, -22.5  +112.5 2x  bez 150C.b01",
   "name": "FOS-Cal-TP-01, -22.5 +112.5 2x bez 150C",
   "originalName": "FOS-Cal-TP-01, -22.5  +112.5 2x  bez 150C.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1293,6 +1518,8 @@
   "file": "FOS-Cal-TP-01, -22.5  +112.5 2x  bez 150C a 112,5.b01",
   "name": "FOS-Cal-TP-01, -22.5 +112.5 2x bez 150C a 112,5",
   "originalName": "FOS-Cal-TP-01, -22.5  +112.5 2x  bez 150C a 112,5.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1305,6 +1532,8 @@
   "file": "FOS-Cal-TP-01, -22.5  +112.5 4x.b01",
   "name": "FOS-Cal-TP-01, -22.5 +112.5 4x",
   "originalName": "FOS-Cal-TP-01, -22.5  +112.5 4x.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1317,6 +1546,8 @@
   "file": "FOS-Cal-TP-01_FBGS.b01",
   "name": "FOS-Cal-TP-01 FBGS",
   "originalName": "FOS-Cal-TP-01_FBGS.b01",
+  "customer": "FBGS",
+  "project": "",
   "sensors": [
    "TP-01"
   ],
@@ -1328,6 +1559,8 @@
   "file": "FOS-testik.b01",
   "name": "FOS-testik",
   "originalName": "FOS-testik.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -1337,6 +1570,8 @@
   "file": "fos4tempx, -20 - 40 2hplato.b01",
   "name": "fos4tempx, -20 - 40 2hplato",
   "originalName": "fos4tempx, -20 - 40 2hplato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "FOS4Temp"
   ],
@@ -1348,6 +1583,8 @@
   "file": "fos4tempy zihanie.b01",
   "name": "fos4tempy zihanie",
   "originalName": "fos4tempy zihanie.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "FOS4Temp"
   ],
@@ -1359,9 +1596,10 @@
   "file": "Gabo_S-line-5_25.b02",
   "name": "Gabo S-line-5 25",
   "originalName": "Gabo_S-line-5_25.b02",
+  "customer": "Gabo",
+  "project": "",
   "sensors": [
-   "Gabo",
-   "S-line"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1369,8 +1607,10 @@
   "file": "GHT Photonics test.b01",
   "name": "GHT Photonics test",
   "originalName": "GHT Photonics test.b01",
+  "customer": "GHT Photonics",
+  "project": "",
   "sensors": [
-   "GHT Photonics"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1378,8 +1618,10 @@
   "file": "GHT test.b02",
   "name": "GHT test",
   "originalName": "GHT test.b02",
+  "customer": "GHT Photonics",
+  "project": "",
   "sensors": [
-   "GHT Photonics"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1387,6 +1629,8 @@
   "file": "GR 1209 Temperature-Humidity cycle UE -30, 85.b01",
   "name": "GR 1209 Temperature-Humidity cycle UE -30, 85",
   "originalName": "GR 1209 Temperature-Humidity cycle UE -30, 85.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1209"
   ],
@@ -1399,6 +1643,8 @@
   "file": "GR 1209 Temperature-Humidity cycle UE -40, 85.b01",
   "name": "GR 1209 Temperature-Humidity cycle UE -40, 85",
   "originalName": "GR 1209 Temperature-Humidity cycle UE -40, 85.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1209"
   ],
@@ -1411,6 +1657,8 @@
   "file": "GR 1435 Dry out step-C-enviroment.b01",
   "name": "GR 1435 Dry out step-C-enviroment",
   "originalName": "GR 1435 Dry out step-C-enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1423,6 +1671,8 @@
   "file": "GR 1435 Humidity aging test U enviroment.b01",
   "name": "GR 1435 Humidity aging test U enviroment",
   "originalName": "GR 1435 Humidity aging test U enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1437,6 +1687,8 @@
   "file": "GR 1435 Humidity aging test-C-enviroment.b01",
   "name": "GR 1435 Humidity aging test-C-enviroment",
   "originalName": "GR 1435 Humidity aging test-C-enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1451,6 +1703,8 @@
   "file": "GR 1435 Humidity cycle test U enviroment.b01",
   "name": "GR 1435 Humidity cycle test U enviroment",
   "originalName": "GR 1435 Humidity cycle test U enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1464,6 +1718,8 @@
   "file": "GR 1435 Thermal aging test C enviroment.b01",
   "name": "GR 1435 Thermal aging test C enviroment",
   "originalName": "GR 1435 Thermal aging test C enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1477,6 +1733,8 @@
   "file": "GR 1435 Thermal aging test C enviroment - +70C.b01",
   "name": "GR 1435 Thermal aging test C enviroment - +70C",
   "originalName": "GR 1435 Thermal aging test C enviroment - +70C.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1490,6 +1748,8 @@
   "file": "GR 1435 Thermal aging test U enviroment.b01",
   "name": "GR 1435 Thermal aging test U enviroment",
   "originalName": "GR 1435 Thermal aging test U enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1503,6 +1763,8 @@
   "file": "GR 1435 Thermal cycle test C enviroment.b01",
   "name": "GR 1435 Thermal cycle test C enviroment",
   "originalName": "GR 1435 Thermal cycle test C enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1516,9 +1778,10 @@
   "file": "GR 1435 Thermal cycle test C enviroment Schneider.b01",
   "name": "GR 1435 Thermal cycle test C enviroment Schneider",
   "originalName": "GR 1435 Thermal cycle test C enviroment Schneider.b01",
+  "customer": "Schneider",
+  "project": "",
   "sensors": [
-   "GR 1435",
-   "Schneider"
+   "GR 1435"
   ],
   "tags": [
    "GR 1435",
@@ -1530,6 +1793,8 @@
   "file": "GR 1435 Thermal cycle test C enviroment(-10C - +70C).b01",
   "name": "GR 1435 Thermal cycle test C enviroment(-10C - +70C)",
   "originalName": "GR 1435 Thermal cycle test C enviroment(-10C - +70C).b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1543,9 +1808,10 @@
   "file": "GR 1435 Thermal cycle test enviroment ACOME.b01",
   "name": "GR 1435 Thermal cycle test enviroment ACOME",
   "originalName": "GR 1435 Thermal cycle test enviroment ACOME.b01",
+  "customer": "ACOME",
+  "project": "",
   "sensors": [
-   "GR 1435",
-   "ACOME"
+   "GR 1435"
   ],
   "tags": [
    "GR 1435",
@@ -1556,6 +1822,8 @@
   "file": "GR 1435 Thermal cycle test U enviroment.b01",
   "name": "GR 1435 Thermal cycle test U enviroment",
   "originalName": "GR 1435 Thermal cycle test U enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "GR 1435"
   ],
@@ -1569,8 +1837,10 @@
   "file": "hell christmas.b01",
   "name": "hell christmas",
   "originalName": "hell christmas.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "Hell"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1578,6 +1848,8 @@
   "file": "HS-01 - 1.b02",
   "name": "HS-01 - 1",
   "originalName": "HS-01 - 1.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HS-01"
   ],
@@ -1587,6 +1859,8 @@
   "file": "HS-01 mega tuty test.b02",
   "name": "HS-01 mega tuty test",
   "originalName": "HS-01 mega tuty test.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HS-01"
   ],
@@ -1596,6 +1870,8 @@
   "file": "hs-01 tecko.b02",
   "name": "hs-01 tecko",
   "originalName": "hs-01 tecko.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HS-01"
   ],
@@ -1605,6 +1881,8 @@
   "file": "hs-01 test 1.b02",
   "name": "hs-01 test 1",
   "originalName": "hs-01 test 1.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HS-01"
   ],
@@ -1614,6 +1892,8 @@
   "file": "HT TEMP 0C to 170C 1h.b02",
   "name": "HT TEMP 0C to 170C 1h",
   "originalName": "HT TEMP 0C to 170C 1h.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -1623,6 +1903,8 @@
   "file": "ht-tp03 -20 + 120.b02",
   "name": "ht-tp03 -20 + 120",
   "originalName": "ht-tp03 -20 + 120.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-03"
   ],
@@ -1632,6 +1914,8 @@
   "file": "hta01 -20+160.b01",
   "name": "hta01 -20+160",
   "originalName": "hta01 -20+160.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "HTA-01"
   ],
@@ -1641,9 +1925,10 @@
   "file": "HTA_danieli.b01",
   "name": "HTA danieli",
   "originalName": "HTA_danieli.b01",
+  "customer": "Danieli",
+  "project": "",
   "sensors": [
-   "HTA",
-   "Danieli"
+   "HTA"
   ],
   "tags": []
  },
@@ -1651,8 +1936,10 @@
   "file": "humidity testo.b01",
   "name": "humidity testo",
   "originalName": "humidity testo.b01",
+  "customer": "Testo",
+  "project": "",
   "sensors": [
-   "Testo"
+   "Ostatné"
   ],
   "tags": [
    "vlhkosť"
@@ -1662,8 +1949,10 @@
   "file": "humidity testo new.b01",
   "name": "humidity testo new",
   "originalName": "humidity testo new.b01",
+  "customer": "Testo",
+  "project": "",
   "sensors": [
-   "Testo"
+   "Ostatné"
   ],
   "tags": [
    "vlhkosť"
@@ -1673,8 +1962,10 @@
   "file": "humidity testo new test 1.b01",
   "name": "humidity testo new test 1",
   "originalName": "humidity testo new test 1.b01",
+  "customer": "Testo",
+  "project": "",
   "sensors": [
-   "Testo"
+   "Ostatné"
   ],
   "tags": [
    "vlhkosť"
@@ -1684,8 +1975,10 @@
   "file": "humidity testo new test 2.b01",
   "name": "humidity testo new test 2",
   "originalName": "humidity testo new test 2.b01",
+  "customer": "Testo",
+  "project": "",
   "sensors": [
-   "Testo"
+   "Ostatné"
   ],
   "tags": [
    "vlhkosť"
@@ -1695,8 +1988,10 @@
   "file": "humidity testo new test 3.b01",
   "name": "humidity testo new test 3",
   "originalName": "humidity testo new test 3.b01",
+  "customer": "Testo",
+  "project": "",
   "sensors": [
-   "Testo"
+   "Ostatné"
   ],
   "tags": [
    "vlhkosť"
@@ -1706,8 +2001,10 @@
   "file": "humidity testo new test 4.b01",
   "name": "humidity testo new test 4",
   "originalName": "humidity testo new test 4.b01",
+  "customer": "Testo",
+  "project": "",
   "sensors": [
-   "Testo"
+   "Ostatné"
   ],
   "tags": [
    "vlhkosť"
@@ -1717,6 +2014,8 @@
   "file": "IEC 61300 2 17 Cold C enviroment.b01",
   "name": "IEC 61300 2 17 Cold C enviroment",
   "originalName": "IEC 61300 2 17 Cold C enviroment.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1730,6 +2029,8 @@
   "file": "IEC 61300 2 17 Cold U enviromen {-25C}.b01",
   "name": "IEC 61300 2 17 Cold U enviromen {-25C}",
   "originalName": "IEC 61300 2 17 Cold U enviromen {-25C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1743,6 +2044,8 @@
   "file": "IEC 61300 2 18 Dry heat C enviroment {+60C}.b01",
   "name": "IEC 61300 2 18 Dry heat C enviroment {+60C}",
   "originalName": "IEC 61300 2 18 Dry heat C enviroment {+60C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1756,6 +2059,8 @@
   "file": "IEC 61300 2 18 Dry heat U enviroment {+70C}.b01",
   "name": "IEC 61300 2 18 Dry heat U enviroment {+70C}",
   "originalName": "IEC 61300 2 18 Dry heat U enviroment {+70C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1769,6 +2074,8 @@
   "file": "IEC 61300 2 19 Damp heat {steady state} C enviroment {+40C- 95%}.b01",
   "name": "IEC 61300 2 19 Damp heat {steady state} C enviroment {+40C- 95%}",
   "originalName": "IEC 61300 2 19 Damp heat {steady state} C enviroment {+40C- 95%}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1782,6 +2089,8 @@
   "file": "IEC 61300 2 22 Change of Temperature A enviroment {-40C +65C}.b02",
   "name": "IEC 61300 2 22 Change of Temperature A enviroment {-40C +65C}",
   "originalName": "IEC 61300 2 22 Change of Temperature A enviroment {-40C +65C}.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1795,6 +2104,8 @@
   "file": "IEC 61300 2 22 Change of Temperature C enviroment 5x {-10C +60C}.b01",
   "name": "IEC 61300 2 22 Change of Temperature C enviroment 5x {-10C +60C}",
   "originalName": "IEC 61300 2 22 Change of Temperature C enviroment 5x {-10C +60C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1809,6 +2120,8 @@
   "file": "IEC 61300 2 22 Change of Temperature C enviroment {-10C +60C}.b01",
   "name": "IEC 61300 2 22 Change of Temperature C enviroment {-10C +60C}",
   "originalName": "IEC 61300 2 22 Change of Temperature C enviroment {-10C +60C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1822,6 +2135,8 @@
   "file": "IEC 61300 2 22 Change of Temperature C enviroment {-20C +70C}.b01",
   "name": "IEC 61300 2 22 Change of Temperature C enviroment {-20C +70C}",
   "originalName": "IEC 61300 2 22 Change of Temperature C enviroment {-20C +70C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1835,6 +2150,8 @@
   "file": "IEC 61300 2 22 Change of Temperature C enviroment {0C +60C}.b01",
   "name": "IEC 61300 2 22 Change of Temperature C enviroment {0C +60C}",
   "originalName": "IEC 61300 2 22 Change of Temperature C enviroment {0C +60C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1848,6 +2165,8 @@
   "file": "IEC 61300 2 22 Change of Temperature EE enviroment {-40C +75C} .b01",
   "name": "IEC 61300 2 22 Change of Temperature EE enviroment {-40C +75C}",
   "originalName": "IEC 61300 2 22 Change of Temperature EE enviroment {-40C +75C} .b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1861,6 +2180,8 @@
   "file": "IEC 61300 2 22 Change of Temperature U enviroment {-25C +70C}.b01",
   "name": "IEC 61300 2 22 Change of Temperature U enviroment {-25C +70C}",
   "originalName": "IEC 61300 2 22 Change of Temperature U enviroment {-25C +70C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1874,6 +2195,8 @@
   "file": "IEC 61300 2 46 Damp Heat {cyclic} U enviroment {+25C +55C}.b01",
   "name": "IEC 61300 2 46 Damp Heat {cyclic} U enviroment {+25C +55C}",
   "originalName": "IEC 61300 2 46 Damp Heat {cyclic} U enviroment {+25C +55C}.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "IEC 61300"
   ],
@@ -1887,8 +2210,10 @@
   "file": "Isense cloud HT 0 - 160.b01",
   "name": "Isense cloud HT 0 - 160",
   "originalName": "Isense cloud HT 0 - 160.b01",
+  "customer": "Isense",
+  "project": "",
   "sensors": [
-   "Isense"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1896,8 +2221,10 @@
   "file": "Isense cloud HT 0 - 170.b01",
   "name": "Isense cloud HT 0 - 170",
   "originalName": "Isense cloud HT 0 - 170.b01",
+  "customer": "Isense",
+  "project": "",
   "sensors": [
-   "Isense"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1905,8 +2232,10 @@
   "file": "katka_profil.b01",
   "name": "katka profil",
   "originalName": "katka_profil.b01",
+  "customer": "Katka",
+  "project": "",
   "sensors": [
-   "Katka"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1914,8 +2243,10 @@
   "file": "kolumbia mad 15,25,35 3h.b01",
   "name": "kolumbia mad 15,25,35 3h",
   "originalName": "kolumbia mad 15,25,35 3h.b01",
+  "customer": "Kolumbia",
+  "project": "",
   "sensors": [
-   "Kolumbia"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1923,8 +2254,10 @@
   "file": "leoni.b01",
   "name": "leoni",
   "originalName": "leoni.b01",
+  "customer": "Leoni",
+  "project": "",
   "sensors": [
-   "Leoni"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1932,8 +2265,10 @@
   "file": "loadcell_zihanie.b02",
   "name": "loadcell zihanie",
   "originalName": "loadcell_zihanie.b02",
+  "customer": "Load cell",
+  "project": "",
   "sensors": [
-   "Load cell"
+   "Ostatné"
   ],
   "tags": [
    "žíhanie"
@@ -1943,8 +2278,10 @@
   "file": "luna profil.b02",
   "name": "luna profil",
   "originalName": "luna profil.b02",
+  "customer": "Luna",
+  "project": "",
   "sensors": [
-   "Luna"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1952,8 +2289,10 @@
   "file": "Luna wafer.b02",
   "name": "Luna wafer",
   "originalName": "Luna wafer.b02",
+  "customer": "Luna",
+  "project": "",
   "sensors": [
-   "Luna"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1961,9 +2300,10 @@
   "file": "Marmota denex + profil -20 +60.b02",
   "name": "Marmota denex + profil -20 +60",
   "originalName": "Marmota denex + profil -20 +60.b02",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "Marmota",
-   "Denex"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1971,9 +2311,10 @@
   "file": "Marmota denex + profil -20 +60 pokus 2.b02",
   "name": "Marmota denex + profil -20 +60 pokus 2",
   "originalName": "Marmota denex + profil -20 +60 pokus 2.b02",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "Marmota",
-   "Denex"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1981,9 +2322,10 @@
   "file": "Marmota denex + profil -20 +60 skrateny profil.b01",
   "name": "Marmota denex + profil -20 +60 skrateny profil",
   "originalName": "Marmota denex + profil -20 +60 skrateny profil.b01",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "Marmota",
-   "Denex"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -1991,8 +2333,10 @@
   "file": "Marmota profil -20 +60 skrateny profil.b01",
   "name": "Marmota profil -20 +60 skrateny profil",
   "originalName": "Marmota profil -20 +60 skrateny profil.b01",
+  "customer": "Marmota",
+  "project": "",
   "sensors": [
-   "Marmota"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2000,8 +2344,10 @@
   "file": "msa- vypekanie.b01",
   "name": "msa- vypekanie",
   "originalName": "msa- vypekanie.b01",
+  "customer": "MSA",
+  "project": "",
   "sensors": [
-   "MSA"
+   "Ostatné"
   ],
   "tags": [
    "vypekanie"
@@ -2011,6 +2357,8 @@
   "file": "nove_zihanie.b01",
   "name": "nove zihanie",
   "originalName": "nove_zihanie.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Žíhanie"
   ],
@@ -2022,6 +2370,8 @@
   "file": "odlozenyzihanie.b02",
   "name": "odlozenyzihanie",
   "originalName": "odlozenyzihanie.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Žíhanie"
   ],
@@ -2033,6 +2383,8 @@
   "file": "polovicny profil.b02",
   "name": "polovicny profil",
   "originalName": "polovicny profil.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -2042,6 +2394,8 @@
   "file": "polovicny profill.b02",
   "name": "polovicny profill",
   "originalName": "polovicny profill.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -2051,8 +2405,10 @@
   "file": "polytech_temp.b02",
   "name": "polytech temp",
   "originalName": "polytech_temp.b02",
+  "customer": "PolyTech",
+  "project": "",
   "sensors": [
-   "PolyTech"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2060,9 +2416,10 @@
   "file": "pred luna testom.b01",
   "name": "pred luna testom",
   "originalName": "pred luna testom.b01",
+  "customer": "Luna",
+  "project": "",
   "sensors": [
-   "Luna",
-   "Testo"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2070,8 +2427,10 @@
   "file": "Reusable Temperature sensors_profil +20+40.b01",
   "name": "Reusable Temperature sensors profil +20+40",
   "originalName": "Reusable Temperature sensors_profil +20+40.b01",
+  "customer": "Reusable Temp Sensors",
+  "project": "",
   "sensors": [
-   "Reusable Temp Sensors"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2079,8 +2438,10 @@
   "file": "Reusable Temperature sensors_profil -20+50.b01",
   "name": "Reusable Temperature sensors profil -20+50",
   "originalName": "Reusable Temperature sensors_profil -20+50.b01",
+  "customer": "Reusable Temp Sensors",
+  "project": "",
   "sensors": [
-   "Reusable Temp Sensors"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2088,8 +2449,10 @@
   "file": "Reusable Temperature sensors_profil -20+60.b01",
   "name": "Reusable Temperature sensors profil -20+60",
   "originalName": "Reusable Temperature sensors_profil -20+60.b01",
+  "customer": "Reusable Temp Sensors",
+  "project": "",
   "sensors": [
-   "Reusable Temp Sensors"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2097,8 +2460,10 @@
   "file": "Reusable Temperature sensors_profil 0+30.b01",
   "name": "Reusable Temperature sensors profil 0+30",
   "originalName": "Reusable Temperature sensors_profil 0+30.b01",
+  "customer": "Reusable Temp Sensors",
+  "project": "",
   "sensors": [
-   "Reusable Temp Sensors"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2106,8 +2471,10 @@
   "file": "Reusable Temperature sensors_profil 20+40.b01",
   "name": "Reusable Temperature sensors profil 20+40",
   "originalName": "Reusable Temperature sensors_profil 20+40.b01",
+  "customer": "Reusable Temp Sensors",
+  "project": "",
   "sensors": [
-   "Reusable Temp Sensors"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2115,8 +2482,10 @@
   "file": "S-line slow sweep.b02",
   "name": "S-line slow sweep",
   "originalName": "S-line slow sweep.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "S-line"
+   "Ostatné"
   ],
   "tags": [
    "sweep"
@@ -2126,8 +2495,10 @@
   "file": "S-line slow sweep-60C.b02",
   "name": "S-line slow sweep-60C",
   "originalName": "S-line slow sweep-60C.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "S-line"
+   "Ostatné"
   ],
   "tags": [
    "sweep"
@@ -2137,8 +2508,10 @@
   "file": "S-line slow sweep-faster.b02",
   "name": "S-line slow sweep-faster",
   "originalName": "S-line slow sweep-faster.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "S-line"
+   "Ostatné"
   ],
   "tags": [
    "sweep"
@@ -2148,8 +2521,10 @@
   "file": "S-line slow sweep-fasterx.b02",
   "name": "S-line slow sweep-fasterx",
   "originalName": "S-line slow sweep-fasterx.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "S-line"
+   "Ostatné"
   ],
   "tags": [
    "sweep"
@@ -2159,8 +2534,10 @@
   "file": "s-line-ultraslow.b02",
   "name": "s-line-ultraslow",
   "originalName": "s-line-ultraslow.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "S-line"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2168,8 +2545,10 @@
   "file": "s-line-ultraslow2.b02",
   "name": "s-line-ultraslow2",
   "originalName": "s-line-ultraslow2.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
-   "S-line"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2177,6 +2556,8 @@
   "file": "SAT-01.b01",
   "name": "SAT-01",
   "originalName": "SAT-01.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -2186,6 +2567,8 @@
   "file": "sat-01 -20- 60.b02",
   "name": "sat-01 -20- 60",
   "originalName": "sat-01 -20- 60.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -2195,6 +2578,8 @@
   "file": "SAT-01 bez zihania.b01",
   "name": "SAT-01 bez zihania",
   "originalName": "SAT-01 bez zihania.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -2204,6 +2589,8 @@
   "file": "SAT-01 zihanie.b02",
   "name": "SAT-01 zihanie",
   "originalName": "SAT-01 zihanie.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -2215,6 +2602,8 @@
   "file": "sat-01_30_60.b01",
   "name": "sat-01 30 60",
   "originalName": "sat-01_30_60.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -2224,6 +2613,8 @@
   "file": "sat-len kalibracia v3.b01",
   "name": "sat-len kalibracia v3",
   "originalName": "sat-len kalibracia v3.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -2235,6 +2626,8 @@
   "file": "sat-len kalibracia-short v3.b01",
   "name": "sat-len kalibracia-short v3",
   "originalName": "sat-len kalibracia-short v3.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SAT-01"
   ],
@@ -2247,6 +2640,8 @@
   "file": "Sensors clarification -30,25,- 80 3h plato.b01",
   "name": "Sensors clarification -30,25,- 80 3h plato",
   "originalName": "Sensors clarification -30,25,- 80 3h plato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -2258,8 +2653,10 @@
   "file": "sentea profil.b02",
   "name": "sentea profil",
   "originalName": "sentea profil.b02",
+  "customer": "Sentea",
+  "project": "",
   "sensors": [
-   "Sentea"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2267,6 +2664,8 @@
   "file": "SF - ST-COMP -30 +60C - 2h plato - 14h30min.b01",
   "name": "SF - ST-COMP -30 +60C - 2h plato - 14h30min",
   "originalName": "SF - ST-COMP -30 +60C - 2h plato - 14h30min.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -2278,8 +2677,10 @@
   "file": "siemens.b02",
   "name": "siemens",
   "originalName": "siemens.b02",
+  "customer": "Siemens",
+  "project": "",
   "sensors": [
-   "Siemens"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2287,8 +2688,10 @@
   "file": "splittre {-40C +80C}.b02",
   "name": "splittre {-40C +80C}",
   "originalName": "splittre {-40C +80C}.b02",
+  "customer": "Splittre",
+  "project": "",
   "sensors": [
-   "Splittre"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2296,6 +2699,8 @@
   "file": "STS-11 - 1.b02",
   "name": "STS-11 - 1",
   "originalName": "STS-11 - 1.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "STS-11"
   ],
@@ -2305,8 +2710,10 @@
   "file": "stutgart rychly profil.b01",
   "name": "stutgart rychly profil",
   "originalName": "stutgart rychly profil.b01",
+  "customer": "",
+  "project": "Stuttgart",
   "sensors": [
-   "Stuttgart"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2314,8 +2721,10 @@
   "file": "swa_custom.b01",
   "name": "swa custom",
   "originalName": "swa_custom.b01",
+  "customer": "SWA",
+  "project": "",
   "sensors": [
-   "SWA"
+   "Ostatné"
   ],
   "tags": [
    "custom"
@@ -2325,6 +2734,8 @@
   "file": "sws HT 180c.b02",
   "name": "sws HT 180c",
   "originalName": "sws HT 180c.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "SWS"
   ],
@@ -2334,6 +2745,8 @@
   "file": "tc-04 bez -22,5c.b02",
   "name": "tc-04 bez -22,5c",
   "originalName": "tc-04 bez -22,5c.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TC-04",
    "TC"
@@ -2344,6 +2757,8 @@
   "file": "teplotny sok -40 +60.b02",
   "name": "teplotny sok -40 +60",
   "originalName": "teplotny sok -40 +60.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -2355,8 +2770,10 @@
   "file": "test eloque.b01",
   "name": "test eloque",
   "originalName": "test eloque.b01",
+  "customer": "Eloque",
+  "project": "",
   "sensors": [
-   "Eloque"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2364,8 +2781,10 @@
   "file": "test lepidiel.b01",
   "name": "test lepidiel",
   "originalName": "test lepidiel.b01",
+  "customer": "Lepidlo",
+  "project": "",
   "sensors": [
-   "Lepidlo"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2373,8 +2792,10 @@
   "file": "testo_temp_cal.b01",
   "name": "testo temp cal",
   "originalName": "testo_temp_cal.b01",
+  "customer": "Testo",
+  "project": "",
   "sensors": [
-   "Testo"
+   "Ostatné"
   ],
   "tags": [
    "kalibrácia"
@@ -2384,6 +2805,8 @@
   "file": "TP-02 clarification -30 - 80 1.30h plato.b01",
   "name": "TP-02 clarification -30 - 80 1.30h plato",
   "originalName": "TP-02 clarification -30 - 80 1.30h plato.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-02"
   ],
@@ -2395,6 +2818,8 @@
   "file": "TP-11, accuracy TEST.b01",
   "name": "TP-11, accuracy TEST",
   "originalName": "TP-11, accuracy TEST.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "TP-11"
   ],
@@ -2406,6 +2831,8 @@
   "file": "T#U010dko -40 do +80.b01",
   "name": "Tčko -40 do +80",
   "originalName": "Tčko -40 do +80.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
@@ -2415,8 +2842,10 @@
   "file": "uptech -20 + 120.b02",
   "name": "uptech -20 + 120",
   "originalName": "uptech -20 + 120.b02",
+  "customer": "Uptech",
+  "project": "",
   "sensors": [
-   "Uptech"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2424,8 +2853,10 @@
   "file": "uptech test .b01",
   "name": "uptech test",
   "originalName": "uptech test .b01",
+  "customer": "Uptech",
+  "project": "",
   "sensors": [
-   "Uptech"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2433,8 +2864,10 @@
   "file": "valmet.b02",
   "name": "valmet",
   "originalName": "valmet.b02",
+  "customer": "Valmet",
+  "project": "",
   "sensors": [
-   "Valmet"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2442,8 +2875,10 @@
   "file": "valmet -20 120.b01",
   "name": "valmet -20 120",
   "originalName": "valmet -20 120.b01",
+  "customer": "Valmet",
+  "project": "",
   "sensors": [
-   "Valmet"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2451,8 +2886,10 @@
   "file": "vanda test.b01",
   "name": "vanda test",
   "originalName": "vanda test.b01",
+  "customer": "Vanda",
+  "project": "",
   "sensors": [
-   "Vanda"
+   "Ostatné"
   ],
   "tags": []
  },
@@ -2460,6 +2897,8 @@
   "file": "zihanie.b02",
   "name": "zihanie",
   "originalName": "zihanie.b02",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Žíhanie"
   ],
@@ -2471,6 +2910,8 @@
   "file": "zihanie #U2013 k#U00f3pia.b01",
   "name": "zihanie – kópia",
   "originalName": "zihanie – kópia.b01",
+  "customer": "",
+  "project": "",
   "sensors": [
    "Ostatné"
   ],
