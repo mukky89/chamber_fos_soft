@@ -92,13 +92,17 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private string _profileName = "Nový profil";
     public string ProfileName { get => _profileName; set => SetProperty(ref _profileName, value); }
 
-    private string _sensorName = string.Empty;
-    /// <summary>Sensor / specimen the edited profile is for (groups the library tree).</summary>
-    public string SensorName { get => _sensorName; set => SetProperty(ref _sensorName, value); }
+    /// <summary>Sensors the edited profile is for (chips; one profile can serve several).</summary>
+    public ObservableCollection<string> EditorSensors { get; } = new();
 
-    private string _tagsText = string.Empty;
-    /// <summary>Comma-separated tags for the edited profile (used for filtering).</summary>
-    public string TagsText { get => _tagsText; set => SetProperty(ref _tagsText, value); }
+    /// <summary>Tags of the edited profile (chips).</summary>
+    public ObservableCollection<string> EditorTags { get; } = new();
+
+    /// <summary>Distinct sensor names across the library, offered as suggestions in the editor.</summary>
+    public ObservableCollection<string> KnownSensors { get; } = new();
+
+    /// <summary>Distinct tags across the library, offered as suggestions in the editor.</summary>
+    public ObservableCollection<string> KnownTags { get; } = new();
 
     private int _cycles = 1;
     public int Cycles { get => _cycles; set { if (SetProperty(ref _cycles, Math.Max(1, value))) Recalculate(); } }
@@ -231,24 +235,27 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Name = ProfileName,
         Kind = Kind,
         Cycles = Cycles,
-        SensorName = SensorName.Trim(),
-        Tags = ParseTags(TagsText),
+        Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+        Tags = EditorTags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
         CreatedAt = DateTimeOffset.Now,
         Segments = Segments.Select(s => s.ToModel()).ToList(),
     };
 
-    /// <summary>Splits the comma-separated tag box into a clean, de-duplicated tag list.</summary>
-    private static List<string> ParseTags(string text) => (text ?? string.Empty)
-        .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    private static void ReplaceAll(ObservableCollection<string> target, IEnumerable<string>? values)
+    {
+        target.Clear();
+        foreach (string v in values ?? Enumerable.Empty<string>())
+        {
+            target.Add(v);
+        }
+    }
 
     private void ApplyProfile(TestProfile profile)
     {
         Kind = profile.Kind;
         ProfileName = profile.Name;
-        SensorName = profile.SensorName ?? string.Empty;
-        TagsText = string.Join(", ", profile.Tags ?? new List<string>());
+        ReplaceAll(EditorSensors, profile.Sensors);
+        ReplaceAll(EditorTags, profile.Tags);
         Cycles = profile.Cycles;
         Segments.Clear();
         foreach (ProfileSegment segment in profile.Segments)
@@ -263,8 +270,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private void NewProfile()
     {
         ProfileName = "Nový profil";
-        SensorName = string.Empty;
-        TagsText = string.Empty;
+        EditorSensors.Clear();
+        EditorTags.Clear();
         Cycles = 1;
         SeedDefaultProfile();
         SelectedSegment = Segments.FirstOrDefault();
@@ -415,14 +422,13 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         SelectedHistoryProfile = selectedId is { } id ? History.FirstOrDefault(p => p.Id == id) : null;
         _suppressAutoLoad = false;
 
-        RefreshAvailableTags();
+        RefreshKnownValues();
         RebuildTree();
     }
 
-    /// <summary>Rebuilds the tag filter list from all tags in the library (keeps the current pick if still valid).</summary>
-    private void RefreshAvailableTags()
+    /// <summary>Rebuilds the tag filter list and the editor suggestion lists (sensors + tags).</summary>
+    private void RefreshKnownValues()
     {
-        string previous = SelectedTag;
         List<string> tags = History
             .SelectMany(p => p.Tags ?? new List<string>())
             .Where(t => !string.IsNullOrWhiteSpace(t))
@@ -430,6 +436,14 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             .OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
+        List<string> sensors = History
+            .SelectMany(p => p.Sensors ?? new List<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        string previous = SelectedTag;
         AvailableTags.Clear();
         AvailableTags.Add(AllTagsOption);
         foreach (string tag in tags)
@@ -439,9 +453,22 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
         _selectedTag = AvailableTags.Contains(previous) ? previous : AllTagsOption;
         OnPropertyChanged(nameof(SelectedTag));
+
+        SyncCollection(KnownTags, tags);
+        SyncCollection(KnownSensors, sensors);
     }
 
-    /// <summary>Rebuilds the sensor-grouped, filtered tree from <see cref="History"/>.</summary>
+    private static void SyncCollection(ObservableCollection<string> target, List<string> values)
+    {
+        target.Clear();
+        foreach (string v in values)
+        {
+            target.Add(v);
+        }
+    }
+
+    /// <summary>Rebuilds the sensor-grouped, filtered tree from <see cref="History"/>.
+    /// A profile with several sensors appears under each of them.</summary>
     private void RebuildTree()
     {
         var expanded = ProfileTree.ToDictionary(g => g.Header, g => g.IsExpanded);
@@ -451,15 +478,27 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
         IEnumerable<TestProfile> matches = History.Where(p => Matches(p, needle, tagFilter ? SelectedTag : null));
 
+        // Expand each profile into (sensor, profile) pairs so multi-sensor profiles
+        // land in every matching group.
         var groups = matches
-            .GroupBy(p => string.IsNullOrWhiteSpace(p.SensorName) ? "Bez snímača" : p.SensorName.Trim())
+            .SelectMany(p =>
+            {
+                List<string> sensors = (p.Sensors ?? new List<string>())
+                    .Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                return sensors.Count == 0
+                    ? new[] { (Sensor: "Bez snímača", Profile: p) }
+                    : sensors.Select(s => (Sensor: s.Trim(), Profile: p)).ToArray();
+            })
+            .GroupBy(x => x.Sensor)
             .OrderBy(g => g.Key == "Bez snímača" ? "￿" : g.Key, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
+
+        int distinctProfiles = matches.Count();
 
         ProfileTree.Clear();
         foreach (var group in groups)
         {
-            var vm = new ProfileTreeGroupViewModel(group.Key, group.OrderByDescending(p => p.CreatedAt))
+            var vm = new ProfileTreeGroupViewModel(group.Key, group.Select(x => x.Profile).OrderByDescending(p => p.CreatedAt))
             {
                 // Keep a group's expansion state across rebuilds; expand while actively filtering.
                 IsExpanded = needle.Length > 0 || tagFilter || !expanded.TryGetValue(group.Key, out bool wasOpen) || wasOpen,
@@ -467,10 +506,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             ProfileTree.Add(vm);
         }
 
-        int shown = groups.Sum(g => g.Count());
         TreeSummary = groups.Count == 0
             ? "Žiadny profil nevyhovuje filtru."
-            : $"{shown} {ProfileWord(shown)} · {groups.Count} {SensorWord(groups.Count)}";
+            : $"{distinctProfiles} {ProfileWord(distinctProfiles)} · {groups.Count} {SensorWord(groups.Count)}";
     }
 
     private static bool Matches(TestProfile p, string needle, string? tag)
@@ -486,7 +524,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         }
 
         bool InText(string? s) => s is not null && s.Contains(needle, StringComparison.CurrentCultureIgnoreCase);
-        return InText(p.Name) || InText(p.SensorName) || (p.Tags ?? new List<string>()).Any(InText);
+        return InText(p.Name)
+            || (p.Sensors ?? new List<string>()).Any(InText)
+            || (p.Tags ?? new List<string>()).Any(InText);
     }
 
     private void SetAllExpanded(bool expanded)

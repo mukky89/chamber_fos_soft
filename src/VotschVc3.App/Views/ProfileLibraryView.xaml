@@ -131,14 +131,12 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Snímač (pre ktorý je profil)" Style="{StaticResource Label}" />
-                                    <TextBox Text="{Binding SensorName, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Názov snímača / vzorky – podľa neho sa profily zoskupujú v strome vpravo." />
+                                    <TextBlock Text="Snímače (profil môže byť pre viac snímačov)" Style="{StaticResource Label}" />
+                                    <views:TagEditor Items="{Binding EditorSensors}" Suggestions="{Binding KnownSensors}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Text="Tagy (oddelené čiarkou)" Style="{StaticResource Label}" />
-                                    <TextBox Text="{Binding TagsText, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Napr. „norma, vibrácie, séria A“ – slúžia na filtrovanie v strome profilov." />
+                                    <TextBlock Text="Tagy" Style="{StaticResource Label}" />
+                                    <views:TagEditor Items="{Binding EditorTags}" Suggestions="{Binding KnownTags}" />
                                 </StackPanel>
                             </Grid>
                         </StackPanel>

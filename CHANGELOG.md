@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.30.0] – 2026-07-21
+
+### Zmenené
+- **Snímače a tagy ako výber s pridávaním (chip editor).** Snímač aj tagy sa
+  zadávajú ako čipy – vybrať z existujúcich hodnôt (rozbaľovací zoznam) alebo
+  napísať novú (Enter / ＋), viac hodnôt naraz. **Jeden profil môže byť pre viac
+  snímačov** – v strome sa potom zobrazí pod každým z nich.
+
 ## [1.29.0] – 2026-07-21
 
 ### Pridané

@@ -213,11 +213,8 @@ public sealed class BulkImportViewModel : ObservableObject
                 TestProfile profile = item.Raw.Clone();
                 profile.Name = finalName;
                 profile.Kind = Kind;
-                profile.SensorName = CommonSensorName.Trim();
-                profile.Tags = CommonTagsText
-                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                profile.Sensors = SplitValues(CommonSensorName);
+                profile.Tags = SplitValues(CommonTagsText);
                 if (Kind == ChamberKind.TemperatureOnly)
                 {
                     foreach (ProfileSegment segment in profile.Segments)
@@ -259,6 +256,11 @@ public sealed class BulkImportViewModel : ObservableObject
             (failed > 0 ? $", zlyhalo {failed}" : string.Empty) +
             (skipped > 0 ? $", preskočených {skipped}" : string.Empty) + ".";
     }
+
+    private static List<string> SplitValues(string text) => (text ?? string.Empty)
+        .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
 
     private string ComposeName(string name)
     {

@@ -54,12 +54,12 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Snímač pre celú dávku (voliteľné)" Style="{StaticResource Label}" />
+                        <TextBlock Text="Snímače pre dávku (čiarkou, voliteľné)" Style="{StaticResource Label}" />
                         <TextBox Text="{Binding CommonSensorName, UpdateSourceTrigger=PropertyChanged}"
-                                 ToolTip="Názov snímača priradený každému importovanému profilu – podľa neho sa zoskupujú v strome." />
+                                 ToolTip="Snímače priradené každému importovanému profilu (oddelené čiarkou) – podľa nich sa zoskupujú v strome." />
                     </StackPanel>
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Tagy pre celú dávku (čiarkou)" Style="{StaticResource Label}" />
+                        <TextBlock Text="Tagy pre dávku (čiarkou)" Style="{StaticResource Label}" />
                         <TextBox Text="{Binding CommonTagsText, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="Tagy priradené každému importovanému profilu (na filtrovanie)." />
                     </StackPanel>

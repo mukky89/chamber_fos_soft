@@ -27,8 +27,8 @@ public sealed class TestProfile
     /// <summary>Free-form tags for grouping / filtering the profile library (e.g. "norma", "vzorka X").</summary>
     public List<string> Tags { get; set; } = new();
 
-    /// <summary>Name of the sensor / specimen the profile is intended for (used to group the library tree).</summary>
-    public string SensorName { get; set; } = string.Empty;
+    /// <summary>Sensors / specimens the profile is intended for (one profile can serve several); groups the library tree.</summary>
+    public List<string> Sensors { get; set; } = new();
 
     /// <summary>Total duration of a single pass through the segments.</summary>
     public TimeSpan SinglePassDuration =>
@@ -46,7 +46,7 @@ public sealed class TestProfile
         Kind = Kind,
         CreatedAt = CreatedAt,
         Cycles = Cycles,
-        SensorName = SensorName,
+        Sensors = new List<string>(Sensors),
         Tags = new List<string>(Tags),
         Segments = Segments.Select(s => new ProfileSegment
         {
