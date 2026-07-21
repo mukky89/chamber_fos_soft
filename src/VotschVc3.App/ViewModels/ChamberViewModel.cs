@@ -1390,9 +1390,20 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             left = TimeSpan.Zero;
         }
 
-        string hms = left.TotalHours >= 1
-            ? $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}"
-            : $"{left.Minutes:00}:{left.Seconds:00}";
+        string hms;
+        if (left.TotalDays >= 1)
+        {
+            hms = $"{(int)left.TotalDays}d {left.Hours}:{left.Minutes:00}:{left.Seconds:00}";
+        }
+        else if (left.TotalHours >= 1)
+        {
+            hms = $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}";
+        }
+        else
+        {
+            hms = $"{left.Minutes:00}:{left.Seconds:00}";
+        }
+
         ProfileTimeRemaining = $"Zostáva {hms}";
 
         // Compact completion line for the card header, incl. the day name of completion.
@@ -1872,6 +1883,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private static string FormatCountdown(TimeSpan t)
     {
+        if (t.TotalDays >= 1) return $"{(int)t.TotalDays} d {t.Hours} h {t.Minutes} min";
         if (t.TotalHours >= 1) return $"{(int)t.TotalHours} h {t.Minutes} min";
         if (t.TotalMinutes >= 1) return $"{t.Minutes} min {t.Seconds} s";
         return $"{t.Seconds} s";

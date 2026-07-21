@@ -158,9 +158,9 @@ public partial class ChartView : UserControl
             AddText($"{yVal:0.#}{Unit}", 2, py - 8, MutedBrush, 10, PadLeft - 6, TextAlignment.Right);
         }
 
-        // X axis labels (min / max).
-        AddText($"{minX:0.#} min", PadLeft, PadTop + plotH + 4, MutedBrush, 10);
-        AddText($"{maxX:0.#} min", PadLeft + plotW - 50, PadTop + plotH + 4, MutedBrush, 10, 50, TextAlignment.Right);
+        // X axis labels (min / max) with an hours/days read-out for longer spans.
+        AddText(FormatMinutes(minX), PadLeft, PadTop + plotH + 4, MutedBrush, 10);
+        AddText(FormatMinutes(maxX), PadLeft + plotW - 150, PadTop + plotH + 4, MutedBrush, 10, 150, TextAlignment.Right);
 
         // Series lines.
         foreach (ChartSeries s in series)

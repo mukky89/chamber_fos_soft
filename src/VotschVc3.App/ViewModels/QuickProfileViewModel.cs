@@ -248,6 +248,18 @@ public sealed class QuickProfileViewModel : ObservableObject
         return count + (DoublePeak ? 2 : 0);
     }
 
+    /// <summary>
+    /// Total profile length in minutes for a given per-plateau length: lead-in ramp +
+    /// all sweep ramps &amp; plateaus + the closing safety hold (ramp + fixed ≥1 h plateau).
+    /// The closing hold is a fixed length and is never shortened by the optimisation.
+    /// </summary>
+    private double TotalMinutes(double plateauMinutes)
+    {
+        double leadIn = HasLeadIn ? StartRampMinutes : 0;
+        double endHold = EndAtSafeTemperature ? RampMinutes + Math.Max(60, EndHoldMinutes) : 0;
+        return leadIn + RampCount() * RampMinutes + PlateauCount() * plateauMinutes + endHold;
+    }
+
     private double EffectivePlateauMinutes()
     {
         int plateaus = PlateauCount();
@@ -364,12 +376,8 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         double plateau = EffectivePlateauMinutes();
-        double leadIn = HasLeadIn ? StartRampMinutes : 0;
-        // The closing safety hold (ramp + fixed ≥1 h plateau) is not part of the sweep
-        // optimisation, so add it flat to both totals when enabled.
-        double endHold = EndAtSafeTemperature ? RampMinutes + Math.Max(60, EndHoldMinutes) : 0;
-        double optimized = leadIn + RampCount() * RampMinutes + PlateauCount() * plateau + endHold;
-        double baseTotal = leadIn + RampCount() * RampMinutes + PlateauCount() * PlateauMinutes + endHold;
+        double optimized = TotalMinutes(plateau);
+        double baseTotal = TotalMinutes(PlateauMinutes);
 
         BaseTotalText = Format(baseTotal);
         OptimizedTotalText = Format(optimized);
@@ -436,12 +444,14 @@ public sealed class QuickProfileViewModel : ObservableObject
             ? $"Δ{TemperatureStep:0.#} °C ({TemperaturePointCount()} b)"
             : $"{IntermediateSteps} kr";
 
+        double plateau = EffectivePlateauMinutes();
         string core =
             $"{LowTemperature:0.#}→{HighTemperature:0.#} °C · {steps}" +
             (IncludeDescending ? " · ↕" : string.Empty) +
             (DoublePeak ? " · 2 vrch" : string.Empty) +
             (HasLeadIn ? $" · nábeh {StartTemperature:0.#}°/{StartRampMinutes:0}m" : string.Empty) +
-            (EndAtSafeTemperature ? $" · koniec {EndTemperature:0.#}°/{Math.Max(60, EndHoldMinutes):0}m" : string.Empty);
+            (EndAtSafeTemperature ? $" · koniec {EndTemperature:0.#}°/{Math.Max(60, EndHoldMinutes):0}m" : string.Empty) +
+            $" · plato {plateau:0.#}m · Σ {FormatDurationCompact(TotalMinutes(plateau))}";
 
         string prefix = NamePrefix?.Trim() ?? string.Empty;
         return prefix.Length > 0 ? $"{prefix} {core}" : core;
@@ -616,7 +626,29 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         var ts = TimeSpan.FromMinutes(minutes);
+        if (ts.TotalDays >= 1)
+        {
+            return $"{(int)ts.TotalDays} d {ts.Hours} h {ts.Minutes} min";
+        }
+
         return ts.TotalHours >= 1 ? $"{(int)ts.TotalHours} h {ts.Minutes} min" : $"{ts.Minutes} min";
+    }
+
+    /// <summary>Compact duration (for the technical profile name), e.g. <c>1d 2h</c>, <c>3h 20min</c>, <c>45min</c>.</summary>
+    private static string FormatDurationCompact(double minutes)
+    {
+        var ts = TimeSpan.FromMinutes(Math.Max(0, minutes));
+        if (ts.TotalDays >= 1)
+        {
+            return $"{(int)ts.TotalDays}d {ts.Hours}h" + (ts.Minutes > 0 ? $" {ts.Minutes}min" : string.Empty);
+        }
+
+        if (ts.TotalHours >= 1)
+        {
+            return $"{ts.Hours}h" + (ts.Minutes > 0 ? $" {ts.Minutes}min" : string.Empty);
+        }
+
+        return $"{(int)Math.Round(ts.TotalMinutes)}min";
     }
 
     private static Brush Freeze(byte r, byte g, byte b)

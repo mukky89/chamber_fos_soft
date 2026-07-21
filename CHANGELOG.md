@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.3] – 2026-07-21
+
+### Pridané / zmenené
+- **Prepočet na hodiny/dni všade, kde to má zmysel.** Okrem hover bubliny grafu
+  aj popisky časovej osi grafu (koncový čas), odpočet „Zostáva" a „koniec o …"
+  teraz ukazujú dlhé časy v dňoch/hodinách (napr. `2 d 3 h 10 min`,
+  `1620 min (1 d 3 h)`), nielen v minútach.
+- **Názov rýchleho profilu obsahuje aj plato a celkový čas.** Generovaný
+  technický názov má na konci dĺžku plata a celkové trvanie profilu, napr.
+  `… · plato 30m · Σ 1d 2h`.
+
 ## [1.25.2] – 2026-07-21
 
 ### Zmenené
