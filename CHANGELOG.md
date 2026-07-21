@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.34.0] – 2026-07-21
+
+### Pridané
+- **Pribalená knižnica reálnych profilov (226).** Do buildu je vložený balík
+  pôvodných Vötsch/Weiss BEdit súborov; pri prvom spustení sa naimportujú do
+  knižnice cez ten istý (overený) importér, ktorý appka používa bežne. Typ komory
+  (teplota / teplota+vlhkosť) sa určí z obsahu profilu; snímače, tagy a upravený
+  názov sa priradia podľa názvu súboru (nezaradené → „Ostatné“). **Pôvodný názov
+  sa zachová** (Starý názov) kvôli spätnej kompatibilite. Profily s vlhkosťou sa
+  na čisto teplotných komorách nezobrazia (nedajú sa tam spustiť).
+
 ## [1.33.1] – 2026-07-21
 
 ### Opravené

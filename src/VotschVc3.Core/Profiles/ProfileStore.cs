@@ -49,6 +49,43 @@ public sealed class ProfileStore
         }
     }
 
+    /// <summary>
+    /// Adds every profile that is not already present (matched by id or, case-insensitively,
+    /// by name) in a single write. Used for bulk seeding so the backing file is written once
+    /// instead of once per profile. Returns the number actually added.
+    /// </summary>
+    public int AddMissing(IEnumerable<TestProfile> profiles)
+    {
+        ArgumentNullException.ThrowIfNull(profiles);
+        lock (_sync)
+        {
+            List<TestProfile> all = LoadAllNoLock();
+            var ids = new HashSet<Guid>(all.Select(p => p.Id));
+            var names = new HashSet<string>(all.Select(p => p.Name.Trim()), StringComparer.OrdinalIgnoreCase);
+
+            int added = 0;
+            foreach (TestProfile profile in profiles)
+            {
+                if (ids.Contains(profile.Id) || names.Contains(profile.Name.Trim()))
+                {
+                    continue;
+                }
+
+                all.Insert(0, profile);
+                ids.Add(profile.Id);
+                names.Add(profile.Name.Trim());
+                added++;
+            }
+
+            if (added > 0)
+            {
+                WriteNoLock(all);
+            }
+
+            return added;
+        }
+    }
+
     /// <summary>Removes a profile by id. Returns <c>true</c> when something was deleted.</summary>
     public bool Delete(Guid id)
     {

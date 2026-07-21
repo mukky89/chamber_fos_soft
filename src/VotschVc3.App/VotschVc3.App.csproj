@@ -17,7 +17,7 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.33.1</Version>
+    <Version>1.34.0</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -37,8 +37,11 @@
   <ItemGroup>
     <!-- Embed the changelog so it can be shown inside the app. -->
     <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
-    <!-- Default profiles bundled with the build; imported once on first run. -->
-    <EmbeddedResource Include="seed-profiles.json" LogicalName="seed-profiles.json" />
+    <!-- Default profiles bundled with the build; imported once on first run.
+         Raw Weiss/Vötsch BEdit files (parsed by the tested importer) + a manifest
+         with the corrected name, original name, sensors and tags per file. -->
+    <EmbeddedResource Include="seed-profiles.zip" LogicalName="seed-profiles.zip" />
+    <EmbeddedResource Include="seed-profiles-manifest.json" LogicalName="seed-profiles-manifest.json" />
   </ItemGroup>
 
   <ItemGroup>
