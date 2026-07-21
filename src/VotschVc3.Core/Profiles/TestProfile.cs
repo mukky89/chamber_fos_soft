@@ -25,8 +25,46 @@ public sealed class TestProfile
     /// <summary>The segments executed in order.</summary>
     public List<ProfileSegment> Segments { get; set; } = new();
 
-    /// <summary>How often the whole sequence of segments is repeated (>= 1).</summary>
+    /// <summary>
+    /// How often the cycled region repeats (>= 1). When no explicit region is marked
+    /// (see <see cref="CycleStartIndex"/>) this repeats the whole profile, as before.
+    /// </summary>
     public int Cycles { get; set; } = 1;
+
+    /// <summary>
+    /// First segment index (inclusive) of the repeated region. <c>-1</c> means "from the
+    /// first segment". Segments before the region run once (e.g. the initial ramp).
+    /// </summary>
+    public int CycleStartIndex { get; set; } = -1;
+
+    /// <summary>
+    /// Last segment index (inclusive) of the repeated region. <c>-1</c> means "to the last
+    /// segment". Segments after the region run once (e.g. the final ramp to room temperature).
+    /// </summary>
+    public int CycleEndIndex { get; set; } = -1;
+
+    /// <summary>Resolved first index of the cycled region (defaults to 0).</summary>
+    public int ResolvedCycleStart =>
+        Segments.Count == 0 ? 0 : (CycleStartIndex < 0 ? 0 : Math.Clamp(CycleStartIndex, 0, Segments.Count - 1));
+
+    /// <summary>Resolved last index of the cycled region (defaults to the last segment).</summary>
+    public int ResolvedCycleEnd
+    {
+        get
+        {
+            if (Segments.Count == 0)
+            {
+                return 0;
+            }
+
+            int end = CycleEndIndex < 0 ? Segments.Count - 1 : Math.Clamp(CycleEndIndex, 0, Segments.Count - 1);
+            return Math.Max(end, ResolvedCycleStart);
+        }
+    }
+
+    /// <summary>True when a strict sub-range of segments repeats (intro / outro run once).</summary>
+    public bool HasCycleRegion =>
+        Math.Max(1, Cycles) > 1 && (ResolvedCycleStart > 0 || ResolvedCycleEnd < Segments.Count - 1);
 
     /// <summary>Free-form tags for grouping / filtering the profile library (e.g. "norma", "vzorka X").</summary>
     public List<string> Tags { get; set; } = new();
@@ -34,12 +72,47 @@ public sealed class TestProfile
     /// <summary>Sensors / specimens the profile is intended for (one profile can serve several); groups the library tree.</summary>
     public List<string> Sensors { get; set; } = new();
 
-    /// <summary>Total duration of a single pass through the segments.</summary>
+    /// <summary>Total duration of a single traversal of every segment.</summary>
     public TimeSpan SinglePassDuration =>
         Segments.Aggregate(TimeSpan.Zero, (sum, s) => sum + s.Duration);
 
-    /// <summary>Total duration including all cycles.</summary>
-    public TimeSpan TotalDuration => SinglePassDuration * Math.Max(1, Cycles);
+    /// <summary>
+    /// Total run duration: the segments before the cycled region run once, the region
+    /// repeats <see cref="Cycles"/> times, and the segments after it run once. With no
+    /// marked region this equals a whole-profile repeat, matching the old behaviour.
+    /// </summary>
+    public TimeSpan TotalDuration
+    {
+        get
+        {
+            int cycles = Math.Max(1, Cycles);
+            if (Segments.Count == 0)
+            {
+                return TimeSpan.Zero;
+            }
+
+            int start = ResolvedCycleStart;
+            int end = ResolvedCycleEnd;
+            TimeSpan intro = TimeSpan.Zero, body = TimeSpan.Zero, outro = TimeSpan.Zero;
+            for (int i = 0; i < Segments.Count; i++)
+            {
+                if (i < start)
+                {
+                    intro += Segments[i].Duration;
+                }
+                else if (i <= end)
+                {
+                    body += Segments[i].Duration;
+                }
+                else
+                {
+                    outro += Segments[i].Duration;
+                }
+            }
+
+            return intro + (body * cycles) + outro;
+        }
+    }
 
     /// <summary>Deep copy of the profile (segments included). The copy keeps the same
     /// <see cref="Id"/>; callers that persist a copy as a new profile assign a fresh one.</summary>
@@ -51,6 +124,8 @@ public sealed class TestProfile
         Kind = Kind,
         CreatedAt = CreatedAt,
         Cycles = Cycles,
+        CycleStartIndex = CycleStartIndex,
+        CycleEndIndex = CycleEndIndex,
         Sensors = new List<string>(Sensors),
         Tags = new List<string>(Tags),
         Segments = Segments.Select(s => new ProfileSegment

@@ -118,6 +118,56 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private int _cycles = 1;
     public int Cycles { get => _cycles; set { if (SetProperty(ref _cycles, Math.Max(1, value))) Recalculate(); } }
 
+    private int _cycleFromSegment = 1;
+    /// <summary>First segment (1-based) of the repeated region.</summary>
+    public int CycleFromSegment
+    {
+        get => _cycleFromSegment;
+        set { if (SetProperty(ref _cycleFromSegment, ClampSegment(value))) RaiseCycleRegion(); }
+    }
+
+    private int _cycleToSegment = 1;
+    /// <summary>Last segment (1-based, inclusive) of the repeated region.</summary>
+    public int CycleToSegment
+    {
+        get => _cycleToSegment;
+        set { if (SetProperty(ref _cycleToSegment, ClampSegment(value))) RaiseCycleRegion(); }
+    }
+
+    /// <summary>Zero-based region start for the chart band.</summary>
+    public int CycleBandStart => Math.Min(CycleFromSegment, CycleToSegment) - 1;
+
+    /// <summary>Zero-based region end for the chart band.</summary>
+    public int CycleBandEnd => Math.Max(CycleFromSegment, CycleToSegment) - 1;
+
+    /// <summary>Human-readable description of what is cycled and how many times.</summary>
+    public string CycleRegionText
+    {
+        get
+        {
+            if (Cycles <= 1)
+            {
+                return "Cyklovanie vypnuté (1×). Zvýš počet cyklov a označ rozsah segmentov.";
+            }
+
+            int from = Math.Min(CycleFromSegment, CycleToSegment);
+            int to = Math.Max(CycleFromSegment, CycleToSegment);
+            bool whole = from <= 1 && to >= Segments.Count;
+            return whole
+                ? $"Cykluje sa celý profil ×{Cycles}."
+                : $"Cyklujú sa segmenty {from}–{to} ×{Cycles} · okolité segmenty (nábeh/koniec) prebehnú raz.";
+        }
+    }
+
+    private int ClampSegment(int value) => Math.Clamp(value, 1, Math.Max(1, Segments.Count));
+
+    private void RaiseCycleRegion()
+    {
+        OnPropertyChanged(nameof(CycleBandStart));
+        OnPropertyChanged(nameof(CycleBandEnd));
+        OnPropertyChanged(nameof(CycleRegionText));
+    }
+
     private string _profileDurationText = "—";
     public string ProfileDurationText { get => _profileDurationText; private set => SetProperty(ref _profileDurationText, value); }
 
@@ -250,6 +300,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         OriginalName = OriginalName,
         Kind = Kind,
         Cycles = Cycles,
+        CycleStartIndex = CycleBandStart,
+        CycleEndIndex = CycleBandEnd,
         Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
         Tags = EditorTags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
         CreatedAt = DateTimeOffset.Now,
@@ -274,10 +326,18 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         ReplaceAll(EditorTags, profile.Tags);
         Cycles = profile.Cycles;
         Segments.Clear();
+        // (segments are added just below; set the cycle region after they exist)
         foreach (ProfileSegment segment in profile.Segments)
         {
             Segments.Add(new SegmentViewModel(segment));
         }
+
+        // Cycle region (1-based) – now that segments exist so the clamps use the right count.
+        _cycleFromSegment = ClampSegment(profile.ResolvedCycleStart + 1);
+        _cycleToSegment = ClampSegment(profile.ResolvedCycleEnd + 1);
+        OnPropertyChanged(nameof(CycleFromSegment));
+        OnPropertyChanged(nameof(CycleToSegment));
+        RaiseCycleRegion();
 
         SelectedSegment = Segments.FirstOrDefault();
         Recalculate();
@@ -303,6 +363,11 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         EditorTags.Clear();
         Cycles = 1;
         SeedDefaultProfile();
+        _cycleFromSegment = 1;
+        _cycleToSegment = Math.Max(1, Segments.Count);
+        OnPropertyChanged(nameof(CycleFromSegment));
+        OnPropertyChanged(nameof(CycleToSegment));
+        RaiseCycleRegion();
         SelectedSegment = Segments.FirstOrDefault();
         Recalculate();
         StatusMessage = "Nový profil pripravený.";
@@ -709,14 +774,32 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
     private void Recalculate()
     {
-        double minutes = Segments.Sum(s => s.DurationMinutes) * Math.Max(1, Cycles);
-        var total = TimeSpan.FromMinutes(minutes);
+        // Keep the cycle region within the current segment count (segments may have changed).
+        int clampedFrom = ClampSegment(_cycleFromSegment);
+        int clampedTo = ClampSegment(_cycleToSegment);
+        if (clampedFrom != _cycleFromSegment) { _cycleFromSegment = clampedFrom; OnPropertyChanged(nameof(CycleFromSegment)); }
+        if (clampedTo != _cycleToSegment) { _cycleToSegment = clampedTo; OnPropertyChanged(nameof(CycleToSegment)); }
+
+        // Region-aware total: intro once + body × cycles + outro once.
+        int cycles = Math.Max(1, Cycles);
+        int start = CycleBandStart, end = CycleBandEnd;
+        double introMin = 0, bodyMin = 0, outroMin = 0;
+        for (int i = 0; i < Segments.Count; i++)
+        {
+            double dur = Math.Max(0, Segments[i].DurationMinutes);
+            if (i < start) introMin += dur;
+            else if (i <= end) bodyMin += dur;
+            else outroMin += dur;
+        }
+
+        var total = TimeSpan.FromMinutes(introMin + bodyMin * cycles + outroMin);
         ProfileDurationText = total.TotalMinutes < 1
             ? "< 1 min"
             : total.TotalDays >= 1
                 ? $"{(int)total.TotalDays} d {total.Hours} h {total.Minutes} min"
                 : $"{(int)total.TotalHours} h {total.Minutes} min";
 
+        RaiseCycleRegion();
         ValidateProfile();
         BuildHumPreview();
     }

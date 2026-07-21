@@ -1604,11 +1604,18 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    // Cycle region carried through load → run, so a profile marked in the library
+    // editor still repeats only its marked segments when launched on the chamber.
+    private int _loadedCycleStart = -1;
+    private int _loadedCycleEnd = -1;
+
     private TestProfile BuildProfile() => new()
     {
         Name = ProfileName,
         Kind = Kind,
         Cycles = Cycles,
+        CycleStartIndex = _loadedCycleStart,
+        CycleEndIndex = _loadedCycleEnd,
         CreatedAt = DateTimeOffset.Now,
         Segments = Segments.Select(s => s.ToModel()).ToList(),
     };
@@ -1790,24 +1797,31 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         var runner = new ProfileRunner(_client, TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds));
         _activeRunner = runner;
-        double totalSeconds = Math.Max(1, profile.TotalDuration.TotalSeconds);
         double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
 
         runner.Progress += (_, e) => RunOnUi(() =>
         {
-            double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
-            double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
-            double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
-            double profileFraction = Math.Clamp(overallSeconds / totalSeconds, 0d, 1d);
+            // The runner reports an absolute fraction across intro + all cycles + outro.
+            double profileFraction = e.OverallFraction;
             ProfileProgress = Math.Clamp((indexInQueue + profileFraction) / queueCount * 100d, 0, 100);
+
+            // Phase / cycle label: only show the cycle counter inside the repeated region.
+            string phase = e.Phase switch
+            {
+                ProfileRunPhase.Intro => "nábeh · ",
+                ProfileRunPhase.Outro => "koniec · ",
+                _ => e.TotalCycles > 1 ? $"cyklus {e.Cycle + 1}/{e.TotalCycles} · " : string.Empty,
+            };
             ProfileStatus =
                 (e.IsSoaking ? "⏳ Soak · " : string.Empty) +
                 (queueCount > 1 ? $"[{indexInQueue + 1}/{queueCount}] " : string.Empty) +
-                $"\"{profile.Name}\" · cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
+                $"\"{profile.Name}\" · {phase}segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
                 $"· {e.TemperatureSetpoint:0.0} °C" +
                 (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
 
-            // Advance the "now" marker on the profile preview.
+            // Advance the "now" marker on the profile preview (within a single pass of the segments).
+            double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
+            double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
             _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
             BuildProfilePreview();
 
@@ -2042,8 +2056,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private void RecalculateTiming()
     {
-        double minutes = Segments.Sum(s => s.DurationMinutes) * Math.Max(1, Cycles);
-        var total = TimeSpan.FromMinutes(minutes);
+        // Region-aware total (intro once + cycled body × cycles + outro once).
+        TimeSpan total = BuildProfile().TotalDuration;
         ProfileDurationText = FormatDuration(total);
 
         if (IsProfileRunning && _profileActualStart is { } start)
@@ -2323,6 +2337,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         ProfileName = profile.Name;
         Cycles = profile.Cycles;
+        _loadedCycleStart = profile.CycleStartIndex;
+        _loadedCycleEnd = profile.CycleEndIndex;
 
         Segments.Clear();
         foreach (ProfileSegment segment in profile.Segments)

@@ -76,22 +76,45 @@ public sealed class ProfileRunner
         }
 
         int cycles = Math.Max(1, profile.Cycles);
+        int start = profile.ResolvedCycleStart;
+        int end = profile.ResolvedCycleEnd;
+        double totalSeconds = Math.Max(1, profile.TotalDuration.TotalSeconds);
+
+        double completed = 0;
         double segStartTemp = startTemperature;
         double? segStartHum = startHumidity;
 
+        // Runs one segment, then advances the ramp origin and the completed-time counter.
+        // Segments before the region are the intro (run once), the region repeats
+        // `cycles` times, and segments after it are the outro (run once).
+        async Task RunOneAsync(int index, ProfileRunPhase phase, int cycleIndex)
+        {
+            ProfileSegment segment = profile.Segments[index];
+            await RunSegmentAsync(
+                profile, segment, cycleIndex, index, segStartTemp, segStartHum,
+                phase, cycles, completed, totalSeconds, cancellationToken).ConfigureAwait(false);
+
+            completed += segment.Duration.TotalSeconds;
+            segStartTemp = segment.TargetTemperature;
+            segStartHum = segment.TargetHumidity ?? segStartHum;
+        }
+
+        for (int i = 0; i < start; i++)
+        {
+            await RunOneAsync(i, ProfileRunPhase.Intro, 0).ConfigureAwait(false);
+        }
+
         for (int cycle = 0; cycle < cycles; cycle++)
         {
-            for (int index = 0; index < profile.Segments.Count; index++)
+            for (int i = start; i <= end; i++)
             {
-                ProfileSegment segment = profile.Segments[index];
-                await RunSegmentAsync(
-                    profile, segment, cycle, index, segStartTemp, segStartHum, cancellationToken)
-                    .ConfigureAwait(false);
-
-                // The next segment ramps from where this one ended.
-                segStartTemp = segment.TargetTemperature;
-                segStartHum = segment.TargetHumidity ?? segStartHum;
+                await RunOneAsync(i, ProfileRunPhase.Cycle, cycle).ConfigureAwait(false);
             }
+        }
+
+        for (int i = end + 1; i < profile.Segments.Count; i++)
+        {
+            await RunOneAsync(i, ProfileRunPhase.Outro, cycles - 1).ConfigureAwait(false);
         }
     }
 
@@ -102,6 +125,10 @@ public sealed class ProfileRunner
         int index,
         double startTemp,
         double? startHum,
+        ProfileRunPhase phase,
+        int totalCycles,
+        double completedSeconds,
+        double totalSeconds,
         CancellationToken cancellationToken)
     {
         TimeSpan duration = segment.Duration > TimeSpan.Zero ? segment.Duration : TimeSpan.FromSeconds(1);
@@ -110,7 +137,8 @@ public sealed class ProfileRunner
         // is within tolerance before starting to count the dwell time.
         if (!segment.IsRamp && segment.GuaranteedSoak)
         {
-            await SoakWaitAsync(segment, cycle, index, startHum, cancellationToken).ConfigureAwait(false);
+            await SoakWaitAsync(segment, cycle, index, startHum, phase, totalCycles,
+                completedSeconds, totalSeconds, cancellationToken).ConfigureAwait(false);
         }
 
         var segmentClock = System.Diagnostics.Stopwatch.StartNew();
@@ -128,8 +156,10 @@ public sealed class ProfileRunner
 
             await WriteSetpointAsync(temperature, humidity, cancellationToken).ConfigureAwait(false);
 
+            double overall = Math.Clamp((completedSeconds + Math.Min(elapsedSeconds, duration.TotalSeconds)) / totalSeconds, 0d, 1d);
             Progress?.Invoke(this, new ProfileProgressEventArgs(
-                cycle, index, segment, fraction, temperature, humidity, segmentClock.Elapsed));
+                cycle, index, segment, fraction, temperature, humidity, segmentClock.Elapsed,
+                phase, totalCycles, overall));
 
             if (fraction >= 1d)
             {
@@ -146,10 +176,13 @@ public sealed class ProfileRunner
     }
 
     private async Task SoakWaitAsync(
-        ProfileSegment segment, int cycle, int index, double? startHum, CancellationToken cancellationToken)
+        ProfileSegment segment, int cycle, int index, double? startHum,
+        ProfileRunPhase phase, int totalCycles, double completedSeconds, double totalSeconds,
+        CancellationToken cancellationToken)
     {
         double tolerance = Math.Abs(segment.SoakTolerance);
         double? humidity = segment.TargetHumidity ?? startHum;
+        double overall = Math.Clamp(completedSeconds / totalSeconds, 0d, 1d);
 
         while (true)
         {
@@ -175,7 +208,8 @@ public sealed class ProfileRunner
             }
 
             Progress?.Invoke(this, new ProfileProgressEventArgs(
-                cycle, index, segment, 0d, segment.TargetTemperature, humidity, TimeSpan.Zero, isSoaking: true));
+                cycle, index, segment, 0d, segment.TargetTemperature, humidity, TimeSpan.Zero,
+                phase, totalCycles, overall, isSoaking: true));
 
             if (measured is { } m && Math.Abs(m - segment.TargetTemperature) <= tolerance)
             {
@@ -224,6 +258,19 @@ public sealed class ProfileRunner
     }
 }
 
+/// <summary>Which part of the run a segment belongs to.</summary>
+public enum ProfileRunPhase
+{
+    /// <summary>Segments before the cycled region (run once) – e.g. the initial ramp.</summary>
+    Intro,
+
+    /// <summary>Segments inside the repeated region.</summary>
+    Cycle,
+
+    /// <summary>Segments after the cycled region (run once) – e.g. the final ramp to room temperature.</summary>
+    Outro,
+}
+
 /// <summary>Progress payload raised by <see cref="ProfileRunner"/> on every set point.</summary>
 public sealed class ProfileProgressEventArgs : EventArgs
 {
@@ -235,6 +282,9 @@ public sealed class ProfileProgressEventArgs : EventArgs
         double temperatureSetpoint,
         double? humiditySetpoint,
         TimeSpan elapsedInSegment,
+        ProfileRunPhase phase = ProfileRunPhase.Cycle,
+        int totalCycles = 1,
+        double overallFraction = 0,
         bool isSoaking = false)
     {
         Cycle = cycle;
@@ -244,8 +294,20 @@ public sealed class ProfileProgressEventArgs : EventArgs
         TemperatureSetpoint = temperatureSetpoint;
         HumiditySetpoint = humiditySetpoint;
         ElapsedInSegment = elapsedInSegment;
+        Phase = phase;
+        TotalCycles = totalCycles;
+        OverallFraction = overallFraction;
         IsSoaking = isSoaking;
     }
+
+    /// <summary>Which part of the run (intro / cycled region / outro) this segment is in.</summary>
+    public ProfileRunPhase Phase { get; }
+
+    /// <summary>Number of repeats of the cycled region.</summary>
+    public int TotalCycles { get; }
+
+    /// <summary>Completion fraction of the whole run (0..1), across intro, all cycles and outro.</summary>
+    public double OverallFraction { get; }
 
     /// <summary><c>true</c> while waiting for the guaranteed-soak tolerance.</summary>
     public bool IsSoaking { get; }

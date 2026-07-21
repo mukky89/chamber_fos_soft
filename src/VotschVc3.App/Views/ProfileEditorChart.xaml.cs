@@ -53,6 +53,27 @@ public partial class ProfileEditorChart : UserControl
         set => SetValue(MeasuredStartProperty, value);
     }
 
+    public static readonly DependencyProperty CycleStartProperty = DependencyProperty.Register(
+        nameof(CycleStart), typeof(int), typeof(ProfileEditorChart),
+        new PropertyMetadata(0, (d, _) => ((ProfileEditorChart)d).Redraw()));
+
+    /// <summary>Zero-based first segment index of the repeated region.</summary>
+    public int CycleStart { get => (int)GetValue(CycleStartProperty); set => SetValue(CycleStartProperty, value); }
+
+    public static readonly DependencyProperty CycleEndProperty = DependencyProperty.Register(
+        nameof(CycleEnd), typeof(int), typeof(ProfileEditorChart),
+        new PropertyMetadata(int.MaxValue, (d, _) => ((ProfileEditorChart)d).Redraw()));
+
+    /// <summary>Zero-based last segment index (inclusive) of the repeated region.</summary>
+    public int CycleEnd { get => (int)GetValue(CycleEndProperty); set => SetValue(CycleEndProperty, value); }
+
+    public static readonly DependencyProperty CycleCountProperty = DependencyProperty.Register(
+        nameof(CycleCount), typeof(int), typeof(ProfileEditorChart),
+        new PropertyMetadata(1, (d, _) => ((ProfileEditorChart)d).Redraw()));
+
+    /// <summary>How many times the region repeats (band is shown only when &gt; 1).</summary>
+    public int CycleCount { get => (int)GetValue(CycleCountProperty); set => SetValue(CycleCountProperty, value); }
+
     private static void OnSegmentsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var chart = (ProfileEditorChart)d;
@@ -157,6 +178,44 @@ public partial class ProfileEditorChart : UserControl
         // Build the profile polyline + handle positions (one per segment end).
         double Xpx(double min) => PadLeft + min / totalMin * plotW;
         double Ypx(double t) => PadTop + (1 - (t - _minY) / (_maxY - _minY)) * plotH;
+
+        // Cycled-region band (drawn behind the profile line): shows which segments repeat
+        // and how many times. Only when a repeat count > 1 is set.
+        if (CycleCount > 1)
+        {
+            int cs = Math.Clamp(CycleStart, 0, segments.Count - 1);
+            int ce = Math.Clamp(CycleEnd, cs, segments.Count - 1);
+            double startMin = 0;
+            for (int i = 0; i < cs; i++)
+            {
+                startMin += Math.Max(0, segments[i].DurationMinutes);
+            }
+
+            double endMin = startMin;
+            for (int i = cs; i <= ce; i++)
+            {
+                endMin += Math.Max(0, segments[i].DurationMinutes);
+            }
+
+            double bx1 = Xpx(startMin), bx2 = Xpx(endMin);
+            var band = new Rectangle { Width = Math.Max(0, bx2 - bx1), Height = plotH, Fill = Accent, Opacity = 0.14 };
+            Canvas.SetLeft(band, bx1);
+            Canvas.SetTop(band, PadTop);
+            PlotCanvas.Children.Add(band);
+
+            foreach (double bx in new[] { bx1, bx2 })
+            {
+                PlotCanvas.Children.Add(new Line
+                {
+                    X1 = bx, Y1 = PadTop, X2 = bx, Y2 = PadTop + plotH,
+                    Stroke = Accent, StrokeThickness = 1.5, Opacity = 0.7,
+                    StrokeDashArray = new DoubleCollection { 4, 3 },
+                });
+            }
+
+            AddText($"⟲ cyklus ×{CycleCount}  (segmenty {cs + 1}–{ce + 1})",
+                bx1 + 4, PadTop + 2, Accent, 11);
+        }
 
         var linePoints = new PointCollection { new(Xpx(0), Ypx(startTemp)) };
         var handles = new List<(int index, double x, double y)>();

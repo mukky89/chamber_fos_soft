@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.33.0] – 2026-07-21
+
+### Pridané
+- **Cyklovanie označenej časti profilu.** V editore profilov sa dá označiť
+  rozsah segmentov (Od–Po), ktorý sa opakuje zvolený počet cyklov, pričom
+  okolité segmenty (napr. začiatočný nábeh a koncový nábeh na izbovú teplotu)
+  prebehnú len raz. Cyklovaný úsek je **vyznačený priamo v grafe** (zvýraznené
+  pásmo + „⟲ cyklus ×N (segmenty A–B)“) a popísaný textom pod ovládaním.
+  Pri behu na komore stavový riadok ukazuje fázu (nábeh / cyklus X/Y / koniec)
+  a celkový čas zohľadňuje cyklovanie.
+
 ## [1.32.0] – 2026-07-21
 
 ### Pridané
