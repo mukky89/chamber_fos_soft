@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.1] – 2026-07-21
+
+### Zmenené / opravené
+- **Automatický názov profilu = text náhľadu.** V Rýchlom vytváračovi sa
+  generovaný názov teraz zhoduje s popisom pod „Náhľad profilu" (rozsah, krok/
+  medzikroky, obojsmernosť, 2 vrcholy, nábeh aj koncové plato), takže názov
+  presne odráža nastavené parametre.
+- **Orezané tlačidlá v Rýchlom vytváračovi.** „Uložiť do knižnice",
+  „Editovať profil", „Nový" a „Vymazať z knižnice" sú teraz na plnú šírku pod
+  sebou – ikonka aj celý text sú vždy viditeľné (predtým sa v úzkom stĺpci
+  orezávali).
+
 ## [1.25.0] – 2026-07-21
 
 ### Pridané

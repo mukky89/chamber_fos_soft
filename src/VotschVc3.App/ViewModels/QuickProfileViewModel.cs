@@ -381,17 +381,25 @@ public sealed class QuickProfileViewModel : ObservableObject
             ? $"{Math.Abs(delta) / RampMinutes:0.##} °C/min  ({Math.Abs(delta):0.#} °C / krok)"
             : "skok (0 min)";
 
-        Summary = $"{LowTemperature:0.#} → {HighTemperature:0.#} °C, " +
-            (UseTemperatureStep
-                ? $"krok {TemperatureStep:0.#} °C ({TemperaturePointCount()} bodov)"
-                : $"{IntermediateSteps} medzikrokov") +
-            (IncludeDescending ? " a späť dole" : string.Empty) +
-            (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty) +
-            (EndAtSafeTemperature ? $" · koniec na {EndTemperature:0.#} °C ({Math.Max(60, EndHoldMinutes):0} min)" : string.Empty);
+        Summary = ComposeSummary();
 
         UpdateAutoName();
         BuildPreview();
     }
+
+    /// <summary>
+    /// Human-readable description of the sweep shown next to "Náhľad profilu".
+    /// Also drives the automatically generated profile name (see <see cref="ComposeAutoName"/>).
+    /// </summary>
+    private string ComposeSummary() =>
+        $"{LowTemperature:0.#} → {HighTemperature:0.#} °C, " +
+        (UseTemperatureStep
+            ? $"krok {TemperatureStep:0.#} °C ({TemperaturePointCount()} bodov)"
+            : $"{IntermediateSteps} medzikrokov") +
+        (IncludeDescending ? " a späť dole" : string.Empty) +
+        (DoublePeak ? " · 2 vrcholy" : string.Empty) +
+        (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty) +
+        (EndAtSafeTemperature ? $" · koniec na {EndTemperature:0.#} °C ({Math.Max(60, EndHoldMinutes):0} min)" : string.Empty);
 
     /// <summary>Re-enables automatic naming (used by the "Automaticky" button).</summary>
     private void EnableAutoName()
@@ -417,23 +425,13 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Builds the automatic profile name. Pattern:
-    /// <c>[predpona ]Sweep {od}…{do} °C · {N} bodov[ · obojsmerný][ · 2 vrcholy]</c>,
-    /// where <c>N</c> is the number of distinct temperature points.
+    /// Builds the automatic profile name from the same description shown under
+    /// "Náhľad profilu" (see <see cref="ComposeSummary"/>), optionally prefixed with
+    /// <see cref="NamePrefix"/>.
     /// </summary>
     private string ComposeAutoName()
     {
-        string core = $"Sweep {LowTemperature:0.#}…{HighTemperature:0.#} °C · {TemperaturePointCount()} bodov";
-        if (IncludeDescending)
-        {
-            core += " · obojsmerný";
-        }
-
-        if (DoublePeak)
-        {
-            core += " · 2 vrcholy";
-        }
-
+        string core = ComposeSummary();
         string prefix = NamePrefix?.Trim() ?? string.Empty;
         return prefix.Length > 0 ? $"{prefix} {core}" : core;
     }

@@ -162,47 +162,34 @@
                         <TextBlock Text="Rovnomerne skráti všetky plata." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
 
-                    <!-- Primary actions on one row (Save = accent, Edit alongside). -->
-                    <Grid Margin="0,10,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Style="{StaticResource AccentButton}"
-                                HorizontalAlignment="Stretch" Command="{Binding SaveToLibraryCommand}"
-                                ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice.">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
-                                <TextBlock Text="Uložiť do knižnice" Style="{StaticResource IconLabel}" />
-                            </StackPanel>
-                        </Button>
-                        <Button Grid.Column="2" HorizontalAlignment="Stretch"
-                                Command="{Binding EditInEditorCommand}"
-                                ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov.">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
-                                <TextBlock Text="Editovať profil" Style="{StaticResource IconLabel}" />
-                            </StackPanel>
-                        </Button>
-                    </Grid>
+                    <!-- Primary actions stacked full-width: the icon and full label
+                         always fit (a 360-wide column cannot hold both side by side). -->
+                    <Button Margin="0,10,0,0" Style="{StaticResource AccentButton}"
+                            HorizontalAlignment="Stretch" Command="{Binding SaveToLibraryCommand}"
+                            ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice.">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
+                            <TextBlock Text="Uložiť do knižnice" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                            Command="{Binding EditInEditorCommand}"
+                            ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov.">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
+                            <TextBlock Text="Editovať profil" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
 
                     <Separator Margin="0,10,0,8" Background="{StaticResource BorderBrush}" />
 
-                    <!-- Secondary + destructive in separate columns so they never overlap. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" MinWidth="8" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" HorizontalAlignment="Left" Content="↺ Nový / začať odznova"
-                                Style="{StaticResource GhostButton}" Command="{Binding NewCommand}"
-                                ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
-                        <Button Grid.Column="2" HorizontalAlignment="Right" Content="Vymazať z knižnice"
-                                Style="{StaticResource DangerButton}" Command="{Binding DeleteFromLibraryCommand}"
-                                ToolTip="Vymaže z knižnice profil s aktuálnym názvom (s potvrdením)." />
-                    </Grid>
+                    <!-- Secondary + destructive stacked full-width so long labels are never clipped. -->
+                    <Button Margin="0" HorizontalAlignment="Stretch" Content="↺ Nový / začať odznova"
+                            Style="{StaticResource GhostButton}" Command="{Binding NewCommand}"
+                            ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
+                    <Button Margin="0,8,0,0" HorizontalAlignment="Stretch" Content="Vymazať z knižnice"
+                            Style="{StaticResource DangerButton}" Command="{Binding DeleteFromLibraryCommand}"
+                            ToolTip="Vymaže z knižnice profil s aktuálnym názvom (s potvrdením)." />
 
                     <!-- Prominent confirmation after a successful save. -->
                     <Border Margin="0,4,0,0" CornerRadius="8" Padding="10,8"
