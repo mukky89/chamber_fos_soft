@@ -21,7 +21,7 @@ public sealed class BulkImportViewModel : ObservableObject
         AddFilesCommand = new RelayCommand(AddFiles);
         RemoveItemCommand = new RelayCommand<BulkImportItemViewModel>(RemoveItem, i => i is not null);
         ClearCommand = new RelayCommand(ClearItems, () => Items.Count > 0);
-        ImportAllCommand = new RelayCommand(ImportAll, () => Items.Any(i => i.IsIncluded));
+        ImportAllCommand = new AsyncRelayCommand(ImportAllAsync, () => Items.Any(i => i.IsIncluded));
         Items.CollectionChanged += (_, _) => RaiseListState();
     }
 
@@ -85,7 +85,15 @@ public sealed class BulkImportViewModel : ObservableObject
     public RelayCommand AddFilesCommand { get; }
     public RelayCommand<BulkImportItemViewModel> RemoveItemCommand { get; }
     public RelayCommand ClearCommand { get; }
-    public RelayCommand ImportAllCommand { get; }
+    public AsyncRelayCommand ImportAllCommand { get; }
+
+    private double _progress;
+    /// <summary>Import progress 0–100 (drives the progress bar).</summary>
+    public double Progress { get => _progress; private set => SetProperty(ref _progress, value); }
+
+    private bool _isBusy;
+    /// <summary>True while an import is running (shows the progress bar, hides idle UI).</summary>
+    public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
 
     private ProfileStandardizationOptions BuildOptions() => new()
     {
@@ -181,7 +189,7 @@ public sealed class BulkImportViewModel : ObservableObject
         }
     }
 
-    private void ImportAll()
+    private async Task ImportAllAsync()
     {
         List<BulkImportItemViewModel> included = Items.Where(i => i.IsIncluded).ToList();
         if (included.Count == 0)
@@ -195,6 +203,11 @@ public sealed class BulkImportViewModel : ObservableObject
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int saved = 0, failed = 0, skipped = 0;
 
+        IsBusy = true;
+        Progress = 0;
+        Status = $"Importujem {included.Count} profilov…";
+
+        int done = 0;
         foreach (BulkImportItemViewModel item in included)
         {
             try
@@ -249,6 +262,10 @@ public sealed class BulkImportViewModel : ObservableObject
                 item.StatusText = $"✕ zlyhalo: {ex.Message}";
                 failed++;
             }
+
+            done++;
+            Progress = done / (double)included.Count * 100d;
+            await Task.Yield(); // let the progress bar and per-row status repaint
         }
 
         if (saved > 0)
@@ -256,6 +273,7 @@ public sealed class BulkImportViewModel : ObservableObject
             ImportedAnything = true;
         }
 
+        IsBusy = false;
         Status = $"Hotovo: uložených {saved}" +
             (failed > 0 ? $", zlyhalo {failed}" : string.Empty) +
             (skipped > 0 ? $", preskočených {skipped}" : string.Empty) + ".";

@@ -55,10 +55,10 @@
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding ExportLibraryCommand}"
-                        ToolTip="Exportuje všetky profily z knižnice do jedného JSON súboru (dá sa spätne importovať alebo pribaliť do buildu ako predvolené).">
+                        ToolTip="Hromadný export – vyber profily a ulož ich do jedného JSON súboru (spätne importovateľné / pribaliteľné do buildu).">
                     <StackPanel Orientation="Horizontal">
                         <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
-                        <TextBlock Text="Export knižnice…" Style="{StaticResource IconLabel}" />
+                        <TextBlock Text="Hromadný export…" Style="{StaticResource IconLabel}" />
                     </StackPanel>
                 </Button>
             </StackPanel>

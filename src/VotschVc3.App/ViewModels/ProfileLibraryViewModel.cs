@@ -649,35 +649,10 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
     private void ExportLibrary()
     {
-        List<TestProfile> all = _store.LoadAll();
-        if (all.Count == 0)
+        bool exported = Views.BulkExportWindow.Show(_store);
+        if (exported)
         {
-            StatusMessage = "Knižnica je prázdna – niet čo exportovať.";
-            return;
-        }
-
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "Exportovať profily do súboru",
-            Filter = "Profily (*.json)|*.json",
-            DefaultExt = ".json",
-            FileName = $"profily-{DateTime.Now:yyyyMMdd}.json",
-        };
-
-        if (dialog.ShowDialog() != true)
-        {
-            return;
-        }
-
-        try
-        {
-            ProfileFile.Write(dialog.FileName, all);
-            StatusMessage = $"Exportovaných {all.Count} profilov do {dialog.FileName}. " +
-                "Tento súbor sa dá spätne importovať alebo pribaliť do buildu ako predvolené profily.";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Export knižnice zlyhal: {ex.Message}";
+            StatusMessage = "Hromadný export dokončený.";
         }
     }
 

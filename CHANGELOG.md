@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.32.0] – 2026-07-21
+
+### Pridané
+- **Hromadný export profilov s výberom.** Nové okno „Hromadný export…“ zobrazí
+  všetky profily s možnosťou označiť, ktoré exportovať (Označiť všetky / Zrušiť
+  výber), a uloží ich do jedného JSON súboru.
+- **Ukazovateľ priebehu (progress bar)** pri hromadnom importe aj exporte.
+
 ## [1.31.0] – 2026-07-21
 
 ### Pridané
