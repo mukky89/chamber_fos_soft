@@ -494,7 +494,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         var total = TimeSpan.FromMinutes(minutes);
         ProfileDurationText = total.TotalMinutes < 1
             ? "< 1 min"
-            : $"{(int)total.TotalHours} h {total.Minutes} min";
+            : total.TotalDays >= 1
+                ? $"{(int)total.TotalDays} d {total.Hours} h {total.Minutes} min"
+                : $"{(int)total.TotalHours} h {total.Minutes} min";
 
         ValidateProfile();
         BuildHumPreview();
