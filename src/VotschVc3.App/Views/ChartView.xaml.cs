@@ -283,7 +283,7 @@ public partial class ChartView : UserControl
             Padding = new Thickness(6, 2, 6, 2),
             Child = new TextBlock
             {
-                Text = $"{yv:0.0}{Unit}  ·  {dataX:0.#} min",
+                Text = $"{yv:0.0}{Unit}  ·  {FormatMinutes(dataX)}",
                 Foreground = Brushes.White,
                 FontSize = 11,
                 FontFamily = new FontFamily("Segoe UI Semibold"),
@@ -300,6 +300,37 @@ public partial class ChartView : UserControl
         Canvas.SetLeft(chip, Math.Max(left, cx));
         Canvas.SetTop(chip, cy);
         AddOverlay(chip);
+    }
+
+    /// <summary>
+    /// Formats an X-axis value (in minutes) as minutes plus a human-readable
+    /// hours / days breakdown once it is long enough to matter, e.g.
+    /// <c>135 min (2 h 15 min)</c> or <c>1620 min (1 d 3 h)</c>.
+    /// </summary>
+    private static string FormatMinutes(double minutes)
+    {
+        string baseText = $"{minutes:0.#} min";
+        if (minutes < 60)
+        {
+            return baseText;
+        }
+
+        var ts = TimeSpan.FromMinutes(minutes);
+        string human;
+        if (ts.TotalDays >= 1)
+        {
+            int days = (int)ts.TotalDays;
+            human = $"{days} d" +
+                (ts.Hours > 0 ? $" {ts.Hours} h" : string.Empty) +
+                (ts.Minutes > 0 ? $" {ts.Minutes} min" : string.Empty);
+        }
+        else
+        {
+            human = $"{(int)ts.TotalHours} h" +
+                (ts.Minutes > 0 ? $" {ts.Minutes} min" : string.Empty);
+        }
+
+        return $"{baseText} ({human})";
     }
 
     private static double? InterpolateY(IReadOnlyList<Point> pts, double x)

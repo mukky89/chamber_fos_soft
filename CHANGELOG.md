@@ -4,6 +4,13 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.2] – 2026-07-21
+
+### Zmenené
+- **Graf – hover ukazuje aj hodiny a dni.** Pri prechode myšou po grafe sa
+  v bubline okrem minút zobrazí aj prepočet na hodiny/dni pri dlhších časoch,
+  napr. `135 min (2 h 15 min)` alebo `1620 min (1 d 3 h)`.
+
 ## [1.25.1] – 2026-07-21
 
 ### Zmenené / opravené
