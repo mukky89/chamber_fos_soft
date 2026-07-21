@@ -578,6 +578,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             chamber.SetManageAllowed(CanManage);
         }
 
+        // Admin-only library management (delete-all), gated by the admin's own password.
+        ProfileLibrary.IsAdmin = CanManage;
+        ProfileLibrary.VerifyAdminPassword = pwd =>
+            _currentUser is { Role: UserRole.Admin } admin && admin.VerifyPassword(pwd);
+
         AddChamberCommand.RaiseCanExecuteChanged();
         RemoveChamberCommand.RaiseCanExecuteChanged();
         OpenAdminCommand.RaiseCanExecuteChanged();

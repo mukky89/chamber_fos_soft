@@ -86,6 +86,17 @@ public sealed class ProfileStore
         }
     }
 
+    /// <summary>Removes every profile. Returns the number deleted.</summary>
+    public int Clear()
+    {
+        lock (_sync)
+        {
+            int count = LoadAllNoLock().Count;
+            WriteNoLock(new List<TestProfile>());
+            return count;
+        }
+    }
+
     /// <summary>Removes a profile by id. Returns <c>true</c> when something was deleted.</summary>
     public bool Delete(Guid id)
     {

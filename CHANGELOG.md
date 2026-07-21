@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.36.0] – 2026-07-21
+
+### Pridané
+- **Zákazník a Projekt pri profile.** Nové polia v editore profilov aj v hromadnom
+  importe (spoločné pre dávku). Zahrnuté aj do textového filtra v strome.
+- **Vymazať všetky profily (iba admin, pod heslom).** V Editore profilov pribudlo
+  admin tlačidlo, ktoré po zadaní hesla admina vymaže celú knižnicu profilov.
+
 ## [1.35.0] – 2026-07-21
 
 ### Pridané

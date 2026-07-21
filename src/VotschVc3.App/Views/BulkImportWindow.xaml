@@ -65,6 +65,22 @@
                     </StackPanel>
                 </Grid>
 
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Zákazník pre dávku (voliteľné)" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding CommonCustomer, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Projekt pre dávku (voliteľné)" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding CommonProject, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </Grid>
+
                 <CheckBox Content="Generovať názov podľa štandardu (pôvodný sa uloží ako Starý názov)"
                           IsChecked="{Binding GenerateStandardName}" Margin="0,10,0,0"
                           ToolTip="Názov každého profilu sa vygeneruje z jeho parametrov; pôvodný názov zo súboru sa zachová ako „Starý názov“." />

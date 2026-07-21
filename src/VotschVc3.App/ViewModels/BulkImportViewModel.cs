@@ -45,6 +45,14 @@ public sealed class BulkImportViewModel : ObservableObject
     /// <summary>Sensor name applied to every profile in the batch (groups the library tree).</summary>
     public string CommonSensorName { get => _commonSensorName; set => SetProperty(ref _commonSensorName, value); }
 
+    private string _commonCustomer = string.Empty;
+    /// <summary>Customer applied to every profile in the batch.</summary>
+    public string CommonCustomer { get => _commonCustomer; set => SetProperty(ref _commonCustomer, value); }
+
+    private string _commonProject = string.Empty;
+    /// <summary>Project applied to every profile in the batch.</summary>
+    public string CommonProject { get => _commonProject; set => SetProperty(ref _commonProject, value); }
+
     private string _commonTagsText = string.Empty;
     /// <summary>Comma-separated tags applied to every profile in the batch.</summary>
     public string CommonTagsText { get => _commonTagsText; set => SetProperty(ref _commonTagsText, value); }
@@ -216,6 +224,8 @@ public sealed class BulkImportViewModel : ObservableObject
                 profile.Kind = Kind;
                 profile.Sensors = SplitValues(CommonSensorName);
                 profile.Tags = SplitValues(CommonTagsText);
+                profile.Customer = CommonCustomer.Trim();
+                profile.Project = CommonProject.Trim();
                 profile.OriginalName = item.Raw.Name; // keep the source name as the "old name"
                 if (Kind == ChamberKind.TemperatureOnly)
                 {

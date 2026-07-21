@@ -72,6 +72,12 @@ public sealed class TestProfile
     /// <summary>Sensors / specimens the profile is intended for (one profile can serve several); groups the library tree.</summary>
     public List<string> Sensors { get; set; } = new();
 
+    /// <summary>Customer the profile belongs to (optional).</summary>
+    public string Customer { get; set; } = string.Empty;
+
+    /// <summary>Project the profile belongs to (optional).</summary>
+    public string Project { get; set; } = string.Empty;
+
     /// <summary>Total duration of a single traversal of every segment.</summary>
     public TimeSpan SinglePassDuration =>
         Segments.Aggregate(TimeSpan.Zero, (sum, s) => sum + s.Duration);
@@ -127,6 +133,8 @@ public sealed class TestProfile
         CycleStartIndex = CycleStartIndex,
         CycleEndIndex = CycleEndIndex,
         Sensors = new List<string>(Sensors),
+        Customer = Customer,
+        Project = Project,
         Tags = new List<string>(Tags),
         Segments = Segments.Select(s => new ProfileSegment
         {

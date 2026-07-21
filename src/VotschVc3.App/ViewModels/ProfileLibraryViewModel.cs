@@ -44,6 +44,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
         ExportLibraryCommand = new RelayCommand(ExportLibrary);
         GenerateStandardNameCommand = new RelayCommand(GenerateStandardName, () => Segments.Count > 0);
+        DeleteAllProfilesCommand = new RelayCommand(DeleteAllProfiles, () => IsAdmin && History.Count > 0);
         ExpandAllCommand = new RelayCommand(() => SetAllExpanded(true));
         CollapseAllCommand = new RelayCommand(() => SetAllExpanded(false));
         ClearFilterCommand = new RelayCommand(() => { FilterText = string.Empty; SelectedTag = AllTagsOption; });
@@ -102,6 +103,14 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     }
 
     public bool HasOriginalName => !string.IsNullOrWhiteSpace(OriginalName);
+
+    private string _customer = string.Empty;
+    /// <summary>Customer the edited profile belongs to.</summary>
+    public string Customer { get => _customer; set => SetProperty(ref _customer, value); }
+
+    private string _project = string.Empty;
+    /// <summary>Project the edited profile belongs to.</summary>
+    public string Project { get => _project; set => SetProperty(ref _project, value); }
 
     /// <summary>Sensors the edited profile is for (chips; one profile can serve several).</summary>
     public ObservableCollection<string> EditorSensors { get; } = new();
@@ -270,6 +279,20 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     /// <summary>Moves the current name to "old name" and generates a standardized name from the profile.</summary>
     public RelayCommand GenerateStandardNameCommand { get; }
 
+    /// <summary>Admin-only: deletes every profile in the library (password protected).</summary>
+    public RelayCommand DeleteAllProfilesCommand { get; }
+
+    private bool _isAdmin;
+    /// <summary>Set by the shell: whether the signed-in user may manage (delete-all) profiles.</summary>
+    public bool IsAdmin
+    {
+        get => _isAdmin;
+        set { if (SetProperty(ref _isAdmin, value)) DeleteAllProfilesCommand.RaiseCanExecuteChanged(); }
+    }
+
+    /// <summary>Set by the shell: verifies an admin password (returns true when it matches).</summary>
+    public Func<string, bool>? VerifyAdminPassword { get; set; }
+
     /// <summary>Expands every sensor group in the library tree.</summary>
     public RelayCommand ExpandAllCommand { get; }
 
@@ -302,6 +325,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Cycles = Cycles,
         CycleStartIndex = CycleBandStart,
         CycleEndIndex = CycleBandEnd,
+        Customer = Customer.Trim(),
+        Project = Project.Trim(),
         Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
         Tags = EditorTags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
         CreatedAt = DateTimeOffset.Now,
@@ -322,6 +347,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Kind = profile.Kind;
         ProfileName = profile.Name;
         OriginalName = profile.OriginalName ?? string.Empty;
+        Customer = profile.Customer ?? string.Empty;
+        Project = profile.Project ?? string.Empty;
         ReplaceAll(EditorSensors, profile.Sensors);
         ReplaceAll(EditorTags, profile.Tags);
         Cycles = profile.Cycles;
@@ -343,6 +370,38 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Recalculate();
     }
 
+    private void DeleteAllProfiles()
+    {
+        if (!IsAdmin)
+        {
+            return;
+        }
+
+        int count = History.Count;
+        if (count == 0)
+        {
+            StatusMessage = "Knižnica je prázdna.";
+            return;
+        }
+
+        bool ok = Views.PasswordDialog.Ask(
+            $"Naozaj vymazať VŠETKY profily z knižnice ({count})? Túto akciu nie je možné vrátiť. " +
+            "Zadaj heslo admina na potvrdenie.",
+            pwd => VerifyAdminPassword?.Invoke(pwd) ?? false,
+            "Vymazať všetky profily",
+            "Vymazať všetko");
+        if (!ok)
+        {
+            StatusMessage = "Hromadné mazanie zrušené.";
+            return;
+        }
+
+        int removed = _store.Clear();
+        NewProfile();
+        RefreshHistory();
+        StatusMessage = $"Vymazaných {removed} profilov z knižnice.";
+    }
+
     private void GenerateStandardName()
     {
         TestProfile profile = BuildProfile();
@@ -359,6 +418,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     {
         ProfileName = "Nový profil";
         OriginalName = string.Empty;
+        Customer = string.Empty;
+        Project = string.Empty;
         EditorSensors.Clear();
         EditorTags.Clear();
         Cycles = 1;
@@ -518,6 +579,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
         RefreshKnownValues();
         RebuildTree();
+        DeleteAllProfilesCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>Rebuilds the tag filter list and the editor suggestion lists (sensors + tags).</summary>
@@ -619,6 +681,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
         bool InText(string? s) => s is not null && s.Contains(needle, StringComparison.CurrentCultureIgnoreCase);
         return InText(p.Name)
+            || InText(p.Customer)
+            || InText(p.Project)
             || (p.Sensors ?? new List<string>()).Any(InText)
             || (p.Tags ?? new List<string>()).Any(InText);
     }

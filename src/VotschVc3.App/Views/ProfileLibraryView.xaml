@@ -137,6 +137,22 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Zákazník" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Customer, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Projekt" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Project, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
                                     <TextBlock Text="Snímače (profil môže byť pre viac snímačov)" Style="{StaticResource Label}" />
                                     <views:TagEditor Items="{Binding EditorSensors, Mode=OneWay}" Suggestions="{Binding KnownSensors}" />
                                 </StackPanel>
@@ -325,6 +341,11 @@
                                     Command="{Binding DeleteFromHistoryCommand}"
                                     ToolTip="Zmazanie vyžaduje dva kliknutia – druhý potvrdzuje do 3 sekúnd." />
                         </Grid>
+                        <Button Content="🗑 Vymazať všetky profily (admin)" Style="{StaticResource DangerButton}"
+                                HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                Command="{Binding DeleteAllProfilesCommand}"
+                                Visibility="{Binding IsAdmin, Converter={StaticResource BoolToVisibility}}"
+                                ToolTip="Iba admin – vyžaduje heslo. Vymaže úplne celú knižnicu profilov." />
                     </StackPanel>
                 </Grid>
             </Border>
