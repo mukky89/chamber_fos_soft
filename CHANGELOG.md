@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.38.0] – 2026-07-21
+
+### Pridané
+- **Import knižnice z JSON.** Tlačidlo „Import knižnice…" v Editore profilov
+  naimportuje celú knižnicu z jedného JSON súboru (pridá všetky, duplikáty podľa
+  názvu preskočí). Párové s „Hromadný export…".
+
+### Opravené
+- **Chybný tag „0×".** Pri profiloch so snímačom „D-0x" sa nesprávne generoval
+  tag „0×" (regex chytal „0x" v kóde). Opravené.
+
 ## [1.37.1] – 2026-07-21
 
 ### Zmenené

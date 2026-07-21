@@ -40,6 +40,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         DuplicateProfileCommand = new RelayCommand(DuplicateProfile, () => SelectedHistoryProfile is not null);
         RefreshHistoryCommand = new RelayCommand(RefreshFromStore);
         ImportProfileCommand = new RelayCommand(ImportProfile);
+        ImportLibraryCommand = new RelayCommand(ImportLibrary);
         BulkImportCommand = new RelayCommand(BulkImport);
         ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
         ExportLibraryCommand = new RelayCommand(ExportLibrary);
@@ -268,6 +269,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     /// <summary>Reloads the saved-profile list from disk (also used on entering the editor).</summary>
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ImportProfileCommand { get; }
+
+    /// <summary>Imports a whole library from one JSON array file (adds all, skips duplicates).</summary>
+    public RelayCommand ImportLibraryCommand { get; }
 
     /// <summary>Opens the bulk-import tool (many files at once, renamed + standardised).</summary>
     public RelayCommand BulkImportCommand { get; }
@@ -763,6 +767,39 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Import zlyhal: {ex.Message}";
+        }
+    }
+
+    private void ImportLibrary()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Importovať knižnicu profilov (JSON)",
+            Filter = "Profily (*.json)|*.json|Všetky súbory (*.*)|*.*",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            List<TestProfile> incoming = ProfileFile.Read(dialog.FileName);
+            if (incoming.Count == 0)
+            {
+                StatusMessage = "Súbor neobsahuje žiadne profily.";
+                return;
+            }
+
+            int added = _store.AddMissing(incoming);
+            RefreshFromStore();
+            StatusMessage = $"Naimportovaných {added} z {incoming.Count} profilov " +
+                $"({incoming.Count - added} už v knižnici existovalo).";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Import knižnice zlyhal: {ex.Message}";
         }
     }
 

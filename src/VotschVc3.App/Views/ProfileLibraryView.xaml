@@ -47,6 +47,13 @@
                         <TextBlock Text="Hromadný import…" Style="{StaticResource IconLabel}" />
                     </StackPanel>
                 </Button>
+                <Button Command="{Binding ImportLibraryCommand}"
+                        ToolTip="Naimportuje celú knižnicu profilov z jedného JSON súboru (pridá všetky, duplikáty preskočí).">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Import}" />
+                        <TextBlock Text="Import knižnice…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
                 <Button Command="{Binding ExportProfileCommand}"
                         ToolTip="Exportuje aktuálny profil (segmenty) do CSV/JSON pre Vötsch/Excel.">
                     <StackPanel Orientation="Horizontal">
