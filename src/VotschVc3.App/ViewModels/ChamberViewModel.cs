@@ -1719,11 +1719,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = ProfileStatus;
             _audit.Log(Name, "Profil dokončený", profiles.Count > 1 ? $"Fronta {profiles.Count} profilov" : profiles[0].Name);
             AppLog.Info(Name, ProfileStatus);
+
+            // Safety: once the profile (incl. any closing cool-down hold) is done, cut
+            // the chamber output so it does not keep driving the last set point.
+            bool poweredOff = await PowerOffAfterCompletionAsync();
+
+            string doneName = profiles.Count > 1
+                ? $"Dokončených {profiles.Count} profilov ({DateTime.Now:HH:mm})."
+                : $"\"{profiles[0].Name}\" dokončený o {DateTime.Now:HH:mm}.";
             DesktopNotifier.Notify(
                 $"{ProfileStatus.TrimEnd('.')} · {Name}",
-                profiles.Count > 1
-                    ? $"Dokončených {profiles.Count} profilov ({DateTime.Now:HH:mm})."
-                    : $"\"{profiles[0].Name}\" dokončený o {DateTime.Now:HH:mm}.",
+                poweredOff ? $"{doneName} Výkon komory vypnutý." : doneName,
                 DesktopNotificationKind.Success);
             await NotifyCompletionAsync();
         }
@@ -1815,6 +1821,29 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             {
                 await Task.Delay(tick, token);
             }
+        }
+    }
+
+    /// <summary>
+    /// Cuts the chamber output after a profile has finished normally (stop program +
+    /// start channel OFF). Failures are logged but never propagate – a communication
+    /// hiccup on power-off must not turn a completed run into a fault.
+    /// </summary>
+    private async Task<bool> PowerOffAfterCompletionAsync()
+    {
+        try
+        {
+            await _client.StopAsync();
+            SetManualStarted(false);
+            ShowActionInfo("🏁 Profil dokončený – výkon komory VYPNUTÝ");
+            _audit.Log(Name, "Vypnutie výkonu po dokončení profilu", string.Empty);
+            AppLog.Info(Name, "Profil dokončený – výkon komory vypnutý.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn(Name, $"Vypnutie výkonu po dokončení profilu zlyhalo: {ex.Message}");
+            return false;
         }
     }
 

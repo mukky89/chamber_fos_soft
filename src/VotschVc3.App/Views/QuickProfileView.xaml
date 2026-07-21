@@ -136,6 +136,25 @@
                         </StackPanel>
                     </Grid>
 
+                    <CheckBox Content="Ukončiť na bezpečnej teplote (min. 1 hodina)" IsChecked="{Binding EndAtSafeTemperature}"
+                              Margin="0,0,0,6"
+                              ToolTip="Na koniec profilu pridá rampu na 25 °C a plato aspoň 1 hodinu, aby komora skončila blízko izbovej teploty pred vypnutím výkonu." />
+                    <Grid Visibility="{Binding EndAtSafeTemperature, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Style="{StaticResource QpField}">
+                            <TextBlock Text="Koncová teplota (°C)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding EndTemperature, Mode=TwoWay}" Step="1" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Style="{StaticResource QpField}">
+                            <TextBlock Text="Dĺžka plata (min)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding EndHoldMinutes, Mode=TwoWay}" Step="15" Minimum="60" />
+                        </StackPanel>
+                    </Grid>
+
                     <TextBlock Text="Optimalizácia" Style="{StaticResource Heading}" Margin="0,4,0,4" />
                     <StackPanel Style="{StaticResource QpField}">
                         <TextBlock Text="Skrátiť celkový čas o (hodín)" Style="{StaticResource Label}" />

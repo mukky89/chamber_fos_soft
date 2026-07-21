@@ -156,6 +156,23 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>Reduce the total time by this many hours, spread evenly across the plateaus.</summary>
     public double ShortenByHours { get => _shortenByHours; set { if (SetProperty(ref _shortenByHours, Math.Max(0, value))) Recalculate(); } }
 
+    private bool _endAtSafeTemperature = true;
+    /// <summary>
+    /// Safety cool-down: append a final ramp to <see cref="EndTemperature"/> (25&#160;°C by
+    /// default) followed by a plateau of at least one hour (<see cref="EndHoldMinutes"/>),
+    /// so every profile ends parked near room temperature before the chamber powers off.
+    /// On by default.
+    /// </summary>
+    public bool EndAtSafeTemperature { get => _endAtSafeTemperature; set { if (SetProperty(ref _endAtSafeTemperature, value)) Recalculate(); } }
+
+    private double _endTemperature = 25;
+    /// <summary>Temperature (°C) the closing safety plateau holds at (default 25&#160;°C).</summary>
+    public double EndTemperature { get => _endTemperature; set { if (SetProperty(ref _endTemperature, value)) Recalculate(); } }
+
+    private double _endHoldMinutes = 60;
+    /// <summary>Length (min) of the closing safety plateau. Clamped to a minimum of one hour.</summary>
+    public double EndHoldMinutes { get => _endHoldMinutes; set { if (SetProperty(ref _endHoldMinutes, Math.Max(60, value))) Recalculate(); } }
+
     private string _summary = string.Empty;
     public string Summary { get => _summary; private set => SetProperty(ref _summary, value); }
 
@@ -298,6 +315,16 @@ public sealed class QuickProfileViewModel : ObservableObject
             }
         }
 
+        // Safety cool-down: always end the profile parked at a safe temperature
+        // (25 °C by default) held for at least an hour, so the chamber is near room
+        // temperature by the time the run finishes and the power is cut. This hold
+        // is fixed length – the time-shortening optimisation never touches it.
+        if (EndAtSafeTemperature)
+        {
+            segs.Add(Ramp(EndTemperature, RampMinutes));
+            segs.Add(Plateau(EndTemperature, Math.Max(60, EndHoldMinutes)));
+        }
+
         return segs;
     }
 
@@ -338,13 +365,16 @@ public sealed class QuickProfileViewModel : ObservableObject
 
         double plateau = EffectivePlateauMinutes();
         double leadIn = HasLeadIn ? StartRampMinutes : 0;
-        double optimized = leadIn + RampCount() * RampMinutes + PlateauCount() * plateau;
-        double baseTotal = leadIn + RampCount() * RampMinutes + PlateauCount() * PlateauMinutes;
+        // The closing safety hold (ramp + fixed ≥1 h plateau) is not part of the sweep
+        // optimisation, so add it flat to both totals when enabled.
+        double endHold = EndAtSafeTemperature ? RampMinutes + Math.Max(60, EndHoldMinutes) : 0;
+        double optimized = leadIn + RampCount() * RampMinutes + PlateauCount() * plateau + endHold;
+        double baseTotal = leadIn + RampCount() * RampMinutes + PlateauCount() * PlateauMinutes + endHold;
 
         BaseTotalText = Format(baseTotal);
         OptimizedTotalText = Format(optimized);
         EffectivePlateauText = $"{plateau:0.#} min / plato";
-        SegmentCount = RampCount() + PlateauCount() + (HasLeadIn ? 1 : 0);
+        SegmentCount = RampCount() + PlateauCount() + (HasLeadIn ? 1 : 0) + (EndAtSafeTemperature ? 2 : 0);
 
         double delta = up.Count > 1 ? (HighTemperature - LowTemperature) / (up.Count - 1) : 0;
         RampRateText = RampMinutes > 0
@@ -356,7 +386,8 @@ public sealed class QuickProfileViewModel : ObservableObject
                 ? $"krok {TemperatureStep:0.#} °C ({TemperaturePointCount()} bodov)"
                 : $"{IntermediateSteps} medzikrokov") +
             (IncludeDescending ? " a späť dole" : string.Empty) +
-            (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty);
+            (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty) +
+            (EndAtSafeTemperature ? $" · koniec na {EndTemperature:0.#} °C ({Math.Max(60, EndHoldMinutes):0} min)" : string.Empty);
 
         UpdateAutoName();
         BuildPreview();
@@ -512,6 +543,9 @@ public sealed class QuickProfileViewModel : ObservableObject
         StartTemperature = 25;
         StartRampMinutes = 60;
         ShortenByHours = 0;
+        EndAtSafeTemperature = true;
+        EndTemperature = 25;
+        EndHoldMinutes = 60;
         EnableAutoName(); // back to an auto-generated name
         IsSaveSuccess = false;
         Status = "Nový rýchly profil – parametre vynulované na predvolené.";

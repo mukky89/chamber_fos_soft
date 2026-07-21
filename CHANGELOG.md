@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.0] – 2026-07-21
+
+### Pridané
+- **Automatické vypnutie výkonu po dokončení profilu.** Keď profil (alebo celá
+  fronta profilov) dobehne do konca, komora sa bezpečne vypne (stop programu +
+  štart kanál OFF), aby ďalej nedržala posledný setpoint. Doterajšie oznámenie
+  o dokončení (popup + e-mail) navyše uvedie, že výkon komory bol vypnutý.
+- **Rýchly vytvárač – ukončenie na bezpečnej teplote.** Nová voľba (zapnutá
+  predvolene) pridá na koniec každého profilu rampu na 25 °C a plato aspoň
+  1 hodinu, takže komora skončí blízko izbovej teploty ešte pred vypnutím
+  výkonu. Koncovú teplotu aj dĺžku plata (min. 60 min) je možné upraviť.
+
 ## [1.24.1] – 2026-07-19
 
 ### Opravené
