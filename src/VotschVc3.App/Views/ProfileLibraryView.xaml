@@ -319,9 +319,11 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="{StaticResource SurfaceBrush}" CornerRadius="4"
-                                                        Padding="7,2" Margin="0,0,5,5">
-                                                    <TextBlock Text="{Binding}" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                                <Border Background="{Binding Converter={StaticResource TagBrush}, ConverterParameter=bg}"
+                                                        BorderBrush="{Binding Converter={StaticResource TagBrush}, ConverterParameter=border}"
+                                                        BorderThickness="1" CornerRadius="4" Padding="7,2" Margin="0,0,5,5">
+                                                    <TextBlock Text="{Binding}" FontSize="11"
+                                                               Foreground="{Binding Converter={StaticResource TagBrush}, ConverterParameter=fg}" />
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

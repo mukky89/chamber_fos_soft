@@ -17,6 +17,7 @@
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
             <conv:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
             <conv:BoolToGridLengthConverter x:Key="BoolToGridLength" />
+            <conv:TagBrushConverter x:Key="TagBrush" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

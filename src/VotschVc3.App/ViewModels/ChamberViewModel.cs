@@ -2095,6 +2095,28 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<TestProfile> History { get; } = new();
 
+    private System.Windows.Data.CollectionViewSource? _profilesViewSource;
+
+    /// <summary>Grouped view of <see cref="History"/> (by customer / sensor) for the dashboard picker.</summary>
+    public System.ComponentModel.ICollectionView ProfilesView
+    {
+        get
+        {
+            if (_profilesViewSource is null)
+            {
+                _profilesViewSource = new System.Windows.Data.CollectionViewSource { Source = History };
+                _profilesViewSource.GroupDescriptions.Add(
+                    new System.Windows.Data.PropertyGroupDescription(nameof(TestProfile.GroupKey)));
+                _profilesViewSource.SortDescriptions.Add(
+                    new System.ComponentModel.SortDescription(nameof(TestProfile.GroupKey), System.ComponentModel.ListSortDirection.Ascending));
+                _profilesViewSource.SortDescriptions.Add(
+                    new System.ComponentModel.SortDescription(nameof(TestProfile.Name), System.ComponentModel.ListSortDirection.Ascending));
+            }
+
+            return _profilesViewSource.View;
+        }
+    }
+
     /// <summary>True when there is at least one saved profile.</summary>
     public bool HasProfiles => History.Count > 0;
 
@@ -3220,33 +3242,32 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         tempPts.Add(new Point(0, prevT));
         if (SupportsHumidity) humPts.Add(new Point(0, prevH));
 
-        int cycles = Math.Max(1, Cycles);
-        for (int c = 0; c < cycles; c++)
+        // A single pass, to match the (single-pass) draggable temperature editor above.
+        // Cycles are conveyed by the duration text and the run itself, not by repeating
+        // the preview – otherwise the humidity chart would loop while the temp one wouldn't.
+        foreach (SegmentViewModel s in Segments)
         {
-            foreach (SegmentViewModel s in Segments)
+            double dur = Math.Max(0, s.DurationMinutes);
+            double targetT = s.TargetTemperature;
+            double targetH = s.TargetHumidity ?? prevH;
+
+            if (s.IsRamp)
             {
-                double dur = Math.Max(0, s.DurationMinutes);
-                double targetT = s.TargetTemperature;
-                double targetH = s.TargetHumidity ?? prevH;
-
-                if (s.IsRamp)
-                {
-                    t += dur;
-                    tempPts.Add(new Point(t, targetT));
-                    if (SupportsHumidity) humPts.Add(new Point(t, targetH));
-                }
-                else
-                {
-                    tempPts.Add(new Point(t, targetT));
-                    if (SupportsHumidity) humPts.Add(new Point(t, targetH));
-                    t += dur;
-                    tempPts.Add(new Point(t, targetT));
-                    if (SupportsHumidity) humPts.Add(new Point(t, targetH));
-                }
-
-                prevT = targetT;
-                prevH = targetH;
+                t += dur;
+                tempPts.Add(new Point(t, targetT));
+                if (SupportsHumidity) humPts.Add(new Point(t, targetH));
             }
+            else
+            {
+                tempPts.Add(new Point(t, targetT));
+                if (SupportsHumidity) humPts.Add(new Point(t, targetH));
+                t += dur;
+                tempPts.Add(new Point(t, targetT));
+                if (SupportsHumidity) humPts.Add(new Point(t, targetH));
+            }
+
+            prevT = targetT;
+            prevH = targetH;
         }
 
         PreviewTempSeries = new[] { new ChartSeries("Profil teplota", TempBrush, tempPts) };

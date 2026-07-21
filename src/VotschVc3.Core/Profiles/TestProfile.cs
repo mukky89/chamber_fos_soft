@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace VotschVc3.Core.Profiles;
 
 /// <summary>
@@ -77,6 +79,26 @@ public sealed class TestProfile
 
     /// <summary>Project the profile belongs to (optional).</summary>
     public string Project { get; set; } = string.Empty;
+
+    /// <summary>Grouping key for pickers/trees: customer if set, else the first sensor, else "Ostatné".</summary>
+    [JsonIgnore]
+    public string GroupKey =>
+        !string.IsNullOrWhiteSpace(Customer) ? Customer.Trim()
+        : (Sensors is { Count: > 0 } && !string.IsNullOrWhiteSpace(Sensors[0]) ? Sensors[0].Trim() : "Ostatné");
+
+    /// <summary>One-line caption for the profile picker: sensors · project · tags (non-empty parts).</summary>
+    [JsonIgnore]
+    public string PickerCaption
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Sensors is { Count: > 0 }) parts.Add(string.Join(" / ", Sensors));
+            if (!string.IsNullOrWhiteSpace(Project)) parts.Add(Project.Trim());
+            if (Tags is { Count: > 0 }) parts.Add(string.Join(", ", Tags));
+            return string.Join("  ·  ", parts);
+        }
+    }
 
     /// <summary>Total duration of a single traversal of every segment.</summary>
     public TimeSpan SinglePassDuration =>
