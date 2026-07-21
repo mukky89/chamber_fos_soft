@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.27.0] – 2026-07-21
+
+### Pridané
+- **Prehľadnejší changelog v appke.** História verzií sa zobrazuje ako karty s
+  farebne odlíšenými sekciami (Pridané/Zmenené/Opravené) a zvýraznenými názvami
+  zmien namiesto obyčajného textu.
+- **Export changelogu do HTML.** Tlačidlá „Otvoriť ako HTML“ (otvorí štýlovanú
+  stránku v prehliadači) a „Uložiť HTML…“ vytvoria samostatný HTML súbor
+  (tmavý dizajn zodpovedajúci appke, bez externých závislostí).
+
+### Opravené
+- **Import BEdit súborov (.b01/.b02/.b03…).** Filter dialógu importu (aj
+  hromadného) teraz zobrazuje aj tieto typy súborov (predtým sa nie vždy ukázali).
+
 ## [1.26.0] – 2026-07-21
 
 ### Pridané

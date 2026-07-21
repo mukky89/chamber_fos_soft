@@ -89,7 +89,7 @@ public sealed class BulkImportViewModel : ObservableObject
         {
             Title = "Vybrať profily na hromadný import",
             Multiselect = true,
-            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json;*.b0*)|*.csv;*.txt;*.dat;*.prg;*.json;*.b0*|Všetky súbory (*.*)|*.*",
+            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json;*.b??)|*.csv;*.txt;*.dat;*.prg;*.json;*.b?;*.b??|Všetky súbory (*.*)|*.*",
         };
 
         if (dialog.ShowDialog() != true)
