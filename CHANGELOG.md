@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.28.0] – 2026-07-21
+
+### Pridané
+- **Tagy a snímač pri profiloch.** Každý profil má názov snímača (pre ktorý je
+  určený) a ľubovoľné tagy (oddelené čiarkou). Dajú sa zadať v editore profilov
+  aj hromadne pri importe (spoločný snímač/tagy pre celú dávku).
+- **Stromová štruktúra knižnice profilov.** „Uložené profily“ sú teraz strom
+  zoskupený podľa snímača, s tlačidlami **Rozbaliť/Zbaliť všetko**, textovým
+  filtrom (názov/snímač/tag) a filtrom podľa tagu. Pod stromom je súhrn
+  (počet profilov · počet snímačov). Tagy sa zobrazujú ako farebné štítky.
+
 ## [1.27.0] – 2026-07-21
 
 ### Pridané

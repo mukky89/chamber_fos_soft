@@ -41,6 +41,14 @@ public sealed class BulkImportViewModel : ObservableObject
     /// <summary>Optional prefix put in front of every profile name (e.g. a project code).</summary>
     public string NamePrefix { get => _namePrefix; set => SetProperty(ref _namePrefix, value); }
 
+    private string _commonSensorName = string.Empty;
+    /// <summary>Sensor name applied to every profile in the batch (groups the library tree).</summary>
+    public string CommonSensorName { get => _commonSensorName; set => SetProperty(ref _commonSensorName, value); }
+
+    private string _commonTagsText = string.Empty;
+    /// <summary>Comma-separated tags applied to every profile in the batch.</summary>
+    public string CommonTagsText { get => _commonTagsText; set => SetProperty(ref _commonTagsText, value); }
+
     private bool _applyStandard = true;
     /// <summary>When on, each profile gets the standard starting/closing ramps applied on import.</summary>
     public bool ApplyStandard
@@ -205,6 +213,11 @@ public sealed class BulkImportViewModel : ObservableObject
                 TestProfile profile = item.Raw.Clone();
                 profile.Name = finalName;
                 profile.Kind = Kind;
+                profile.SensorName = CommonSensorName.Trim();
+                profile.Tags = CommonTagsText
+                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 if (Kind == ChamberKind.TemperatureOnly)
                 {
                     foreach (ProfileSegment segment in profile.Segments)

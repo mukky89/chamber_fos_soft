@@ -47,6 +47,24 @@
                     </StackPanel>
                 </Grid>
 
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Snímač pre celú dávku (voliteľné)" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding CommonSensorName, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Názov snímača priradený každému importovanému profilu – podľa neho sa zoskupujú v strome." />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Tagy pre celú dávku (čiarkou)" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding CommonTagsText, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Tagy priradené každému importovanému profilu (na filtrovanie)." />
+                    </StackPanel>
+                </Grid>
+
                 <CheckBox Content="Aplikovať štandard (nábeh na prvú teplotu + koniec na izbovú)"
                           IsChecked="{Binding ApplyStandard}" Margin="0,10,0,4"
                           ToolTip="Každý profil dostane začiatočný nábeh na prvú teplotu a koncový nábeh (a plato) na izbovú teplotu." />

@@ -24,6 +24,12 @@ public sealed class TestProfile
     /// <summary>How often the whole sequence of segments is repeated (>= 1).</summary>
     public int Cycles { get; set; } = 1;
 
+    /// <summary>Free-form tags for grouping / filtering the profile library (e.g. "norma", "vzorka X").</summary>
+    public List<string> Tags { get; set; } = new();
+
+    /// <summary>Name of the sensor / specimen the profile is intended for (used to group the library tree).</summary>
+    public string SensorName { get; set; } = string.Empty;
+
     /// <summary>Total duration of a single pass through the segments.</summary>
     public TimeSpan SinglePassDuration =>
         Segments.Aggregate(TimeSpan.Zero, (sum, s) => sum + s.Duration);
@@ -40,6 +46,8 @@ public sealed class TestProfile
         Kind = Kind,
         CreatedAt = CreatedAt,
         Cycles = Cycles,
+        SensorName = SensorName,
+        Tags = new List<string>(Tags),
         Segments = Segments.Select(s => new ProfileSegment
         {
             Name = s.Name,

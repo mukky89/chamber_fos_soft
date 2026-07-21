@@ -1,7 +1,9 @@
 <UserControl x:Class="VotschVc3.App.Views.ProfileLibraryView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="clr-namespace:VotschVc3.App.Views">
+             xmlns:views="clr-namespace:VotschVc3.App.Views"
+             xmlns:vm="clr-namespace:VotschVc3.App.ViewModels"
+             xmlns:core="clr-namespace:VotschVc3.Core.Profiles;assembly=VotschVc3.Core">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -92,27 +94,46 @@
                     <StackPanel>
 
                     <Border Style="{StaticResource Card}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Názov profilu" Style="{StaticResource Label}" />
-                                <TextBox Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Typ" Style="{StaticResource Label}" />
-                                <ComboBox ItemsSource="{Binding ChamberKinds}" SelectedItem="{Binding Kind}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="4">
-                                <TextBlock Text="Počet cyklov" Style="{StaticResource Label}" />
-                                <TextBox Text="{Binding Cycles, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                        </Grid>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Názov profilu" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Typ" Style="{StaticResource Label}" />
+                                    <ComboBox ItemsSource="{Binding ChamberKinds}" SelectedItem="{Binding Kind}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Počet cyklov" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Cycles, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Snímač (pre ktorý je profil)" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding SensorName, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Názov snímača / vzorky – podľa neho sa profily zoskupujú v strome vpravo." />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Tagy (oddelené čiarkou)" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding TagsText, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Napr. „norma, vibrácie, séria A“ – slúžia na filtrovanie v strome profilov." />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource Card}">
@@ -167,48 +188,84 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" LastChildFill="False">
-                        <TextBlock Text="Uložené profily" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
-                        <Button DockPanel.Dock="Right" Content="↻" Style="{StaticResource GhostButton}" Padding="8,1"
-                                Command="{Binding RefreshHistoryCommand}" ToolTip="Obnoviť zoznam zo súboru" />
-                        <TextBlock Text="klik = načítať" Style="{StaticResource Caption}"
-                                   DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    </DockPanel>
-                    <ListBox Grid.Row="1" ItemsSource="{Binding History}"
-                             SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
-                             Style="{StaticResource ListWithEmptyHint}"
-                             Tag="Zatiaľ žiadne uložené profily. Uprav segmenty vľavo a ulož tlačidlom „Uložiť aktuálny“."
-                             HorizontalContentAlignment="Stretch"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListBox.InputBindings>
-                            <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding LoadFromHistoryCommand}" />
-                        </ListBox.InputBindings>
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Setter Property="Margin" Value="0,2" />
+                    <StackPanel Grid.Row="0">
+                        <DockPanel LastChildFill="False">
+                            <TextBlock Text="Uložené profily" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                            <Button DockPanel.Dock="Right" Content="↻" Style="{StaticResource GhostButton}" Padding="8,1"
+                                    Command="{Binding RefreshHistoryCommand}" ToolTip="Obnoviť zoznam zo súboru" />
+                        </DockPanel>
+
+                        <!-- Filter: text + tag, with clear -->
+                        <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged, Delay=150}"
+                                 Margin="0,6,0,0" ToolTip="Filtruje podľa názvu, snímača aj tagov." />
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableTags}" SelectedItem="{Binding SelectedTag}"
+                                      ToolTip="Filtrovať podľa tagu." />
+                            <Button Grid.Column="2" Content="✕ Filter" Style="{StaticResource GhostButton}" Padding="10,4"
+                                    Command="{Binding ClearFilterCommand}" ToolTip="Zrušiť text aj tag filter." />
+                        </Grid>
+                        <DockPanel Margin="0,6,0,2" LastChildFill="False">
+                            <Button DockPanel.Dock="Left" Content="⏷ Rozbaliť všetko" Style="{StaticResource GhostButton}"
+                                    Padding="8,3" Command="{Binding ExpandAllCommand}" />
+                            <Button DockPanel.Dock="Left" Content="⏶ Zbaliť všetko" Style="{StaticResource GhostButton}"
+                                    Padding="8,3" Margin="6,0,0,0" Command="{Binding CollapseAllCommand}" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <TreeView Grid.Row="1" ItemsSource="{Binding ProfileTree}" Margin="0,4,0,0"
+                              Background="Transparent" BorderThickness="0"
+                              SelectedItemChanged="ProfileTree_SelectedItemChanged"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                             </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="10,7"
-                                        ToolTip="Klik načíta profil do editora (teploty aj všetky parametre).">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
-                                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0">
-                                            <Run Text="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm', Mode=OneWay}" />
-                                            <Run Text=" · " />
-                                            <Run Text="{Binding Kind, Mode=OneWay}" />
-                                            <Run Text=" · " />
-                                            <Run Text="{Binding Segments.Count, Mode=OneWay}" />
-                                            <Run Text=" segm." />
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.Resources>
+                            <!-- Sensor group node -->
+                            <HierarchicalDataTemplate DataType="{x:Type vm:ProfileTreeGroupViewModel}"
+                                                      ItemsSource="{Binding Profiles}">
+                                <TextBlock Text="{Binding DisplayHeader}" FontFamily="Segoe UI Semibold"
+                                           Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                            </HierarchicalDataTemplate>
+                            <!-- Profile leaf node -->
+                            <DataTemplate DataType="{x:Type core:TestProfile}">
+                                <StackPanel ToolTip="Klik načíta profil do editora (teploty aj všetky parametre).">
+                                    <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0">
+                                        <Run Text="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm', Mode=OneWay}" />
+                                        <Run Text=" · " />
+                                        <Run Text="{Binding Kind, Mode=OneWay}" />
+                                        <Run Text=" · " />
+                                        <Run Text="{Binding Segments.Count, Mode=OneWay}" />
+                                        <Run Text=" segm." />
+                                    </TextBlock>
+                                    <ItemsControl ItemsSource="{Binding Tags}" Margin="0,4,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource AccentBrush}"
+                                                        BorderThickness="1" CornerRadius="999" Padding="7,1" Margin="0,0,4,0">
+                                                    <TextBlock Text="{Binding}" FontSize="11" Foreground="{StaticResource AccentBrush}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                        </TreeView.Resources>
+                    </TreeView>
                     <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="{Binding TreeSummary}" Style="{StaticResource Caption}" Margin="0,0,0,8" TextWrapping="Wrap" />
                         <Button Content="Uložiť aktuálny" Style="{StaticResource AccentButton}" Margin="0,0,0,8"
                                 HorizontalAlignment="Stretch" Command="{Binding SaveToHistoryCommand}" />
                         <Button Content="Duplikovať (COPY)" Margin="0,0,0,8" HorizontalAlignment="Stretch"
