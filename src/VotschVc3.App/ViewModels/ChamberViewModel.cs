@@ -2104,9 +2104,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             if (_profilesViewSource is null)
             {
+                // Sorted so profiles of the same customer/sensor sit together (a visual
+                // "grouping" that works reliably in the custom-templated ComboBox – true
+                // group headers do not render there).
                 _profilesViewSource = new System.Windows.Data.CollectionViewSource { Source = History };
-                _profilesViewSource.GroupDescriptions.Add(
-                    new System.Windows.Data.PropertyGroupDescription(nameof(TestProfile.GroupKey)));
                 _profilesViewSource.SortDescriptions.Add(
                     new System.ComponentModel.SortDescription(nameof(TestProfile.GroupKey), System.ComponentModel.ListSortDirection.Ascending));
                 _profilesViewSource.SortDescriptions.Add(
@@ -3151,27 +3152,36 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
+        // Before a run, show the whole profile repeated ×Cycles so the operator sees
+        // what will actually run. During a run keep a single pass (the "now" marker and
+        // the "cyklus X/Y" status convey the progress instead).
+        int cycles = IsProfileRunning ? 1 : Math.Max(1, Cycles);
+
         var pts = new List<Point>();
         double t = 0;
         double start = MeasuredTemperature ?? segs[0].TargetTemperature;
         pts.Add(new Point(0, start));
-        foreach (ProfileSegment s in segs)
+        for (int c = 0; c < cycles; c++)
         {
-            double dur = s.Duration.TotalMinutes;
-            if (s.IsRamp)
+            foreach (ProfileSegment s in segs)
             {
-                t += dur;
-                pts.Add(new Point(t, s.TargetTemperature));
-            }
-            else
-            {
-                pts.Add(new Point(t, s.TargetTemperature));
-                t += dur;
-                pts.Add(new Point(t, s.TargetTemperature));
+                double dur = s.Duration.TotalMinutes;
+                if (s.IsRamp)
+                {
+                    t += dur;
+                    pts.Add(new Point(t, s.TargetTemperature));
+                }
+                else
+                {
+                    pts.Add(new Point(t, s.TargetTemperature));
+                    t += dur;
+                    pts.Add(new Point(t, s.TargetTemperature));
+                }
             }
         }
 
-        var series = new List<ChartSeries> { new("Profil", TempBrush, pts) };
+        string label = cycles > 1 ? $"Profil ×{cycles}" : "Profil";
+        var series = new List<ChartSeries> { new(label, TempBrush, pts) };
 
         // Vertical "now" line at the current position, so the operator can see the
         // stage and temperature directly on the profile while it runs.

@@ -457,17 +457,8 @@
                                             </Grid.ColumnDefinitions>
                                             <ComboBox Grid.Column="0" VerticalAlignment="Center" Height="46"
                                                       ItemsSource="{Binding ProfilesView}" SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
-                                                      ToolTip="Vyber uložený profil (zoskupené podľa zákazníka/snímača, s tagmi) a spusti ho tlačidlom ▶.">
-                                                <ComboBox.GroupStyle>
-                                                    <GroupStyle>
-                                                        <GroupStyle.HeaderTemplate>
-                                                            <DataTemplate>
-                                                                <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold"
-                                                                           Foreground="{StaticResource AccentBrush}" Margin="2,8,0,3" />
-                                                            </DataTemplate>
-                                                        </GroupStyle.HeaderTemplate>
-                                                    </GroupStyle>
-                                                </ComboBox.GroupStyle>
+                                                      IsSynchronizedWithCurrentItem="False"
+                                                      ToolTip="Vyber uložený profil (zoradené podľa zákazníka/snímača, s tagmi) a spusti ho tlačidlom ▶.">
                                                 <ComboBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Margin="0,1">
