@@ -25,7 +25,7 @@
 
         <!-- Chart -->
         <Border Grid.Row="1" Style="{StaticResource Card}">
-            <views:ChartView Series="{Binding Series}" EmptyText="Otvor CSV záznam…" />
+            <views:ChartView Series="{Binding Series}" EmptyText="Otvor CSV záznam…" ChartTitle="Záznam" />
         </Border>
 
         <!-- Statistics -->

@@ -4,6 +4,16 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.0] – 2026-07-22
+
+### Pridané
+- **Graf na celú obrazovku.** Každý čiarový graf (náhľad profilu na dlaždici,
+  živý priebeh teploty/vlhkosti, teplomery, prehliadač záznamov, rýchly
+  vytvárač) sa dá zväčšiť na celú obrazovku – tlačidlom ⛶ (zobrazí sa pri
+  prejdení myšou v pravom dolnom rohu grafu) alebo dvojklikom do grafu.
+  Zväčšený graf sa priebežne aktualizuje (živé dáta), funguje v ňom odčítanie
+  hodnôt myšou a zatvára sa klávesom Esc alebo tlačidlom ✕ Zavrieť.
+
 ## [1.24.1] – 2026-07-19
 
 ### Opravené

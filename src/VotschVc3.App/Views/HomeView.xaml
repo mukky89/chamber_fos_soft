@@ -643,7 +643,8 @@
                                                 Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
                                             <StackPanel>
                                                 <views:ChartView Height="210" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
-                                                                 ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode." />
+                                                                 ChartTitle="{Binding Name, StringFormat=Náhľad profilu — {0}}"
+                                                                 ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode. Dvojklik = celá obrazovka." />
                                                 <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,8,0,0">
                                                     <Grid>
                                                         <ProgressBar Style="{StaticResource ProfileProgressBar}"

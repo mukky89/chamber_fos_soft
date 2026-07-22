@@ -75,7 +75,7 @@
                                    FontFamily="Segoe UI Semibold" Margin="0,0,0,4"
                                    Visibility="{Binding HasProfileWarnings, Converter={StaticResource BoolToVisibility}}" />
                         <views:ProfileEditorChart Height="300" Segments="{Binding Segments}" />
-                        <views:ChartView Height="120" Margin="0,6,0,0" Unit=" %"
+                        <views:ChartView Height="120" Margin="0,6,0,0" Unit=" %" ChartTitle="Profil — vlhkosť"
                                          Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}"
                                          Series="{Binding HumPreview}" />
                     </StackPanel>

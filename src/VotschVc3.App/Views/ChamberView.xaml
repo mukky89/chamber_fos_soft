@@ -177,12 +177,12 @@
                                 <StackPanel>
                                     <TextBlock Text="Priebeh teploty" Style="{StaticResource Label}" Margin="6,0,0,2" />
                                     <views:ChartView Height="180" Margin="4,0,4,8" Unit=" °C"
-                                                     EmptyText="Čakám na dáta z pollingu…"
+                                                     EmptyText="Čakám na dáta z pollingu…" ChartTitle="Priebeh teploty"
                                                      Series="{Binding LiveTempSeries}" />
                                     <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="Priebeh vlhkosti" Style="{StaticResource Label}" Margin="6,4,0,2" />
                                         <views:ChartView Height="160" Margin="4,0,4,8" Unit=" %"
-                                                         EmptyText="Čakám na dáta z pollingu…"
+                                                         EmptyText="Čakám na dáta z pollingu…" ChartTitle="Priebeh vlhkosti"
                                                          Series="{Binding LiveHumSeries}" />
                                     </StackPanel>
                                 </StackPanel>
@@ -342,7 +342,7 @@
                                                Visibility="{Binding HasProfileWarnings, Converter={StaticResource BoolToVisibility}}" />
                                 </DockPanel>
                                 <views:ProfileEditorChart Height="160" Segments="{Binding Segments}" />
-                                <views:ChartView Height="110" Margin="0,6,0,0" Unit=" %"
+                                <views:ChartView Height="110" Margin="0,6,0,0" Unit=" %" ChartTitle="Profil — vlhkosť"
                                                  Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}"
                                                  Series="{Binding PreviewHumSeries}" />
                             </StackPanel>

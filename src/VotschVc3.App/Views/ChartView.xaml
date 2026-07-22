@@ -2,6 +2,13 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="6">
-        <Canvas x:Name="PlotCanvas" ClipToBounds="True" Background="Transparent" />
+        <Grid>
+            <Canvas x:Name="PlotCanvas" ClipToBounds="True" Background="Transparent" />
+            <Button x:Name="ZoomButton" Content="⛶" FontSize="15" Padding="9,3"
+                    Style="{StaticResource GhostButton}" Visibility="Collapsed"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,2,2"
+                    ToolTip="Zväčšiť graf na celú obrazovku (alebo dvojklik do grafu)"
+                    Click="OnZoomClick" />
+        </Grid>
     </Border>
 </UserControl>

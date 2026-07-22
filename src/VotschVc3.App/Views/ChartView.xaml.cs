@@ -34,6 +34,9 @@ public partial class ChartView : UserControl
         Loaded += (_, _) => Redraw();
         PlotCanvas.MouseMove += OnPlotMouseMove;
         PlotCanvas.MouseLeave += (_, _) => ClearOverlay();
+        MouseEnter += (_, _) => UpdateZoomButton();
+        MouseLeave += (_, _) => ZoomButton.Visibility = Visibility.Collapsed;
+        PlotCanvas.MouseLeftButtonDown += OnPlotMouseLeftButtonDown;
     }
 
     public static readonly DependencyProperty SeriesProperty = DependencyProperty.Register(
@@ -91,8 +94,56 @@ public partial class ChartView : UserControl
         set => SetValue(EmptyTextProperty, value);
     }
 
+    public static readonly DependencyProperty AllowZoomProperty = DependencyProperty.Register(
+        nameof(AllowZoom), typeof(bool), typeof(ChartView),
+        new PropertyMetadata(true, (d, _) => ((ChartView)d).UpdateZoomButton()));
+
+    /// <summary>
+    /// Whether the chart offers the fullscreen zoom (⛶ button on hover +
+    /// double-click). Off inside <see cref="ChartZoomWindow"/> itself.
+    /// </summary>
+    public bool AllowZoom
+    {
+        get => (bool)GetValue(AllowZoomProperty);
+        set => SetValue(AllowZoomProperty, value);
+    }
+
+    public static readonly DependencyProperty ChartTitleProperty = DependencyProperty.Register(
+        nameof(ChartTitle), typeof(string), typeof(ChartView),
+        new PropertyMetadata("Graf"));
+
+    /// <summary>Heading shown in the fullscreen zoom window.</summary>
+    public string ChartTitle
+    {
+        get => (string)GetValue(ChartTitleProperty);
+        set => SetValue(ChartTitleProperty, value);
+    }
+
     private static void OnVisualChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
         ((ChartView)d).Redraw();
+
+    // ===== Fullscreen zoom =====
+
+    private void UpdateZoomButton() =>
+        ZoomButton.Visibility = AllowZoom && IsMouseOver ? Visibility.Visible : Visibility.Collapsed;
+
+    private void OnZoomClick(object sender, RoutedEventArgs e) => OpenZoom();
+
+    private void OnPlotMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            OpenZoom();
+        }
+    }
+
+    private void OpenZoom()
+    {
+        if (AllowZoom)
+        {
+            ChartZoomWindow.Show(this, ChartTitle);
+        }
+    }
 
     private Brush MutedBrush => TryFindResource("MutedBrush") as Brush ?? Brushes.Gray;
 
