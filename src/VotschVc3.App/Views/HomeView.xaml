@@ -455,20 +455,10 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <ComboBox Grid.Column="0" VerticalAlignment="Center" Height="46"
-                                                      ItemsSource="{Binding ProfilesView}" SelectedItem="{Binding SelectedHistoryProfile, Mode=TwoWay}"
-                                                      IsSynchronizedWithCurrentItem="False"
-                                                      ToolTip="Vyber uložený profil (zoradené podľa zákazníka/snímača, s tagmi) a spusti ho tlačidlom ▶.">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <StackPanel Margin="0,1">
-                                                            <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock Text="{Binding PickerCaption}" Style="{StaticResource Caption}"
-                                                                       TextTrimming="CharacterEllipsis" />
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
+                                            <views:ProfilePicker Grid.Column="0" VerticalAlignment="Center"
+                                                                 ItemsSource="{Binding History}"
+                                                                 SelectedProfile="{Binding SelectedHistoryProfile, Mode=TwoWay}"
+                                                                 ToolTip="Vyber uložený profil – hľadaj hore a rozbaľ stromovú štruktúru (zákazník/snímač → profily), potom spusti tlačidlom ▶." />
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
                                                 <Button Style="{StaticResource IconActionButton}" Content="▶"
                                                         Foreground="{StaticResource OkBrush}" Command="{Binding StartSelectedProfileCommand}"
@@ -482,12 +472,12 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <!-- Počet cyklov: zopakuje celý profil N-krát -->
+                                        <!-- Počet cyklov: zopakuje iba telo profilu (bez nábehu a konca) N-krát -->
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                             <TextBlock Text="Počet cyklov" Style="{StaticResource Caption}" VerticalAlignment="Center" />
                                             <views:NumericStepper Value="{Binding Cycles, Mode=TwoWay}" Step="1" Minimum="1"
                                                                   Width="120" Margin="10,0,0,0"
-                                                                  ToolTip="Zopakuje CELÝ vybraný profil toľkokrát (bez rozlišovania nábehu/konca)." />
+                                                                  ToolTip="Zopakuje iba telo profilu N-krát. Počiatočný nábeh a koncový dobeh (nábeh/dobeh na krajné teploty) prebehnú len raz. Cyklovaná časť je na grafe nižšie zvýraznená." />
                                         </StackPanel>
 
                                         <!-- Rad profilov: až 3 uložené profily spustené za sebou -->
@@ -656,7 +646,10 @@
                                                 Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
                                             <StackPanel>
                                                 <views:ChartView Height="210" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
-                                                                 ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode." />
+                                                                 CycleStartX="{Binding PreviewCycleStartX}"
+                                                                 CycleEndX="{Binding PreviewCycleEndX}"
+                                                                 CycleCount="{Binding PreviewCycleCount}"
+                                                                 ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode. Zvýraznená plocha = cyklovaná časť profilu." />
                                                 <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,8,0,0">
                                                     <Grid>
                                                         <ProgressBar Style="{StaticResource ProfileProgressBar}"

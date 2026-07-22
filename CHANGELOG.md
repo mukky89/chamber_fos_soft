@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.39.2] – 2026-07-22
+
+### Pridané
+- **Vyhľadávanie + stromová štruktúra vo výbere profilu na paneli.** Rozbaľovačka
+  „Testovací profil" na hlavnom paneli je teraz vyhľadávateľná: hore je políčko na
+  hľadanie (podľa názvu, snímača, zákazníka, projektu alebo tagu) a pod ním
+  skutočný strom (zákazník/snímač → profily) s rozbaľovaním skupín. Nahrádza
+  plochú rozbaľovačku, ktorá strom nevedela zobraziť.
+
+### Zmenené
+- **Cyklovanie na paneli = iba telo profilu.** „Počet cyklov" na komore teraz
+  zopakuje iba telo profilu; počiatočný nábeh a koncový dobeh (nábeh/dobeh na
+  krajné teploty) prebehnú len raz. Cyklovaná časť je v náhľadovom grafe
+  zvýraznená a v grafe sa ukáže, čo presne sa bude cyklovať.
+
 ## [1.38.2] – 2026-07-21
 
 ### Pridané

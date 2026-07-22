@@ -1304,8 +1304,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Planned duration of the editor profile incl. cycles — anchors the
     /// timeline bar while a delayed start is still waiting for its scheduled time.</summary>
-    public TimeSpan PlannedProfileDuration =>
-        TimeSpan.FromMinutes(Segments.Sum(s => s.DurationMinutes) * Math.Max(1, Cycles));
+    public TimeSpan PlannedProfileDuration => BuildProfile().TotalDuration;
 
     private void RaiseGanttTimes()
     {
@@ -1604,20 +1603,43 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    // On the chamber dashboard the cycle count repeats the WHOLE profile N times –
-    // no start/end region distinction (that lives only in the profile editor). So the
-    // region is left unset (-1/-1 = whole profile), regardless of any region the
-    // loaded profile was designed with.
-    private TestProfile BuildProfile() => new()
+    // On the chamber dashboard the cycle count repeats only the BODY of the profile:
+    // the leading ramp (nábeh) and the trailing ramp (dobeh) run once, the middle
+    // repeats N times. The body region is derived from the segments (see BodyRegion).
+    private TestProfile BuildProfile()
     {
-        Name = ProfileName,
-        Kind = Kind,
-        Cycles = Cycles,
-        CycleStartIndex = -1,
-        CycleEndIndex = -1,
-        CreatedAt = DateTimeOffset.Now,
-        Segments = Segments.Select(s => s.ToModel()).ToList(),
-    };
+        List<ProfileSegment> segs = Segments.Select(s => s.ToModel()).ToList();
+        (int start, int end) = BodyRegion(segs);
+        return new()
+        {
+            Name = ProfileName,
+            Kind = Kind,
+            Cycles = Cycles,
+            CycleStartIndex = start,
+            CycleEndIndex = end,
+            CreatedAt = DateTimeOffset.Now,
+            Segments = segs,
+        };
+    }
+
+    /// <summary>
+    /// The body region [start, end] that the dashboard cycle count repeats: the first
+    /// segment is treated as the initial ramp (nábeh) and the last as the final ramp
+    /// (dobeh) when they are ramps, so only the middle repeats. Falls back to the whole
+    /// profile for very short profiles or when there is no clear body.
+    /// </summary>
+    private static (int Start, int End) BodyRegion(IReadOnlyList<ProfileSegment> segs)
+    {
+        int last = segs.Count - 1;
+        if (segs.Count <= 2)
+        {
+            return (0, last);
+        }
+
+        int start = segs[0].IsRamp ? 1 : 0;
+        int end = segs[last].IsRamp ? last - 1 : last;
+        return start > end ? (0, last) : (start, end);
+    }
 
     private Task StartProfileAsync() => RunSequenceAsync(new List<TestProfile> { BuildProfile() });
 
@@ -3137,6 +3159,18 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>0..1 position of the "now" marker within a single pass of the profile.</summary>
     private double _profileNowFraction;
 
+    private double _previewCycleStartX = double.NaN;
+    /// <summary>X (minutes) where the cycled body starts on the dashboard preview; NaN = no band.</summary>
+    public double PreviewCycleStartX { get => _previewCycleStartX; private set => SetProperty(ref _previewCycleStartX, value); }
+
+    private double _previewCycleEndX = double.NaN;
+    /// <summary>X (minutes) where the cycled body ends on the dashboard preview; NaN = no band.</summary>
+    public double PreviewCycleEndX { get => _previewCycleEndX; private set => SetProperty(ref _previewCycleEndX, value); }
+
+    private int _previewCycleCount = 1;
+    /// <summary>Repeat count shown on the dashboard preview band (1 while running or not cycled).</summary>
+    public int PreviewCycleCount { get => _previewCycleCount; private set => SetProperty(ref _previewCycleCount, value); }
+
     /// <summary><c>true</c> when there is a profile to preview (selected or running).</summary>
     public bool HasProfilePreview => IsProfileRunning || SelectedHistoryProfile is not null;
 
@@ -3149,38 +3183,56 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         if (segs.Count == 0)
         {
             ProfilePreview = Array.Empty<ChartSeries>();
+            PreviewCycleStartX = double.NaN;
+            PreviewCycleEndX = double.NaN;
+            PreviewCycleCount = 1;
             return;
         }
 
-        // Before a run, show the whole profile repeated ×Cycles so the operator sees
-        // what will actually run. During a run keep a single pass (the "now" marker and
-        // the "cyklus X/Y" status convey the progress instead).
+        // Before a run, repeat only the BODY ×Cycles (nábeh a dobeh run once) and shade
+        // the repeated stretch, so the operator sees exactly what will be cycled. During
+        // a run keep a single pass (the "now" marker + "cyklus X/Y" status show progress).
         int cycles = IsProfileRunning ? 1 : Math.Max(1, Cycles);
+        (int bStart, int bEnd) = BodyRegion(segs);
 
         var pts = new List<Point>();
         double t = 0;
         double start = MeasuredTemperature ?? segs[0].TargetTemperature;
         pts.Add(new Point(0, start));
-        for (int c = 0; c < cycles; c++)
+
+        void Emit(ProfileSegment s)
         {
-            foreach (ProfileSegment s in segs)
+            double dur = s.Duration.TotalMinutes;
+            if (s.IsRamp)
             {
-                double dur = s.Duration.TotalMinutes;
-                if (s.IsRamp)
-                {
-                    t += dur;
-                    pts.Add(new Point(t, s.TargetTemperature));
-                }
-                else
-                {
-                    pts.Add(new Point(t, s.TargetTemperature));
-                    t += dur;
-                    pts.Add(new Point(t, s.TargetTemperature));
-                }
+                t += dur;
+                pts.Add(new Point(t, s.TargetTemperature));
+            }
+            else
+            {
+                pts.Add(new Point(t, s.TargetTemperature));
+                t += dur;
+                pts.Add(new Point(t, s.TargetTemperature));
             }
         }
 
-        string label = cycles > 1 ? $"Profil ×{cycles}" : "Profil";
+        // Intro (once) → body (×cycles) → outro (once).
+        for (int i = 0; i < bStart; i++) Emit(segs[i]);
+        double bodyStartX = t;
+        for (int c = 0; c < cycles; c++)
+        {
+            for (int i = bStart; i <= bEnd; i++) Emit(segs[i]);
+        }
+        double bodyEndX = t;
+        for (int i = bEnd + 1; i < segs.Count; i++) Emit(segs[i]);
+
+        // Shade the cycled body only when it actually repeats.
+        bool showBand = cycles > 1 && bodyEndX > bodyStartX;
+        PreviewCycleStartX = showBand ? bodyStartX : double.NaN;
+        PreviewCycleEndX = showBand ? bodyEndX : double.NaN;
+        PreviewCycleCount = showBand ? cycles : 1;
+
+        string label = showBand ? $"Profil · telo ×{cycles}" : "Profil";
         var series = new List<ChartSeries> { new(label, TempBrush, pts) };
 
         // Vertical "now" line at the current position, so the operator can see the
