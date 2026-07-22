@@ -32,6 +32,9 @@ public partial class ChartView : UserControl
         InitializeComponent();
         PlotCanvas.SizeChanged += (_, _) => Redraw();
         Loaded += (_, _) => Redraw();
+        // The dashboard stays alive (hidden) while another screen is open, so
+        // charts skip drawing while invisible and catch up when shown again.
+        IsVisibleChanged += (_, _) => Redraw();
         PlotCanvas.MouseMove += OnPlotMouseMove;
         PlotCanvas.MouseLeave += (_, _) => ClearOverlay();
     }
@@ -100,6 +103,11 @@ public partial class ChartView : UserControl
 
     private void Redraw()
     {
+        if (!IsVisible)
+        {
+            return;
+        }
+
         PlotCanvas.Children.Clear();
 
         double width = PlotCanvas.ActualWidth;

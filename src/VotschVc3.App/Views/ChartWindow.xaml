@@ -1,0 +1,39 @@
+<Window x:Class="VotschVc3.App.Views.ChartWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:VotschVc3.App.Views"
+        Title="{Binding Name}"
+        Width="1100" Height="720" MinWidth="640" MinHeight="420"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundBrush}"
+        TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True">
+
+    <!-- Maximised profile chart: the same live series as the dashboard card,
+         just big enough to read from across the lab. -->
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="6,2,6,10">
+            <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Name}" FontSize="17" FontFamily="Segoe UI Semibold" />
+                <TextBlock Style="{StaticResource Caption}">
+                    <Run Text="Profil: " /><Run Text="{Binding ProfileName, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                    <Run Text="   ·   " /><Run Text="{Binding ProfileDurationText, Mode=OneWay}" />
+                </TextBlock>
+            </StackPanel>
+            <Button DockPanel.Dock="Right" Content="✕ Zavrieť" Style="{StaticResource GhostButton}"
+                    Padding="12,6" FontSize="13" IsCancel="True" Click="Close_Click"
+                    ToolTip="Zavrieť zväčšený graf (aj klávesom Esc)." />
+        </DockPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="6,0,6,4" Padding="10">
+            <views:ChartView Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
+                             ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode." />
+        </Border>
+    </Grid>
+</Window>

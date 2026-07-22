@@ -63,6 +63,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // "Editovať profil" in the quick builder saves the profile and jumps to the editor.
         QuickProfile.OpenInEditorRequested = OpenQuickProfileInEditor;
         Chambers = new ObservableCollection<ChamberViewModel>();
+        VisibleChambers = new ObservableCollection<ChamberViewModel>();
+        Chambers.CollectionChanged += (_, _) => RebuildVisibleChambers();
 
         // Commands must exist before chambers are built (AddChamberInternal uses them).
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
@@ -206,6 +208,25 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<ChamberViewModel> Chambers { get; }
 
+    /// <summary>
+    /// Chambers the dashboard actually shows: everything except POL-EKO devices
+    /// while those are disabled by the admin toggle (<see cref="PolEkoDisabled"/>).
+    /// </summary>
+    public ObservableCollection<ChamberViewModel> VisibleChambers { get; }
+
+    /// <summary>Rebuilds <see cref="VisibleChambers"/> from <see cref="Chambers"/> and the POL-EKO toggle.</summary>
+    private void RebuildVisibleChambers()
+    {
+        VisibleChambers.Clear();
+        foreach (ChamberViewModel chamber in Chambers)
+        {
+            if (!(chamber.IsPolEko && _ui.PolEkoDisabled))
+            {
+                VisibleChambers.Add(chamber);
+            }
+        }
+    }
+
     /// <summary>ASL F100 thermometers manager (USB).</summary>
     public ThermometersViewModel Thermometers { get; }
 
@@ -237,11 +258,21 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             if (SetProperty(ref _currentView, value))
             {
                 OnPropertyChanged(nameof(IsHome));
+                OnPropertyChanged(nameof(DetailView));
             }
         }
     }
 
     public bool IsHome => ReferenceEquals(CurrentView, this);
+
+    /// <summary>
+    /// The non-home view to show, or <c>null</c> while the home page is active.
+    /// The window keeps a single persistent <c>HomeView</c> instance and toggles
+    /// its visibility on <see cref="IsHome"/>, so navigating back home does not
+    /// rebuild the whole dashboard (which made leaving the editor very slow);
+    /// only the detail views go through this property.
+    /// </summary>
+    public object? DetailView => IsHome ? null : CurrentView;
 
     /// <summary>Application version (e.g. "v1.0.0"), read from the assembly.</summary>
     public string AppVersion { get; } =
@@ -386,6 +417,45 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Admin toggle (persisted): disables the POL-EKO devices. While on, POL-EKO
+    /// ovens are hidden from the dashboard and the timeline and the app does not
+    /// connect to them. On by default; unchecking brings them back and connects.
+    /// </summary>
+    public bool PolEkoDisabled
+    {
+        get => _ui.PolEkoDisabled;
+        set
+        {
+            if (_ui.PolEkoDisabled == value)
+            {
+                return;
+            }
+
+            _ui.PolEkoDisabled = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+            RebuildVisibleChambers();
+            _audit.Log("Systém", value ? "POL-EKO vypnuté" : "POL-EKO zapnuté",
+                value ? "Zariadenia skryté z nástenky" : "Zariadenia zobrazené na nástenke");
+
+            foreach (ChamberViewModel chamber in Chambers.Where(c => c.IsPolEko))
+            {
+                if (value)
+                {
+                    if (chamber.DisconnectCommand.CanExecute(null))
+                    {
+                        chamber.DisconnectCommand.Execute(null);
+                    }
+                }
+                else if (IsLoggedIn)
+                {
+                    _ = chamber.ConnectIfPossibleAsync();
+                }
+            }
+        }
+    }
+
     /// <summary>Caption for the show/hide-timeline toggle button.</summary>
     public string TimelineToggleText => ShowTimeline ? "▾ Skryť" : "▸ Zobraziť";
 
@@ -418,7 +488,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     }
 
     private Task ConnectAllChambersAsync() =>
-        Task.WhenAll(Chambers.Select(c => c.ConnectIfPossibleAsync()));
+        Task.WhenAll(Chambers
+            .Where(c => !(c.IsPolEko && PolEkoDisabled))
+            .Select(c => c.ConnectIfPossibleAsync()));
 
     private void Logout()
     {

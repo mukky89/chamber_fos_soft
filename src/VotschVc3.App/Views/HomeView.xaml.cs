@@ -45,4 +45,14 @@ public partial class HomeView : UserControl
             box.Clear();
         }
     }
+
+    /// <summary>⛶ on the card: opens the profile chart maximised in its own window.</summary>
+    private void MaximizeChart_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (sender is System.Windows.FrameworkElement { DataContext: ChamberViewModel vm })
+        {
+            var window = new ChartWindow(vm) { Owner = System.Windows.Window.GetWindow(this) };
+            window.ShowDialog();
+        }
+    }
 }

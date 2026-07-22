@@ -62,6 +62,11 @@
                               IsChecked="{Binding CompactMode}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
                                Text="Zmenší karty, grafiku a text, aby sa na obrazovku zmestilo viac zariadení. Vypnuté = pôvodné, priestrannejšie zobrazenie." />
+                    <CheckBox Content="Vypnúť POL-EKO zariadenia" Margin="0,12,0,0"
+                              IsChecked="{Binding PolEkoDisabled}"
+                              ToolTip="Skryje POL-EKO sušiarne z nástenky a časovej osi a aplikácia sa k nim nepripája." />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
+                               Text="Keď je zapnuté (predvolené), POL-EKO zariadenia sa skryjú z nástenky aj časovej osi a aplikácia sa k nim nepripája. Odškrtnutím sa zariadenia vrátia a hneď sa pripoja." />
                 </StackPanel>
             </Border>
 

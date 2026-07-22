@@ -25,4 +25,11 @@ public sealed class UiSettings
     /// dashboard. On by default; can be hidden to save vertical space.
     /// </summary>
     public bool ShowTimeline { get; set; } = true;
+
+    /// <summary>
+    /// When <c>true</c> the POL-EKO devices are disabled: hidden from the
+    /// dashboard and the timeline, and the app does not connect to them.
+    /// On (disabled) by default; an admin can re-enable them in the admin screen.
+    /// </summary>
+    public bool PolEkoDisabled { get; set; } = true;
 }

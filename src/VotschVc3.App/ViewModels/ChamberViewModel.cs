@@ -1616,7 +1616,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private Task StartSelectedProfileAsync()
     {
-        if (SelectedHistoryProfile is { } profile)
+        // Only load the picked profile when it is not the one already sitting in
+        // the editor – re-applying it would silently overwrite the operator's
+        // tweaks (typically a changed cycle count) with the saved values, so a
+        // profile set to 2 cycles ran only once.
+        if (SelectedHistoryProfile is { } profile && (_loadedProfileId != profile.Id || Segments.Count == 0))
         {
             ApplyProfile(profile);
         }
@@ -1790,8 +1794,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 $"· {e.TemperatureSetpoint:0.0} °C" +
                 (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
 
-            // Advance the "now" marker on the profile preview.
-            _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
+            // Advance the "now" marker on the profile preview. The preview draws
+            // every cycle, so the marker fraction spans the whole profile too.
+            _profileNowFraction = profileFraction;
             BuildProfilePreview();
 
             // Per-profile temperature record (set point vs measured chamber temperature).
@@ -1888,6 +1893,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         Segments.Clear();
         SelectedSegment = null;
         ProfileName = "Profil 1";
+        _loadedProfileId = null;
         SelectedHistoryProfile = null;
         RecalculateTiming();
         OnPropertyChanged(nameof(HasProfilePreview));
@@ -2197,6 +2203,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         profile.Id = existing?.Id ?? Guid.NewGuid();
 
         _store.Save(profile);
+        _loadedProfileId = profile.Id; // the editor now holds exactly the saved profile
         RefreshHistory();
         SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == profile.Id);
         StatusMessage = existing is null
@@ -2280,6 +2287,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private void ApplyProfile(TestProfile profile)
     {
+        _loadedProfileId = profile.Id;
         ProfileName = profile.Name;
         Cycles = profile.Cycles;
 
@@ -3057,17 +3065,33 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     public IReadOnlyList<ChartSeries> ProfilePreview { get => _profilePreview; private set => SetProperty(ref _profilePreview, value); }
 
-    /// <summary>0..1 position of the "now" marker within a single pass of the profile.</summary>
+    /// <summary>0..1 position of the "now" marker across the whole profile incl. cycles.</summary>
     private double _profileNowFraction;
+
+    /// <summary>Id of the saved profile currently loaded in the editor, if any.</summary>
+    private Guid? _loadedProfileId;
 
     /// <summary><c>true</c> when there is a profile to preview (selected or running).</summary>
     public bool HasProfilePreview => IsProfileRunning || SelectedHistoryProfile is not null;
 
     private void BuildProfilePreview()
     {
-        List<ProfileSegment> segs =
-            IsProfileRunning ? Segments.Select(s => s.ToModel()).ToList()
-            : SelectedHistoryProfile?.Segments ?? Segments.Select(s => s.ToModel()).ToList();
+        // Prefer the editor contents (they include a user-tweaked cycle count);
+        // fall back to the saved profile picked in the dashboard list when it is
+        // not the one already loaded into the editor.
+        List<ProfileSegment> segs;
+        int cycles;
+        if (!IsProfileRunning && SelectedHistoryProfile is { } selected
+            && (selected.Id != _loadedProfileId || Segments.Count == 0))
+        {
+            segs = selected.Segments;
+            cycles = Math.Max(1, selected.Cycles);
+        }
+        else
+        {
+            segs = Segments.Select(s => s.ToModel()).ToList();
+            cycles = Math.Max(1, Cycles);
+        }
 
         if (segs.Count == 0)
         {
@@ -3075,23 +3099,27 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
+        // Draw every cycle, so a 2× profile really shows two passes on the chart.
         var pts = new List<Point>();
         double t = 0;
         double start = MeasuredTemperature ?? segs[0].TargetTemperature;
         pts.Add(new Point(0, start));
-        foreach (ProfileSegment s in segs)
+        for (int c = 0; c < cycles; c++)
         {
-            double dur = s.Duration.TotalMinutes;
-            if (s.IsRamp)
+            foreach (ProfileSegment s in segs)
             {
-                t += dur;
-                pts.Add(new Point(t, s.TargetTemperature));
-            }
-            else
-            {
-                pts.Add(new Point(t, s.TargetTemperature));
-                t += dur;
-                pts.Add(new Point(t, s.TargetTemperature));
+                double dur = s.Duration.TotalMinutes;
+                if (s.IsRamp)
+                {
+                    t += dur;
+                    pts.Add(new Point(t, s.TargetTemperature));
+                }
+                else
+                {
+                    pts.Add(new Point(t, s.TargetTemperature));
+                    t += dur;
+                    pts.Add(new Point(t, s.TargetTemperature));
+                }
             }
         }
 

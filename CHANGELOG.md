@@ -4,6 +4,30 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.0] – 2026-07-22
+
+### Pridané
+- **Administrácia: vypnutie POL-EKO zariadení.** Nový prepínač „Vypnúť POL-EKO
+  zariadenia" v Administrácii (Rozloženie nástenky). Keď je zapnutý
+  (predvolené), POL-EKO sušiarne sa skryjú z nástenky aj časovej osi a
+  aplikácia sa k nim nepripája; odškrtnutím sa zariadenia vrátia a hneď pripoja.
+- **Zväčšenie grafu profilu.** Na karte zariadenia pribudlo tlačidlo
+  „⛶ Zväčšiť" nad grafom profilu – otvorí graf v samostatnom maximalizovanom
+  okne (živé aktualizácie vrátane značky „teraz"; zavrie sa ✕ alebo Esc).
+
+### Opravené
+- **Počet cyklov sa prejaví na grafe aj pri behu.** Náhľad profilu na karte
+  kreslí všetky cykly (2× cyklus = dve opakovania krivky) a značka „teraz"
+  postupuje cez celý beh vrátane cyklov. Spustenie vybraného profilu (▶) už
+  neprepíše počet cyklov upravený v editore hodnotou z uloženého profilu –
+  profil tak už „nebeží iba 1 cyklus".
+
+### Zmenené
+- **Rýchlejší návrat na hlavnú obrazovku.** Nástenka sa pri navigácii už
+  nevytvára odznova (zostáva živá a len sa skryje/zobrazí) a knižnica profilov
+  sa načítava z disku iba keď sa súbor skutočne zmenil. Návrat z Editora
+  profilov je tak okamžitý. Skryté grafy sa nekreslia naprázdno.
+
 ## [1.24.1] – 2026-07-19
 
 ### Opravené

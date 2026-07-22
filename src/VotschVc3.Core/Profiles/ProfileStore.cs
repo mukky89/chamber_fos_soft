@@ -18,6 +18,15 @@ public sealed class ProfileStore
 
     private readonly object _sync = new();
 
+    // Parsed-file cache: the dashboard reloads the library for every chamber on
+    // each navigation home, so re-reading and re-deserialising the same unchanged
+    // JSON file over and over made that transition noticeably slow. The cache is
+    // invalidated by the file's write time + length, so edits made by another
+    // process are still picked up.
+    private List<TestProfile>? _cache;
+    private DateTime _cacheWriteTimeUtc;
+    private long _cacheLength;
+
     public ProfileStore(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -69,17 +78,29 @@ public sealed class ProfileStore
     {
         if (!File.Exists(FilePath))
         {
+            _cache = null;
             return new List<TestProfile>();
         }
 
         try
         {
+            var info = new FileInfo(FilePath);
+            if (_cache is not null && info.LastWriteTimeUtc == _cacheWriteTimeUtc && info.Length == _cacheLength)
+            {
+                return new List<TestProfile>(_cache);
+            }
+
             string json = File.ReadAllText(FilePath);
-            return JsonSerializer.Deserialize<List<TestProfile>>(json, Options) ?? new List<TestProfile>();
+            List<TestProfile> parsed = JsonSerializer.Deserialize<List<TestProfile>>(json, Options) ?? new List<TestProfile>();
+            _cache = parsed;
+            _cacheWriteTimeUtc = info.LastWriteTimeUtc;
+            _cacheLength = info.Length;
+            return new List<TestProfile>(parsed);
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {
             // A corrupt or partially written file should not crash the app.
+            _cache = null;
             return new List<TestProfile>();
         }
     }
@@ -94,5 +115,10 @@ public sealed class ProfileStore
 
         string json = JsonSerializer.Serialize(profiles, Options);
         File.WriteAllText(FilePath, json);
+
+        var info = new FileInfo(FilePath);
+        _cache = new List<TestProfile>(profiles);
+        _cacheWriteTimeUtc = info.LastWriteTimeUtc;
+        _cacheLength = info.Length;
     }
 }
