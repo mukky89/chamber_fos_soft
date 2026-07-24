@@ -4,6 +4,33 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.24.2] – 2026-07-24
+
+### Opravené
+- **SIKA – spojenie a zápis teploty.** Viacero opráv REST-API klienta pre
+  SIKA TP Premium kúpele:
+  - HTTP požiadavky už **obchádzajú systémový proxy** – ak má počítač
+    nastavený firemný proxy, požiadavky na kúpeľ (lokálna IP 10.88.x.x) v ňom
+    končili a pripojenie zlyhalo, hoci ostatné zariadenia (Vötsch, POL-EKO cez
+    raw TCP) fungovali.
+  - **Overenie spojenia cez rýchly `getRegister`** namiesto pomalého
+    `getInfoReport` (generovanie reportu na prístroji vedelo prekročiť časový
+    limit a pripojenie „nefungovalo"). Ak na porte odpovedá niečo iné než
+    REST-API (napr. webová aplikácia), pripojenie sa odmietne so zrozumiteľným
+    vysvetlením namiesto tichého zlyhania neskôr.
+  - **Sporadické výpadky embedded webservera sa preklenú opakovaním** –
+    jednorazová 404/HTTP chyba už nezhodí pripájanie ani zápis setpointu.
+  - **Zápis teploty (`setSP`) sa po potvrdení overuje spätným čítaním
+    `TRset_SP`.** Keď prístroj príkaz potichu ignoruje (napr. starší TP
+    software < 30.35, ktorý `setSP` nepozná – vráti 404), aplikácia už
+    nehlási úspech, pri ktorom sa „nespustí výkon": zobrazí presnú príčinu
+    (potrebný upgrade TP software > 30.35, resp. že prístroj setpoint
+    neprevzal) namiesto tichého nič-nerobenia.
+  - Každá požiadavka ide na **čerstvé TCP spojenie** (`Connection: close`) –
+    keep-alive proti embedded webserveru vracal staré/rozbité odpovede.
+  - Zrozumiteľné slovenské chybové hlásenia pri odmietnutom spojení,
+    nedostupnom prístroji či zlom porte (miesto anglickej HTTP výnimky).
+
 ## [1.24.1] – 2026-07-19
 
 ### Opravené
