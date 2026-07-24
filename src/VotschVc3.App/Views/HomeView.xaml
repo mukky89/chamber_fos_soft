@@ -450,6 +450,25 @@
                                 <Border Style="{StaticResource Section}">
                                     <StackPanel>
                                         <TextBlock Text="Testovací profil" Style="{StaticResource Label}" />
+
+                                        <!-- Prerušený beh profilu – kompaktná ponuka pokračovania na karte. -->
+                                        <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource WarnBrush}"
+                                                BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,0,8"
+                                                Visibility="{Binding HasInterruptedRun, Converter={StaticResource BoolToVisibility}}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding InterruptedRunInfo}" TextWrapping="Wrap"
+                                                           FontFamily="Segoe UI Semibold" FontSize="12"
+                                                           Foreground="{StaticResource WarnBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <Button Content="▶ Pokračovať" Style="{StaticResource AccentButton}" Margin="0" Height="30"
+                                                            Command="{Binding ResumeInterruptedRunCommand}"
+                                                            ToolTip="Pokračuje v prerušenom profile od miesta prerušenia." />
+                                                    <Button Content="✕ Zahodiť" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Height="30"
+                                                            Command="{Binding DiscardInterruptedRunCommand}"
+                                                            ToolTip="Zahodí uložený bod prerušenia." />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />

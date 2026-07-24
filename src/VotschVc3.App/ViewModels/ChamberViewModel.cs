@@ -29,6 +29,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private readonly IChamberDevice _client;
     private readonly ProfileStore _store;
+    private readonly ProfileRunStateStore _runStateStore;
     private readonly EmailNotifier _email;
     private readonly ThermometersViewModel _thermometers;
     private readonly AuditLog _audit;
@@ -42,7 +43,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private System.Windows.Threading.DispatcherTimer? _countdownTimer;
     private ProfileRunner? _activeRunner;
 
-    public ChamberViewModel(ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit)
+    public ChamberViewModel(ChamberConfig config, ProfileStore store, ProfileRunStateStore runStateStore, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit)
     {
         ArgumentNullException.ThrowIfNull(config);
         Id = config.Id;
@@ -51,6 +52,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         Protocol = config.Protocol;
         _host = config.Host;
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _runStateStore = runStateStore ?? throw new ArgumentNullException(nameof(runStateStore));
         _email = email ?? throw new ArgumentNullException(nameof(email));
         _thermometers = thermometers ?? throw new ArgumentNullException(nameof(thermometers));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
@@ -87,6 +89,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             p => p is not null && IsConnected && IsOperable && !IsProfileRunning, ReportError);
         PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning && IsUnlocked);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning && IsUnlocked);
+        ResumeInterruptedRunCommand = new AsyncRelayCommand(ResumeInterruptedRunAsync,
+            () => HasInterruptedRun && IsConnected && IsOperable && !IsProfileRunning, ReportError);
+        DiscardInterruptedRunCommand = new RelayCommand(DiscardInterruptedRun,
+            () => HasInterruptedRun && !IsProfileRunning && IsUnlocked);
         CancelProfileCommand = new RelayCommand(CancelProfile, CanCancelProfile);
         StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsOperable && !IsProfileRunning && Queue.Count > 0, ReportError);
         AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
@@ -155,6 +161,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SeedDefaultProfile();
         RefreshHistory();
         RecalculateTiming();
+        LoadInterruptedRun();
     }
 
     /// <summary>Stable identity (used as a key in the shell and for persistence).</summary>
@@ -582,6 +589,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             StartPolling();
         }
+
+        // A freshly interrupted run (app crash / restart) continues automatically.
+        TryAutoResumeAfterConnect();
     }
 
     private async Task DisconnectAsync()
@@ -1462,6 +1472,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public RelayCommand StopProfileCommand { get; }
 
+    /// <summary>Resumes an interrupted run (app crash / connection loss) from its checkpoint.</summary>
+    public AsyncRelayCommand ResumeInterruptedRunCommand { get; }
+
+    /// <summary>Discards the saved checkpoint of an interrupted run.</summary>
+    public RelayCommand DiscardInterruptedRunCommand { get; }
+
     /// <summary>Cancels a quick-started (or loaded) profile and clears it off the card.</summary>
     public RelayCommand CancelProfileCommand { get; }
     public RelayCommand AddSegmentCommand { get; }
@@ -1667,8 +1683,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    /// <summary>Runs one or more profiles back-to-back (the test queue).</summary>
-    private async Task RunSequenceAsync(IReadOnlyList<TestProfile> profiles)
+    /// <summary>
+    /// Runs one or more profiles back-to-back (the test queue). When
+    /// <paramref name="resume"/> is set, the sequence continues from the saved
+    /// checkpoint instead of the beginning (crash / connection-loss recovery).
+    /// </summary>
+    private async Task RunSequenceAsync(IReadOnlyList<TestProfile> profiles, ProfileRunState? resume = null)
     {
         if (profiles.Count == 0)
         {
@@ -1680,25 +1700,33 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         IsProfileRunning = true;
         ProfileProgress = 0;
         _profileNowFraction = 0; // fresh run: the preview "now" marker starts at the beginning
+        _runSequence = profiles;
+        _lastCheckpointKey = (-1, -1, -1);
+        _checkpointWarned = false;
+        ClearInterruptedRunOffer();
 
         // Safety: lock the device the moment a test/quick profile starts.
         AutoLockOnRun(profiles.Count > 1 ? "spustená fronta profilov" : "spustený profil");
 
         try
         {
-            if (UseDelayedStart && ScheduledStart > DateTime.Now)
+            if (resume is null && UseDelayedStart && ScheduledStart > DateTime.Now)
             {
                 await WaitForScheduledStartAsync(token);
             }
 
-            _profileActualStart = DateTime.Now;
-            _profileEstimatedEnd = DateTime.Now + TimeSpan.FromTicks(profiles.Sum(p => p.TotalDuration.Ticks));
+            // On resume the start/end markers are back-dated by the already
+            // completed test time, so the countdown / Gantt show the true remainder.
+            TimeSpan alreadyDone = resume?.CompletedDuration() ?? TimeSpan.Zero;
+            _profileActualStart = DateTime.Now - alreadyDone;
+            _profileEstimatedEnd = _profileActualStart + TimeSpan.FromTicks(profiles.Sum(p => p.TotalDuration.Ticks));
             RaiseGanttTimes();
             StartCountdown();
             RecalculateTiming();
             OpenProfileTemperatureLog(profiles.Count > 1 ? $"Fronta ({profiles.Count} profilov)" : profiles[0].Name);
 
-            for (int i = 0; i < profiles.Count; i++)
+            int firstProfile = resume is null ? 0 : Math.Clamp(resume.ProfileIndex, 0, profiles.Count - 1);
+            for (int i = firstProfile; i < profiles.Count; i++)
             {
                 TestProfile profile = profiles[i];
                 if (profiles.Count > 1)
@@ -1708,12 +1736,25 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                     ApplyProfile(profile);
                 }
 
-                ShowActionInfo($"▶ Spustený profil „{profile.Name}\" ({i + 1}/{profiles.Count})");
-                _audit.Log(Name, "Štart profilu", $"{profile.Name} ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov)");
-                AppLog.Info(Name, $"Štart profilu \"{profile.Name}\" ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov, {profile.Segments.Count} segmentov).");
-                await RunProfileCoreAsync(profile, i, profiles.Count, token);
+                ProfileRunPosition? position = resume is not null && i == firstProfile ? resume.ToPosition() : null;
+                if (position is null)
+                {
+                    ShowActionInfo($"▶ Spustený profil „{profile.Name}\" ({i + 1}/{profiles.Count})");
+                    _audit.Log(Name, "Štart profilu", $"{profile.Name} ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov)");
+                    AppLog.Info(Name, $"Štart profilu \"{profile.Name}\" ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov, {profile.Segments.Count} segmentov).");
+                }
+                else
+                {
+                    string place = $"cyklus {position.Cycle + 1}/{Math.Max(1, profile.Cycles)} · segment {position.SegmentIndex + 1}/{profile.Segments.Count}";
+                    ShowActionInfo($"▶ Profil „{profile.Name}\" pokračuje od miesta prerušenia ({place})");
+                    _audit.Log(Name, "Profil pokračuje po prerušení", $"{profile.Name} · {place}");
+                    AppLog.Info(Name, $"Profil \"{profile.Name}\" pokračuje od miesta prerušenia: {place}, {position.ElapsedInSegment:hh\\:mm\\:ss} v segmente.");
+                }
+
+                await RunProfileCoreAsync(profile, i, profiles.Count, position, token);
             }
 
+            DeleteRunCheckpoint();
             ProfileProgress = 100;
             ProfileStatus = profiles.Count > 1 ? "Fronta dokončená." : "Profil dokončený.";
             StatusMessage = ProfileStatus;
@@ -1729,6 +1770,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
+            // A deliberate stop must not leave a resume checkpoint behind.
+            DeleteRunCheckpoint();
             ProfileStatus = "Profil zrušený.";
             _audit.Log(Name, "Profil zrušený", string.Empty);
             AppLog.Warn(Name, "Profil zrušený používateľom.");
@@ -1750,11 +1793,26 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 StatusMessage = "Profil zrušený.";
             }
         }
+        catch (Exception ex)
+        {
+            // The run died on an error (typically a lost connection). The last
+            // checkpoint stays on disk, so once the link is back the run can be
+            // resumed – automatically after a reconnect, or via the banner.
+            ProfileStatus = $"⚠ Profil prerušený chybou: {ex.Message}";
+            StatusMessage = ProfileStatus;
+            _audit.Log(Name, "Profil prerušený chybou", ex.Message);
+            AppLog.Error(Name, ex);
+            DesktopNotifier.Notify(
+                $"Profil prerušený · {Name}",
+                $"{ex.Message} – beh sa dá obnoviť od miesta prerušenia.",
+                DesktopNotificationKind.Warning);
+        }
         finally
         {
             _powerOffOnProfileCancel = false;
             IsProfileRunning = false;
             _activeRunner = null;
+            _runSequence = null;
             _profileActualStart = null;
             _profileEstimatedEnd = null;
             RaiseGanttTimes();
@@ -1763,10 +1821,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileCts?.Dispose();
             _profileCts = null;
             RecalculateTiming();
+            LoadInterruptedRun();
         }
     }
 
-    private async Task RunProfileCoreAsync(TestProfile profile, int indexInQueue, int queueCount, CancellationToken token)
+    private async Task RunProfileCoreAsync(
+        TestProfile profile, int indexInQueue, int queueCount, ProfileRunPosition? resumeFrom, CancellationToken token)
     {
         double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
         double? startHum = SupportsHumidity ? MeasuredHumidity : null;
@@ -1776,30 +1836,36 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         double totalSeconds = Math.Max(1, profile.TotalDuration.TotalSeconds);
         double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
 
-        runner.Progress += (_, e) => RunOnUi(() =>
+        runner.Progress += (_, e) =>
         {
-            double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
-            double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
-            double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
-            double profileFraction = Math.Clamp(overallSeconds / totalSeconds, 0d, 1d);
-            ProfileProgress = Math.Clamp((indexInQueue + profileFraction) / queueCount * 100d, 0, 100);
-            ProfileStatus =
-                (e.IsSoaking ? "⏳ Soak · " : string.Empty) +
-                (queueCount > 1 ? $"[{indexInQueue + 1}/{queueCount}] " : string.Empty) +
-                $"\"{profile.Name}\" · cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
-                $"· {e.TemperatureSetpoint:0.0} °C" +
-                (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
+            // Checkpoint on the worker thread (file I/O must not block the UI).
+            SaveRunCheckpoint(indexInQueue, e);
 
-            // Advance the "now" marker on the profile preview.
-            _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
-            BuildProfilePreview();
+            RunOnUi(() =>
+            {
+                double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
+                double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
+                double overallSeconds = e.Cycle * singlePassSeconds + doneThisPass;
+                double profileFraction = Math.Clamp(overallSeconds / totalSeconds, 0d, 1d);
+                ProfileProgress = Math.Clamp((indexInQueue + profileFraction) / queueCount * 100d, 0, 100);
+                ProfileStatus =
+                    (e.IsSoaking ? "⏳ Soak · " : string.Empty) +
+                    (queueCount > 1 ? $"[{indexInQueue + 1}/{queueCount}] " : string.Empty) +
+                    $"\"{profile.Name}\" · cyklus {e.Cycle + 1}/{profile.Cycles} · segment {e.SegmentIndex + 1}/{profile.Segments.Count} " +
+                    $"· {e.TemperatureSetpoint:0.0} °C" +
+                    (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
 
-            // Per-profile temperature record (set point vs measured chamber temperature).
-            _profileTempLog?.Log(DateTime.Now, e.TemperatureSetpoint, MeasuredTemperature,
-                e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
-        });
+                // Advance the "now" marker on the profile preview.
+                _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
+                BuildProfilePreview();
 
-        await runner.RunAsync(profile, startTemp, startHum, token);
+                // Per-profile temperature record (set point vs measured chamber temperature).
+                _profileTempLog?.Log(DateTime.Now, e.TemperatureSetpoint, MeasuredTemperature,
+                    e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
+            });
+        };
+
+        await runner.RunAsync(profile, startTemp, startHum, resumeFrom, token);
     }
 
     private async Task WaitForScheduledStartAsync(CancellationToken token)
@@ -1897,6 +1963,219 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ? "✕ Profil zastavený a odobraný z karty."
             : "✕ Profil odobraný z karty.");
     }
+
+    #region Crash recovery (resume an interrupted run)
+
+    /// <summary>Checkpoints are written at most this often (except on segment changes).</summary>
+    private const double CheckpointMinIntervalSeconds = 5;
+
+    /// <summary>
+    /// An interruption younger than this resumes automatically after (re)connecting –
+    /// the crash-and-restart / short-outage case. Older checkpoints only show the
+    /// banner, because after a long unmanaged gap the operator should decide.
+    /// </summary>
+    private static readonly TimeSpan AutoResumeMaxAge = TimeSpan.FromMinutes(30);
+
+    private IReadOnlyList<TestProfile>? _runSequence;
+    private ProfileRunState? _pendingResume;
+    private DateTime _lastCheckpointUtc;
+    private (int Profile, int Cycle, int Segment) _lastCheckpointKey = (-1, -1, -1);
+    private bool _checkpointWarned;
+
+    /// <summary>True when a saved checkpoint of an interrupted run is waiting to be resumed.</summary>
+    public bool HasInterruptedRun => _pendingResume is not null;
+
+    private string _interruptedRunInfo = string.Empty;
+    /// <summary>Banner text describing the interrupted run (profile, position, when saved).</summary>
+    public string InterruptedRunInfo { get => _interruptedRunInfo; private set => SetProperty(ref _interruptedRunInfo, value); }
+
+    /// <summary>
+    /// Loads the saved checkpoint for this chamber (start-up and after every run)
+    /// and shows / hides the resume banner accordingly.
+    /// </summary>
+    private void LoadInterruptedRun()
+    {
+        if (IsProfileRunning)
+        {
+            return;
+        }
+
+        ProfileRunState? state = null;
+        try
+        {
+            state = _runStateStore.Load(Id);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn(Name, $"Checkpoint prerušeného profilu sa nepodarilo načítať: {ex.Message}");
+        }
+
+        if (state?.CurrentProfile is { } profile && profile.Segments.Count > 0)
+        {
+            _pendingResume = state;
+            string queue = state.Profiles.Count > 1 ? $" [{state.ProfileIndex + 1}/{state.Profiles.Count}]" : string.Empty;
+            InterruptedRunInfo =
+                $"⚠ Prerušený beh: „{profile.Name}“{queue} · cyklus {state.Cycle + 1}/{Math.Max(1, profile.Cycles)} " +
+                $"· segment {state.SegmentIndex + 1}/{profile.Segments.Count} · prerušené {state.SavedAt:dd.MM. HH:mm:ss}";
+            AppLog.Info(Name, $"Nájdený prerušený profil \"{profile.Name}\" ({state.SavedAt:dd.MM.yyyy HH:mm:ss}) – možno pokračovať od miesta prerušenia.");
+        }
+        else
+        {
+            _pendingResume = null;
+            InterruptedRunInfo = string.Empty;
+        }
+
+        OnPropertyChanged(nameof(HasInterruptedRun));
+        ResumeInterruptedRunCommand.RaiseCanExecuteChanged();
+        DiscardInterruptedRunCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>Hides the resume banner (without touching the file on disk).</summary>
+    private void ClearInterruptedRunOffer()
+    {
+        _pendingResume = null;
+        InterruptedRunInfo = string.Empty;
+        OnPropertyChanged(nameof(HasInterruptedRun));
+        ResumeInterruptedRunCommand.RaiseCanExecuteChanged();
+        DiscardInterruptedRunCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>Banner ▶: continues the interrupted run from its saved checkpoint.</summary>
+    private async Task ResumeInterruptedRunAsync()
+    {
+        if (_pendingResume is not { } state || state.CurrentProfile is not { } profile)
+        {
+            return;
+        }
+
+        // Show the resumed profile in the editor / preview.
+        ApplyProfile(profile);
+        await RunSequenceAsync(state.Profiles, state);
+    }
+
+    /// <summary>Banner ✕: throws the checkpoint away (the run stays finished-as-interrupted).</summary>
+    private void DiscardInterruptedRun()
+    {
+        try
+        {
+            _runStateStore.Delete(Id);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn(Name, $"Checkpoint sa nepodarilo zmazať: {ex.Message}");
+        }
+
+        _audit.Log(Name, "Prerušený profil zahodený", _pendingResume?.CurrentProfile?.Name ?? string.Empty);
+        StatusMessage = "Prerušený profil zahodený – beh nebude pokračovať.";
+        ClearInterruptedRunOffer();
+    }
+
+    /// <summary>
+    /// Called right after a successful (re)connect: a fresh checkpoint (typically an
+    /// app crash + restart, or a short network outage during a run) continues
+    /// automatically; an older one only offers the banner so the operator decides.
+    /// </summary>
+    private void TryAutoResumeAfterConnect()
+    {
+        if (_pendingResume is not { } state || IsProfileRunning)
+        {
+            return;
+        }
+
+        if (DateTimeOffset.Now - state.SavedAt > AutoResumeMaxAge)
+        {
+            StatusMessage = "Nájdený prerušený profil – pokračovanie potvrď tlačidlom „Pokračovať v profile“.";
+            return;
+        }
+
+        RunOnUi(() =>
+        {
+            if (_pendingResume is null || IsProfileRunning)
+            {
+                return;
+            }
+
+            _audit.Log(Name, "Automatické pokračovanie profilu", state.CurrentProfile?.Name ?? string.Empty);
+            AppLog.Info(Name, "Čerstvý prerušený profil – po pripojení pokračujem automaticky od miesta prerušenia.");
+            _ = SafeResumeInterruptedRunAsync();
+        });
+    }
+
+    private async Task SafeResumeInterruptedRunAsync()
+    {
+        try
+        {
+            await ResumeInterruptedRunAsync();
+        }
+        catch (Exception ex)
+        {
+            ReportError(ex);
+        }
+    }
+
+    /// <summary>
+    /// Persists the current run position. Runs on the runner's worker thread on
+    /// every set point write, throttled so the file is written at most every
+    /// <see cref="CheckpointMinIntervalSeconds"/> (segment / cycle changes always
+    /// write, so a resume never replays a finished segment).
+    /// </summary>
+    private void SaveRunCheckpoint(int indexInQueue, ProfileProgressEventArgs e)
+    {
+        if (_runSequence is not { } sequence)
+        {
+            return;
+        }
+
+        (int, int, int) key = (indexInQueue, e.Cycle, e.SegmentIndex);
+        DateTime now = DateTime.UtcNow;
+        if (key == _lastCheckpointKey && (now - _lastCheckpointUtc).TotalSeconds < CheckpointMinIntervalSeconds)
+        {
+            return;
+        }
+
+        try
+        {
+            _runStateStore.Save(new ProfileRunState
+            {
+                ChamberId = Id,
+                SavedAt = DateTimeOffset.Now,
+                Profiles = sequence.ToList(),
+                ProfileIndex = indexInQueue,
+                Cycle = e.Cycle,
+                SegmentIndex = e.SegmentIndex,
+                ElapsedInSegmentSeconds = e.ElapsedInSegment.TotalSeconds,
+                SegmentStartTemperature = e.SegmentStartTemperature,
+                SegmentStartHumidity = e.SegmentStartHumidity,
+            });
+            _lastCheckpointKey = key;
+            _lastCheckpointUtc = now;
+        }
+        catch (Exception ex)
+        {
+            if (!_checkpointWarned)
+            {
+                // Warn once per run; a full disk must not spam the log every 5 s.
+                _checkpointWarned = true;
+                AppLog.Warn(Name, $"Checkpoint behu sa nepodarilo uložiť (obnova po páde nebude dostupná): {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>Removes the checkpoint after a completed or deliberately stopped run.</summary>
+    private void DeleteRunCheckpoint()
+    {
+        _lastCheckpointKey = (-1, -1, -1);
+        try
+        {
+            _runStateStore.Delete(Id);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn(Name, $"Checkpoint sa nepodarilo zmazať: {ex.Message}");
+        }
+    }
+
+    #endregion
 
     private void AddSegment()
     {
@@ -3010,6 +3289,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 StartPolling();
             }
 
+            // A run that died on the connection loss continues from its checkpoint.
+            TryAutoResumeAfterConnect();
             return;
         }
     }
@@ -3314,6 +3595,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickStartProfileCommand.RaiseCanExecuteChanged();
         PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
+        ResumeInterruptedRunCommand.RaiseCanExecuteChanged();
+        DiscardInterruptedRunCommand.RaiseCanExecuteChanged();
         CancelProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();
         StartChainCommand.RaiseCanExecuteChanged();

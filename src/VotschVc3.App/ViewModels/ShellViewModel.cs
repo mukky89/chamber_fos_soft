@@ -30,6 +30,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     }.Concat(ChamberViewModel.NameplatePropertyNames).ToHashSet();
 
     private readonly ProfileStore _store;
+    private readonly ProfileRunStateStore _runStateStore;
     private readonly EmailSettingsStore _emailStore;
     private readonly ChamberConfigStore _configStore;
     private readonly UserStore _userStore;
@@ -45,6 +46,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         string dir = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VotschVc3");
         _store = new ProfileStore(System.IO.Path.Combine(dir, "profiles.json"));
+        _runStateStore = new ProfileRunStateStore(System.IO.Path.Combine(dir, "runstate.json"));
         _emailStore = new EmailSettingsStore(System.IO.Path.Combine(dir, "email.json"));
         _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
         _userStore = new UserStore(System.IO.Path.Combine(dir, "users.json"));
@@ -815,7 +817,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private void AddChamberInternal(ChamberConfig config)
     {
-        var chamber = new ChamberViewModel(config, _store, _notifier, Thermometers, _audit);
+        var chamber = new ChamberViewModel(config, _store, _runStateStore, _notifier, Thermometers, _audit);
         chamber.SetControlAllowed(CanControl);
         chamber.PropertyChanged += OnChamberPropertyChanged;
         Chambers.Add(chamber);

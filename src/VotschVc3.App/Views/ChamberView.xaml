@@ -351,6 +351,28 @@
                         <Border Grid.Row="3" Style="{StaticResource Card}"
                                 Visibility="{Binding IsSegmentsExpanded, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                             <StackPanel>
+                                <!-- Prerušený beh (pád aplikácie / výpadok spojenia): ponuka pokračovať
+                                     presne od uloženého bodu. Čerstvé prerušenie pokračuje automaticky
+                                     po pripojení; staršie čaká na potvrdenie operátorom. -->
+                                <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource WarnBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9" Margin="0,0,0,10"
+                                        Visibility="{Binding HasInterruptedRun, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding InterruptedRunInfo}" TextWrapping="Wrap"
+                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource WarnBrush}" />
+                                        <TextBlock Text="Beh profilu bol prerušený (pád aplikácie alebo strata spojenia). Môžeš pokračovať presne od miesta prerušenia – uplynutý čas testu sa nestráca."
+                                                   Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,8" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="▶ Pokračovať v profile" Style="{StaticResource AccentButton}"
+                                                    Command="{Binding ResumeInterruptedRunCommand}"
+                                                    ToolTip="Pokračuje v prerušenom profile od uloženého cyklu, segmentu a času (vyžaduje pripojenie)." />
+                                            <Button Content="✕ Zahodiť" Style="{StaticResource GhostButton}"
+                                                    Command="{Binding DiscardInterruptedRunCommand}" Margin="8,0,0,0"
+                                                    ToolTip="Zahodí uložený bod prerušenia – profil nebude pokračovať." />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                     <CheckBox Content="Odložený štart" IsChecked="{Binding UseDelayedStart}" VerticalAlignment="Center" />
                                     <TextBox Text="{Binding ScheduledStartDateText, UpdateSourceTrigger=LostFocus}" Width="110" Margin="12,0,0,0"

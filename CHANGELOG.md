@@ -4,6 +4,26 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.0] – 2026-07-24
+
+### Pridané
+- **Pokračovanie profilu po páde aplikácie.** Počas behu profilu (aj fronty /
+  radu profilov) sa každých pár sekúnd ukladá bod prerušenia (checkpoint) do
+  `Dokumenty\VotschVc3\runstate.json` – profil, cyklus, segment aj uplynutý čas
+  v segmente. Po páde aplikácie, reštarte počítača alebo výpadku spojenia beh
+  **pokračuje presne od miesta, kde prestal** – uplynutý čas testu sa nestráca:
+  - **Automaticky:** ak je prerušenie čerstvé (do 30 minút), profil pokračuje
+    sám hneď po pripojení komory (typicky pád + reštart appky alebo krátky
+    výpadok siete počas behu).
+  - **Ručne:** pri staršom prerušení sa na karte zariadenia aj v detaile komory
+    zobrazí banner „⚠ Prerušený beh…" s tlačidlami **▶ Pokračovať v profile**
+    a **✕ Zahodiť**, aby o pokračovaní rozhodol operátor.
+  - Checkpoint sa maže pri normálnom dokončení aj pri ručnom zastavení profilu;
+    zostáva len po neočakávanom prerušení. Zápis je atomický, takže pád počas
+    ukladania nikdy nepoškodí posledný platný bod.
+  - Segment s garantovaným soakom, ktorý už mal odpočítaný čas, sa pri obnove
+    nesoakuje odznova; odložený štart sa pri obnove preskakuje.
+
 ## [1.24.1] – 2026-07-19
 
 ### Opravené
