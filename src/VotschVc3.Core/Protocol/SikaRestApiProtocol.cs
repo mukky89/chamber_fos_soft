@@ -51,6 +51,14 @@ public static class SikaRestApiProtocol
     /// <summary>Builds the URL for the device information report.</summary>
     public static string BuildInfoReportUrl(string host, int port) => BuildCommandUrl(host, port, "getInfoReport");
 
+    /// <summary>
+    /// Builds the URL for the combined status snapshot. Newer SIKA chambers
+    /// (e.g. TP37200E.2) answer <c>getGradientInfo</c> with the reference
+    /// temperature (<c>TR</c>), the set point (<c>SP</c>), stability and heating
+    /// state in a single call – one round-trip instead of two per-register reads.
+    /// </summary>
+    public static string BuildGradientInfoUrl(string host, int port) => BuildCommandUrl(host, port, "getGradientInfo");
+
     /// <summary>Builds the URL for the current calibration status.</summary>
     public static string BuildCalibrationStatusUrl(string host, int port) => BuildCommandUrl(host, port, "getCalibrationStatus");
 
@@ -79,6 +87,57 @@ public static class SikaRestApiProtocol
 
         return null;
     }
+
+    /// <summary>
+    /// The fields we read out of a <c>getGradientInfo</c> response. All nullable so a
+    /// partial / older-firmware payload still parses; <see cref="ReferenceTemperature"/>
+    /// being non-null is the signal that the device actually supports this endpoint.
+    /// </summary>
+    public readonly record struct SikaGradientInfo(
+        double? ReferenceTemperature,
+        double? Setpoint,
+        bool? HeatingOn,
+        int? SystemState);
+
+    /// <summary>
+    /// Parses a <c>getGradientInfo</c> response
+    /// (<c>{"TR":-19.99,"SP":-20.0,"Stable":2,"heatingON":1,"systemState":2,...}</c>).
+    /// Returns <c>null</c> when the body is not a JSON object carrying <c>TR</c> – i.e.
+    /// the device / firmware does not expose this endpoint – so the caller can fall
+    /// back to per-register reads.
+    /// </summary>
+    public static SikaGradientInfo? ParseGradientInfo(string json)
+    {
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(json);
+            JsonElement root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("TR", out _))
+            {
+                return null;
+            }
+
+            double? tr = TryGetNumber(root, "TR");
+            if (tr is null)
+            {
+                return null;
+            }
+
+            bool? heating = TryGetNumber(root, "heatingON") is { } h ? h != 0 : null;
+            int? systemState = TryGetNumber(root, "systemState") is { } s ? (int)s : null;
+            return new SikaGradientInfo(tr, TryGetNumber(root, "SP"), heating, systemState);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Reads a numeric property, or <c>null</c> when it is missing / not a number.</summary>
+    private static double? TryGetNumber(JsonElement obj, string name) =>
+        obj.TryGetProperty(name, out JsonElement e) && e.ValueKind == JsonValueKind.Number
+            ? e.GetDouble()
+            : null;
 
     /// <summary>
     /// Parses a <c>setSP</c> response (<c>{"value":"success","info":"25.500000"}</c>).

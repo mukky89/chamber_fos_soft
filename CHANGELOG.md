@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [Nezaradené]
+
+### Pridané / zmenené
+- **SIKA – čítanie cez `getGradientInfo` a podpora portu 80.** Podľa reálneho
+  záznamu komunikácie (HAR) z prístroja **SIKA PolyTech (TP37200E.2)** teraz
+  `SikaTpClient.ReadAsync` uprednostní jedno volanie `ajax/getGradientInfo`,
+  ktoré vráti referenčnú teplotu (`TR`) aj setpoint (`SP`) naraz – namiesto dvoch
+  `getRegister` volaní. Ak zariadenie tento endpoint nepozná (staršie TP Premium,
+  HTTP 404), automaticky sa vráti k pôvodnému čítaniu po registroch, takže SIKA
+  Sylex funguje bez zmeny.
+- **SIKA PolyTech – správna konfigurácia.** Prístroj `10.88.6.28` je model
+  **TP37200E.2** a odpovedá na REST-API na **porte 80** (nie 8081) s rozsahom
+  **−60…+200 °C**; štítok a rozsah upravené podľa jeho `getInfoReport`.
+
 ## [1.24.1] – 2026-07-19
 
 ### Opravené

@@ -86,15 +86,41 @@ public sealed class SikaTpClient : IChamberDevice
 
     public async Task<ChamberReading> ReadAsync(CancellationToken cancellationToken = default)
     {
-        string measuredUrl = SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, SikaRestApiProtocol.MeasuredRegister);
-        string measuredJson = await GetAsync(measuredUrl, cancellationToken).ConfigureAwait(false);
-        RaiseFrame($"GET {measuredUrl}", measuredJson);
-        double? measured = SikaRestApiProtocol.ParseRegisterValue(measuredJson);
+        double? measured = null;
+        double? setpoint = null;
 
-        string setpointUrl = SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, SikaRestApiProtocol.SetpointRegister);
-        string setpointJson = await GetAsync(setpointUrl, cancellationToken).ConfigureAwait(false);
-        RaiseFrame($"GET {setpointUrl}", setpointJson);
-        double? setpoint = SikaRestApiProtocol.ParseRegisterValue(setpointJson);
+        // Prefer the single getGradientInfo call – newer chambers (e.g. TP37200E.2
+        // on port 80) return TR (reference temperature) and SP together, so it is
+        // one round-trip instead of two. Older TP Premium firmware does not serve
+        // the endpoint (HTTP 404); fall back to the per-register reads below.
+        try
+        {
+            string gradientUrl = SikaRestApiProtocol.BuildGradientInfoUrl(Settings.Host, Settings.Port);
+            string gradientJson = await GetAsync(gradientUrl, cancellationToken).ConfigureAwait(false);
+            RaiseFrame($"GET {gradientUrl}", gradientJson);
+            if (SikaRestApiProtocol.ParseGradientInfo(gradientJson) is { ReferenceTemperature: not null } gradient)
+            {
+                measured = gradient.ReferenceTemperature;
+                setpoint = gradient.Setpoint;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            // getGradientInfo not available on this device/firmware – fall through.
+        }
+
+        if (measured is null)
+        {
+            string measuredUrl = SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, SikaRestApiProtocol.MeasuredRegister);
+            string measuredJson = await GetAsync(measuredUrl, cancellationToken).ConfigureAwait(false);
+            RaiseFrame($"GET {measuredUrl}", measuredJson);
+            measured = SikaRestApiProtocol.ParseRegisterValue(measuredJson);
+
+            string setpointUrl = SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, SikaRestApiProtocol.SetpointRegister);
+            string setpointJson = await GetAsync(setpointUrl, cancellationToken).ConfigureAwait(false);
+            RaiseFrame($"GET {setpointUrl}", setpointJson);
+            setpoint = SikaRestApiProtocol.ParseRegisterValue(setpointJson);
+        }
 
         var analog = new List<double>();
         if (measured is { } m) analog.Add(m);
