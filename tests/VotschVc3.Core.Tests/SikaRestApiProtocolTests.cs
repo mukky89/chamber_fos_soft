@@ -96,4 +96,27 @@ public class SikaRestApiProtocolTests
     [Fact]
     public void ParseSetSpResponse_throws_on_malformed_json() =>
         Assert.Throws<InvalidOperationException>(() => SikaRestApiProtocol.ParseSetSpResponse("not json"));
+
+    [Fact]
+    public void BuildSetRegisterUrl_formats_register_and_value() =>
+        Assert.Equal(
+            "http://10.88.5.81:80/ajax/setRegister?register=TRset_SP&value=40",
+            SikaRestApiProtocol.BuildSetRegisterUrl("10.88.5.81", 80, SikaRestApiProtocol.SetpointRegister, 40));
+
+    [Fact]
+    public void ParseSetRegisterResponse_returns_written_value_on_success()
+    {
+        // Real success payload from a TP3M165E.2 setRegister write.
+        string json = "{\"value\":\"success\",\"info\":\"value 40.000000 wrote to register TRset_SP\"}";
+        Assert.Equal(40.0, SikaRestApiProtocol.ParseSetRegisterResponse(json));
+    }
+
+    [Fact]
+    public void ParseSetRegisterResponse_throws_when_not_success() =>
+        Assert.Throws<InvalidOperationException>(() =>
+            SikaRestApiProtocol.ParseSetRegisterResponse("{\"value\":\"failure\",\"info\":\"could not write register\"}"));
+
+    [Fact]
+    public void ParseSetRegisterResponse_throws_on_malformed_json() =>
+        Assert.Throws<InvalidOperationException>(() => SikaRestApiProtocol.ParseSetRegisterResponse("not json"));
 }

@@ -61,6 +61,32 @@ public class SikaTpClientTests
         Assert.Contains(handler.Requested, u => u.Contains("getRegister?register=TRset_TR"));
     }
 
+    /// <summary>
+    /// A set point write must use setRegister (Task_SetPointList then TRset_SP), matching
+    /// the device's own web UI – not the older setSP command.
+    /// </summary>
+    [Fact]
+    public async Task WriteSetpointsAsync_writes_setpoint_via_setRegister()
+    {
+        var handler = new RouteHandler
+        {
+            ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=Task_SetPointList&value=40"] =
+                ("{\"value\":\"success\",\"info\":\"value 40.000000 wrote to register Task_SetPointList\"}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=TRset_SP&value=40"] =
+                ("{\"value\":\"success\",\"info\":\"value 40.000000 wrote to register TRset_SP\"}", HttpStatusCode.OK),
+        };
+
+        await using var client = new SikaTpClient(_ => new HttpClient(handler));
+        await client.ConnectAsync(new ChamberConnectionSettings { Host = "10.88.5.81", Port = 80 });
+
+        await client.WriteSetpointsAsync(new[] { 40.0 }, new DigitalChannels());
+
+        Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=Task_SetPointList&value=40"));
+        Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=TRset_SP&value=40"));
+        Assert.DoesNotContain(handler.Requested, u => u.Contains("setSP"));
+    }
+
     /// <summary>Routes canned responses by the request URL's ajax command; records every request.</summary>
     private sealed class RouteHandler : HttpMessageHandler
     {

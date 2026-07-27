@@ -142,10 +142,21 @@ public sealed class SikaTpClient : IChamberDevice
         ArgumentNullException.ThrowIfNull(digital);
 
         double temperature = setpoints.Count > 0 ? setpoints[0] : 0d;
-        string url = SikaRestApiProtocol.BuildSetSpUrl(Settings.Host, Settings.Port, temperature);
-        string response = await GetAsync(url, cancellationToken).ConfigureAwait(false);
-        RaiseFrame($"GET {url}", response);
-        double applied = SikaRestApiProtocol.ParseSetSpResponse(response);
+
+        // Mirror the device's own web UI (verified on a real TP3M165E.2): a set point
+        // change writes the EasyMode task set point list first, then the live set point
+        // register, both via setRegister – not the older setSP command.
+        string listUrl = SikaRestApiProtocol.BuildSetRegisterUrl(
+            Settings.Host, Settings.Port, SikaRestApiProtocol.TaskSetPointListRegister, temperature);
+        string listResponse = await GetAsync(listUrl, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {listUrl}", listResponse);
+        SikaRestApiProtocol.ParseSetRegisterResponse(listResponse);
+
+        string setpointUrl = SikaRestApiProtocol.BuildSetRegisterUrl(
+            Settings.Host, Settings.Port, SikaRestApiProtocol.SetpointRegister, temperature);
+        string setpointResponse = await GetAsync(setpointUrl, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {setpointUrl}", setpointResponse);
+        double applied = SikaRestApiProtocol.ParseSetRegisterResponse(setpointResponse);
         RaiseFrame("SET", $"{applied:0.0} °C aplikovaných.");
     }
 

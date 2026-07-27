@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace VotschVc3.Core.Protocol;
 
@@ -18,6 +19,22 @@ public static class SikaRestApiProtocol
 
     /// <summary>Register name for the currently stored set point (°C).</summary>
     public const string SetpointRegister = "TRset_SP";
+
+    /// <summary>
+    /// Register holding the EasyMode (single-step) task set point list. The device's
+    /// own web UI writes this alongside <see cref="SetpointRegister"/> when the user
+    /// changes the temperature, so a running single-step task tracks the new value.
+    /// </summary>
+    public const string TaskSetPointListRegister = "Task_SetPointList";
+
+    /// <summary>Register for the controller on/off state (0 = off, 1 = on).</summary>
+    public const string ControllerOnOffRegister = "System_ReglerOnOff";
+
+    /// <summary>
+    /// Register that reports whether external (remote) writes are enabled
+    /// (1 = enabled). Set point writes are only accepted while this is 1.
+    /// </summary>
+    public const string ExternWriteFlagRegister = "Com_ExternWriteFlag";
 
     /// <summary>Builds the base "http://host:port/" the ajax/ commands hang off.</summary>
     public static string BuildBaseUrl(string host, int port) => $"http://{host}:{port}/";
@@ -47,6 +64,21 @@ public static class SikaRestApiProtocol
     /// <summary>Builds the URL that sets and moves to a new set point.</summary>
     public static string BuildSetSpUrl(string host, int port, double celsius) =>
         BuildCommandUrl(host, port, $"setSP?value={celsius.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}");
+
+    /// <summary>Formats a numeric value the way the SIKA REST-API expects it (invariant, no thousands separators).</summary>
+    private static string FormatValue(double value) =>
+        value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Builds a <c>setRegister?register=…&amp;value=…</c> URL. This is how the device's
+    /// own web UI writes a set point (<c>register=TRset_SP</c>) – observed on a real
+    /// TP3M165E.2 – rather than the older <c>setSP</c> command.
+    /// </summary>
+    public static string BuildSetRegisterUrl(string host, int port, string register, double value)
+    {
+        ArgumentNullException.ThrowIfNull(register);
+        return BuildCommandUrl(host, port, $"setRegister?register={Uri.EscapeDataString(register)}&value={FormatValue(value)}");
+    }
 
     /// <summary>Builds the URL for the device information report.</summary>
     public static string BuildInfoReportUrl(string host, int port) => BuildCommandUrl(host, port, "getInfoReport");
@@ -163,6 +195,41 @@ public static class SikaRestApiProtocol
         catch (JsonException ex)
         {
             throw new InvalidOperationException($"Neplatná odpoveď na setSP: {json}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Parses a <c>setRegister</c> response
+    /// (<c>{"value":"success","info":"value 40.000000 wrote to register TRset_SP"}</c>).
+    /// Returns the numeric value the device confirmed writing. Throws
+    /// <see cref="InvalidOperationException"/> on a non-success status or when the
+    /// success message carries no number.
+    /// </summary>
+    public static double ParseSetRegisterResponse(string json)
+    {
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(json);
+            string? status = doc.RootElement.TryGetProperty("value", out JsonElement v) ? v.GetString() : null;
+            string? info = doc.RootElement.TryGetProperty("info", out JsonElement i) ? i.GetString() : null;
+
+            if (!string.Equals(status, "success", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"SIKA setRegister odmietnutý: {status ?? "?"} ({info ?? "bez detailu"}).");
+            }
+
+            Match number = Regex.Match(info ?? string.Empty, @"-?\d+(\.\d+)?");
+            if (number.Success &&
+                double.TryParse(number.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double result))
+            {
+                return result;
+            }
+
+            throw new InvalidOperationException($"SIKA setRegister: úspech bez rozpoznateľnej hodnoty ({info ?? "bez detailu"}).");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Neplatná odpoveď na setRegister: {json}", ex);
         }
     }
 }
