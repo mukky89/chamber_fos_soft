@@ -63,14 +63,17 @@ public class SikaTpClientTests
 
     /// <summary>
     /// A set point write must use setRegister (Task_SetPointList then TRset_SP), matching
-    /// the device's own web UI – not the older setSP command.
+    /// the device's own web UI – not the older setSP command. When the controller is
+    /// already on, no START is issued.
     /// </summary>
     [Fact]
-    public async Task WriteSetpointsAsync_writes_setpoint_via_setRegister()
+    public async Task WriteSetpointsAsync_writes_setpoint_via_setRegister_without_restart_when_running()
     {
         var handler = new RouteHandler
         {
             ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=System_ReglerOnOff"] =
+                ("{\"register\":\"System_ReglerOnOff\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/setRegister?register=Task_SetPointList&value=40"] =
                 ("{\"value\":\"success\",\"info\":\"value 40.000000 wrote to register Task_SetPointList\"}", HttpStatusCode.OK),
             ["ajax/setRegister?register=TRset_SP&value=40"] =
@@ -80,11 +83,64 @@ public class SikaTpClientTests
         await using var client = new SikaTpClient(_ => new HttpClient(handler));
         await client.ConnectAsync(new ChamberConnectionSettings { Host = "10.88.5.81", Port = 80 });
 
-        await client.WriteSetpointsAsync(new[] { 40.0 }, new DigitalChannels());
+        await client.WriteSetpointsAsync(new[] { 40.0 }, new DigitalChannels { Start = true });
 
         Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=Task_SetPointList&value=40"));
         Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=TRset_SP&value=40"));
         Assert.DoesNotContain(handler.Requested, u => u.Contains("setSP"));
+        Assert.DoesNotContain(handler.Requested, u => u.Contains("startCurrentTask"));
+    }
+
+    /// <summary>
+    /// When the controller is off, a set point write with the start channel set must run
+    /// the verified START (startCurrentTask + System_ReglerOnOff=1) so the value takes effect.
+    /// </summary>
+    [Fact]
+    public async Task WriteSetpointsAsync_starts_task_when_controller_off()
+    {
+        var handler = new RouteHandler
+        {
+            ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=System_ReglerOnOff"] =
+                ("{\"register\":\"System_ReglerOnOff\",\"values\":[{\"value\":0.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=Task_SetPointList&value=100"] =
+                ("{\"value\":\"success\",\"info\":\"value 100.000000 wrote to register Task_SetPointList\"}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=TRset_SP&value=100"] =
+                ("{\"value\":\"success\",\"info\":\"value 100.000000 wrote to register TRset_SP\"}", HttpStatusCode.OK),
+            ["ajax/startCurrentTask"] = ("{\"value\":\"success\",\"info\":\"current task started\"}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=System_ReglerOnOff&value=1"] =
+                ("{\"value\":\"success\",\"info\":\"value 1.000000 wrote to register System_ReglerOnOff\"}", HttpStatusCode.OK),
+        };
+
+        await using var client = new SikaTpClient(_ => new HttpClient(handler));
+        await client.ConnectAsync(new ChamberConnectionSettings { Host = "10.88.5.81", Port = 80 });
+
+        await client.WriteSetpointsAsync(new[] { 100.0 }, new DigitalChannels { Start = true });
+
+        Assert.Contains(handler.Requested, u => u.EndsWith("startCurrentTask"));
+        Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=System_ReglerOnOff&value=1"));
+    }
+
+    /// <summary>StopAsync must run the verified STOP: stopCurrentTask then System_ReglerOnOff=0.</summary>
+    [Fact]
+    public async Task StopAsync_stops_task_and_switches_controller_off()
+    {
+        var handler = new RouteHandler
+        {
+            ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
+            ["ajax/stopCurrentTask"] =
+                ("{\"value\":\"success\",\"info\":\"stop current task and reload current task\"}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=System_ReglerOnOff&value=0"] =
+                ("{\"value\":\"success\",\"info\":\"value 0.000000 wrote to register System_ReglerOnOff\"}", HttpStatusCode.OK),
+        };
+
+        await using var client = new SikaTpClient(_ => new HttpClient(handler));
+        await client.ConnectAsync(new ChamberConnectionSettings { Host = "10.88.5.81", Port = 80 });
+
+        await client.StopAsync();
+
+        Assert.Contains(handler.Requested, u => u.EndsWith("stopCurrentTask"));
+        Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=System_ReglerOnOff&value=0"));
     }
 
     /// <summary>Routes canned responses by the request URL's ajax command; records every request.</summary>

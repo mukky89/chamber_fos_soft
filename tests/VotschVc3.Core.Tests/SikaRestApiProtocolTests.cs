@@ -119,4 +119,21 @@ public class SikaRestApiProtocolTests
     [Fact]
     public void ParseSetRegisterResponse_throws_on_malformed_json() =>
         Assert.Throws<InvalidOperationException>(() => SikaRestApiProtocol.ParseSetRegisterResponse("not json"));
+
+    [Fact]
+    public void BuildStartCurrentTaskUrl_produces_expected_url() =>
+        Assert.Equal("http://h:80/ajax/startCurrentTask", SikaRestApiProtocol.BuildStartCurrentTaskUrl("h", 80));
+
+    [Fact]
+    public void BuildStopCurrentTaskUrl_produces_expected_url() =>
+        Assert.Equal("http://h:80/ajax/stopCurrentTask", SikaRestApiProtocol.BuildStopCurrentTaskUrl("h", 80));
+
+    [Fact]
+    public void EnsureCommandSucceeded_accepts_success() =>
+        SikaRestApiProtocol.EnsureCommandSucceeded("{\"value\":\"success\",\"info\":\"current task started\"}", "startCurrentTask");
+
+    [Fact]
+    public void EnsureCommandSucceeded_throws_on_failure() =>
+        Assert.Throws<InvalidOperationException>(() =>
+            SikaRestApiProtocol.EnsureCommandSucceeded("{\"value\":\"failure\",\"info\":\"nope\"}", "startCurrentTask"));
 }

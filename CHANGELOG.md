@@ -4,6 +4,23 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.26.0] – 2026-07-27
+
+### Pridané / zmenené
+- **SIKA – START/STOP ovládanie regulátora (overený protokol).** Podľa reálneho
+  záznamu z prístroja **SIKA Sylex (TP3M165E.2)**: nastavený setpoint sa prejaví
+  až keď beží úloha. `WriteSetpointsAsync` teraz po zápise setpointu – ak je
+  regulátor vypnutý a je požiadané o štart – spustí zariadenie rovnako ako
+  tlačidlo **START** vo webovom rozhraní: `ajax/startCurrentTask` a následne
+  `setRegister?register=System_ReglerOnOff&value=1`. Ak už beží, stačí samotný
+  zápis setpointu (žiadny zbytočný re-štart).
+- **SIKA – `StopAsync` reálne zastaví zariadenie.** Namiesto pôvodnej výnimky
+  „nepodporované" teraz vykoná overenú STOP sekvenciu: `ajax/stopCurrentTask`
+  a následne `setRegister?register=System_ReglerOnOff&value=0`.
+- **SIKA – overené teplotné rozsahy.** SIKA **Sylex** −50…+165 °C (z prístroja:
+  `getShells` AbsolutMin/AbsolutMax, `getGradientInfo` MaxTemp), SIKA **PolyTech**
+  −60…+200 °C (z `getInfoReport`). Rozsahy nastavené explicitne per-zariadenie.
+
 ## [1.25.0] – 2026-07-27
 
 ### Pridané / zmenené
