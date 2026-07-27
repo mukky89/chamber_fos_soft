@@ -95,6 +95,20 @@ public static class SikaRestApiProtocol
     public static string BuildCalibrationStatusUrl(string host, int port) => BuildCommandUrl(host, port, "getCalibrationStatus");
 
     /// <summary>
+    /// Builds the URL that starts the current task. Verified on a real TP3M165E.2:
+    /// the web UI's START issues <c>startCurrentTask</c> and then writes
+    /// <see cref="ControllerOnOffRegister"/> = 1. A set point only takes effect once
+    /// the task is running.
+    /// </summary>
+    public static string BuildStartCurrentTaskUrl(string host, int port) => BuildCommandUrl(host, port, "startCurrentTask");
+
+    /// <summary>
+    /// Builds the URL that stops the current task. The web UI's STOP issues
+    /// <c>stopCurrentTask</c> and then writes <see cref="ControllerOnOffRegister"/> = 0.
+    /// </summary>
+    public static string BuildStopCurrentTaskUrl(string host, int port) => BuildCommandUrl(host, port, "stopCurrentTask");
+
+    /// <summary>
     /// Parses a <c>getRegister</c> response
     /// (<c>{"register":"TRset_TR","values":[{"value":28.9,"times":...}]}</c>)
     /// and returns the first value, or <c>null</c> if the response is empty / malformed.
@@ -230,6 +244,31 @@ public static class SikaRestApiProtocol
         catch (JsonException ex)
         {
             throw new InvalidOperationException($"Neplatná odpoveď na setRegister: {json}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a command response reports success (<c>{"value":"success",...}</c>),
+    /// used for verb commands like <c>startCurrentTask</c> / <c>stopCurrentTask</c>
+    /// that carry no numeric payload. Throws <see cref="InvalidOperationException"/>
+    /// otherwise. <paramref name="action"/> names the command for the error text.
+    /// </summary>
+    public static void EnsureCommandSucceeded(string json, string action)
+    {
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(json);
+            string? status = doc.RootElement.TryGetProperty("value", out JsonElement v) ? v.GetString() : null;
+            string? info = doc.RootElement.TryGetProperty("info", out JsonElement i) ? i.GetString() : null;
+
+            if (!string.Equals(status, "success", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"SIKA {action} odmietnutý: {status ?? "?"} ({info ?? "bez detailu"}).");
+            }
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Neplatná odpoveď na {action}: {json}", ex);
         }
     }
 }

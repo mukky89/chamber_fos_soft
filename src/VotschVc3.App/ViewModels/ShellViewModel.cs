@@ -729,8 +729,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     };
 
     /// <summary>
-    /// SIKA Sylex – nameplate + range from the device's system information
-    /// (TP3M165E.2, s/n 2219005). Ordinary device: IP can be changed / removed.
+    /// SIKA Sylex – nameplate + range from the device itself (TP3M165E.2, s/n 2219005).
+    /// Operating range -50…+165 °C is the device's absolute limit (getShells:
+    /// AbsolutMin/AbsolutMax; getGradientInfo MaxTemp). Ordinary device: IP can be
+    /// changed / removed.
     /// </summary>
     private static ChamberConfig SikaSylexConfig() => SikaBathConfig("SIKA Sylex", "10.88.5.81", new ChamberNameplate
     {
@@ -743,8 +745,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         FirstCalibration = "2022-05-09",
         NextCalibration = "2025-05-09",
         Notes = "SIKA TP Premium · SW 28.17 · Firmware V 1.15 · ARM Rev. 1 · rozsah -50…+165 °C. "
-              + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
-    });
+              + "REST-API ovládanie overené: setpoint cez setRegister, START/STOP cez "
+              + "startCurrentTask/stopCurrentTask + System_ReglerOnOff.",
+    }, tempMin: -50, tempMax: 165);
 
     /// <summary>
     /// SIKA PolyTech – nameplate + range from the device's own getInfoReport
@@ -760,8 +763,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         YearOfConstruction = "2017",
         SystemNumber = "000575", // HardwareSerial
         Notes = "SIKA TP Premium · Device TP37200E.2 · Firmware V 1.14 · ARM Rev. 1 · rozsah -60…+200 °C. "
-              + "REST-API na porte 80, čítanie cez getGradientInfo. "
-              + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
+              + "REST-API na porte 80, čítanie cez getGradientInfo, "
+              + "setpoint cez setRegister, START/STOP cez startCurrentTask/stopCurrentTask + System_ReglerOnOff.",
     }, port: 80, tempMin: -60, tempMax: 200);
 
     /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>

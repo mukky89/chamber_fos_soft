@@ -4,11 +4,15 @@ namespace VotschVc3.Core.Communication.Sika;
 
 /// <summary>
 /// <see cref="IChamberDevice"/> for a SIKA TP Premium calibration bath / dry
-/// block over its HTTP REST-API (port 8081, documented commands under
-/// <c>ajax/</c>). Reads the reference temperature and set point via
-/// <c>getRegister</c>, writes a set point via <c>setSP</c>. Temperature only –
-/// no humidity channel, and the API exposes no remote power on/off, so
-/// <see cref="StopAsync"/> cannot switch the bath off (it runs continuously).
+/// block over its HTTP REST-API (commands under <c>ajax/</c>). Reads the
+/// reference temperature and set point (via <c>getGradientInfo</c>, falling back
+/// to <c>getRegister</c>), and writes a set point via <c>setRegister</c>
+/// (<c>Task_SetPointList</c> + <c>TRset_SP</c>). Temperature only – no humidity
+/// channel. A set point only takes effect while the task is running, so
+/// <see cref="WriteSetpointsAsync"/> starts the device the same way the web UI's
+/// START does (<c>startCurrentTask</c> + <c>System_ReglerOnOff</c> = 1) when the
+/// controller is still off, and <see cref="StopAsync"/> stops it
+/// (<c>stopCurrentTask</c> + <c>System_ReglerOnOff</c> = 0).
 /// All HTTP requests are serialised through <see cref="_ioGate"/> (live
 /// polling, the manual terminal and a <c>setSP</c> write never interleave on
 /// the wire) – the device's embedded web server answered concurrent requests
@@ -157,18 +161,63 @@ public sealed class SikaTpClient : IChamberDevice
         string setpointResponse = await GetAsync(setpointUrl, cancellationToken).ConfigureAwait(false);
         RaiseFrame($"GET {setpointUrl}", setpointResponse);
         double applied = SikaRestApiProtocol.ParseSetRegisterResponse(setpointResponse);
+
+        // A written set point only takes effect while the task is running. When the
+        // caller requests "system on" (digital start channel) and the controller is
+        // still off, run the same START the web UI does – startCurrentTask then
+        // System_ReglerOnOff=1. If it is already running, the set point write above
+        // is enough (verified against the device's own capture).
+        if (digital.Start && !await IsControllerOnAsync(cancellationToken).ConfigureAwait(false))
+        {
+            await StartCurrentTaskAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         RaiseFrame("SET", $"{applied:0.0} °C aplikovaných.");
     }
 
+    /// <summary>Reads <c>System_ReglerOnOff</c>; <c>true</c> when the controller is on (value ≥ 0.5).</summary>
+    private async Task<bool> IsControllerOnAsync(CancellationToken cancellationToken)
+    {
+        string url = SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, SikaRestApiProtocol.ControllerOnOffRegister);
+        string json = await GetAsync(url, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {url}", json);
+        return SikaRestApiProtocol.ParseRegisterValue(json) is >= 0.5;
+    }
+
+    /// <summary>Runs the verified START: <c>startCurrentTask</c> then <c>System_ReglerOnOff</c> = 1.</summary>
+    private async Task StartCurrentTaskAsync(CancellationToken cancellationToken)
+    {
+        string startUrl = SikaRestApiProtocol.BuildStartCurrentTaskUrl(Settings.Host, Settings.Port);
+        string startResponse = await GetAsync(startUrl, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {startUrl}", startResponse);
+        SikaRestApiProtocol.EnsureCommandSucceeded(startResponse, "startCurrentTask");
+
+        string onUrl = SikaRestApiProtocol.BuildSetRegisterUrl(
+            Settings.Host, Settings.Port, SikaRestApiProtocol.ControllerOnOffRegister, 1);
+        string onResponse = await GetAsync(onUrl, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {onUrl}", onResponse);
+        SikaRestApiProtocol.ParseSetRegisterResponse(onResponse);
+        RaiseFrame("START", "Regulátor zapnutý (startCurrentTask + System_ReglerOnOff=1).");
+    }
+
     /// <summary>
-    /// The SIKA REST-API has no documented command to remotely switch the bath
-    /// off – it circulates / conditions continuously. Always throws so the UI
-    /// shows the real limitation instead of a silent no-op.
+    /// Stops the device the same way the web UI's STOP does (verified on a real
+    /// TP3M165E.2): <c>stopCurrentTask</c> then <c>System_ReglerOnOff</c> = 0.
     /// </summary>
-    public Task StopAsync(CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException(
-            "SIKA TP Premium REST-API neposkytuje príkaz na vzdialené vypnutie – kúpeľ / blok beží nepretržite. " +
-            "Zastav ho manuálne na paneli zariadenia, prípadne nastav bezpečnú (izbovú) teplotu.");
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        string stopUrl = SikaRestApiProtocol.BuildStopCurrentTaskUrl(Settings.Host, Settings.Port);
+        string stopResponse = await GetAsync(stopUrl, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {stopUrl}", stopResponse);
+        SikaRestApiProtocol.EnsureCommandSucceeded(stopResponse, "stopCurrentTask");
+
+        string offUrl = SikaRestApiProtocol.BuildSetRegisterUrl(
+            Settings.Host, Settings.Port, SikaRestApiProtocol.ControllerOnOffRegister, 0);
+        string offResponse = await GetAsync(offUrl, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {offUrl}", offResponse);
+        SikaRestApiProtocol.ParseSetRegisterResponse(offResponse);
+        RaiseFrame("STOP", "Regulátor vypnutý (stopCurrentTask + System_ReglerOnOff=0).");
+    }
 
     /// <summary>
     /// Sends an ad-hoc ajax/ command (e.g. "getInfoReport" or
