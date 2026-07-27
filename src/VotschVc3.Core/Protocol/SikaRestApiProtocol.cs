@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace VotschVc3.Core.Protocol;
 
@@ -18,6 +19,22 @@ public static class SikaRestApiProtocol
 
     /// <summary>Register name for the currently stored set point (°C).</summary>
     public const string SetpointRegister = "TRset_SP";
+
+    /// <summary>
+    /// Register holding the EasyMode (single-step) task set point list. The device's
+    /// own web UI writes this alongside <see cref="SetpointRegister"/> when the user
+    /// changes the temperature, so a running single-step task tracks the new value.
+    /// </summary>
+    public const string TaskSetPointListRegister = "Task_SetPointList";
+
+    /// <summary>Register for the controller on/off state (0 = off, 1 = on).</summary>
+    public const string ControllerOnOffRegister = "System_ReglerOnOff";
+
+    /// <summary>
+    /// Register that reports whether external (remote) writes are enabled
+    /// (1 = enabled). Set point writes are only accepted while this is 1.
+    /// </summary>
+    public const string ExternWriteFlagRegister = "Com_ExternWriteFlag";
 
     /// <summary>Builds the base "http://host:port/" the ajax/ commands hang off.</summary>
     public static string BuildBaseUrl(string host, int port) => $"http://{host}:{port}/";
@@ -48,8 +65,31 @@ public static class SikaRestApiProtocol
     public static string BuildSetSpUrl(string host, int port, double celsius) =>
         BuildCommandUrl(host, port, $"setSP?value={celsius.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}");
 
+    /// <summary>Formats a numeric value the way the SIKA REST-API expects it (invariant, no thousands separators).</summary>
+    private static string FormatValue(double value) =>
+        value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Builds a <c>setRegister?register=…&amp;value=…</c> URL. This is how the device's
+    /// own web UI writes a set point (<c>register=TRset_SP</c>) – observed on a real
+    /// TP3M165E.2 – rather than the older <c>setSP</c> command.
+    /// </summary>
+    public static string BuildSetRegisterUrl(string host, int port, string register, double value)
+    {
+        ArgumentNullException.ThrowIfNull(register);
+        return BuildCommandUrl(host, port, $"setRegister?register={Uri.EscapeDataString(register)}&value={FormatValue(value)}");
+    }
+
     /// <summary>Builds the URL for the device information report.</summary>
     public static string BuildInfoReportUrl(string host, int port) => BuildCommandUrl(host, port, "getInfoReport");
+
+    /// <summary>
+    /// Builds the URL for the combined status snapshot. Newer SIKA chambers
+    /// (e.g. TP37200E.2) answer <c>getGradientInfo</c> with the reference
+    /// temperature (<c>TR</c>), the set point (<c>SP</c>), stability and heating
+    /// state in a single call – one round-trip instead of two per-register reads.
+    /// </summary>
+    public static string BuildGradientInfoUrl(string host, int port) => BuildCommandUrl(host, port, "getGradientInfo");
 
     /// <summary>Builds the URL for the current calibration status.</summary>
     public static string BuildCalibrationStatusUrl(string host, int port) => BuildCommandUrl(host, port, "getCalibrationStatus");
@@ -81,6 +121,57 @@ public static class SikaRestApiProtocol
     }
 
     /// <summary>
+    /// The fields we read out of a <c>getGradientInfo</c> response. All nullable so a
+    /// partial / older-firmware payload still parses; <see cref="ReferenceTemperature"/>
+    /// being non-null is the signal that the device actually supports this endpoint.
+    /// </summary>
+    public readonly record struct SikaGradientInfo(
+        double? ReferenceTemperature,
+        double? Setpoint,
+        bool? HeatingOn,
+        int? SystemState);
+
+    /// <summary>
+    /// Parses a <c>getGradientInfo</c> response
+    /// (<c>{"TR":-19.99,"SP":-20.0,"Stable":2,"heatingON":1,"systemState":2,...}</c>).
+    /// Returns <c>null</c> when the body is not a JSON object carrying <c>TR</c> – i.e.
+    /// the device / firmware does not expose this endpoint – so the caller can fall
+    /// back to per-register reads.
+    /// </summary>
+    public static SikaGradientInfo? ParseGradientInfo(string json)
+    {
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(json);
+            JsonElement root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("TR", out _))
+            {
+                return null;
+            }
+
+            double? tr = TryGetNumber(root, "TR");
+            if (tr is null)
+            {
+                return null;
+            }
+
+            bool? heating = TryGetNumber(root, "heatingON") is { } h ? h != 0 : null;
+            int? systemState = TryGetNumber(root, "systemState") is { } s ? (int)s : null;
+            return new SikaGradientInfo(tr, TryGetNumber(root, "SP"), heating, systemState);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Reads a numeric property, or <c>null</c> when it is missing / not a number.</summary>
+    private static double? TryGetNumber(JsonElement obj, string name) =>
+        obj.TryGetProperty(name, out JsonElement e) && e.ValueKind == JsonValueKind.Number
+            ? e.GetDouble()
+            : null;
+
+    /// <summary>
     /// Parses a <c>setSP</c> response (<c>{"value":"success","info":"25.500000"}</c>).
     /// Returns the set point that was applied. Throws <see cref="InvalidOperationException"/>
     /// when the device reports anything other than success (e.g. "Set point outside valid range").
@@ -104,6 +195,41 @@ public static class SikaRestApiProtocol
         catch (JsonException ex)
         {
             throw new InvalidOperationException($"Neplatná odpoveď na setSP: {json}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Parses a <c>setRegister</c> response
+    /// (<c>{"value":"success","info":"value 40.000000 wrote to register TRset_SP"}</c>).
+    /// Returns the numeric value the device confirmed writing. Throws
+    /// <see cref="InvalidOperationException"/> on a non-success status or when the
+    /// success message carries no number.
+    /// </summary>
+    public static double ParseSetRegisterResponse(string json)
+    {
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(json);
+            string? status = doc.RootElement.TryGetProperty("value", out JsonElement v) ? v.GetString() : null;
+            string? info = doc.RootElement.TryGetProperty("info", out JsonElement i) ? i.GetString() : null;
+
+            if (!string.Equals(status, "success", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"SIKA setRegister odmietnutý: {status ?? "?"} ({info ?? "bez detailu"}).");
+            }
+
+            Match number = Regex.Match(info ?? string.Empty, @"-?\d+(\.\d+)?");
+            if (number.Success &&
+                double.TryParse(number.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double result))
+            {
+                return result;
+            }
+
+            throw new InvalidOperationException($"SIKA setRegister: úspech bez rozpoznateľnej hodnoty ({info ?? "bez detailu"}).");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Neplatná odpoveď na setRegister: {json}", ex);
         }
     }
 }

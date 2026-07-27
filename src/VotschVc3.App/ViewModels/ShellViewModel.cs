@@ -703,17 +703,28 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         SikaPolytechConfig(),
     };
 
-    /// <summary>Builds a SIKA TP Premium bath config (REST-API, temperature only, -50…165 °C).</summary>
-    private static ChamberConfig SikaBathConfig(string name, string host, ChamberNameplate nameplate) => new()
+    /// <summary>
+    /// Builds a SIKA TP Premium bath config (REST-API, temperature only). Port and
+    /// temperature range default to the TP Premium values (8081, -50…165 °C) but can
+    /// be overridden per device – e.g. the TP37200E.2 answers on port 80 with a wider
+    /// -60…+200 °C range.
+    /// </summary>
+    private static ChamberConfig SikaBathConfig(
+        string name,
+        string host,
+        ChamberNameplate nameplate,
+        int? port = null,
+        double tempMin = -50,
+        double tempMax = 165) => new()
     {
         Name = name,
         Kind = ChamberKind.TemperatureOnly,
         Protocol = ChamberProtocol.SikaRestApi,
         Host = host,
-        Port = SikaRestApiProtocol.DefaultPort,
+        Port = port ?? SikaRestApiProtocol.DefaultPort,
         StartChannelIndex = 0,
-        TempMin = -50,
-        TempMax = 165,
+        TempMin = tempMin,
+        TempMax = tempMax,
         Nameplate = nameplate,
     };
 
@@ -735,15 +746,23 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
               + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
     });
 
-    /// <summary>SIKA PolyTech – SIKA TP Premium bath at its fixed lab IP.</summary>
+    /// <summary>
+    /// SIKA PolyTech – nameplate + range from the device's own getInfoReport
+    /// (TP37200E.2, s/n 1712380). Answers the REST-API on port 80 and exposes the
+    /// combined getGradientInfo status snapshot.
+    /// </summary>
     private static ChamberConfig SikaPolytechConfig() => SikaBathConfig("SIKA PolyTech", "10.88.6.28", new ChamberNameplate
     {
         Manufacturer = "SIKA",
-        Model = "TP Premium",
+        Model = "TP37200E.2",
+        SerialNumber = "1712380",
         OrderNumber = "SIKA",
-        Notes = "SIKA TP Premium · rozsah -50…+165 °C. "
+        YearOfConstruction = "2017",
+        SystemNumber = "000575", // HardwareSerial
+        Notes = "SIKA TP Premium · Device TP37200E.2 · Firmware V 1.14 · ARM Rev. 1 · rozsah -60…+200 °C. "
+              + "REST-API na porte 80, čítanie cez getGradientInfo. "
               + "Pozn.: REST-API ovládanie (setSP) vyžaduje TP software > 30.35.",
-    });
+    }, port: 80, tempMin: -60, tempMax: 200);
 
     /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>
     private static ChamberConfig DefaultPolEkoConfig() => new()

@@ -4,6 +4,25 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.25.0] – 2026-07-27
+
+### Pridané / zmenené
+- **SIKA – zápis teploty cez `setRegister` (opravený protokol).** Podľa reálneho
+  záznamu komunikácie z prístroja **SIKA Sylex (TP3M165E.2)** sa setpoint
+  nastavuje cez `ajax/setRegister?register=TRset_SP&value=…` (a súčasne
+  `Task_SetPointList`), nie cez pôvodný `setSP`. `SikaTpClient.WriteSetpointsAsync`
+  teraz zapisuje presne tak, ako to robí webové rozhranie prístroja. Externý zápis
+  vyžaduje `Com_ExternWriteFlag = 1`; zap/vyp regulátora drží register
+  `System_ReglerOnOff`.
+- **SIKA – čítanie cez `getGradientInfo` a podpora portu 80.** Podľa záznamu z
+  prístroja **SIKA PolyTech (TP37200E.2)** teraz `ReadAsync` uprednostní jedno
+  volanie `ajax/getGradientInfo` (referenčná teplota `TR` aj setpoint `SP` naraz)
+  namiesto dvoch `getRegister` volaní. Ak zariadenie endpoint nepozná (staršie
+  firmware, HTTP 404), automaticky sa vráti k čítaniu po registroch.
+- **SIKA PolyTech – správna konfigurácia.** Prístroj `10.88.6.28` je model
+  **TP37200E.2**, odpovedá na REST-API na **porte 80** (nie 8081) a má rozsah
+  **−60…+200 °C**; štítok a rozsah upravené podľa jeho `getInfoReport`.
+
 ## [1.24.1] – 2026-07-19
 
 ### Opravené
