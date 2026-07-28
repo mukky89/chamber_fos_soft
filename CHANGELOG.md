@@ -4,6 +4,16 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.26.2] – 2026-07-28
+
+### Opravené
+- **CI (.NET Core Desktop) build.** Workflow `dotnet-desktop.yml` mal nevyplnené
+  placeholdery z GitHub šablóny (`Solution_Name: your-solution-name`) a kroky na
+  podpisovanie/MSIX balenie, ktoré projekt nemá – build padal na `MSB1009`.
+  Prepísaný na reálny `dotnet restore/build/test` solution `VotschVc3.sln` na
+  `windows-latest` (Debug aj Release) a publikovanie spustiteľného buildu appky
+  ako artefakt.
+
 ## [1.26.1] – 2026-07-28
 
 ### Opravené
