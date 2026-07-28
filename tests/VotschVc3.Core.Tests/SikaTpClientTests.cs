@@ -119,6 +119,13 @@ public class SikaTpClientTests
 
         Assert.Contains(handler.Requested, u => u.EndsWith("startCurrentTask"));
         Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=System_ReglerOnOff&value=1"));
+
+        // START must run *before* the set point write (like turning on a profile):
+        // startCurrentTask reloads the task, so a set point written first would be lost.
+        int startIndex = handler.Requested.FindIndex(u => u.EndsWith("startCurrentTask"));
+        int setpointIndex = handler.Requested.FindIndex(u => u.EndsWith("setRegister?register=TRset_SP&value=100"));
+        Assert.True(startIndex >= 0 && setpointIndex >= 0 && startIndex < setpointIndex,
+            $"START ({startIndex}) must precede the TRset_SP write ({setpointIndex}).");
     }
 
     /// <summary>StopAsync must run the verified STOP: stopCurrentTask then System_ReglerOnOff=0.</summary>

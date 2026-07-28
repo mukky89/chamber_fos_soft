@@ -147,8 +147,19 @@ public sealed class SikaTpClient : IChamberDevice
 
         double temperature = setpoints.Count > 0 ? setpoints[0] : 0d;
 
-        // Mirror the device's own web UI (verified on a real TP3M165E.2): a set point
-        // change writes the EasyMode task set point list first, then the live set point
+        // START before the set point, the same way turning on a profile does. A set
+        // point only sticks while the task is running, and startCurrentTask *reloads*
+        // the task – so writing the set point first would be discarded. When the caller
+        // requests "system on" (digital start channel) and the controller is still off,
+        // run the verified START (startCurrentTask + System_ReglerOnOff=1) first; if it
+        // is already running, skip straight to the set point write.
+        if (digital.Start && !await IsControllerOnAsync(cancellationToken).ConfigureAwait(false))
+        {
+            await StartCurrentTaskAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        // Write the set point the way the device's own web UI does (verified on a real
+        // TP3M165E.2): the EasyMode task set point list first, then the live set point
         // register, both via setRegister – not the older setSP command.
         string listUrl = SikaRestApiProtocol.BuildSetRegisterUrl(
             Settings.Host, Settings.Port, SikaRestApiProtocol.TaskSetPointListRegister, temperature);
@@ -161,16 +172,6 @@ public sealed class SikaTpClient : IChamberDevice
         string setpointResponse = await GetAsync(setpointUrl, cancellationToken).ConfigureAwait(false);
         RaiseFrame($"GET {setpointUrl}", setpointResponse);
         double applied = SikaRestApiProtocol.ParseSetRegisterResponse(setpointResponse);
-
-        // A written set point only takes effect while the task is running. When the
-        // caller requests "system on" (digital start channel) and the controller is
-        // still off, run the same START the web UI does – startCurrentTask then
-        // System_ReglerOnOff=1. If it is already running, the set point write above
-        // is enough (verified against the device's own capture).
-        if (digital.Start && !await IsControllerOnAsync(cancellationToken).ConfigureAwait(false))
-        {
-            await StartCurrentTaskAsync(cancellationToken).ConfigureAwait(false);
-        }
 
         RaiseFrame("SET", $"{applied:0.0} °C aplikovaných.");
     }

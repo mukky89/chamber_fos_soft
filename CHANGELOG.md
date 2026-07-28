@@ -4,6 +4,16 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.26.1] – 2026-07-28
+
+### Opravené
+- **SIKA – START sa spustí PRED nastavením teploty** (ako pri zapnutí profilu).
+  `startCurrentTask` úlohu znova načíta (reload), takže setpoint zapísaný pred
+  štartom by sa zahodil. `WriteSetpointsAsync` preto teraz – keď je regulátor
+  vypnutý a je požiadané o štart – najprv spustí START (`startCurrentTask` +
+  `System_ReglerOnOff=1`) a **až potom** zapíše setpoint (`Task_SetPointList` +
+  `TRset_SP`). Ak už zariadenie beží, urobí len zápis setpointu.
+
 ## [1.26.0] – 2026-07-27
 
 ### Pridané / zmenené
