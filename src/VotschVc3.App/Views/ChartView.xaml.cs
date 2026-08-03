@@ -91,6 +91,22 @@ public partial class ChartView : UserControl
         set => SetValue(EmptyTextProperty, value);
     }
 
+    public static readonly DependencyProperty ShowStagesProperty = DependencyProperty.Register(
+        nameof(ShowStages), typeof(bool), typeof(ChartView),
+        new PropertyMetadata(false, OnVisualChanged));
+
+    /// <summary>
+    /// When <c>true</c>, annotates the primary (profile) series with its stages:
+    /// a dot at every breakpoint, a subtle warm band over each flat "výdrž" (hold)
+    /// sub-segment, and a ramp/hold label in the hover read-out. Enable it only for
+    /// profile previews – live temperature/humidity charts leave it off.
+    /// </summary>
+    public bool ShowStages
+    {
+        get => (bool)GetValue(ShowStagesProperty);
+        set => SetValue(ShowStagesProperty, value);
+    }
+
     private static void OnVisualChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
         ((ChartView)d).Redraw();
 
@@ -162,6 +178,36 @@ public partial class ChartView : UserControl
         AddText($"{minX:0.#} min", PadLeft, PadTop + plotH + 4, MutedBrush, 10);
         AddText($"{maxX:0.#} min", PadLeft + plotW - 50, PadTop + plotH + 4, MutedBrush, 10, 50, TextAlignment.Right);
 
+        // Hold ("výdrž") bands – shaded time columns under every flat sub-segment
+        // of the profile, so ramps (sloped, un-shaded) and holds read apart at a
+        // glance. Drawn before the lines so the curve stays on top.
+        if (ShowStages && _hoverSeries is { } stageSeries)
+        {
+            Brush holdBrush = TryFindResource("WarnBrush") as Brush ?? Brushes.Orange;
+            IReadOnlyList<Point> sp = stageSeries.Points;
+            for (int i = 1; i < sp.Count; i++)
+            {
+                Point a = sp[i - 1], b = sp[i];
+                if (b.X <= a.X || Math.Abs(b.Y - a.Y) >= 0.05)
+                {
+                    continue;
+                }
+
+                double bx = ToPx(a.X);
+                var band = new Rectangle
+                {
+                    Width = Math.Max(0, ToPx(b.X) - bx),
+                    Height = plotH,
+                    Fill = holdBrush,
+                    Opacity = 0.12,
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(band, bx);
+                Canvas.SetTop(band, PadTop);
+                PlotCanvas.Children.Add(band);
+            }
+        }
+
         // Series lines.
         foreach (ChartSeries s in series)
         {
@@ -178,6 +224,26 @@ public partial class ChartView : UserControl
             }
 
             PlotCanvas.Children.Add(poly);
+        }
+
+        // Breakpoint dots on the profile curve – one per segment boundary.
+        if (ShowStages && _hoverSeries is { } dotSeries)
+        {
+            foreach (Point p in dotSeries.Points)
+            {
+                var dot = new Ellipse
+                {
+                    Width = 6,
+                    Height = 6,
+                    Fill = dotSeries.Stroke,
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1,
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(dot, ToPx(p.X) - 3);
+                Canvas.SetTop(dot, ToPy(p.Y) - 3);
+                PlotCanvas.Children.Add(dot);
+            }
         }
 
         // Legend (top-right).
@@ -276,18 +342,31 @@ public partial class ChartView : UserControl
         Canvas.SetTop(dot, py - 4);
         AddOverlay(dot);
 
+        var chipContent = new StackPanel();
+        chipContent.Children.Add(new TextBlock
+        {
+            Text = $"{yv:0.0}{Unit}  ·  {dataX:0.#} min",
+            Foreground = Brushes.White,
+            FontSize = 11,
+            FontFamily = new FontFamily("Segoe UI Semibold"),
+        });
+        if (ShowStages && StageAt(_hoverSeries.Points, dataX) is { } stage)
+        {
+            chipContent.Children.Add(new TextBlock
+            {
+                Text = StageLabel(stage),
+                Foreground = Brushes.White,
+                FontSize = 10,
+                Opacity = 0.85,
+            });
+        }
+
         var chip = new Border
         {
             Background = accent,
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(6, 2, 6, 2),
-            Child = new TextBlock
-            {
-                Text = $"{yv:0.0}{Unit}  ·  {dataX:0.#} min",
-                Foreground = Brushes.White,
-                FontSize = 11,
-                FontFamily = new FontFamily("Segoe UI Semibold"),
-            },
+            Child = chipContent,
         };
         chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         double cx = px + 8;
@@ -301,6 +380,37 @@ public partial class ChartView : UserControl
         Canvas.SetTop(chip, cy);
         AddOverlay(chip);
     }
+
+    /// <summary>Ramp direction / hold at data-space X on the profile curve.</summary>
+    private enum Stage { Rising, Falling, Hold }
+
+    private static Stage? StageAt(IReadOnlyList<Point> pts, double x)
+    {
+        for (int i = 1; i < pts.Count; i++)
+        {
+            Point a = pts[i - 1], b = pts[i];
+            if (b.X <= a.X)
+            {
+                continue; // skip zero-width jumps between segments
+            }
+
+            if (x >= a.X && x <= b.X)
+            {
+                double dy = b.Y - a.Y;
+                if (Math.Abs(dy) < 0.05) return Stage.Hold;
+                return dy > 0 ? Stage.Rising : Stage.Falling;
+            }
+        }
+
+        return null;
+    }
+
+    private static string StageLabel(Stage s) => s switch
+    {
+        Stage.Rising => "↗ Rampa (ohrev)",
+        Stage.Falling => "↘ Rampa (chladenie)",
+        _ => "→ Výdrž (plato)",
+    };
 
     private static double? InterpolateY(IReadOnlyList<Point> pts, double x)
     {

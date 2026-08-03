@@ -4,6 +4,24 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.27.0] – 2026-08-03
+
+### Pridané / zmenené
+- **Graf profilu – rozlíšenie rampy a výdrže + čítanie teploty myšou.** Náhľad
+  profilu na Domove aj v **rýchlom vytváraní profilov (sweep)** teraz vizuálne
+  odlišuje jednotlivé fázy testu:
+  - **Podfarbené stĺpce = výdrž (plato)** – ploché úseky, kde komora drží
+    teplotu, sú jemne podfarbené; nepodfarbené šikmé úseky sú **rampy (nábeh)**.
+  - **Body na krivke** označujú hranice segmentov (kde sa mení fáza).
+  - **Prejdenie myšou po krivke** ukáže teplotu a čas v danom bode a k tomu
+    štítok, či ide o **↗ rampu (ohrev)**, **↘ rampu (chladenie)** alebo
+    **→ výdrž (plato)**.
+
+  Rozlíšenie je odvodené priamo z geometrie krivky (ploché vs. šikmé úseky),
+  takže funguje pre naimportované aj sweep-om vygenerované profily. Zapína sa
+  novým `ShowStages` na `ChartView`; živé grafy teploty/vlhkosti ostávajú
+  bez zmeny.
+
 ## [1.26.2] – 2026-07-28
 
 ### Opravené

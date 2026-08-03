@@ -215,7 +215,9 @@
                     </StackPanel>
 
                     <views:ChartView Grid.Row="1" Series="{Binding TempPreview}" Unit=" °C"
-                                     EmptyText="Zadaj parametre" MinHeight="240" Margin="0,8,0,8" />
+                                     EmptyText="Zadaj parametre" MinHeight="240" Margin="0,8,0,8"
+                                     ShowStages="True"
+                                     ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode aj to, či ide o rampu (nábeh) alebo výdrž (plato). Podfarbené stĺpce = výdrž." />
 
                     <WrapPanel Grid.Row="2">
                         <StackPanel Margin="0,0,28,0">
