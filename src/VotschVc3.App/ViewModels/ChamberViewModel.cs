@@ -1324,6 +1324,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     public static int ProfileLogIntervalSeconds { get; set; } = 30;
 
+    /// <summary>
+    /// Tolerance (°C) for the guaranteed soak on SIKA thermal baths: every hold waits
+    /// until the measured temperature is within this band of the target before the
+    /// dwell time starts. Small by default (0.3 °C) so the bath settles precisely; set
+    /// from <c>UiSettings</c> at startup and whenever the admin changes it.
+    /// </summary>
+    public static double SikaSoakToleranceC { get; set; } = 0.3;
+
     /// <summary>Opens a fresh per-profile temperature log for the run that is starting.</summary>
     private void OpenProfileTemperatureLog(string profileName)
     {
@@ -1825,7 +1833,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
         double? startHum = SupportsHumidity ? MeasuredHumidity : null;
 
-        var runner = new ProfileRunner(_client, TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds));
+        // SIKA thermal baths must settle precisely on each hold temperature before
+        // the dwell time counts: every hold waits until the measured value is within
+        // SikaSoakToleranceC of the target (guaranteed soak), regardless of the
+        // per-segment "Soak" flag. Other devices keep the per-segment behaviour.
+        var runner = new ProfileRunner(
+            _client,
+            TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds),
+            soakAllHolds: IsSika,
+            defaultSoakTolerance: SikaSoakToleranceC);
         _activeRunner = runner;
         double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
 

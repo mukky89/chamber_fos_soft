@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.45.0] – 2026-08-04
+
+### Pridané / zmenené
+- **SIKA – garantovaná výdrž (soak): najprv dosiahnuť teplotu, potom počítať čas.**
+  Na zariadeniach SIKA sa teraz pri **každej výdrži** najprv nastaví cieľová teplota
+  a **počká sa, kým ju kúpeľ skutočne dosiahne** (s malou toleranciou), a **až potom**
+  sa začne odpočítavať nastavený čas výdrže. Tým je čas na danej teplote presný a
+  nezávislý od toho, ako dlho trvá nábeh. Predtým to platilo len pre segmenty s ručne
+  zapnutým „Soak"; teraz je to pre SIKA automatické pre všetky výdrže (segment s
+  vlastným „Soak" si ponechá svoju toleranciu).
+- **Tolerancia dosiahnutia teploty (SIKA) je nastaviteľná** v **Admin → „SIKA –
+  garantovaná výdrž"** (0,1…10 °C, predvolene **0,3 °C** pre presné ustálenie).
+  Uložené v `UiSettings.SikaSoakToleranceC`. Počas čakania na teplotu stav ukazuje
+  „⏳ Soak".
+
 ## [1.44.0] – 2026-08-04
 
 ### Pridané

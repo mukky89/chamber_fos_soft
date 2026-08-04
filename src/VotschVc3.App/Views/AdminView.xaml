@@ -84,6 +84,20 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===== SIKA – garantovaná výdrž (soak) ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="SIKA – garantovaná výdrž" Style="{StaticResource Heading}" />
+                    <TextBlock Text="Tolerancia dosiahnutia teploty (°C)" Style="{StaticResource Label}" Margin="0,8,0,0" />
+                    <views:NumericStepper Width="130" HorizontalAlignment="Left"
+                                          Value="{Binding SikaSoakToleranceC, Mode=TwoWay}"
+                                          Step="0.1" Minimum="0.1" Maximum="10"
+                                          ToolTip="Ako presne (± °C) musí kúpeľ dosiahnuť cieľovú teplotu, kým sa začne počítať čas výdrže." />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="Na zariadeniach SIKA sa pri každej výdrži najprv počká, kým kúpeľ dosiahne cieľovú teplotu s touto toleranciou (± °C), a až potom sa začne odpočítavať nastavený čas výdrže. Menšie číslo = presnejšie. Predvolene 0,3 °C." />
+                </StackPanel>
+            </Border>
+
             <!-- ===== Users ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>

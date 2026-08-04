@@ -39,4 +39,11 @@ public sealed class UiSettings
     /// it, so it stays hidden until an admin turns it on.
     /// </summary>
     public bool ShowPolEko { get; set; }
+
+    /// <summary>
+    /// Tolerance (°C) for the guaranteed soak on SIKA thermal baths: on every hold the
+    /// bath first reaches the target within this band before the dwell time starts.
+    /// Small by default (0.3 °C) so the bath settles precisely on temperature.
+    /// </summary>
+    public double SikaSoakToleranceC { get; set; } = 0.3;
 }

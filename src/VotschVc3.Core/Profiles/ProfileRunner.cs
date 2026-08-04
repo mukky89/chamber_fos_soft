@@ -14,6 +14,8 @@ public sealed class ProfileRunner
 {
     private readonly IChamberDevice _client;
     private readonly TimeSpan _updateInterval;
+    private readonly bool _soakAllHolds;
+    private readonly double _defaultSoakTolerance;
 
     // Pause gate: set = running, reset = paused. The segment clock is stopped
     // while paused so no test time elapses; the chamber keeps its last set point.
@@ -21,7 +23,23 @@ public sealed class ProfileRunner
 
     /// <param name="client">A connected chamber client.</param>
     /// <param name="updateInterval">How often a fresh set point is written (default 5&#160;s).</param>
-    public ProfileRunner(IChamberDevice client, TimeSpan? updateInterval = null)
+    /// <param name="soakAllHolds">
+    /// When <c>true</c>, every hold (non-ramp) segment waits until the measured
+    /// temperature reaches its target within tolerance before the dwell time starts –
+    /// even if the segment itself has <see cref="ProfileSegment.GuaranteedSoak"/> off.
+    /// Used for SIKA thermal baths, which must settle on temperature precisely before
+    /// timing the hold.
+    /// </param>
+    /// <param name="defaultSoakTolerance">
+    /// Tolerance band (°C) used when a hold soaks only because of
+    /// <paramref name="soakAllHolds"/>; a segment with its own
+    /// <see cref="ProfileSegment.GuaranteedSoak"/> keeps its own tolerance.
+    /// </param>
+    public ProfileRunner(
+        IChamberDevice client,
+        TimeSpan? updateInterval = null,
+        bool soakAllHolds = false,
+        double defaultSoakTolerance = 1.0)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _updateInterval = updateInterval ?? TimeSpan.FromSeconds(5);
@@ -29,6 +47,9 @@ public sealed class ProfileRunner
         {
             throw new ArgumentOutOfRangeException(nameof(updateInterval), "Update interval must be positive.");
         }
+
+        _soakAllHolds = soakAllHolds;
+        _defaultSoakTolerance = Math.Abs(defaultSoakTolerance);
     }
 
     /// <summary>Raised whenever the runner writes a new set point.</summary>
@@ -134,8 +155,10 @@ public sealed class ProfileRunner
         TimeSpan duration = segment.Duration > TimeSpan.Zero ? segment.Duration : TimeSpan.FromSeconds(1);
 
         // Guaranteed soak: hold the target and wait until the measured temperature
-        // is within tolerance before starting to count the dwell time.
-        if (!segment.IsRamp && segment.GuaranteedSoak)
+        // is within tolerance before starting to count the dwell time. A hold soaks
+        // either because it is explicitly marked, or because the device soaks every
+        // hold (SIKA baths, via soakAllHolds).
+        if (!segment.IsRamp && (segment.GuaranteedSoak || _soakAllHolds))
         {
             await SoakWaitAsync(segment, cycle, index, startHum, phase, totalCycles,
                 completedSeconds, totalSeconds, cancellationToken).ConfigureAwait(false);
@@ -180,7 +203,9 @@ public sealed class ProfileRunner
         ProfileRunPhase phase, int totalCycles, double completedSeconds, double totalSeconds,
         CancellationToken cancellationToken)
     {
-        double tolerance = Math.Abs(segment.SoakTolerance);
+        // A segment marked GuaranteedSoak keeps its own tolerance; a hold that soaks
+        // only because the device soaks every hold uses the runner-wide default.
+        double tolerance = segment.GuaranteedSoak ? Math.Abs(segment.SoakTolerance) : _defaultSoakTolerance;
         double? humidity = segment.TargetHumidity ?? startHum;
         double overall = Math.Clamp(completedSeconds / totalSeconds, 0d, 1d);
 

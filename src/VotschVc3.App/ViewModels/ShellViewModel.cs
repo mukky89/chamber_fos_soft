@@ -56,6 +56,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _uiStore = new UiSettingsStore(System.IO.Path.Combine(dir, "ui.json"));
         _ui = _uiStore.Load();
         ChamberViewModel.ProfileLogIntervalSeconds = _ui.ProfileLogIntervalSeconds;
+        ChamberViewModel.SikaSoakToleranceC = _ui.SikaSoakToleranceC;
         _notifier.Settings = _emailStore.Load();
 
         Audit = new AuditViewModel(_audit);
@@ -608,6 +609,29 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
             _ui.ProfileLogIntervalSeconds = seconds;
             ChamberViewModel.ProfileLogIntervalSeconds = seconds;
+            SaveUiSettings();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Persisted setting: tolerance (°C) for the guaranteed soak on SIKA thermal
+    /// baths. On every hold the bath first reaches the target within this band before
+    /// the dwell time starts. Small by default (0.3 °C). Clamped to 0.1…10 °C.
+    /// </summary>
+    public double SikaSoakToleranceC
+    {
+        get => _ui.SikaSoakToleranceC;
+        set
+        {
+            double tolerance = Math.Clamp(Math.Round(value, 2), 0.1, 10.0);
+            if (Math.Abs(_ui.SikaSoakToleranceC - tolerance) < 0.0001)
+            {
+                return;
+            }
+
+            _ui.SikaSoakToleranceC = tolerance;
+            ChamberViewModel.SikaSoakToleranceC = tolerance;
             SaveUiSettings();
             OnPropertyChanged();
         }
