@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.27.1] – 2026-08-04
+
+### Zmenené
+- **SIKA Sylex – predvolená IP zmenená na `10.88.5.226`** (predtým `10.88.5.81`).
+  Reset-marker SIKA komôr posunutý na `v3`, aby sa nová predvolená IP prejavila
+  aj na inštaláciách, ktoré už mali starší (`v2`) reset. Manuálne úpravy IP po
+  tomto resete ostávajú rešpektované.
+
 ## [1.27.0] – 2026-08-03
 
 ### Pridané / zmenené

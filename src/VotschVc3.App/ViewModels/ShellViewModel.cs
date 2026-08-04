@@ -144,10 +144,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
         // One-time clean-up of the SIKA baths (earlier builds left duplicated /
         // inconsistently named entries). Remove every SIKA REST-API chamber and
-        // re-add exactly the two canonical ones – "SIKA Sylex" (10.88.5.81) and
+        // re-add exactly the two canonical ones – "SIKA Sylex" (10.88.5.226) and
         // "SIKA PolyTech" (10.88.6.28) – with the correct nameplate and range.
         // Guarded by a marker so a later manual rename / IP edit is respected.
-        string sikaResetMarker = System.IO.Path.Combine(dir, ".chambers_sika_reset_v2");
+        // Marker bumped to v3 so the new Sylex default IP (10.88.5.226) reaches
+        // installs that already ran the v2 reset.
+        string sikaResetMarker = System.IO.Path.Combine(dir, ".chambers_sika_reset_v3");
         bool sikaReset = false;
         if (!seeded && !reseeded && !System.IO.File.Exists(sikaResetMarker))
         {
@@ -734,7 +736,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// AbsolutMin/AbsolutMax; getGradientInfo MaxTemp). Ordinary device: IP can be
     /// changed / removed.
     /// </summary>
-    private static ChamberConfig SikaSylexConfig() => SikaBathConfig("SIKA Sylex", "10.88.5.81", new ChamberNameplate
+    private static ChamberConfig SikaSylexConfig() => SikaBathConfig("SIKA Sylex", "10.88.5.226", new ChamberNameplate
     {
         Manufacturer = "SIKA",
         Model = "TP3M165E.2",
