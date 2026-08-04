@@ -81,7 +81,7 @@ public sealed class ProfileTemperatureLog : IDisposable
         }
     }
 
-    private static string Fmt(double? value) => value?.ToString("0.0", CultureInfo.InvariantCulture) ?? string.Empty;
+    private static string Fmt(double? value) => CsvFormat.Fmt(value);
 
     private static string Sanitize(string name)
     {

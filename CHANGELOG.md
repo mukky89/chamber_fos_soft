@@ -4,6 +4,18 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.42.1] – 2026-08-04
+
+### Opravené
+- **CSV exporty – čísla sa už neberú ako dátumy v Exceli.** Hodnoty sa zapisovali
+  s desatinnou **bodkou** (`25.4`), no oddeľovač stĺpcov je bodkočiarka (`;`).
+  V slovenskom Exceli je desatinný oddeľovač **čiarka**, takže `25.4` sa načítalo
+  ako dátum „25. apríl". Teraz sa čísla zapisujú s **čiarkou** (`25,4`), čo Excel
+  správne rozpozná ako číslo. Týka sa všetkých CSV záznamov (teplotné logy
+  profilov, záznamy komôr aj teplomery ASL F100). Formát je centralizovaný v
+  novej triede `CsvFormat`; prehliadač záznamov v aplikácii číta obe podoby
+  (bodku aj čiarku), takže staršie súbory sa naďalej otvoria.
+
 ## [1.42.0] – 2026-08-04
 
 ### Zmenené

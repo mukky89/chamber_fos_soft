@@ -41,7 +41,7 @@ public sealed class ThermometerCsvRecorder : IDisposable
 
         string row = string.Join(';',
             reading.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
-            reading.Temperature?.ToString("0.000", CultureInfo.InvariantCulture) ?? string.Empty,
+            CsvFormat.Fmt(reading.Temperature, "0.000"),
             reading.Unit,
             reading.Raw.Replace(';', ',').Replace("\r", string.Empty).Replace("\n", string.Empty));
 
