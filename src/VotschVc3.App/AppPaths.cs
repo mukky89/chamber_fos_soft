@@ -107,12 +107,9 @@ public static class AppPaths
                 CopyIfMissing(file, dest);
             }
 
-            // Diagnostic log.
-            string legacyLog = Path.Combine(LegacyRoot, "app.log");
-            if (File.Exists(legacyLog))
-            {
-                CopyIfMissing(legacyLog, Path.Combine(AppLogDir, "app.log"));
-            }
+            // The old monolithic app.log is intentionally NOT migrated – it grew
+            // unbounded (hundreds of MB) and is exactly what the new daily-rotated
+            // layout replaces. It stays in the legacy folder as a backup.
 
             // Per-profile temperature logs (old folder name: "profil-logy").
             string legacyProfileLogs = Path.Combine(LegacyRoot, "profil-logy");

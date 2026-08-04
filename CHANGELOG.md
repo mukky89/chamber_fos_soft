@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.42.0] – 2026-08-04
+
+### Zmenené
+- **Denné rozdelenie záznamu aplikácie (log).** Doteraz sa všetko zapisovalo do
+  jediného súboru `app.log`, ktorý neobmedzene rástol (u používateľa dosiahol
+  ~100 MB). Teraz sa píše **jeden súbor na deň** v prehľadnej štruktúre:
+  `Lab Control\App log\<rok-mesiac>\<rok-mesiac-deň>.log`
+  (napr. `App log\2026-08\2026-08-04.log`). Súbor sa automaticky mení o polnoci,
+  takže žiadny log nerastie donekonečna. Prehliadač logu v aplikácii načíta
+  najnovšie záznamy naprieč dennými súbormi (od najnovšieho dňa).
+- **Starý `app.log` sa už nemigruje.** Pôvodný obrovský monolitický log sa
+  vedome nekopíruje do novej štruktúry (je to presne to, čo denné rozdelenie
+  nahrádza); ostáva v pôvodnom priečinku ako záloha.
+
 ## [1.41.0] – 2026-08-04
 
 ### Zmenené

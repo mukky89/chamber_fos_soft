@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 
 namespace VotschVc3.Core.Diagnostics;
 
@@ -29,18 +30,35 @@ public sealed class AppLogEntry
 public static class AppLog
 {
     private static readonly object Sync = new();
-    private static string? _filePath;
+    private static string? _directory;
 
     /// <summary>Raised whenever an entry is logged (may be off the UI thread).</summary>
     public static event EventHandler<AppLogEntry>? EntryLogged;
 
-    /// <summary>Sets the backing file. Call once at startup.</summary>
-    public static void Configure(string filePath)
+    /// <summary>
+    /// Sets the log folder. Call once at startup. Entries are written to one file
+    /// per day, grouped by month: <c>&lt;dir&gt;\yyyy-MM\yyyy-MM-dd.log</c>. The file
+    /// rolls over automatically at midnight, so no single log ever grows unbounded.
+    /// </summary>
+    public static void Configure(string directory)
     {
         lock (Sync)
         {
-            _filePath = Path.GetFullPath(filePath);
+            _directory = Path.GetFullPath(directory);
         }
+    }
+
+    /// <summary>Path of the daily log file for <paramref name="localTime"/>, or null if unconfigured.</summary>
+    private static string? DailyFilePath(DateTime localTime)
+    {
+        if (_directory is null)
+        {
+            return null;
+        }
+
+        string month = localTime.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        string day = localTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return Path.Combine(_directory, month, day + ".log");
     }
 
     public static void Info(string source, string message) => Log(AppLogLevel.Info, source, message);
@@ -60,15 +78,16 @@ public static class AppLog
         {
             lock (Sync)
             {
-                if (_filePath is not null)
+                string? file = DailyFilePath(entry.Timestamp.LocalDateTime);
+                if (file is not null)
                 {
-                    string? directory = Path.GetDirectoryName(_filePath);
+                    string? directory = Path.GetDirectoryName(file);
                     if (!string.IsNullOrEmpty(directory))
                     {
                         Directory.CreateDirectory(directory);
                     }
 
-                    File.AppendAllText(_filePath,
+                    File.AppendAllText(file,
                         $"{entry.TimestampText}\t{entry.LevelText}\t{Clean(source)}\t{Clean(message)}{Environment.NewLine}");
                 }
             }
@@ -81,35 +100,54 @@ public static class AppLog
         EntryLogged?.Invoke(null, entry);
     }
 
-    /// <summary>Loads up to <paramref name="max"/> most recent entries (newest first).</summary>
+    /// <summary>
+    /// Loads up to <paramref name="max"/> most recent entries (newest first),
+    /// reading back across the daily log files from the newest day until enough
+    /// entries are gathered.
+    /// </summary>
     public static List<AppLogEntry> LoadRecent(int max = 1000)
     {
         lock (Sync)
         {
             var result = new List<AppLogEntry>();
-            if (_filePath is null || !File.Exists(_filePath))
+            if (_directory is null || !Directory.Exists(_directory))
             {
                 return result;
             }
 
             try
             {
-                string[] lines = File.ReadAllLines(_filePath);
-                for (int i = lines.Length - 1; i >= 0 && result.Count < max; i--)
+                // Daily files embed the date in both the folder (yyyy-MM) and the
+                // name (yyyy-MM-dd.log), so a descending path sort is newest-first.
+                List<string> files = Directory
+                    .GetFiles(_directory, "*.log", SearchOption.AllDirectories)
+                    .OrderByDescending(f => f, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (string file in files)
                 {
-                    string[] c = lines[i].Split('\t');
-                    if (c.Length < 4)
+                    if (result.Count >= max)
                     {
-                        continue;
+                        break;
                     }
 
-                    result.Add(new AppLogEntry
+                    string[] lines = File.ReadAllLines(file);
+                    for (int i = lines.Length - 1; i >= 0 && result.Count < max; i--)
                     {
-                        Timestamp = DateTimeOffset.TryParse(c[0], CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out DateTimeOffset ts) ? ts : DateTimeOffset.MinValue,
-                        Level = Enum.TryParse(c[1], ignoreCase: true, out AppLogLevel lvl) ? lvl : AppLogLevel.Info,
-                        Source = c[2],
-                        Message = c[3],
-                    });
+                        string[] c = lines[i].Split('\t');
+                        if (c.Length < 4)
+                        {
+                            continue;
+                        }
+
+                        result.Add(new AppLogEntry
+                        {
+                            Timestamp = DateTimeOffset.TryParse(c[0], CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out DateTimeOffset ts) ? ts : DateTimeOffset.MinValue,
+                            Level = Enum.TryParse(c[1], ignoreCase: true, out AppLogLevel lvl) ? lvl : AppLogLevel.Info,
+                            Source = c[2],
+                            Message = c[3],
+                        });
+                    }
                 }
             }
             catch (IOException)

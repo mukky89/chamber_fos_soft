@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using VotschVc3.Core.Diagnostics;
@@ -15,7 +14,7 @@ public partial class App : Application
         // Create the Documents\Lab Control layout (and migrate the old VotschVc3
         // folder once) before anything reads or writes app data.
         AppPaths.Initialize();
-        AppLog.Configure(Path.Combine(AppPaths.AppLogDir, "app.log"));
+        AppLog.Configure(AppPaths.AppLogDir);
         AppLog.Info("App", $"Aplikácia spustená (v{GetType().Assembly.GetName().Version?.ToString(3)}).");
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
