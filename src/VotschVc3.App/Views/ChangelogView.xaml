@@ -1,10 +1,51 @@
 <UserControl x:Class="VotschVc3.App.Views.ChangelogView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:VotschVc3.App.Views">
+    <UserControl.Resources>
+        <!-- Colour-coded section chip driven by the section Kind enum. -->
+        <Style x:Key="SectionChip" TargetType="Border">
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,2" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="Added">
+                    <Setter Property="BorderBrush" Value="{StaticResource OkBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="Changed">
+                    <Setter Property="BorderBrush" Value="{StaticResource WarnBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="Fixed">
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SectionChipText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="Added">
+                    <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="Changed">
+                    <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="Fixed">
+                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Margin="6,2,6,8">
@@ -13,15 +54,77 @@
                 <TextBlock Text="Changelog — história verzií" FontSize="17" FontFamily="Segoe UI Semibold"
                            VerticalAlignment="Center" Margin="10,0,0,0" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Command="{Binding OpenAsHtmlCommand}"
+                        ToolTip="Vyrenderuje changelog ako HTML stránku a otvorí ju v prehliadači.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Document}" />
+                        <TextBlock Text="Otvoriť ako HTML" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding SaveHtmlCommand}"
+                        ToolTip="Uloží changelog ako samostatný HTML súbor.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Export}" />
+                        <TextBlock Text="Uložiť HTML…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </Grid>
 
-        <Border Grid.Row="1" Style="{StaticResource Card}" Background="{StaticResource BackgroundBrush}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" BorderThickness="0"
-                         Background="Transparent" Foreground="{StaticResource TextBrush}"
-                         FontFamily="Consolas" FontSize="13" TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Disabled" />
-            </ScrollViewer>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <ItemsControl ItemsSource="{Binding Releases}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <!-- Release header: version + date -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="18"
+                                               FontFamily="Segoe UI Semibold" Foreground="{StaticResource AccentBrush}" />
+                                    <TextBlock Text="{Binding Date}" Style="{StaticResource Caption}"
+                                               VerticalAlignment="Bottom" Margin="10,0,0,2" />
+                                </StackPanel>
+                                <Separator Background="{StaticResource BorderBrush}" Margin="0,0,0,8" />
+
+                                <!-- Sections -->
+                                <ItemsControl ItemsSource="{Binding Sections}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,0,0,10">
+                                                <Border Style="{StaticResource SectionChip}" Margin="0,0,0,6">
+                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource SectionChipText}" />
+                                                </Border>
+                                                <ItemsControl ItemsSource="{Binding Items}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="4,2,0,2">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="•" Foreground="{StaticResource AccentBrush}"
+                                                                           Margin="0,0,8,0" VerticalAlignment="Top" />
+                                                                <TextBlock Grid.Column="1" views:MarkdownText.Text="{Binding}"
+                                                                           Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="6,10,6,0" Padding="14,8"
+                Visibility="{Binding HasStatus, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="{Binding Status}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
         </Border>
     </Grid>
 </UserControl>

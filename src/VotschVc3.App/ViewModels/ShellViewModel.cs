@@ -202,8 +202,147 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             // A missing marker only means the one-time seed check runs again; harmless.
         }
 
+        // Bundled default profiles: import once on first run (marker-guarded).
+        SeedDefaultProfiles(dir);
+
         // Start at the login screen.
         _currentView = _login;
+    }
+
+    /// <summary>Metadata for one bundled seed profile (from <c>seed-profiles-manifest.json</c>).</summary>
+    private sealed class SeedEntry
+    {
+        public string File { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string OriginalName { get; set; } = string.Empty;
+        public string Customer { get; set; } = string.Empty;
+        public string Project { get; set; } = string.Empty;
+        public List<string> Sensors { get; set; } = new();
+        public List<string> Tags { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Imports the profiles bundled with the build the first time this build version
+    /// runs. The raw Weiss/Vötsch BEdit files live in an embedded ZIP and are parsed by
+    /// the same importer the app uses interactively; a manifest supplies the corrected
+    /// name, the original name (kept for backward compatibility), sensors and tags.
+    /// The chamber type is detected from the parsed content (humidity channel present →
+    /// temperature+humidity, otherwise temperature-only). Guarded by a versioned marker
+    /// so a user's later edits / deletions are respected and nothing is duplicated;
+    /// bump the marker version when the bundled set changes.
+    /// </summary>
+    private void SeedDefaultProfiles(string dir)
+    {
+        string marker = System.IO.Path.Combine(dir, ".seed_profiles_v5");
+        if (System.IO.File.Exists(marker))
+        {
+            return;
+        }
+
+        try
+        {
+            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+
+            Dictionary<string, SeedEntry> manifest = new(StringComparer.OrdinalIgnoreCase);
+            using (System.IO.Stream? ms = assembly.GetManifestResourceStream("seed-profiles-manifest.json"))
+            {
+                if (ms is not null)
+                {
+                    using var reader = new System.IO.StreamReader(ms);
+                    var entries = System.Text.Json.JsonSerializer.Deserialize<List<SeedEntry>>(
+                        reader.ReadToEnd(),
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    foreach (SeedEntry e in entries ?? new List<SeedEntry>())
+                    {
+                        manifest[e.File] = e;
+                    }
+                }
+            }
+
+            using System.IO.Stream? zip = assembly.GetManifestResourceStream("seed-profiles.zip");
+            if (zip is null)
+            {
+                return;
+            }
+
+            using var archive = new System.IO.Compression.ZipArchive(zip, System.IO.Compression.ZipArchiveMode.Read);
+            var seeded = new List<TestProfile>();
+            var seededNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (System.IO.Compression.ZipArchiveEntry entry in archive.Entries)
+            {
+                try
+                {
+                    using System.IO.Stream es = entry.Open();
+                    using var mem = new System.IO.MemoryStream();
+                    es.CopyTo(mem);
+                    byte[] bytes = mem.ToArray();
+
+                    // Parse with the tested importer, keeping humidity so we can detect the kind.
+                    ProfileImportResult result = BEditImporter.Import(bytes, ChamberKind.TemperatureHumidity);
+                    TestProfile profile = result.Profile;
+                    if (profile.Segments.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    bool hasHumidity = profile.Segments.Any(s => s.TargetHumidity is not null);
+                    profile.Kind = hasHumidity ? ChamberKind.TemperatureHumidity : ChamberKind.TemperatureOnly;
+                    if (!hasHumidity)
+                    {
+                        foreach (ProfileSegment s in profile.Segments)
+                        {
+                            s.TargetHumidity = null;
+                        }
+                    }
+
+                    manifest.TryGetValue(entry.FullName, out SeedEntry? meta);
+                    profile.OriginalName = meta?.OriginalName ?? entry.FullName;
+                    profile.Name = string.IsNullOrWhiteSpace(meta?.Name) ? entry.FullName : meta!.Name;
+                    profile.Customer = meta?.Customer ?? string.Empty;
+                    profile.Project = meta?.Project ?? string.Empty;
+                    profile.Sensors = meta?.Sensors is { Count: > 0 } ? new List<string>(meta.Sensors) : new List<string> { "Ostatné" };
+                    profile.Tags = meta?.Tags is not null ? new List<string>(meta.Tags) : new List<string>();
+
+                    // Accurate temperature-range tag from the real segments.
+                    double min = profile.Segments.Min(s => s.TargetTemperature);
+                    double max = profile.Segments.Max(s => s.TargetTemperature);
+                    string range = $"{min:0.#}…{max:0.#} °C";
+                    if (!profile.Tags.Contains(range))
+                    {
+                        profile.Tags.Add(range);
+                    }
+
+                    profile.Id = StableGuid(profile.Name);
+
+                    if (seededNames.Add(profile.Name.Trim()))
+                    {
+                        seeded.Add(profile);
+                    }
+                }
+                catch
+                {
+                    // A single unparseable file must not abort the whole seed.
+                }
+            }
+
+            // One bulk write; existing profiles (by id or name) are left untouched.
+            _store.AddMissing(seeded);
+
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(marker, DateTimeOffset.Now.ToString("o"));
+        }
+        catch
+        {
+            // Seeding must never crash startup; a missing marker just retries next launch.
+        }
+    }
+
+    /// <summary>Deterministic GUID from a string, so a bundled profile keeps the same id across builds.</summary>
+    private static Guid StableGuid(string text)
+    {
+        byte[] hash = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes("votsch-seed:" + text));
+        return new Guid(hash);
     }
 
     public ObservableCollection<ChamberViewModel> Chambers { get; }
@@ -444,6 +583,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             chamber.SetControlAllowed(CanControl);
             chamber.SetManageAllowed(CanManage);
         }
+
+        // Admin-only library management (delete-all), gated by the admin's own password.
+        ProfileLibrary.IsAdmin = CanManage;
+        ProfileLibrary.VerifyAdminPassword = pwd =>
+            _currentUser is { Role: UserRole.Admin } admin && admin.VerifyPassword(pwd);
 
         AddChamberCommand.RaiseCanExecuteChanged();
         RemoveChamberCommand.RaiseCanExecuteChanged();

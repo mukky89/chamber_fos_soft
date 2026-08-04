@@ -107,8 +107,31 @@ public partial class ChartView : UserControl
         set => SetValue(ShowStagesProperty, value);
     }
 
+    public static readonly DependencyProperty CycleStartXProperty = DependencyProperty.Register(
+        nameof(CycleStartX), typeof(double), typeof(ChartView),
+        new PropertyMetadata(double.NaN, OnVisualChanged));
+
+    /// <summary>X value (same unit as the series, e.g. minutes) where the cycled region starts.</summary>
+    public double CycleStartX { get => (double)GetValue(CycleStartXProperty); set => SetValue(CycleStartXProperty, value); }
+
+    public static readonly DependencyProperty CycleEndXProperty = DependencyProperty.Register(
+        nameof(CycleEndX), typeof(double), typeof(ChartView),
+        new PropertyMetadata(double.NaN, OnVisualChanged));
+
+    /// <summary>X value where the cycled region ends.</summary>
+    public double CycleEndX { get => (double)GetValue(CycleEndXProperty); set => SetValue(CycleEndXProperty, value); }
+
+    public static readonly DependencyProperty CycleCountProperty = DependencyProperty.Register(
+        nameof(CycleCount), typeof(int), typeof(ChartView),
+        new PropertyMetadata(1, OnVisualChanged));
+
+    /// <summary>Repeat count; the cycle band is drawn only when &gt; 1.</summary>
+    public int CycleCount { get => (int)GetValue(CycleCountProperty); set => SetValue(CycleCountProperty, value); }
+
     private static void OnVisualChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
         ((ChartView)d).Redraw();
+
+    private Brush AccentBrush => TryFindResource("AccentBrush") as Brush ?? Brushes.SteelBlue;
 
     private Brush MutedBrush => TryFindResource("MutedBrush") as Brush ?? Brushes.Gray;
 
@@ -164,6 +187,27 @@ public partial class ChartView : UserControl
         _hoverSeries = series.FirstOrDefault(s => !s.Dashed) ?? series[0];
         _hasPlot = true;
 
+        // Cycled-region band (behind the series): shows what repeats and how many times.
+        if (CycleCount > 1 && !double.IsNaN(CycleStartX) && !double.IsNaN(CycleEndX) && CycleEndX > CycleStartX)
+        {
+            double bx1 = ToPx(Math.Clamp(CycleStartX, minX, maxX));
+            double bx2 = ToPx(Math.Clamp(CycleEndX, minX, maxX));
+            var band = new System.Windows.Shapes.Rectangle
+            {
+                Width = Math.Max(0, bx2 - bx1), Height = plotH, Fill = AccentBrush, Opacity = 0.14,
+            };
+            Canvas.SetLeft(band, bx1);
+            Canvas.SetTop(band, PadTop);
+            PlotCanvas.Children.Add(band);
+
+            foreach (double bx in new[] { bx1, bx2 })
+            {
+                AddLine(bx, PadTop, bx, PadTop + plotH, AccentBrush, 1.5, dashed: true);
+            }
+
+            AddText($"⟲ cyklus ×{CycleCount}", bx1 + 4, PadTop + 2, AccentBrush, 11);
+        }
+
         // Horizontal gridlines + Y labels.
         for (int i = 0; i <= 4; i++)
         {
@@ -174,9 +218,9 @@ public partial class ChartView : UserControl
             AddText($"{yVal:0.#}{Unit}", 2, py - 8, MutedBrush, 10, PadLeft - 6, TextAlignment.Right);
         }
 
-        // X axis labels (min / max).
-        AddText($"{minX:0.#} min", PadLeft, PadTop + plotH + 4, MutedBrush, 10);
-        AddText($"{maxX:0.#} min", PadLeft + plotW - 50, PadTop + plotH + 4, MutedBrush, 10, 50, TextAlignment.Right);
+        // X axis labels (min / max) with an hours/days read-out for longer spans.
+        AddText(FormatMinutes(minX), PadLeft, PadTop + plotH + 4, MutedBrush, 10);
+        AddText(FormatMinutes(maxX), PadLeft + plotW - 150, PadTop + plotH + 4, MutedBrush, 10, 150, TextAlignment.Right);
 
         // Hold ("výdrž") bands – shaded time columns under every flat sub-segment
         // of the profile, so ramps (sloped, un-shaded) and holds read apart at a
@@ -345,7 +389,7 @@ public partial class ChartView : UserControl
         var chipContent = new StackPanel();
         chipContent.Children.Add(new TextBlock
         {
-            Text = $"{yv:0.0}{Unit}  ·  {dataX:0.#} min",
+            Text = $"{yv:0.0}{Unit}  ·  {FormatMinutes(dataX)}",
             Foreground = Brushes.White,
             FontSize = 11,
             FontFamily = new FontFamily("Segoe UI Semibold"),
@@ -411,6 +455,37 @@ public partial class ChartView : UserControl
         Stage.Falling => "↘ Rampa (chladenie)",
         _ => "→ Výdrž (plato)",
     };
+
+    /// <summary>
+    /// Formats an X-axis value (in minutes) as minutes plus a human-readable
+    /// hours / days breakdown once it is long enough to matter, e.g.
+    /// <c>135 min (2 h 15 min)</c> or <c>1620 min (1 d 3 h)</c>.
+    /// </summary>
+    private static string FormatMinutes(double minutes)
+    {
+        string baseText = $"{minutes:0.#} min";
+        if (minutes < 60)
+        {
+            return baseText;
+        }
+
+        var ts = TimeSpan.FromMinutes(minutes);
+        string human;
+        if (ts.TotalDays >= 1)
+        {
+            int days = (int)ts.TotalDays;
+            human = $"{days} d" +
+                (ts.Hours > 0 ? $" {ts.Hours} h" : string.Empty) +
+                (ts.Minutes > 0 ? $" {ts.Minutes} min" : string.Empty);
+        }
+        else
+        {
+            human = $"{(int)ts.TotalHours} h" +
+                (ts.Minutes > 0 ? $" {ts.Minutes} min" : string.Empty);
+        }
+
+        return $"{baseText} ({human})";
+    }
 
     private static double? InterpolateY(IReadOnlyList<Point> pts, double x)
     {

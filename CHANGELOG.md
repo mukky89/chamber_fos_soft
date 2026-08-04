@@ -4,6 +4,32 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.40.0] – 2026-08-04
+
+### Pridané / zmenené
+- **Zlúčenie vetvy profilovej knižnice a rýchleho vytvárača s hlavnou vetvou.**
+  Vývoj sa po verzii 1.24.1 rozvetvil na dve línie – jedna pridávala SIKA
+  protokol a graf (verzie 1.25–1.27 nižšie), druhá stavala profilovú knižnicu
+  a rýchly vytvárač. Táto verzia obe línie spája. Z knižničnej vetvy pribúda:
+  - **Vyhľadávanie + stromový výber profilu** na hlavnom paneli (podľa názvu,
+    snímača, zákazníka, projektu alebo tagu) namiesto plochej rozbaľovačky.
+  - **Rýchly vytvárač profilov:** voliteľný **koncový nábeh na 25 °C**,
+    vypnutie výkonu po dokončení, plnošírkové/ukotvené tlačidlá (bez orezania),
+    zákazník/projekt, snímače a **tagy** (chip editor), **cyklovanie** (počet
+    cyklov, len telo profilu).
+  - **Profilová knižnica:** pribalených **226 reálnych profilov** (seed z BEdit),
+    stromová knižnica s filtrovaním a rozbaľovaním, hromadný import/export s
+    progresom, import/export knižnice do JSON, štandardizácia názvov.
+  - **Graf:** prepočet minút na hodiny/dni v hover bubline a na osi, cyklovaný
+    úsek v grafe rýchleho vytvárača.
+  - Nové okná/komponenty: `BulkImportWindow`, `ProfilePicker`, `TagEditor`,
+    `PasswordDialog`, `MarkdownText`; Core: `ProfileNaming`, `ProfileStandardizer`,
+    `ProfileFile` + testy.
+- Do tejto verzie sú zahrnuté aj všetky zmeny hlavnej vetvy uvedené nižšie
+  (SIKA START/STOP a `setRegister` protokol, overené rozsahy, oprava CI,
+  graf rampa/výdrž s čítaním teploty myšou, predvolená IP SIKA Sylex
+  `10.88.5.226`).
+
 ## [1.27.1] – 2026-08-04
 
 ### Zmenené

@@ -40,7 +40,15 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         DuplicateProfileCommand = new RelayCommand(DuplicateProfile, () => SelectedHistoryProfile is not null);
         RefreshHistoryCommand = new RelayCommand(RefreshFromStore);
         ImportProfileCommand = new RelayCommand(ImportProfile);
+        ImportLibraryCommand = new RelayCommand(ImportLibrary);
+        BulkImportCommand = new RelayCommand(BulkImport);
         ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
+        ExportLibraryCommand = new RelayCommand(ExportLibrary);
+        GenerateStandardNameCommand = new RelayCommand(GenerateStandardName, () => Segments.Count > 0);
+        DeleteAllProfilesCommand = new RelayCommand(DeleteAllProfiles, () => IsAdmin && History.Count > 0);
+        ExpandAllCommand = new RelayCommand(() => SetAllExpanded(true));
+        CollapseAllCommand = new RelayCommand(() => SetAllExpanded(false));
+        ClearFilterCommand = new RelayCommand(() => { FilterText = string.Empty; SelectedTag = AllTagsOption; });
 
         SeedDefaultProfile();
         RefreshHistory();
@@ -87,8 +95,88 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private string _profileName = "Nový profil";
     public string ProfileName { get => _profileName; set => SetProperty(ref _profileName, value); }
 
+    private string _originalName = string.Empty;
+    /// <summary>Original (imported) name, preserved when the app generates a standardized name.</summary>
+    public string OriginalName
+    {
+        get => _originalName;
+        set { if (SetProperty(ref _originalName, value)) OnPropertyChanged(nameof(HasOriginalName)); }
+    }
+
+    public bool HasOriginalName => !string.IsNullOrWhiteSpace(OriginalName);
+
+    private string _customer = string.Empty;
+    /// <summary>Customer the edited profile belongs to.</summary>
+    public string Customer { get => _customer; set => SetProperty(ref _customer, value); }
+
+    private string _project = string.Empty;
+    /// <summary>Project the edited profile belongs to.</summary>
+    public string Project { get => _project; set => SetProperty(ref _project, value); }
+
+    /// <summary>Sensors the edited profile is for (chips; one profile can serve several).</summary>
+    public ObservableCollection<string> EditorSensors { get; } = new();
+
+    /// <summary>Tags of the edited profile (chips).</summary>
+    public ObservableCollection<string> EditorTags { get; } = new();
+
+    /// <summary>Distinct sensor names across the library, offered as suggestions in the editor.</summary>
+    public ObservableCollection<string> KnownSensors { get; } = new();
+
+    /// <summary>Distinct tags across the library, offered as suggestions in the editor.</summary>
+    public ObservableCollection<string> KnownTags { get; } = new();
+
     private int _cycles = 1;
     public int Cycles { get => _cycles; set { if (SetProperty(ref _cycles, Math.Max(1, value))) Recalculate(); } }
+
+    private int _cycleFromSegment = 1;
+    /// <summary>First segment (1-based) of the repeated region.</summary>
+    public int CycleFromSegment
+    {
+        get => _cycleFromSegment;
+        set { if (SetProperty(ref _cycleFromSegment, ClampSegment(value))) RaiseCycleRegion(); }
+    }
+
+    private int _cycleToSegment = 1;
+    /// <summary>Last segment (1-based, inclusive) of the repeated region.</summary>
+    public int CycleToSegment
+    {
+        get => _cycleToSegment;
+        set { if (SetProperty(ref _cycleToSegment, ClampSegment(value))) RaiseCycleRegion(); }
+    }
+
+    /// <summary>Zero-based region start for the chart band.</summary>
+    public int CycleBandStart => Math.Min(CycleFromSegment, CycleToSegment) - 1;
+
+    /// <summary>Zero-based region end for the chart band.</summary>
+    public int CycleBandEnd => Math.Max(CycleFromSegment, CycleToSegment) - 1;
+
+    /// <summary>Human-readable description of what is cycled and how many times.</summary>
+    public string CycleRegionText
+    {
+        get
+        {
+            if (Cycles <= 1)
+            {
+                return "Cyklovanie vypnuté (1×). Zvýš počet cyklov a označ rozsah segmentov.";
+            }
+
+            int from = Math.Min(CycleFromSegment, CycleToSegment);
+            int to = Math.Max(CycleFromSegment, CycleToSegment);
+            bool whole = from <= 1 && to >= Segments.Count;
+            return whole
+                ? $"Cykluje sa celý profil ×{Cycles}."
+                : $"Cyklujú sa segmenty {from}–{to} ×{Cycles} · okolité segmenty (nábeh/koniec) prebehnú raz.";
+        }
+    }
+
+    private int ClampSegment(int value) => Math.Clamp(value, 1, Math.Max(1, Segments.Count));
+
+    private void RaiseCycleRegion()
+    {
+        OnPropertyChanged(nameof(CycleBandStart));
+        OnPropertyChanged(nameof(CycleBandEnd));
+        OnPropertyChanged(nameof(CycleRegionText));
+    }
 
     private string _profileDurationText = "—";
     public string ProfileDurationText { get => _profileDurationText; private set => SetProperty(ref _profileDurationText, value); }
@@ -104,6 +192,35 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
 
     public ObservableCollection<TestProfile> History { get; } = new();
+
+    /// <summary>Sensor-grouped, filtered tree shown in the library panel.</summary>
+    public ObservableCollection<ProfileTreeGroupViewModel> ProfileTree { get; } = new();
+
+    /// <summary>Sentinel item meaning "no tag filter".</summary>
+    public const string AllTagsOption = "— všetky tagy —";
+
+    /// <summary>Distinct tags across the library, plus the "all" sentinel, for the tag filter.</summary>
+    public ObservableCollection<string> AvailableTags { get; } = new() { AllTagsOption };
+
+    private string _filterText = string.Empty;
+    /// <summary>Free-text filter over profile name, sensor and tags.</summary>
+    public string FilterText
+    {
+        get => _filterText;
+        set { if (SetProperty(ref _filterText, value)) RebuildTree(); }
+    }
+
+    private string _selectedTag = AllTagsOption;
+    /// <summary>Selected tag filter (or <see cref="AllTagsOption"/> for no tag filter).</summary>
+    public string SelectedTag
+    {
+        get => _selectedTag;
+        set { if (SetProperty(ref _selectedTag, value ?? AllTagsOption)) RebuildTree(); }
+    }
+
+    private string _treeSummary = string.Empty;
+    /// <summary>Caption under the tree, e.g. "12 profilov · 4 snímače".</summary>
+    public string TreeSummary { get => _treeSummary; private set => SetProperty(ref _treeSummary, value); }
 
     private bool _suppressAutoLoad;
 
@@ -152,7 +269,42 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     /// <summary>Reloads the saved-profile list from disk (also used on entering the editor).</summary>
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ImportProfileCommand { get; }
+
+    /// <summary>Imports a whole library from one JSON array file (adds all, skips duplicates).</summary>
+    public RelayCommand ImportLibraryCommand { get; }
+
+    /// <summary>Opens the bulk-import tool (many files at once, renamed + standardised).</summary>
+    public RelayCommand BulkImportCommand { get; }
     public RelayCommand ExportProfileCommand { get; }
+
+    /// <summary>Exports the whole library to one JSON file (importable / bundleable as seed profiles).</summary>
+    public RelayCommand ExportLibraryCommand { get; }
+
+    /// <summary>Moves the current name to "old name" and generates a standardized name from the profile.</summary>
+    public RelayCommand GenerateStandardNameCommand { get; }
+
+    /// <summary>Admin-only: deletes every profile in the library (password protected).</summary>
+    public RelayCommand DeleteAllProfilesCommand { get; }
+
+    private bool _isAdmin;
+    /// <summary>Set by the shell: whether the signed-in user may manage (delete-all) profiles.</summary>
+    public bool IsAdmin
+    {
+        get => _isAdmin;
+        set { if (SetProperty(ref _isAdmin, value)) DeleteAllProfilesCommand.RaiseCanExecuteChanged(); }
+    }
+
+    /// <summary>Set by the shell: verifies an admin password (returns true when it matches).</summary>
+    public Func<string, bool>? VerifyAdminPassword { get; set; }
+
+    /// <summary>Expands every sensor group in the library tree.</summary>
+    public RelayCommand ExpandAllCommand { get; }
+
+    /// <summary>Collapses every sensor group in the library tree.</summary>
+    public RelayCommand CollapseAllCommand { get; }
+
+    /// <summary>Clears the text and tag filters.</summary>
+    public RelayCommand ClearFilterCommand { get; }
 
     private void SeedDefaultProfile()
     {
@@ -172,32 +324,115 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private TestProfile BuildProfile() => new()
     {
         Name = ProfileName,
+        OriginalName = OriginalName,
         Kind = Kind,
         Cycles = Cycles,
+        CycleStartIndex = CycleBandStart,
+        CycleEndIndex = CycleBandEnd,
+        Customer = Customer.Trim(),
+        Project = Project.Trim(),
+        Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+        Tags = EditorTags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
         CreatedAt = DateTimeOffset.Now,
         Segments = Segments.Select(s => s.ToModel()).ToList(),
     };
+
+    private static void ReplaceAll(ObservableCollection<string> target, IEnumerable<string>? values)
+    {
+        target.Clear();
+        foreach (string v in values ?? Enumerable.Empty<string>())
+        {
+            target.Add(v);
+        }
+    }
 
     private void ApplyProfile(TestProfile profile)
     {
         Kind = profile.Kind;
         ProfileName = profile.Name;
+        OriginalName = profile.OriginalName ?? string.Empty;
+        Customer = profile.Customer ?? string.Empty;
+        Project = profile.Project ?? string.Empty;
+        ReplaceAll(EditorSensors, profile.Sensors);
+        ReplaceAll(EditorTags, profile.Tags);
         Cycles = profile.Cycles;
         Segments.Clear();
+        // (segments are added just below; set the cycle region after they exist)
         foreach (ProfileSegment segment in profile.Segments)
         {
             Segments.Add(new SegmentViewModel(segment));
         }
 
+        // Cycle region (1-based) – now that segments exist so the clamps use the right count.
+        _cycleFromSegment = ClampSegment(profile.ResolvedCycleStart + 1);
+        _cycleToSegment = ClampSegment(profile.ResolvedCycleEnd + 1);
+        OnPropertyChanged(nameof(CycleFromSegment));
+        OnPropertyChanged(nameof(CycleToSegment));
+        RaiseCycleRegion();
+
         SelectedSegment = Segments.FirstOrDefault();
         Recalculate();
+    }
+
+    private void DeleteAllProfiles()
+    {
+        if (!IsAdmin)
+        {
+            return;
+        }
+
+        int count = History.Count;
+        if (count == 0)
+        {
+            StatusMessage = "Knižnica je prázdna.";
+            return;
+        }
+
+        bool ok = Views.PasswordDialog.Ask(
+            $"Naozaj vymazať VŠETKY profily z knižnice ({count})? Túto akciu nie je možné vrátiť. " +
+            "Zadaj heslo admina na potvrdenie.",
+            pwd => VerifyAdminPassword?.Invoke(pwd) ?? false,
+            "Vymazať všetky profily",
+            "Vymazať všetko");
+        if (!ok)
+        {
+            StatusMessage = "Hromadné mazanie zrušené.";
+            return;
+        }
+
+        int removed = _store.Clear();
+        NewProfile();
+        RefreshHistory();
+        StatusMessage = $"Vymazaných {removed} profilov z knižnice.";
+    }
+
+    private void GenerateStandardName()
+    {
+        TestProfile profile = BuildProfile();
+        if (string.IsNullOrWhiteSpace(OriginalName))
+        {
+            OriginalName = ProfileName; // preserve the current name as the "old name"
+        }
+
+        ProfileName = ProfileNaming.StandardName(profile);
+        StatusMessage = $"Názov vygenerovaný podľa štandardu (pôvodný uložený ako „Starý názov“).";
     }
 
     private void NewProfile()
     {
         ProfileName = "Nový profil";
+        OriginalName = string.Empty;
+        Customer = string.Empty;
+        Project = string.Empty;
+        EditorSensors.Clear();
+        EditorTags.Clear();
         Cycles = 1;
         SeedDefaultProfile();
+        _cycleFromSegment = 1;
+        _cycleToSegment = Math.Max(1, Segments.Count);
+        OnPropertyChanged(nameof(CycleFromSegment));
+        OnPropertyChanged(nameof(CycleToSegment));
+        RaiseCycleRegion();
         SelectedSegment = Segments.FirstOrDefault();
         Recalculate();
         StatusMessage = "Nový profil pripravený.";
@@ -345,7 +580,128 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         // doesn't clear the list selection or reload the editor).
         SelectedHistoryProfile = selectedId is { } id ? History.FirstOrDefault(p => p.Id == id) : null;
         _suppressAutoLoad = false;
+
+        RefreshKnownValues();
+        RebuildTree();
+        DeleteAllProfilesCommand.RaiseCanExecuteChanged();
     }
+
+    /// <summary>Rebuilds the tag filter list and the editor suggestion lists (sensors + tags).</summary>
+    private void RefreshKnownValues()
+    {
+        List<string> tags = History
+            .SelectMany(p => p.Tags ?? new List<string>())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        List<string> sensors = History
+            .SelectMany(p => p.Sensors ?? new List<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        string previous = SelectedTag;
+        AvailableTags.Clear();
+        AvailableTags.Add(AllTagsOption);
+        foreach (string tag in tags)
+        {
+            AvailableTags.Add(tag);
+        }
+
+        _selectedTag = AvailableTags.Contains(previous) ? previous : AllTagsOption;
+        OnPropertyChanged(nameof(SelectedTag));
+
+        SyncCollection(KnownTags, tags);
+        SyncCollection(KnownSensors, sensors);
+    }
+
+    private static void SyncCollection(ObservableCollection<string> target, List<string> values)
+    {
+        target.Clear();
+        foreach (string v in values)
+        {
+            target.Add(v);
+        }
+    }
+
+    /// <summary>Rebuilds the sensor-grouped, filtered tree from <see cref="History"/>.
+    /// A profile with several sensors appears under each of them.</summary>
+    private void RebuildTree()
+    {
+        var expanded = ProfileTree.ToDictionary(g => g.Header, g => g.IsExpanded);
+
+        string needle = FilterText?.Trim() ?? string.Empty;
+        bool tagFilter = SelectedTag != AllTagsOption;
+
+        IEnumerable<TestProfile> matches = History.Where(p => Matches(p, needle, tagFilter ? SelectedTag : null));
+
+        // Expand each profile into (sensor, profile) pairs so multi-sensor profiles
+        // land in every matching group.
+        var groups = matches
+            .SelectMany(p =>
+            {
+                List<string> sensors = (p.Sensors ?? new List<string>())
+                    .Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                return sensors.Count == 0
+                    ? new[] { (Sensor: "Bez snímača", Profile: p) }
+                    : sensors.Select(s => (Sensor: s.Trim(), Profile: p)).ToArray();
+            })
+            .GroupBy(x => x.Sensor)
+            .OrderBy(g => g.Key == "Bez snímača" ? "￿" : g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        int distinctProfiles = matches.Count();
+
+        ProfileTree.Clear();
+        foreach (var group in groups)
+        {
+            var vm = new ProfileTreeGroupViewModel(group.Key, group.Select(x => x.Profile).OrderByDescending(p => p.CreatedAt))
+            {
+                // Keep a group's expansion state across rebuilds; expand while actively filtering.
+                IsExpanded = needle.Length > 0 || tagFilter || !expanded.TryGetValue(group.Key, out bool wasOpen) || wasOpen,
+            };
+            ProfileTree.Add(vm);
+        }
+
+        TreeSummary = groups.Count == 0
+            ? "Žiadny profil nevyhovuje filtru."
+            : $"{distinctProfiles} {ProfileWord(distinctProfiles)} · {groups.Count} {SensorWord(groups.Count)}";
+    }
+
+    private static bool Matches(TestProfile p, string needle, string? tag)
+    {
+        if (tag is not null && !(p.Tags ?? new List<string>()).Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (needle.Length == 0)
+        {
+            return true;
+        }
+
+        bool InText(string? s) => s is not null && s.Contains(needle, StringComparison.CurrentCultureIgnoreCase);
+        return InText(p.Name)
+            || InText(p.Customer)
+            || InText(p.Project)
+            || (p.Sensors ?? new List<string>()).Any(InText)
+            || (p.Tags ?? new List<string>()).Any(InText);
+    }
+
+    private void SetAllExpanded(bool expanded)
+    {
+        foreach (ProfileTreeGroupViewModel group in ProfileTree)
+        {
+            group.IsExpanded = expanded;
+        }
+    }
+
+    private static string ProfileWord(int n) => n == 1 ? "profil" : (n >= 2 && n <= 4 ? "profily" : "profilov");
+
+    private static string SensorWord(int n) => n == 1 ? "snímač" : (n >= 2 && n <= 4 ? "snímače" : "snímačov");
 
     /// <summary>Reloads the saved profiles from disk. Called on entering the editor and by the ↻ button.</summary>
     public void RefreshFromStore()
@@ -373,24 +729,10 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             return;
         }
 
-        var copy = new TestProfile
-        {
-            Id = Guid.NewGuid(),
-            Name = $"{source.Name} COPY",
-            Kind = source.Kind,
-            Cycles = source.Cycles,
-            CreatedAt = DateTimeOffset.Now,
-            Segments = source.Segments.Select(s => new ProfileSegment
-            {
-                Name = s.Name,
-                TargetTemperature = s.TargetTemperature,
-                TargetHumidity = s.TargetHumidity,
-                Duration = s.Duration,
-                IsRamp = s.IsRamp,
-                GuaranteedSoak = s.GuaranteedSoak,
-                SoakTolerance = s.SoakTolerance,
-            }).ToList(),
-        };
+        TestProfile copy = source.Clone();
+        copy.Id = Guid.NewGuid();
+        copy.Name = $"{source.Name} COPY";
+        copy.CreatedAt = DateTimeOffset.Now;
 
         _store.Save(copy);
         RefreshHistory();
@@ -403,7 +745,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Importovať Vötsch / SIMPATI profil",
-            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json;*.b0*)|*.csv;*.txt;*.dat;*.prg;*.json;*.b0*|Všetky súbory (*.*)|*.*",
+            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json;*.b??)|*.csv;*.txt;*.dat;*.prg;*.json;*.b?;*.b??|Všetky súbory (*.*)|*.*",
         };
 
         if (dialog.ShowDialog() != true)
@@ -414,12 +756,69 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         try
         {
             ProfileImportResult result = ProfileImporter.ImportFile(dialog.FileName, Kind);
+
+            // Keep the source name as the "old name" and generate a standardized name.
+            result.Profile.OriginalName = result.Profile.Name;
+            result.Profile.Name = ProfileNaming.StandardName(result.Profile);
             ApplyProfile(result.Profile);
-            StatusMessage = $"Importované ({result.FormatDescription}), {result.Profile.Segments.Count} segmentov.";
+            StatusMessage = $"Importované ({result.FormatDescription}), {result.Profile.Segments.Count} segmentov · " +
+                $"názov vygenerovaný, pôvodný „{result.Profile.OriginalName}“ uložený ako Starý názov.";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Import zlyhal: {ex.Message}";
+        }
+    }
+
+    private void ImportLibrary()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Importovať knižnicu profilov (JSON)",
+            Filter = "Profily (*.json)|*.json|Všetky súbory (*.*)|*.*",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            List<TestProfile> incoming = ProfileFile.Read(dialog.FileName);
+            if (incoming.Count == 0)
+            {
+                StatusMessage = "Súbor neobsahuje žiadne profily.";
+                return;
+            }
+
+            int added = _store.AddMissing(incoming);
+            RefreshFromStore();
+            StatusMessage = $"Naimportovaných {added} z {incoming.Count} profilov " +
+                $"({incoming.Count - added} už v knižnici existovalo).";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Import knižnice zlyhal: {ex.Message}";
+        }
+    }
+
+    private void BulkImport()
+    {
+        bool imported = Views.BulkImportWindow.Show(_store);
+        if (imported)
+        {
+            RefreshFromStore();
+            StatusMessage = "Hromadný import dokončený – knižnica obnovená.";
+        }
+    }
+
+    private void ExportLibrary()
+    {
+        bool exported = Views.BulkExportWindow.Show(_store);
+        if (exported)
+        {
+            StatusMessage = "Hromadný export dokončený.";
         }
     }
 
@@ -476,12 +875,32 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
     private void Recalculate()
     {
-        double minutes = Segments.Sum(s => s.DurationMinutes) * Math.Max(1, Cycles);
-        var total = TimeSpan.FromMinutes(minutes);
+        // Keep the cycle region within the current segment count (segments may have changed).
+        int clampedFrom = ClampSegment(_cycleFromSegment);
+        int clampedTo = ClampSegment(_cycleToSegment);
+        if (clampedFrom != _cycleFromSegment) { _cycleFromSegment = clampedFrom; OnPropertyChanged(nameof(CycleFromSegment)); }
+        if (clampedTo != _cycleToSegment) { _cycleToSegment = clampedTo; OnPropertyChanged(nameof(CycleToSegment)); }
+
+        // Region-aware total: intro once + body × cycles + outro once.
+        int cycles = Math.Max(1, Cycles);
+        int start = CycleBandStart, end = CycleBandEnd;
+        double introMin = 0, bodyMin = 0, outroMin = 0;
+        for (int i = 0; i < Segments.Count; i++)
+        {
+            double dur = Math.Max(0, Segments[i].DurationMinutes);
+            if (i < start) introMin += dur;
+            else if (i <= end) bodyMin += dur;
+            else outroMin += dur;
+        }
+
+        var total = TimeSpan.FromMinutes(introMin + bodyMin * cycles + outroMin);
         ProfileDurationText = total.TotalMinutes < 1
             ? "< 1 min"
-            : $"{(int)total.TotalHours} h {total.Minutes} min";
+            : total.TotalDays >= 1
+                ? $"{(int)total.TotalDays} d {total.Hours} h {total.Minutes} min"
+                : $"{(int)total.TotalHours} h {total.Minutes} min";
 
+        RaiseCycleRegion();
         ValidateProfile();
         BuildHumPreview();
     }

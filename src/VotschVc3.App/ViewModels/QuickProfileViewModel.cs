@@ -28,7 +28,46 @@ public sealed class QuickProfileViewModel : ObservableObject
         NewCommand = new RelayCommand(NewProfile);
         DeleteFromLibraryCommand = new RelayCommand(DeleteFromLibrary);
         ResetNameCommand = new RelayCommand(EnableAutoName);
+        LoadKnownValues();
         Recalculate(); // also generates the initial automatic name
+    }
+
+    /// <summary>Sensors the profile is for (chips).</summary>
+    public ObservableCollection<string> EditorSensors { get; } = new();
+
+    /// <summary>Tags of the profile (chips).</summary>
+    public ObservableCollection<string> EditorTags { get; } = new();
+
+    /// <summary>Known sensor names from the library (suggestions).</summary>
+    public ObservableCollection<string> KnownSensors { get; } = new();
+
+    /// <summary>Known tags from the library (suggestions).</summary>
+    public ObservableCollection<string> KnownTags { get; } = new();
+
+    private string _customer = string.Empty;
+    public string Customer { get => _customer; set => SetProperty(ref _customer, value); }
+
+    private string _project = string.Empty;
+    public string Project { get => _project; set => SetProperty(ref _project, value); }
+
+    private void LoadKnownValues()
+    {
+        List<TestProfile> all = _store.LoadAll();
+        foreach (string s in all.SelectMany(p => p.Sensors ?? new List<string>())
+                     .Where(s => !string.IsNullOrWhiteSpace(s))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase))
+        {
+            KnownSensors.Add(s);
+        }
+
+        foreach (string t in all.SelectMany(p => p.Tags ?? new List<string>())
+                     .Where(t => !string.IsNullOrWhiteSpace(t))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase))
+        {
+            KnownTags.Add(t);
+        }
     }
 
     /// <summary>
@@ -156,6 +195,32 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>Reduce the total time by this many hours, spread evenly across the plateaus.</summary>
     public double ShortenByHours { get => _shortenByHours; set { if (SetProperty(ref _shortenByHours, Math.Max(0, value))) Recalculate(); } }
 
+    private int _cycles = 1;
+    /// <summary>How many times the profile (or just its sweep body) repeats.</summary>
+    public int Cycles { get => _cycles; set { if (SetProperty(ref _cycles, Math.Max(1, value))) Recalculate(); } }
+
+    private bool _cycleBodyOnly = true;
+    /// <summary>When cycling, repeat only the sweep body – the initial lead-in ramp and the
+    /// closing ramp/hold to room temperature run once (they are not repeated).</summary>
+    public bool CycleBodyOnly { get => _cycleBodyOnly; set { if (SetProperty(ref _cycleBodyOnly, value)) Recalculate(); } }
+
+    private bool _endAtSafeTemperature = true;
+    /// <summary>
+    /// Safety cool-down: append a final ramp to <see cref="EndTemperature"/> (25&#160;°C by
+    /// default) followed by a plateau of at least one hour (<see cref="EndHoldMinutes"/>),
+    /// so every profile ends parked near room temperature before the chamber powers off.
+    /// On by default.
+    /// </summary>
+    public bool EndAtSafeTemperature { get => _endAtSafeTemperature; set { if (SetProperty(ref _endAtSafeTemperature, value)) Recalculate(); } }
+
+    private double _endTemperature = 25;
+    /// <summary>Temperature (°C) the closing safety plateau holds at (default 25&#160;°C).</summary>
+    public double EndTemperature { get => _endTemperature; set { if (SetProperty(ref _endTemperature, value)) Recalculate(); } }
+
+    private double _endHoldMinutes = 60;
+    /// <summary>Length (min) of the closing safety plateau. Clamped to a minimum of one hour.</summary>
+    public double EndHoldMinutes { get => _endHoldMinutes; set { if (SetProperty(ref _endHoldMinutes, Math.Max(60, value))) Recalculate(); } }
+
     private string _summary = string.Empty;
     public string Summary { get => _summary; private set => SetProperty(ref _summary, value); }
 
@@ -231,6 +296,27 @@ public sealed class QuickProfileViewModel : ObservableObject
         return count + (DoublePeak ? 2 : 0);
     }
 
+    /// <summary>
+    /// Total profile length in minutes for a given per-plateau length: lead-in ramp +
+    /// all sweep ramps &amp; plateaus + the closing safety hold (ramp + fixed ≥1 h plateau).
+    /// The closing hold is a fixed length and is never shortened by the optimisation.
+    /// </summary>
+    private double TotalMinutes(double plateauMinutes)
+    {
+        double leadIn = HasLeadIn ? StartRampMinutes : 0;
+        double endHold = EndAtSafeTemperature ? RampMinutes + Math.Max(60, EndHoldMinutes) : 0;
+        double sweep = RampCount() * RampMinutes + PlateauCount() * plateauMinutes;
+
+        int cyc = Math.Max(1, Cycles);
+        if (cyc <= 1)
+        {
+            return leadIn + sweep + endHold;
+        }
+
+        // Body-only cycling repeats just the sweep; otherwise the whole profile repeats.
+        return CycleBodyOnly ? leadIn + sweep * cyc + endHold : (leadIn + sweep + endHold) * cyc;
+    }
+
     private double EffectivePlateauMinutes()
     {
         int plateaus = PlateauCount();
@@ -298,6 +384,16 @@ public sealed class QuickProfileViewModel : ObservableObject
             }
         }
 
+        // Safety cool-down: always end the profile parked at a safe temperature
+        // (25 °C by default) held for at least an hour, so the chamber is near room
+        // temperature by the time the run finishes and the power is cut. This hold
+        // is fixed length – the time-shortening optimisation never touches it.
+        if (EndAtSafeTemperature)
+        {
+            segs.Add(Ramp(EndTemperature, RampMinutes));
+            segs.Add(Plateau(EndTemperature, Math.Max(60, EndHoldMinutes)));
+        }
+
         return segs;
     }
 
@@ -317,15 +413,41 @@ public sealed class QuickProfileViewModel : ObservableObject
         IsRamp = false,
     };
 
-    private TestProfile BuildProfile() => new()
+    private TestProfile BuildProfile()
     {
-        Id = Guid.NewGuid(),
-        Name = string.IsNullOrWhiteSpace(ProfileName) ? "Rýchly profil" : ProfileName.Trim(),
-        Kind = ChamberKind.TemperatureOnly,
-        Cycles = 1,
-        CreatedAt = DateTimeOffset.Now,
-        Segments = BuildSegments(),
-    };
+        List<ProfileSegment> segs = BuildSegments();
+        int cyc = Math.Max(1, Cycles);
+
+        // Cycle region: with "body only" the lead-in ramp (1 segment) and the closing
+        // ramp+hold (2 segments) run once; the sweep in between repeats.
+        int start = 0, end = segs.Count - 1;
+        if (cyc > 1 && CycleBodyOnly)
+        {
+            start = HasLeadIn ? 1 : 0;
+            end = segs.Count - 1 - (EndAtSafeTemperature ? 2 : 0);
+            if (end < start)
+            {
+                start = 0;
+                end = segs.Count - 1;
+            }
+        }
+
+        return new TestProfile
+        {
+            Id = Guid.NewGuid(),
+            Name = string.IsNullOrWhiteSpace(ProfileName) ? "Rýchly profil" : ProfileName.Trim(),
+            Kind = ChamberKind.TemperatureOnly,
+            Cycles = cyc,
+            CycleStartIndex = start,
+            CycleEndIndex = end,
+            Customer = Customer.Trim(),
+            Project = Project.Trim(),
+            Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            Tags = EditorTags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            CreatedAt = DateTimeOffset.Now,
+            Segments = segs,
+        };
+    }
 
     private void Recalculate()
     {
@@ -337,30 +459,39 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         double plateau = EffectivePlateauMinutes();
-        double leadIn = HasLeadIn ? StartRampMinutes : 0;
-        double optimized = leadIn + RampCount() * RampMinutes + PlateauCount() * plateau;
-        double baseTotal = leadIn + RampCount() * RampMinutes + PlateauCount() * PlateauMinutes;
+        double optimized = TotalMinutes(plateau);
+        double baseTotal = TotalMinutes(PlateauMinutes);
 
         BaseTotalText = Format(baseTotal);
         OptimizedTotalText = Format(optimized);
         EffectivePlateauText = $"{plateau:0.#} min / plato";
-        SegmentCount = RampCount() + PlateauCount() + (HasLeadIn ? 1 : 0);
+        SegmentCount = RampCount() + PlateauCount() + (HasLeadIn ? 1 : 0) + (EndAtSafeTemperature ? 2 : 0);
 
         double delta = up.Count > 1 ? (HighTemperature - LowTemperature) / (up.Count - 1) : 0;
         RampRateText = RampMinutes > 0
             ? $"{Math.Abs(delta) / RampMinutes:0.##} °C/min  ({Math.Abs(delta):0.#} °C / krok)"
             : "skok (0 min)";
 
-        Summary = $"{LowTemperature:0.#} → {HighTemperature:0.#} °C, " +
-            (UseTemperatureStep
-                ? $"krok {TemperatureStep:0.#} °C ({TemperaturePointCount()} bodov)"
-                : $"{IntermediateSteps} medzikrokov") +
-            (IncludeDescending ? " a späť dole" : string.Empty) +
-            (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty);
+        Summary = ComposeSummary();
 
         UpdateAutoName();
         BuildPreview();
     }
+
+    /// <summary>
+    /// Human-readable description of the sweep shown next to "Náhľad profilu".
+    /// Also drives the automatically generated profile name (see <see cref="ComposeAutoName"/>).
+    /// </summary>
+    private string ComposeSummary() =>
+        $"{LowTemperature:0.#} → {HighTemperature:0.#} °C, " +
+        (UseTemperatureStep
+            ? $"krok {TemperatureStep:0.#} °C ({TemperaturePointCount()} bodov)"
+            : $"{IntermediateSteps} medzikrokov") +
+        (IncludeDescending ? " a späť dole" : string.Empty) +
+        (DoublePeak ? " · 2 vrcholy" : string.Empty) +
+        (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty) +
+        (EndAtSafeTemperature ? $" · koniec na {EndTemperature:0.#} °C ({Math.Max(60, EndHoldMinutes):0} min)" : string.Empty) +
+        (Cycles > 1 ? $" · cyklus ×{Cycles}{(CycleBodyOnly ? " (telo)" : string.Empty)}" : string.Empty);
 
     /// <summary>Re-enables automatic naming (used by the "Automaticky" button).</summary>
     private void EnableAutoName()
@@ -386,22 +517,22 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Builds the automatic profile name. Pattern:
-    /// <c>[predpona ]Sweep {od}…{do} °C · {N} bodov[ · obojsmerný][ · 2 vrcholy]</c>,
-    /// where <c>N</c> is the number of distinct temperature points.
+    /// Builds a compact, technical profile name: temperature range, number of steps,
+    /// the °C step between them, plateau length and the total profile duration –
+    /// e.g. <c>-20→60 °C · 9 krokov · krok 10 °C · ↕ · plato 30m · Σ 1d 2h</c>.
+    /// Optionally prefixed with <see cref="NamePrefix"/>.
     /// </summary>
     private string ComposeAutoName()
     {
-        string core = $"Sweep {LowTemperature:0.#}…{HighTemperature:0.#} °C · {TemperaturePointCount()} bodov";
-        if (IncludeDescending)
-        {
-            core += " · obojsmerný";
-        }
+        int points = TemperaturePointCount();
+        double step = points > 1 ? Math.Abs(HighTemperature - LowTemperature) / (points - 1) : 0;
+        double plateau = EffectivePlateauMinutes();
 
-        if (DoublePeak)
-        {
-            core += " · 2 vrcholy";
-        }
+        string core =
+            $"{LowTemperature:0.#}→{HighTemperature:0.#} °C · {points} krokov · krok {step:0.#} °C" +
+            (IncludeDescending ? " · ↕" : string.Empty) +
+            (Cycles > 1 ? $" · ×{Cycles}" : string.Empty) +
+            $" · plato {plateau:0.#}m · Σ {FormatDurationCompact(TotalMinutes(plateau))}";
 
         string prefix = NamePrefix?.Trim() ?? string.Empty;
         return prefix.Length > 0 ? $"{prefix} {core}" : core;
@@ -434,7 +565,43 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         TempPreview = new[] { new ChartSeries("Teplota", TempBrush, pts) };
+
+        // Cycled region (minutes) for the preview band: the body between the lead-in
+        // ramp and the closing ramp/hold when "body only", otherwise the whole profile.
+        double startMin = 0, endMin = t;
+        if (Cycles > 1)
+        {
+            if (CycleBodyOnly)
+            {
+                int bodyStart = HasLeadIn ? 1 : 0;
+                int bodyEnd = segs.Count - 1 - (EndAtSafeTemperature ? 2 : 0);
+                double cum = 0, s0 = 0, s1 = t;
+                for (int i = 0; i < segs.Count; i++)
+                {
+                    if (i == bodyStart) s0 = cum;
+                    cum += segs[i].Duration.TotalMinutes;
+                    if (i == bodyEnd) s1 = cum;
+                }
+
+                if (bodyEnd >= bodyStart)
+                {
+                    startMin = s0;
+                    endMin = s1;
+                }
+            }
+        }
+
+        CyclePreviewStartMinutes = startMin;
+        CyclePreviewEndMinutes = endMin;
     }
+
+    private double _cyclePreviewStartMinutes;
+    /// <summary>Start (min) of the cycled region for the preview band.</summary>
+    public double CyclePreviewStartMinutes { get => _cyclePreviewStartMinutes; private set => SetProperty(ref _cyclePreviewStartMinutes, value); }
+
+    private double _cyclePreviewEndMinutes;
+    /// <summary>End (min) of the cycled region for the preview band.</summary>
+    public double CyclePreviewEndMinutes { get => _cyclePreviewEndMinutes; private set => SetProperty(ref _cyclePreviewEndMinutes, value); }
 
     /// <summary>
     /// Upserts the current sweep into the shared library (matched by name so re-saving
@@ -512,6 +679,15 @@ public sealed class QuickProfileViewModel : ObservableObject
         StartTemperature = 25;
         StartRampMinutes = 60;
         ShortenByHours = 0;
+        EndAtSafeTemperature = true;
+        EndTemperature = 25;
+        EndHoldMinutes = 60;
+        Cycles = 1;
+        CycleBodyOnly = true;
+        Customer = string.Empty;
+        Project = string.Empty;
+        EditorSensors.Clear();
+        EditorTags.Clear();
         EnableAutoName(); // back to an auto-generated name
         IsSaveSuccess = false;
         Status = "Nový rýchly profil – parametre vynulované na predvolené.";
@@ -573,7 +749,29 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         var ts = TimeSpan.FromMinutes(minutes);
+        if (ts.TotalDays >= 1)
+        {
+            return $"{(int)ts.TotalDays} d {ts.Hours} h {ts.Minutes} min";
+        }
+
         return ts.TotalHours >= 1 ? $"{(int)ts.TotalHours} h {ts.Minutes} min" : $"{ts.Minutes} min";
+    }
+
+    /// <summary>Compact duration (for the technical profile name), e.g. <c>1d 2h</c>, <c>3h 20min</c>, <c>45min</c>.</summary>
+    private static string FormatDurationCompact(double minutes)
+    {
+        var ts = TimeSpan.FromMinutes(Math.Max(0, minutes));
+        if (ts.TotalDays >= 1)
+        {
+            return $"{(int)ts.TotalDays}d {ts.Hours}h" + (ts.Minutes > 0 ? $" {ts.Minutes}min" : string.Empty);
+        }
+
+        if (ts.TotalHours >= 1)
+        {
+            return $"{ts.Hours}h" + (ts.Minutes > 0 ? $" {ts.Minutes}min" : string.Empty);
+        }
+
+        return $"{(int)Math.Round(ts.TotalMinutes)}min";
     }
 
     private static Brush Freeze(byte r, byte g, byte b)

@@ -28,8 +28,14 @@
             </Grid.ColumnDefinitions>
 
             <!-- ===== Vstupy ===== -->
-            <Border Grid.Column="0" Style="{StaticResource Card}" VerticalAlignment="Top">
-                <StackPanel>
+            <Border Grid.Column="0" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+                        <StackPanel>
                     <TextBlock Text="Parametre sweepu" Style="{StaticResource Heading}" />
 
                     <StackPanel Style="{StaticResource QpField}">
@@ -48,6 +54,32 @@
                         <TextBox Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Text="{Binding NameModeText}" Style="{StaticResource Caption}"
                                    TextWrapping="Wrap" Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Zákazník" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Customer, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Projekt" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Project, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Style="{StaticResource QpField}">
+                        <TextBlock Text="Snímače" Style="{StaticResource Label}" />
+                        <views:TagEditor Items="{Binding EditorSensors, Mode=OneWay}" Suggestions="{Binding KnownSensors}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource QpField}">
+                        <TextBlock Text="Tagy" Style="{StaticResource Label}" />
+                        <views:TagEditor Items="{Binding EditorTags, Mode=OneWay}" Suggestions="{Binding KnownTags}" />
                     </StackPanel>
 
                     <Grid>
@@ -136,54 +168,73 @@
                         </StackPanel>
                     </Grid>
 
+                    <CheckBox Content="Ukončiť na bezpečnej teplote (min. 1 hodina)" IsChecked="{Binding EndAtSafeTemperature}"
+                              Margin="0,0,0,6"
+                              ToolTip="Na koniec profilu pridá rampu na 25 °C a plato aspoň 1 hodinu, aby komora skončila blízko izbovej teploty pred vypnutím výkonu." />
+                    <Grid Visibility="{Binding EndAtSafeTemperature, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Style="{StaticResource QpField}">
+                            <TextBlock Text="Koncová teplota (°C)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding EndTemperature, Mode=TwoWay}" Step="1" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Style="{StaticResource QpField}">
+                            <TextBlock Text="Dĺžka plata (min)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding EndHoldMinutes, Mode=TwoWay}" Step="15" Minimum="60" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="Cyklovanie" Style="{StaticResource Heading}" Margin="0,4,0,4" />
+                    <StackPanel Style="{StaticResource QpField}">
+                        <TextBlock Text="Počet cyklov" Style="{StaticResource Label}" />
+                        <views:NumericStepper Value="{Binding Cycles, Mode=TwoWay}" Step="1" Minimum="1" />
+                        <CheckBox Content="Cyklovať len telo (nábeh a koniec len raz)" IsChecked="{Binding CycleBodyOnly}"
+                                  Margin="0,6,0,0"
+                                  ToolTip="Opakuje sa iba sweep; začiatočný nábeh na prvú teplotu a koncový nábeh na izbovú teplotu prebehnú len raz." />
+                    </StackPanel>
+
                     <TextBlock Text="Optimalizácia" Style="{StaticResource Heading}" Margin="0,4,0,4" />
                     <StackPanel Style="{StaticResource QpField}">
                         <TextBlock Text="Skrátiť celkový čas o (hodín)" Style="{StaticResource Label}" />
                         <views:NumericStepper Value="{Binding ShortenByHours, Mode=TwoWay}" Step="0.5" Minimum="0" />
                         <TextBlock Text="Rovnomerne skráti všetky plata." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
 
-                    <!-- Primary actions on one row (Save = accent, Edit alongside). -->
-                    <Grid Margin="0,10,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Style="{StaticResource AccentButton}"
-                                HorizontalAlignment="Stretch" Command="{Binding SaveToLibraryCommand}"
-                                ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice.">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
-                                <TextBlock Text="Uložiť do knižnice" Style="{StaticResource IconLabel}" />
-                            </StackPanel>
-                        </Button>
-                        <Button Grid.Column="2" HorizontalAlignment="Stretch"
-                                Command="{Binding EditInEditorCommand}"
-                                ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov.">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
-                                <TextBlock Text="Editovať profil" Style="{StaticResource IconLabel}" />
-                            </StackPanel>
-                        </Button>
-                    </Grid>
+                    <!-- Pinned actions: always visible so the scroll above clearly has more. -->
+                    <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                    <!-- Primary actions stacked full-width: the icon and full label
+                         always fit (a 360-wide column cannot hold both side by side). -->
+                    <Button Margin="0,0,0,0" Style="{StaticResource AccentButton}"
+                            HorizontalAlignment="Stretch" Command="{Binding SaveToLibraryCommand}"
+                            ToolTip="Uloží (alebo aktualizuje podľa názvu) profil do zdieľanej knižnice.">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
+                            <TextBlock Text="Uložiť do knižnice" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                            Command="{Binding EditInEditorCommand}"
+                            ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov.">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
+                            <TextBlock Text="Editovať profil" Style="{StaticResource IconLabel}" />
+                        </StackPanel>
+                    </Button>
 
                     <Separator Margin="0,10,0,8" Background="{StaticResource BorderBrush}" />
 
-                    <!-- Secondary + destructive in separate columns so they never overlap. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" MinWidth="8" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" HorizontalAlignment="Left" Content="↺ Nový / začať odznova"
-                                Style="{StaticResource GhostButton}" Command="{Binding NewCommand}"
-                                ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
-                        <Button Grid.Column="2" HorizontalAlignment="Right" Content="Vymazať z knižnice"
-                                Style="{StaticResource DangerButton}" Command="{Binding DeleteFromLibraryCommand}"
-                                ToolTip="Vymaže z knižnice profil s aktuálnym názvom (s potvrdením)." />
-                    </Grid>
+                    <!-- Secondary + destructive stacked full-width so long labels are never clipped. -->
+                    <Button Margin="0" HorizontalAlignment="Stretch" Content="↺ Nový / začať odznova"
+                            Style="{StaticResource GhostButton}" Command="{Binding NewCommand}"
+                            ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
+                    <Button Margin="0,8,0,0" HorizontalAlignment="Stretch" Content="Vymazať z knižnice"
+                            Style="{StaticResource DangerButton}" Command="{Binding DeleteFromLibraryCommand}"
+                            ToolTip="Vymaže z knižnice profil s aktuálnym názvom (s potvrdením)." />
 
                     <!-- Prominent confirmation after a successful save. -->
                     <Border Margin="0,4,0,0" CornerRadius="8" Padding="10,8"
@@ -196,7 +247,8 @@
                     <TextBlock Text="{Binding Status}" Style="{StaticResource Caption}"
                                TextWrapping="Wrap" Margin="0,8,0,0"
                                Visibility="{Binding IsSaveSuccess, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
-                </StackPanel>
+                    </StackPanel>
+                </Grid>
             </Border>
 
             <!-- ===== Náhľad + výpočty ===== -->
@@ -217,7 +269,10 @@
                     <views:ChartView Grid.Row="1" Series="{Binding TempPreview}" Unit=" °C"
                                      EmptyText="Zadaj parametre" MinHeight="240" Margin="0,8,0,8"
                                      ShowStages="True"
-                                     ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode aj to, či ide o rampu (nábeh) alebo výdrž (plato). Podfarbené stĺpce = výdrž." />
+                                     CycleStartX="{Binding CyclePreviewStartMinutes}"
+                                     CycleEndX="{Binding CyclePreviewEndMinutes}"
+                                     CycleCount="{Binding Cycles}"
+                                     ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode aj to, či ide o rampu (nábeh) alebo výdrž (plato). Podfarbené stĺpce = výdrž, zvýraznená plocha = cyklovaná časť profilu." />
 
                     <WrapPanel Grid.Row="2">
                         <StackPanel Margin="0,0,28,0">
