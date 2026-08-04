@@ -4,6 +4,21 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.44.0] – 2026-08-04
+
+### Pridané
+- **Priečinky s dátami priamo z menu.** V bočnom menu pribudla sekcia
+  **PRIEČINKY** s tlačidlami, ktoré otvoria priečinok v prieskumníkovi Windows:
+  **Profily** (`Lab Control\Profiles`), **Záznamy teplôt** (`Lab Control\Profilelog`),
+  **Logy aplikácie** (`Lab Control\App log`) a **Všetky dáta** (koreň `Lab Control`).
+
+### Zmenené
+- **Sušiareň POL-EKO je predvolene skrytá.** Laboratórium ju bežne nepoužíva,
+  takže sa už predvolene **nezobrazuje na nástenke ani na časovej osi a
+  automaticky sa nepripája**. Zapnúť sa dá v **Admin → Rozloženie nástenky →
+  „Zobraziť sušiareň POL-EKO"** – vtedy sa objaví a pripojí. Nastavenie je
+  uložené (`UiSettings.ShowPolEko`).
+
 ## [1.43.0] – 2026-08-04
 
 ### Pridané / zmenené

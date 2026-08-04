@@ -63,6 +63,10 @@
                               IsChecked="{Binding CompactMode}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
                                Text="Zmenší karty, grafiku a text, aby sa na obrazovku zmestilo viac zariadení. Vypnuté = pôvodné, priestrannejšie zobrazenie." />
+                    <CheckBox Content="Zobraziť sušiareň POL-EKO" Margin="0,12,0,0"
+                              IsChecked="{Binding ShowPolEko}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
+                               Text="Predvolene je sušiareň POL-EKO skrytá (laboratórium ju bežne nepoužíva) a nepripája sa. Zapni, keď ju chceš vidieť na nástenke, na časovej osi a automaticky pripojiť." />
                 </StackPanel>
             </Border>
 

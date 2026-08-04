@@ -84,6 +84,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenAppLogCommand = new RelayCommand(() => CurrentView = AppLog);
         OpenChangelogCommand = new RelayCommand(() => CurrentView = Changelog);
         OpenAdminCommand = new RelayCommand(() => CurrentView = Admin, () => CanManage);
+        OpenDataFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.Root));
+        OpenProfilesFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.ProfilesDir));
+        OpenProfileLogFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.ProfileLogDir));
+        OpenAppLogFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.AppLogDir));
         GoHomeCommand = new RelayCommand(GoHome);
         LogoutCommand = new RelayCommand(Logout);
         ToggleTimelineCommand = new RelayCommand(() => ShowTimeline = !ShowTimeline);
@@ -173,6 +177,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         {
             AddChamberInternal(config);
         }
+
+        // Keep the visible (dashboard/timeline) list in sync with Chambers and the
+        // POL-EKO visibility setting: any add / remove / reorder rebuilds it.
+        Chambers.CollectionChanged += (_, _) => RebuildVisibleChambers();
+        RebuildVisibleChambers();
 
         if (seeded || reseeded || renamed || addedExtras || sikaReset || reordered)
         {
@@ -352,6 +361,25 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<ChamberViewModel> Chambers { get; }
 
+    /// <summary>
+    /// The chambers actually shown on the dashboard and the timeline: every device
+    /// except the POL-EKO oven while it is hidden (see <see cref="ShowPolEko"/>).
+    /// Rebuilt from <see cref="Chambers"/> so it always reflects the current order.
+    /// </summary>
+    public ObservableCollection<ChamberViewModel> VisibleChambers { get; } = new();
+
+    private void RebuildVisibleChambers()
+    {
+        VisibleChambers.Clear();
+        foreach (ChamberViewModel chamber in Chambers)
+        {
+            if (_ui.ShowPolEko || !chamber.IsPolEko)
+            {
+                VisibleChambers.Add(chamber);
+            }
+        }
+    }
+
     /// <summary>ASL F100 thermometers manager (USB).</summary>
     public ThermometersViewModel Thermometers { get; }
 
@@ -405,6 +433,36 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand OpenAppLogCommand { get; }
     public RelayCommand OpenChangelogCommand { get; }
     public RelayCommand OpenAdminCommand { get; }
+
+    /// <summary>Opens the root data folder (Documents\Lab Control) in the file explorer.</summary>
+    public RelayCommand OpenDataFolderCommand { get; }
+
+    /// <summary>Opens the profiles folder (Documents\Lab Control\Profiles).</summary>
+    public RelayCommand OpenProfilesFolderCommand { get; }
+
+    /// <summary>Opens the profile temperature-log folder (Documents\Lab Control\Profilelog).</summary>
+    public RelayCommand OpenProfileLogFolderCommand { get; }
+
+    /// <summary>Opens the application-log folder (Documents\Lab Control\App log).</summary>
+    public RelayCommand OpenAppLogFolderCommand { get; }
+
+    /// <summary>Creates the folder if needed and opens it in the OS file explorer.</summary>
+    private static void OpenFolder(string path)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(path);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            VotschVc3.Core.Diagnostics.AppLog.Warn("UI", $"Priečinok sa nepodarilo otvoriť ({path}): {ex.Message}");
+        }
+    }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand LogoutCommand { get; }
     public RelayCommand AddChamberCommand { get; }
@@ -555,6 +613,34 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Admin toggle (persisted): whether the POL-EKO drying oven (Sušiareň) appears
+    /// on the dashboard / timeline and is connected automatically. Off by default –
+    /// the lab does not normally use it. Turning it on brings the oven online.
+    /// </summary>
+    public bool ShowPolEko
+    {
+        get => _ui.ShowPolEko;
+        set
+        {
+            if (_ui.ShowPolEko == value)
+            {
+                return;
+            }
+
+            _ui.ShowPolEko = value;
+            SaveUiSettings();
+            RebuildVisibleChambers();
+            OnPropertyChanged();
+
+            if (value)
+            {
+                // Bring the now-visible POL-EKO oven(s) online.
+                _ = Task.WhenAll(Chambers.Where(c => c.IsPolEko).Select(c => c.ConnectIfPossibleAsync()));
+            }
+        }
+    }
+
     /// <summary>Caption for the show/hide-timeline toggle button.</summary>
     public string TimelineToggleText => ShowTimeline ? "▾ Skryť" : "▸ Zobraziť";
 
@@ -587,7 +673,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     }
 
     private Task ConnectAllChambersAsync() =>
-        Task.WhenAll(Chambers.Select(c => c.ConnectIfPossibleAsync()));
+        Task.WhenAll(Chambers
+            .Where(c => _ui.ShowPolEko || !c.IsPolEko) // skip the hidden POL-EKO oven
+            .Select(c => c.ConnectIfPossibleAsync()));
 
     private void Logout()
     {

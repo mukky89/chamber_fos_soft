@@ -32,4 +32,11 @@ public sealed class UiSettings
     /// keeps at most one row per this interval so the CSV files stay compact.
     /// </summary>
     public int ProfileLogIntervalSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// When <c>true</c> the POL-EKO drying oven (Sušiareň) is shown on the dashboard
+    /// and connected automatically. Off by default – the lab does not normally use
+    /// it, so it stays hidden until an admin turns it on.
+    /// </summary>
+    public bool ShowPolEko { get; set; }
 }
