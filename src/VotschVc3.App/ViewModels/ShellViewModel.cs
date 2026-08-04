@@ -55,6 +55,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _audit = new AuditLog(System.IO.Path.Combine(dir, "audit.csv"));
         _uiStore = new UiSettingsStore(System.IO.Path.Combine(dir, "ui.json"));
         _ui = _uiStore.Load();
+        ChamberViewModel.ProfileLogIntervalSeconds = _ui.ProfileLogIntervalSeconds;
         _notifier.Settings = _emailStore.Load();
 
         Audit = new AuditViewModel(_audit);
@@ -528,6 +529,29 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             SaveUiSettings();
             OnPropertyChanged();
             OnPropertyChanged(nameof(TimelineToggleText));
+        }
+    }
+
+    /// <summary>
+    /// Persisted setting: how often (seconds) a row is written to the per-profile
+    /// temperature log during a run. Default 30 s. Applies to all chambers and takes
+    /// effect immediately, even during a running profile. Clamped to 1…3600 s.
+    /// </summary>
+    public double ProfileLogIntervalSeconds
+    {
+        get => _ui.ProfileLogIntervalSeconds;
+        set
+        {
+            int seconds = Math.Clamp((int)Math.Round(value), 1, 3600);
+            if (_ui.ProfileLogIntervalSeconds == seconds)
+            {
+                return;
+            }
+
+            _ui.ProfileLogIntervalSeconds = seconds;
+            ChamberViewModel.ProfileLogIntervalSeconds = seconds;
+            SaveUiSettings();
+            OnPropertyChanged();
         }
     }
 

@@ -25,4 +25,11 @@ public sealed class UiSettings
     /// dashboard. On by default; can be hidden to save vertical space.
     /// </summary>
     public bool ShowTimeline { get; set; } = true;
+
+    /// <summary>
+    /// How often, in seconds, a row is written to the per-profile temperature log
+    /// while a profile runs. Default 30 s; polling itself stays faster, but the log
+    /// keeps at most one row per this interval so the CSV files stay compact.
+    /// </summary>
+    public int ProfileLogIntervalSeconds { get; set; } = 30;
 }

@@ -37,6 +37,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private bool _powerOffOnProfileCancel;
     private CsvRecorder? _recorder;
     private ProfileTemperatureLog? _profileTempLog;
+    private DateTime? _lastProfileLogWrite;
     private DateTime? _profileActualStart;
     private DateTime? _profileEstimatedEnd;
     private System.Windows.Threading.DispatcherTimer? _countdownTimer;
@@ -1315,12 +1316,21 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Folder where per-profile temperature logs are written (Documents\Lab Control\Profilelog).</summary>
     private static readonly string ProfileLogDirectory = AppPaths.ProfileLogDir;
 
+    /// <summary>
+    /// App-wide interval (seconds) between rows in the per-profile temperature log.
+    /// Set from <c>UiSettings</c> at startup and whenever the admin changes it; the
+    /// run loop writes at most one row per this many seconds regardless of the
+    /// (faster) polling rate. Default 30 s.
+    /// </summary>
+    public static int ProfileLogIntervalSeconds { get; set; } = 30;
+
     /// <summary>Opens a fresh per-profile temperature log for the run that is starting.</summary>
     private void OpenProfileTemperatureLog(string profileName)
     {
         try
         {
             _profileTempLog?.Dispose();
+            _lastProfileLogWrite = null; // always write the first sample of a new run
             _profileTempLog = new ProfileTemperatureLog(
                 ProfileLogDirectory, profileName, Name, SupportsHumidity, DateTime.Now);
             AppLog.Info(Name, $"Log teplôt profilu: {_profileTempLog.FilePath}");
@@ -1845,9 +1855,20 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
             BuildProfilePreview();
 
-            // Per-profile temperature record (set point vs measured chamber temperature).
-            _profileTempLog?.Log(DateTime.Now, e.TemperatureSetpoint, MeasuredTemperature,
-                e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
+            // Per-profile temperature record (set point vs measured chamber
+            // temperature), throttled to the configured interval so the CSV stays
+            // compact even though polling is faster.
+            if (_profileTempLog is { } profileLog)
+            {
+                DateTime nowLog = DateTime.Now;
+                double intervalSec = Math.Max(1, ProfileLogIntervalSeconds);
+                if (_lastProfileLogWrite is not { } last || (nowLog - last).TotalSeconds >= intervalSec)
+                {
+                    _lastProfileLogWrite = nowLog;
+                    profileLog.Log(nowLog, e.TemperatureSetpoint, MeasuredTemperature,
+                        e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
+                }
+            }
         });
 
         await runner.RunAsync(profile, startTemp, startHum, token);

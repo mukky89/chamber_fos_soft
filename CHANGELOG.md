@@ -4,6 +4,17 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.43.0] – 2026-08-04
+
+### Pridané / zmenené
+- **Interval zápisu záznamu teplôt profilu (predvolene 30 s, nastaviteľný).**
+  Doteraz sa riadok do CSV záznamu zapisoval pri každom cykle merania (rádovo
+  každých pár sekúnd), čo zbytočne nafukovalo súbory. Teraz sa počas behu profilu
+  zapisuje **najviac raz za 30 sekúnd**. Hodnota sa dá zmeniť v **Admin →
+  „Záznam teplôt profilu" → Interval zápisu do súboru (sekundy)** (1…3600 s),
+  platí pre všetky komory a zmena sa prejaví okamžite aj počas bežiaceho profilu.
+  Nastavenie je uložené (`UiSettings.ProfileLogIntervalSeconds`).
+
 ## [1.42.1] – 2026-08-04
 
 ### Opravené
