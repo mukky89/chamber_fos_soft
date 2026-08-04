@@ -42,9 +42,13 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public ShellViewModel()
     {
-        string dir = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VotschVc3");
-        _store = new ProfileStore(System.IO.Path.Combine(dir, "profiles.json"));
+        // All app data lives under Documents\Lab Control; profiles in their own
+        // folder, settings + markers in the root. Initialize() also migrates the
+        // old VotschVc3 layout once (idempotent, so calling it here is safe even
+        // if App.OnStartup already ran it).
+        AppPaths.Initialize();
+        string dir = AppPaths.SettingsDir;
+        _store = new ProfileStore(System.IO.Path.Combine(AppPaths.ProfilesDir, "profiles.json"));
         _emailStore = new EmailSettingsStore(System.IO.Path.Combine(dir, "email.json"));
         _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
         _userStore = new UserStore(System.IO.Path.Combine(dir, "users.json"));

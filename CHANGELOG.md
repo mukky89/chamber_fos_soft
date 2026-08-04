@@ -4,7 +4,24 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
-## [1.40.0] – 2026-08-04
+## [1.41.0] – 2026-08-04
+
+### Zmenené
+- **Nové úložisko dát v `Dokumenty\Lab Control`.** Všetky dáta aplikácie sa
+  presunuli z pôvodného `Dokumenty\VotschVc3` do prehľadnej štruktúry:
+  - `Lab Control\Profiles` – **profily** (`profiles.json` + pribalené predvolené
+    profily). Pri prvom spustení sa priečinok vytvorí a naplnia sa predvolené
+    profily; novo vytvorené profily sa ukladajú sem.
+  - `Lab Control\App log` – **záznamy aplikácie** (`app.log`).
+  - `Lab Control\Profilelog` – **teplotné záznamy z bežiacich profilov** (CSV
+    per spustenie).
+  - Ostatné nastavenia (komory, používatelia, e-mail, audit, UI) sú v koreni
+    `Lab Control`.
+- **Jednorazová migrácia.** Pri prvom spustení novej verzie sa dáta z pôvodného
+  `Dokumenty\VotschVc3` **skopírujú** do novej štruktúry (pôvodný priečinok
+  ostáva ako záloha), takže existujúca knižnica profilov a nastavenia sa
+  nestratia. Cesty sú centralizované v novej triede `AppPaths`.
+
 
 ### Pridané / zmenené
 - **Zlúčenie vetvy profilovej knižnice a rýchleho vytvárača s hlavnou vetvou.**

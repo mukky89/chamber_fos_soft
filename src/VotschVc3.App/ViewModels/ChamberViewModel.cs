@@ -1312,9 +1312,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ProfileRunEnd));
     }
 
-    /// <summary>Folder under the user's Documents where per-profile temperature logs are written.</summary>
-    private static readonly string ProfileLogDirectory = System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VotschVc3", "profil-logy");
+    /// <summary>Folder where per-profile temperature logs are written (Documents\Lab Control\Profilelog).</summary>
+    private static readonly string ProfileLogDirectory = AppPaths.ProfileLogDir;
 
     /// <summary>Opens a fresh per-profile temperature log for the run that is starting.</summary>
     private void OpenProfileTemperatureLog(string profileName)
