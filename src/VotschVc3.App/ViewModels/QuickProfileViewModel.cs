@@ -1,23 +1,30 @@
 using System.Collections.ObjectModel;
-using System.Windows;
-using System.Windows.Media;
-using VotschVc3.App.Charting;
+using System.Globalization;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Profiles;
 
 namespace VotschVc3.App.ViewModels;
 
+/// <summary>How the sweep is described: symmetric parametric range, or a typed sequence of temperatures.</summary>
+public enum QuickProfileMode
+{
+    /// <summary>Low/high range + step count/size, optionally descending back down (the original builder).</summary>
+    Parametric,
+
+    /// <summary>An explicit, semicolon-separated list of temperatures, e.g. "0;20;30;60;30;20;0".</summary>
+    Sequence,
+}
+
 /// <summary>
-/// Quick builder for a symmetric temperature-sweep profile: ramp from a low to a
-/// high temperature through evenly spaced intermediate steps and (optionally)
-/// back down again, holding a plateau at every step. Temperatures between the
-/// endpoints are computed automatically from the requested step count, and the
-/// total time can be shortened, which reduces every plateau evenly.
+/// Quick builder for a temperature profile, in two modes: a symmetric sweep (ramp
+/// from a low to a high temperature through evenly spaced steps and, optionally,
+/// back down again, holding a plateau at every step), or a typed sequence of
+/// temperatures that is turned into alternating ramps and plateaus. Also loads an
+/// existing profile back in (as a sequence) so it can be edited and re-saved, and
+/// exposes the built segments for direct drag-editing in the profile chart.
 /// </summary>
 public sealed class QuickProfileViewModel : ObservableObject
 {
-    private static readonly Brush TempBrush = Freeze(0xFF, 0x8A, 0x5C);
-
     private readonly ProfileStore _store;
 
     public QuickProfileViewModel(ProfileStore store)
@@ -28,7 +35,11 @@ public sealed class QuickProfileViewModel : ObservableObject
         NewCommand = new RelayCommand(NewProfile);
         DeleteFromLibraryCommand = new RelayCommand(DeleteFromLibrary);
         ResetNameCommand = new RelayCommand(EnableAutoName);
+        LoadSelectedProfileCommand = new RelayCommand(
+            () => { if (SelectedLibraryProfile is { } p) LoadProfile(p); },
+            () => SelectedLibraryProfile is not null);
         LoadKnownValues();
+        RefreshLibraryProfiles();
         Recalculate(); // also generates the initial automatic name
     }
 
@@ -43,6 +54,41 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     /// <summary>Known tags from the library (suggestions).</summary>
     public ObservableCollection<string> KnownTags { get; } = new();
+
+    /// <summary>Profiles available in the shared library, for the "load existing profile to edit" picker.</summary>
+    public ObservableCollection<TestProfile> LibraryProfiles { get; } = new();
+
+    private TestProfile? _selectedLibraryProfile;
+    /// <summary>Profile picked in <see cref="LibraryProfiles"/> to load for editing (see <see cref="LoadSelectedProfileCommand"/>).</summary>
+    public TestProfile? SelectedLibraryProfile
+    {
+        get => _selectedLibraryProfile;
+        set { if (SetProperty(ref _selectedLibraryProfile, value)) LoadSelectedProfileCommand.RaiseCanExecuteChanged(); }
+    }
+
+    /// <summary>Loads <see cref="SelectedLibraryProfile"/> into the editor (see <see cref="LoadProfile"/>).</summary>
+    public RelayCommand LoadSelectedProfileCommand { get; }
+
+    /// <summary>Refreshes <see cref="LibraryProfiles"/> from the store, keeping the current selection if it still exists.</summary>
+    private void RefreshLibraryProfiles()
+    {
+        Guid? previously = SelectedLibraryProfile?.Id;
+        LibraryProfiles.Clear();
+        foreach (TestProfile p in _store.LoadAll().OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            LibraryProfiles.Add(p);
+        }
+
+        SelectedLibraryProfile = previously is { } id ? LibraryProfiles.FirstOrDefault(p => p.Id == id) : null;
+    }
+
+    /// <summary>
+    /// The segments that will actually be saved, exposed for direct drag-editing in
+    /// <see cref="Views.ProfileEditorChart"/>. Regenerated from the sweep/sequence
+    /// parameters whenever they change; a manual drag edits an entry here directly
+    /// and survives until the next parameter change regenerates the list.
+    /// </summary>
+    public ObservableCollection<SegmentViewModel> Segments { get; } = new();
 
     private string _customer = string.Empty;
     public string Customer { get => _customer; set => SetProperty(ref _customer, value); }
@@ -79,6 +125,69 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>True while the name is being set programmatically, so the user-edit
     /// detection in <see cref="ProfileName"/> ignores our own writes.</summary>
     private bool _settingNameInternally;
+
+    /// <summary>
+    /// Id of the library profile currently being edited (set by <see cref="LoadProfile"/>
+    /// or by the first successful save of a session), so re-saving – even after a rename –
+    /// updates that same profile instead of matching by name or creating a duplicate.
+    /// </summary>
+    private Guid? _editingProfileId;
+
+    private QuickProfileMode _mode = QuickProfileMode.Parametric;
+    /// <summary>Which builder is active: the symmetric sweep, or a typed temperature sequence.</summary>
+    public QuickProfileMode Mode
+    {
+        get => _mode;
+        set
+        {
+            if (SetProperty(ref _mode, value))
+            {
+                OnPropertyChanged(nameof(IsParametricMode));
+                OnPropertyChanged(nameof(IsSequenceMode));
+                OnPropertyChanged(nameof(HasLeadIn));
+                Recalculate();
+            }
+        }
+    }
+
+    public bool IsParametricMode
+    {
+        get => Mode == QuickProfileMode.Parametric;
+        set { if (value) Mode = QuickProfileMode.Parametric; }
+    }
+
+    public bool IsSequenceMode
+    {
+        get => Mode == QuickProfileMode.Sequence;
+        set { if (value) Mode = QuickProfileMode.Sequence; }
+    }
+
+    private string _sequenceText = "0;20;40;20;0";
+    /// <summary>Typed temperature sequence, e.g. "0;20;30;60;30;20;0" – a ramp+plateau
+    /// pair is generated between every consecutive pair of values.</summary>
+    public string SequenceText
+    {
+        get => _sequenceText;
+        set
+        {
+            if (SetProperty(ref _sequenceText, value))
+            {
+                OnPropertyChanged(nameof(HasLeadIn));
+                Recalculate();
+            }
+        }
+    }
+
+    private string _sequenceParseError = string.Empty;
+    /// <summary>Non-empty when <see cref="SequenceText"/> could not be parsed (shown next to the input).</summary>
+    public string SequenceParseError
+    {
+        get => _sequenceParseError;
+        private set { if (SetProperty(ref _sequenceParseError, value)) OnPropertyChanged(nameof(HasSequenceParseError)); }
+    }
+
+    /// <summary>True when <see cref="SequenceParseError"/> has a message to show.</summary>
+    public bool HasSequenceParseError => !string.IsNullOrEmpty(SequenceParseError);
 
     private bool _autoName = true;
     /// <summary>
@@ -148,7 +257,8 @@ public sealed class QuickProfileViewModel : ObservableObject
     public double TemperatureStep { get => _temperatureStep; set { if (SetProperty(ref _temperatureStep, Math.Max(0.1, value))) Recalculate(); } }
 
     private double _plateauMinutes = 30;
-    /// <summary>Base plateau (soak) length at each temperature, before optimisation.</summary>
+    /// <summary>Base plateau (soak) length at each temperature, before optimisation (parametric mode)
+    /// or the shared hold length applied to every step (sequence mode).</summary>
     public double PlateauMinutes { get => _plateauMinutes; set { if (SetProperty(ref _plateauMinutes, Math.Max(0, value))) Recalculate(); } }
 
     private double _rampMinutes = 20;
@@ -156,13 +266,14 @@ public sealed class QuickProfileViewModel : ObservableObject
     public double RampMinutes { get => _rampMinutes; set { if (SetProperty(ref _rampMinutes, Math.Max(0, value))) Recalculate(); } }
 
     private bool _includeDescending = true;
-    /// <summary>Also sweep back down from the high temperature to the low one.</summary>
+    /// <summary>Also sweep back down from the high temperature to the low one (parametric mode only).</summary>
     public bool IncludeDescending { get => _includeDescending; set { if (SetProperty(ref _includeDescending, value)) Recalculate(); } }
 
     private bool _doublePeak = true;
     /// <summary>
     /// Split the peak into two highest points with a plateau <see cref="PeakDipCelsius"/>
-    /// lower between them, so a temperature change occurs at the top. On by default.
+    /// lower between them, so a temperature change occurs at the top. On by default
+    /// (parametric mode only).
     /// </summary>
     public bool DoublePeak { get => _doublePeak; set { if (SetProperty(ref _doublePeak, value)) Recalculate(); } }
 
@@ -184,15 +295,31 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>Length (min) of the initial ramp from the current temperature to the first setpoint.</summary>
     public double StartRampMinutes { get => _startRampMinutes; set { if (SetProperty(ref _startRampMinutes, Math.Max(0, value))) { OnPropertyChanged(nameof(HasLeadIn)); Recalculate(); } } }
 
+    /// <summary>The temperature the sweep/sequence itself starts at, regardless of mode.</summary>
+    private double FirstTargetTemperature
+    {
+        get
+        {
+            if (Mode == QuickProfileMode.Sequence)
+            {
+                return TryParseSequence(SequenceText, out List<double> seq, out _) && seq.Count > 0
+                    ? seq[0]
+                    : StartTemperature;
+            }
+
+            return LowTemperature;
+        }
+    }
+
     /// <summary>True when an initial lead-in ramp is actually added (enabled, non-zero, and not already at the first setpoint).</summary>
-    public bool HasLeadIn => StartFromCurrent && StartRampMinutes > 0 && Math.Abs(StartTemperature - LowTemperature) > 0.05;
+    public bool HasLeadIn => StartFromCurrent && StartRampMinutes > 0 && Math.Abs(StartTemperature - FirstTargetTemperature) > 0.05;
 
     private double _peakDipCelsius = 10;
-    /// <summary>How much lower (°C) the notch between the two peaks is.</summary>
+    /// <summary>How much lower (°C) the notch between the two peaks is (parametric mode only).</summary>
     public double PeakDipCelsius { get => _peakDipCelsius; set { if (SetProperty(ref _peakDipCelsius, Math.Max(0, value))) Recalculate(); } }
 
     private double _shortenByHours;
-    /// <summary>Reduce the total time by this many hours, spread evenly across the plateaus.</summary>
+    /// <summary>Reduce the total time by this many hours, spread evenly across the plateaus (parametric mode only).</summary>
     public double ShortenByHours { get => _shortenByHours; set { if (SetProperty(ref _shortenByHours, Math.Max(0, value))) Recalculate(); } }
 
     private int _cycles = 1;
@@ -239,8 +366,13 @@ public sealed class QuickProfileViewModel : ObservableObject
     private int _segmentCount;
     public int SegmentCount { get => _segmentCount; private set => SetProperty(ref _segmentCount, value); }
 
-    private IReadOnlyList<ChartSeries> _tempPreview = Array.Empty<ChartSeries>();
-    public IReadOnlyList<ChartSeries> TempPreview { get => _tempPreview; private set => SetProperty(ref _tempPreview, value); }
+    private int _cycleBandStart;
+    /// <summary>Zero-based first segment index of the repeated region, for the draggable profile chart.</summary>
+    public int CycleBandStart { get => _cycleBandStart; private set => SetProperty(ref _cycleBandStart, value); }
+
+    private int _cycleBandEnd;
+    /// <summary>Zero-based last segment index (inclusive) of the repeated region, for the draggable profile chart.</summary>
+    public int CycleBandEnd { get => _cycleBandEnd; private set => SetProperty(ref _cycleBandEnd, value); }
 
     /// <summary>The computed step temperatures, for an informational list.</summary>
     public ObservableCollection<string> StepTemperatures { get; } = new();
@@ -269,6 +401,73 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     /// <summary>Re-enables automatic naming and regenerates the name from the parameters.</summary>
     public RelayCommand ResetNameCommand { get; }
+
+    /// <summary>
+    /// Loads an existing profile back into the editor as an editable temperature
+    /// sequence, so a previously created profile (whether built here or in the full
+    /// editor) can be tweaked and re-saved instead of only ever creating new ones.
+    /// The sequence is reconstructed from each segment's distinct target temperature;
+    /// the shared ramp/hold length is taken from the first ramp/hold segment found.
+    /// Lead-in and end-safety-cooldown are turned off (their source segments become
+    /// part of the plain sequence instead) so nothing is double-added; re-enable them
+    /// from the checkboxes if the loaded profile needs them.
+    /// </summary>
+    public void LoadProfile(TestProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        DisarmDelete();
+        _editingProfileId = profile.Id;
+        Mode = QuickProfileMode.Sequence;
+
+        StartFromCurrent = false;
+        EndAtSafeTemperature = false;
+
+        List<double> sequence = ExtractSequence(profile.Segments);
+        SequenceText = sequence.Count > 0
+            ? string.Join(";", sequence.Select(t => t.ToString("0.#", CultureInfo.InvariantCulture)))
+            : "0;20;40;20;0";
+
+        ProfileSegment? firstRamp = profile.Segments.FirstOrDefault(s => s.IsRamp);
+        ProfileSegment? firstHold = profile.Segments.FirstOrDefault(s => !s.IsRamp);
+        if (firstRamp is not null) RampMinutes = Math.Max(0, firstRamp.Duration.TotalMinutes);
+        if (firstHold is not null) PlateauMinutes = Math.Max(0, firstHold.Duration.TotalMinutes);
+
+        Cycles = Math.Max(1, profile.Cycles);
+        CycleBodyOnly = profile.HasCycleRegion;
+
+        Customer = profile.Customer;
+        Project = profile.Project;
+        EditorSensors.Clear();
+        foreach (string s in profile.Sensors) EditorSensors.Add(s);
+        EditorTags.Clear();
+        foreach (string t in profile.Tags) EditorTags.Add(t);
+
+        _settingNameInternally = true;
+        ProfileName = profile.Name;
+        _settingNameInternally = false;
+        IsAutoName = false;
+
+        IsSaveSuccess = false;
+        Status = $"Profil „{profile.Name}“ načítaný na úpravu ({sequence.Count} teplotných bodov). " +
+            "Nábeh a bezpečnostné ukončenie sú vypnuté – zapni ich znova, ak ich profil potrebuje.";
+        Recalculate();
+    }
+
+    /// <summary>Collapses a segment list down to its distinct consecutive target temperatures.</summary>
+    private static List<double> ExtractSequence(IReadOnlyList<ProfileSegment> segments)
+    {
+        var result = new List<double>();
+        foreach (ProfileSegment s in segments)
+        {
+            double t = Math.Round(s.TargetTemperature, 1);
+            if (result.Count == 0 || Math.Abs(result[^1] - t) > 0.05)
+            {
+                result.Add(t);
+            }
+        }
+
+        return result;
+    }
 
     private int TemperaturePointCount()
     {
@@ -343,7 +542,11 @@ public sealed class QuickProfileViewModel : ObservableObject
         return temps;
     }
 
-    private List<ProfileSegment> BuildSegments()
+    /// <summary>Builds the segment list from the active mode's generator.</summary>
+    private List<ProfileSegment> BuildSegments() =>
+        Mode == QuickProfileMode.Sequence ? BuildSequenceSegments() : BuildParametricSegments();
+
+    private List<ProfileSegment> BuildParametricSegments()
     {
         double plateau = EffectivePlateauMinutes();
         List<double> up = AscendingTemps();
@@ -397,6 +600,87 @@ public sealed class QuickProfileViewModel : ObservableObject
         return segs;
     }
 
+    /// <summary>
+    /// Builds a step-and-hold segment list from <see cref="SequenceText"/>: a plateau
+    /// at the first temperature, then a ramp+plateau pair for every following value,
+    /// using the shared <see cref="RampMinutes"/> / <see cref="PlateauMinutes"/> for
+    /// every step. Returns an empty list while the sequence text does not parse.
+    /// </summary>
+    private List<ProfileSegment> BuildSequenceSegments()
+    {
+        var segs = new List<ProfileSegment>();
+        if (!TryParseSequence(SequenceText, out List<double> seq, out _))
+        {
+            return segs;
+        }
+
+        if (HasLeadIn)
+        {
+            segs.Add(Ramp(seq[0], StartRampMinutes));
+        }
+
+        segs.Add(Plateau(seq[0], PlateauMinutes));
+        for (int i = 1; i < seq.Count; i++)
+        {
+            segs.Add(Ramp(seq[i], RampMinutes));
+            segs.Add(Plateau(seq[i], PlateauMinutes));
+        }
+
+        if (EndAtSafeTemperature)
+        {
+            segs.Add(Ramp(EndTemperature, RampMinutes));
+            segs.Add(Plateau(EndTemperature, Math.Max(60, EndHoldMinutes)));
+        }
+
+        return segs;
+    }
+
+    /// <summary>
+    /// Parses a semicolon-separated temperature sequence, e.g. "0;20;30;60;30;20;0".
+    /// Each token accepts either '.' or ',' as the decimal separator. Requires at
+    /// least two values (otherwise there is nothing to ramp between).
+    /// </summary>
+    private static bool TryParseSequence(string? text, out List<double> values, out string error)
+    {
+        values = new List<double>();
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            error = "Zadaj postupnosť teplôt oddelenú bodkočiarkou, napr. 0;20;30;60;30;20;0.";
+            return false;
+        }
+
+        foreach (string raw in text.Split(';'))
+        {
+            string token = raw.Trim();
+            if (token.Length == 0)
+            {
+                continue;
+            }
+
+            if (!TryParseTemperature(token, out double value))
+            {
+                error = $"Neplatná teplota „{token}“.";
+                values.Clear();
+                return false;
+            }
+
+            values.Add(value);
+        }
+
+        if (values.Count < 2)
+        {
+            error = "Zadaj aspoň dve teploty oddelené bodkočiarkou.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseTemperature(string token, out double value) =>
+        double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(token.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+
     private static ProfileSegment Ramp(double target, double minutes) => new()
     {
         Name = $"Nábeh {target:0.#} °C",
@@ -413,24 +697,18 @@ public sealed class QuickProfileViewModel : ObservableObject
         IsRamp = false,
     };
 
+    /// <summary>
+    /// Builds the profile that will be saved, from the current <see cref="Segments"/>
+    /// (which reflects both the generator and any manual chart drag) rather than
+    /// regenerating – so a drag edit in the chart is what actually gets persisted.
+    /// </summary>
     private TestProfile BuildProfile()
     {
-        List<ProfileSegment> segs = BuildSegments();
+        List<ProfileSegment> segs = Segments.Count > 0
+            ? Segments.Select(s => s.ToModel()).ToList()
+            : BuildSegments();
         int cyc = Math.Max(1, Cycles);
-
-        // Cycle region: with "body only" the lead-in ramp (1 segment) and the closing
-        // ramp+hold (2 segments) run once; the sweep in between repeats.
-        int start = 0, end = segs.Count - 1;
-        if (cyc > 1 && CycleBodyOnly)
-        {
-            start = HasLeadIn ? 1 : 0;
-            end = segs.Count - 1 - (EndAtSafeTemperature ? 2 : 0);
-            if (end < start)
-            {
-                start = 0;
-                end = segs.Count - 1;
-            }
-        }
+        (int start, int end) = ResolveCycleRegion(segs.Count);
 
         return new TestProfile
         {
@@ -449,7 +727,61 @@ public sealed class QuickProfileViewModel : ObservableObject
         };
     }
 
+    /// <summary>
+    /// Resolves the repeated region as segment indices: with "body only" the lead-in
+    /// ramp (1 segment) and the closing ramp+hold (2 segments) run once, and the sweep
+    /// in between repeats; otherwise the whole profile is the region.
+    /// </summary>
+    private (int Start, int End) ResolveCycleRegion(int segmentCount)
+    {
+        int start = 0, end = Math.Max(0, segmentCount - 1);
+        if (Math.Max(1, Cycles) > 1 && CycleBodyOnly)
+        {
+            start = HasLeadIn ? 1 : 0;
+            end = segmentCount - 1 - (EndAtSafeTemperature ? 2 : 0);
+            if (end < start)
+            {
+                start = 0;
+                end = Math.Max(0, segmentCount - 1);
+            }
+        }
+
+        return (start, end);
+    }
+
+    /// <summary>Regenerates <see cref="Segments"/> from the active mode's generator, discarding
+    /// any manual chart drag made since the last regeneration.</summary>
+    private void RefreshSegmentsFromGenerator()
+    {
+        List<ProfileSegment> segs = BuildSegments();
+        Segments.Clear();
+        foreach (ProfileSegment s in segs)
+        {
+            Segments.Add(new SegmentViewModel(s));
+        }
+
+        (int start, int end) = ResolveCycleRegion(segs.Count);
+        CycleBandStart = start;
+        CycleBandEnd = end;
+    }
+
     private void Recalculate()
+    {
+        RefreshSegmentsFromGenerator();
+
+        if (Mode == QuickProfileMode.Sequence)
+        {
+            RecalculateSequence();
+        }
+        else
+        {
+            RecalculateParametric();
+        }
+
+        UpdateAutoName();
+    }
+
+    private void RecalculateParametric()
     {
         List<double> up = AscendingTemps();
         StepTemperatures.Clear();
@@ -473,9 +805,26 @@ public sealed class QuickProfileViewModel : ObservableObject
             : "skok (0 min)";
 
         Summary = ComposeSummary();
+    }
 
-        UpdateAutoName();
-        BuildPreview();
+    private void RecalculateSequence()
+    {
+        bool ok = TryParseSequence(SequenceText, out List<double> seq, out string error);
+        SequenceParseError = ok ? string.Empty : error;
+
+        StepTemperatures.Clear();
+        foreach (double t in seq)
+        {
+            StepTemperatures.Add($"{t:0.#} °C");
+        }
+
+        SegmentCount = Segments.Count;
+        TestProfile profile = BuildProfile();
+        BaseTotalText = Format(profile.TotalDuration.TotalMinutes);
+        OptimizedTotalText = BaseTotalText;
+        EffectivePlateauText = $"{PlateauMinutes:0.#} min / plato";
+        RampRateText = RampMinutes > 0 ? $"{RampMinutes:0.#} min / rampa" : "skok (0 min)";
+        Summary = ComposeSequenceSummary(seq);
     }
 
     /// <summary>
@@ -492,6 +841,16 @@ public sealed class QuickProfileViewModel : ObservableObject
         (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty) +
         (EndAtSafeTemperature ? $" · koniec na {EndTemperature:0.#} °C ({Math.Max(60, EndHoldMinutes):0} min)" : string.Empty) +
         (Cycles > 1 ? $" · cyklus ×{Cycles}{(CycleBodyOnly ? " (telo)" : string.Empty)}" : string.Empty);
+
+    /// <summary>Same description as <see cref="ComposeSummary"/>, for a typed sequence.</summary>
+    private string ComposeSequenceSummary(List<double> seq) =>
+        seq.Count == 0
+            ? SequenceParseError
+            : string.Join(" → ", seq.Select(t => t.ToString("0.#", CultureInfo.CurrentCulture))) + " °C" +
+              $" · rampa {RampMinutes:0.#} min · plato {PlateauMinutes:0.#} min" +
+              (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty) +
+              (EndAtSafeTemperature ? $" · koniec na {EndTemperature:0.#} °C ({Math.Max(60, EndHoldMinutes):0} min)" : string.Empty) +
+              (Cycles > 1 ? $" · cyklus ×{Cycles}{(CycleBodyOnly ? " (telo)" : string.Empty)}" : string.Empty);
 
     /// <summary>Re-enables automatic naming (used by the "Automaticky" button).</summary>
     private void EnableAutoName()
@@ -517,107 +876,66 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Builds a compact, technical profile name: temperature range, number of steps,
-    /// the °C step between them, plateau length and the total profile duration –
-    /// e.g. <c>-20→60 °C · 9 krokov · krok 10 °C · ↕ · plato 30m · Σ 1d 2h</c>.
+    /// Builds a compact, technical profile name from the active mode's parameters.
     /// Optionally prefixed with <see cref="NamePrefix"/>.
     /// </summary>
     private string ComposeAutoName()
+    {
+        string core = Mode == QuickProfileMode.Sequence ? ComposeSequenceAutoNameCore() : ComposeParametricAutoNameCore();
+        string prefix = NamePrefix?.Trim() ?? string.Empty;
+        return prefix.Length > 0 ? $"{prefix} {core}" : core;
+    }
+
+    /// <summary>
+    /// Compact technical name for the parametric sweep: temperature range, number of
+    /// steps, the °C step between them, plateau length and the total profile duration –
+    /// e.g. <c>-20→60 °C · 9 krokov · krok 10 °C · ↕ · plato 30m · Σ 1d 2h</c>.
+    /// </summary>
+    private string ComposeParametricAutoNameCore()
     {
         int points = TemperaturePointCount();
         double step = points > 1 ? Math.Abs(HighTemperature - LowTemperature) / (points - 1) : 0;
         double plateau = EffectivePlateauMinutes();
 
-        string core =
-            $"{LowTemperature:0.#}→{HighTemperature:0.#} °C · {points} krokov · krok {step:0.#} °C" +
+        return $"{LowTemperature:0.#}→{HighTemperature:0.#} °C · {points} krokov · krok {step:0.#} °C" +
             (IncludeDescending ? " · ↕" : string.Empty) +
             (Cycles > 1 ? $" · ×{Cycles}" : string.Empty) +
             $" · plato {plateau:0.#}m · Σ {FormatDurationCompact(TotalMinutes(plateau))}";
-
-        string prefix = NamePrefix?.Trim() ?? string.Empty;
-        return prefix.Length > 0 ? $"{prefix} {core}" : core;
     }
 
-    private void BuildPreview()
+    /// <summary>Compact technical name for a typed sequence, e.g. <c>0-20-40-20-0 °C · Σ 3h 20min</c>.</summary>
+    private string ComposeSequenceAutoNameCore()
     {
-        List<ProfileSegment> segs = BuildSegments();
-        var pts = new List<Point>();
-        double t = 0;
-        double start = HasLeadIn
-            ? StartTemperature
-            : (segs.Count > 0 ? segs[0].TargetTemperature : LowTemperature);
-        pts.Add(new Point(0, start));
-
-        foreach (ProfileSegment s in segs)
+        if (!TryParseSequence(SequenceText, out List<double> seq, out _))
         {
-            double dur = s.Duration.TotalMinutes;
-            if (s.IsRamp)
-            {
-                t += dur;
-                pts.Add(new Point(t, s.TargetTemperature));
-            }
-            else
-            {
-                pts.Add(new Point(t, s.TargetTemperature));
-                t += dur;
-                pts.Add(new Point(t, s.TargetTemperature));
-            }
+            return "Rýchly profil (postupnosť)";
         }
 
-        TempPreview = new[] { new ChartSeries("Teplota", TempBrush, pts) };
-
-        // Cycled region (minutes) for the preview band: the body between the lead-in
-        // ramp and the closing ramp/hold when "body only", otherwise the whole profile.
-        double startMin = 0, endMin = t;
-        if (Cycles > 1)
-        {
-            if (CycleBodyOnly)
-            {
-                int bodyStart = HasLeadIn ? 1 : 0;
-                int bodyEnd = segs.Count - 1 - (EndAtSafeTemperature ? 2 : 0);
-                double cum = 0, s0 = 0, s1 = t;
-                for (int i = 0; i < segs.Count; i++)
-                {
-                    if (i == bodyStart) s0 = cum;
-                    cum += segs[i].Duration.TotalMinutes;
-                    if (i == bodyEnd) s1 = cum;
-                }
-
-                if (bodyEnd >= bodyStart)
-                {
-                    startMin = s0;
-                    endMin = s1;
-                }
-            }
-        }
-
-        CyclePreviewStartMinutes = startMin;
-        CyclePreviewEndMinutes = endMin;
+        double totalMinutes = Segments.Sum(s => s.DurationMinutes);
+        return $"{string.Join("-", seq.Select(t => t.ToString("0.#", CultureInfo.InvariantCulture)))} °C" +
+            (Cycles > 1 ? $" · ×{Cycles}" : string.Empty) +
+            $" · Σ {FormatDurationCompact(totalMinutes)}";
     }
-
-    private double _cyclePreviewStartMinutes;
-    /// <summary>Start (min) of the cycled region for the preview band.</summary>
-    public double CyclePreviewStartMinutes { get => _cyclePreviewStartMinutes; private set => SetProperty(ref _cyclePreviewStartMinutes, value); }
-
-    private double _cyclePreviewEndMinutes;
-    /// <summary>End (min) of the cycled region for the preview band.</summary>
-    public double CyclePreviewEndMinutes { get => _cyclePreviewEndMinutes; private set => SetProperty(ref _cyclePreviewEndMinutes, value); }
 
     /// <summary>
-    /// Upserts the current sweep into the shared library (matched by name so re-saving
-    /// updates instead of duplicating) and returns the persisted profile.
+    /// Upserts the current sweep into the shared library and returns the persisted
+    /// profile. Matches the profile being edited by id when one is loaded (see
+    /// <see cref="LoadProfile"/> / <see cref="_editingProfileId"/>) so a rename during
+    /// editing still updates it in place; otherwise matches by name, as before.
     /// </summary>
     private TestProfile Persist(out bool created)
     {
         TestProfile profile = BuildProfile();
-        TestProfile? existing = _store.LoadAll()
-            .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+        TestProfile? existing = _editingProfileId is { } id
+            ? _store.LoadAll().FirstOrDefault(p => p.Id == id)
+            : _store.LoadAll().FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
         created = existing is null;
         if (existing is not null)
         {
             profile.Id = existing.Id;
         }
 
+        _editingProfileId = profile.Id;
         _store.Save(profile);
         return profile;
     }
@@ -628,6 +946,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         try
         {
             TestProfile profile = Persist(out bool created);
+            RefreshLibraryProfiles();
             IsSaveSuccess = true;
             Status = (created
                     ? $"✔ Profil „{profile.Name}“ uložený do knižnice"
@@ -649,6 +968,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         try
         {
             TestProfile profile = Persist(out _);
+            RefreshLibraryProfiles();
             IsSaveSuccess = true;
             Status = $"✔ Profil „{profile.Name}“ uložený a otvorený v Editore profilov.";
             OpenInEditorRequested?.Invoke(profile.Id);
@@ -664,6 +984,9 @@ public sealed class QuickProfileViewModel : ObservableObject
     private void NewProfile()
     {
         DisarmDelete();
+        _editingProfileId = null;
+        Mode = QuickProfileMode.Parametric;
+        SequenceText = "0;20;40;20;0";
         NamePrefix = string.Empty;
         LowTemperature = -20;
         HighTemperature = 60;
@@ -737,6 +1060,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         _store.Delete(existing.Id);
+        RefreshLibraryProfiles();
         IsSaveSuccess = false;
         Status = $"Profil „{existing.Name}“ vymazaný z knižnice.";
     }
@@ -772,12 +1096,5 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         return $"{(int)Math.Round(ts.TotalMinutes)}min";
-    }
-
-    private static Brush Freeze(byte r, byte g, byte b)
-    {
-        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
-        brush.Freeze();
-        return brush;
     }
 }

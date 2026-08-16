@@ -8,6 +8,24 @@ using VotschVc3.Core.Recording;
 
 namespace VotschVc3.App.ViewModels;
 
+/// <summary>One automatic per-profile temperature log found in <see cref="AppPaths.ProfileLogDir"/>.</summary>
+public sealed class RecordingLogEntry
+{
+    public RecordingLogEntry(string path)
+    {
+        FilePath = path;
+        FileName = System.IO.Path.GetFileName(path);
+        Modified = System.IO.File.GetLastWriteTime(path);
+    }
+
+    public string FilePath { get; }
+    public string FileName { get; }
+    public DateTime Modified { get; }
+
+    /// <summary>What the picker list shows: timestamp then file name.</summary>
+    public string DisplayText => $"{Modified:dd.MM.yyyy HH:mm}  ·  {FileName}";
+}
+
 /// <summary>Summary statistics of one recorded series, formatted for the table.</summary>
 public sealed class RecordingStatRow
 {
@@ -46,12 +64,14 @@ public sealed class RecordingViewerViewModel : ObservableObject
     public RecordingViewerViewModel()
     {
         OpenCommand = new RelayCommand(Open);
+        RefreshRecentLogsCommand = new RelayCommand(RefreshRecentLogs);
+        RefreshRecentLogs();
     }
 
     private string _filePath = string.Empty;
     public string FilePath { get => _filePath; private set => SetProperty(ref _filePath, value); }
 
-    private string _statusMessage = "Otvor uložený CSV záznam (komory alebo teplomera).";
+    private string _statusMessage = "Otvor uložený CSV záznam (komory alebo teplomera), alebo vyber z posledných záznamov profilov vľavo.";
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
 
     private IReadOnlyList<ChartSeries> _series = Array.Empty<ChartSeries>();
@@ -60,6 +80,61 @@ public sealed class RecordingViewerViewModel : ObservableObject
     public ObservableCollection<RecordingStatRow> Stats { get; } = new();
 
     public RelayCommand OpenCommand { get; }
+
+    /// <summary>
+    /// Every automatic per-profile temperature log found in <see cref="AppPaths.ProfileLogDir"/>,
+    /// newest first, so a run can be opened without going through the OS file picker.
+    /// Continuous manual recordings (started from a chamber card, written to whatever path
+    /// the operator picked there) are not indexed anywhere and stay reachable only via
+    /// "Otvoriť CSV…".
+    /// </summary>
+    public ObservableCollection<RecordingLogEntry> RecentLogs { get; } = new();
+
+    private RecordingLogEntry? _selectedRecentLog;
+    public RecordingLogEntry? SelectedRecentLog
+    {
+        get => _selectedRecentLog;
+        set
+        {
+            if (SetProperty(ref _selectedRecentLog, value) && value is not null)
+            {
+                try
+                {
+                    Load(value.FilePath);
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = $"Načítanie zlyhalo: {ex.Message}";
+                }
+            }
+        }
+    }
+
+    /// <summary>Re-scans <see cref="AppPaths.ProfileLogDir"/> (e.g. after a new profile run finished).</summary>
+    public RelayCommand RefreshRecentLogsCommand { get; }
+
+    private void RefreshRecentLogs()
+    {
+        RecentLogs.Clear();
+        try
+        {
+            if (!System.IO.Directory.Exists(AppPaths.ProfileLogDir))
+            {
+                return;
+            }
+
+            IEnumerable<string> files = System.IO.Directory.GetFiles(AppPaths.ProfileLogDir, "*.csv")
+                .OrderByDescending(f => System.IO.File.GetLastWriteTime(f));
+            foreach (string f in files)
+            {
+                RecentLogs.Add(new RecordingLogEntry(f));
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Zoznam záznamov profilov sa nepodarilo načítať: {ex.Message}";
+        }
+    }
 
     private void Open()
     {

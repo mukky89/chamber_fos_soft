@@ -15,6 +15,7 @@ public sealed class ProfileRunner
     private readonly IChamberDevice _client;
     private readonly TimeSpan _updateInterval;
     private readonly bool _soakAllHolds;
+    private readonly bool _soakAllSegments;
     private readonly double _defaultSoakTolerance;
 
     // Pause gate: set = running, reset = paused. The segment clock is stopped
@@ -27,19 +28,28 @@ public sealed class ProfileRunner
     /// When <c>true</c>, every hold (non-ramp) segment waits until the measured
     /// temperature reaches its target within tolerance before the dwell time starts –
     /// even if the segment itself has <see cref="ProfileSegment.GuaranteedSoak"/> off.
-    /// Used for SIKA thermal baths, which must settle on temperature precisely before
-    /// timing the hold.
     /// </param>
     /// <param name="defaultSoakTolerance">
-    /// Tolerance band (°C) used when a hold soaks only because of
-    /// <paramref name="soakAllHolds"/>; a segment with its own
-    /// <see cref="ProfileSegment.GuaranteedSoak"/> keeps its own tolerance.
+    /// Tolerance band (°C) used when a segment soaks only because of
+    /// <paramref name="soakAllHolds"/> or <paramref name="soakAllSegments"/>; a segment
+    /// with its own <see cref="ProfileSegment.GuaranteedSoak"/> keeps its own tolerance.
+    /// </param>
+    /// <param name="soakAllSegments">
+    /// When <c>true</c>, every segment – ramps included – is treated as a
+    /// guaranteed-soak hold: the target is written immediately (no PC-side time
+    /// interpolation of the set point), the runner waits until the measured
+    /// temperature is within tolerance, and only then does the segment's own
+    /// <see cref="ProfileSegment.Duration"/> start counting down before moving to
+    /// the next step. Used for SIKA thermal baths, which settle on a new set point
+    /// on their own and gain nothing from a PC-driven ramp – the operator wants
+    /// "reach target, then hold for the requested time, then move on".
     /// </param>
     public ProfileRunner(
         IChamberDevice client,
         TimeSpan? updateInterval = null,
         bool soakAllHolds = false,
-        double defaultSoakTolerance = 1.0)
+        double defaultSoakTolerance = 1.0,
+        bool soakAllSegments = false)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _updateInterval = updateInterval ?? TimeSpan.FromSeconds(5);
@@ -49,6 +59,7 @@ public sealed class ProfileRunner
         }
 
         _soakAllHolds = soakAllHolds;
+        _soakAllSegments = soakAllSegments;
         _defaultSoakTolerance = Math.Abs(defaultSoakTolerance);
     }
 
@@ -154,11 +165,17 @@ public sealed class ProfileRunner
     {
         TimeSpan duration = segment.Duration > TimeSpan.Zero ? segment.Duration : TimeSpan.FromSeconds(1);
 
+        // With soakAllSegments, every step (ramp or hold) is driven as an immediate
+        // jump to the target rather than a timed interpolation – the device is
+        // expected to settle on its own (SIKA baths).
+        bool holdBehavior = !segment.IsRamp || _soakAllSegments;
+
         // Guaranteed soak: hold the target and wait until the measured temperature
-        // is within tolerance before starting to count the dwell time. A hold soaks
-        // either because it is explicitly marked, or because the device soaks every
-        // hold (SIKA baths, via soakAllHolds).
-        if (!segment.IsRamp && (segment.GuaranteedSoak || _soakAllHolds))
+        // is within tolerance before starting to count the dwell time. A step soaks
+        // when it is explicitly marked, when the device soaks every hold
+        // (soakAllHolds), or when the device soaks every segment including ramps
+        // (soakAllSegments – SIKA baths).
+        if (holdBehavior && (segment.GuaranteedSoak || _soakAllHolds || _soakAllSegments))
         {
             await SoakWaitAsync(segment, cycle, index, startHum, phase, totalCycles,
                 completedSeconds, totalSeconds, cancellationToken).ConfigureAwait(false);
@@ -174,8 +191,8 @@ public sealed class ProfileRunner
             double elapsedSeconds = segmentClock.Elapsed.TotalSeconds;
             double fraction = Math.Clamp(elapsedSeconds / duration.TotalSeconds, 0d, 1d);
 
-            double temperature = segment.TemperatureAt(fraction, startTemp);
-            double? humidity = segment.HumidityAt(fraction, startHum);
+            double temperature = holdBehavior ? segment.TargetTemperature : segment.TemperatureAt(fraction, startTemp);
+            double? humidity = holdBehavior ? (segment.TargetHumidity ?? startHum) : segment.HumidityAt(fraction, startHum);
 
             await WriteSetpointAsync(temperature, humidity, cancellationToken).ConfigureAwait(false);
 
