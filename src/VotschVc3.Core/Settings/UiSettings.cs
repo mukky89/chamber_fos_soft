@@ -46,4 +46,38 @@ public sealed class UiSettings
     /// Small by default (0.3 °C) so the bath settles precisely on temperature.
     /// </summary>
     public double SikaSoakToleranceC { get; set; } = 0.3;
+
+    /// <summary>
+    /// Admin toggle (persisted): which dashboard layout operators see —
+    /// Administrácia → Vzhľad a ovládanie → Režim ovládania. Defaults to
+    /// <see cref="UiControlMode.Classic"/> so existing installs keep the
+    /// layout they already know until an admin opts into the new one.
+    /// </summary>
+    public UiControlMode ControlMode { get; set; } = UiControlMode.Classic;
+
+    /// <summary>
+    /// Admin toggle (persisted): require a Yes/No confirmation before the
+    /// Professional dashboard stops a device or a running profile. On by
+    /// default for the new layout; the Classic layout is unaffected.
+    /// </summary>
+    public bool ConfirmStopAction { get; set; } = true;
+
+    /// <summary>
+    /// Admin toggle (persisted): require a Yes/No confirmation (with range,
+    /// duration and cycle count) before the Professional dashboard starts a
+    /// profile. On by default; the Classic layout is unaffected.
+    /// </summary>
+    public bool ConfirmProfileStart { get; set; } = true;
+
+    /// <summary>
+    /// Admin toggle (persisted): show the alarm center panel on the
+    /// Professional dashboard. On by default.
+    /// </summary>
+    public bool ShowAlarmCenter { get; set; } = true;
+
+    /// <summary>
+    /// Persisted: whether the Professional dashboard's sidebar is collapsed to
+    /// icons only. Off by default (full labels shown).
+    /// </summary>
+    public bool ProfessionalSidebarCollapsed { get; set; }
 }

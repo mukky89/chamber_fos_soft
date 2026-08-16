@@ -4,6 +4,26 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.46.0] – 2026-08-16
+
+### Pridané
+- **Nový „Profesionálny" režim ovládania klimatických komôr.** Alternatívny,
+  kompaktný dashboard vedľa pôvodného (teraz „Klasický") rozloženia — hustejší
+  grid kariet zariadení, horný stavový panel (počet zariadení / aktívnych behov /
+  upozornení), **alarm center**, znovupoužitá časová os (Gantt) a odkaz „Detail →"
+  na pôvodnú, plnú obrazovku zariadenia (pripojenie, graf, editor profilov, admin…).
+  Karty sú **capability-based**: vlhkosť sa zobrazí len pri zariadeniach, ktoré ju
+  podporujú (Vötsch s vlhkosťou), a všetky tlačidlá volajú tie isté príkazy ako
+  klasické UI (Stop, Nastaviť teplotu, Spustiť/Pauza/Stop profilu) – žiadne
+  duplicitné ani fingované ovládanie.
+- **Prepínač v Administrácia → „Vzhľad a ovládanie zariadení":** `Klasické` /
+  `Profesionálne` / `Kompaktné` rozhranie (`UiSettings.ControlMode`, predvolene
+  **Klasické** – existujúci používatelia nevidia žiadnu zmenu, kým si nový režim
+  admin sám nezapne). „Kompaktné" použije pôvodné karty, len vždy zmenšené.
+  Pridané aj: potvrdenie pred STOP a pred spustením profilu (platí len pre
+  profesionálny dashboard) a prepínač alarm centra.
+- Bočný panel profesionálneho dashboardu sa dá zbaliť/rozbaliť (uložené).
+
 ## [1.45.0] – 2026-08-04
 
 ### Pridané / zmenené

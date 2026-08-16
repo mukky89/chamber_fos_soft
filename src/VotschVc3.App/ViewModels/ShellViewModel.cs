@@ -92,6 +92,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         GoHomeCommand = new RelayCommand(GoHome);
         LogoutCommand = new RelayCommand(Logout);
         ToggleTimelineCommand = new RelayCommand(() => ShowTimeline = !ShowTimeline);
+        ToggleProfessionalSidebarCommand = new RelayCommand(() => ProfessionalSidebarCollapsed = !ProfessionalSidebarCollapsed);
         AddChamberCommand = new RelayCommand(AddChamber, () => CanManage);
         RemoveChamberCommand = new RelayCommand<ChamberViewModel>(RemoveChamber, c => c is not null && Chambers.Count > 1 && CanManage);
         MoveChamberUpCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, -1), c => c is not null);
@@ -567,6 +568,125 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             _ui.CompactMode = value;
             SaveUiSettings();
             OnPropertyChanged();
+            OnPropertyChanged(nameof(EffectiveCompactMode));
+        }
+    }
+
+    /// <summary>
+    /// Admin toggle (persisted): which dashboard layout operators see —
+    /// Administrácia → Vzhľad a ovládanie → Režim ovládania. Defaults to
+    /// <see cref="UiControlMode.Classic"/> (the original layout), so existing
+    /// installs are never switched to the new one without an admin opting in.
+    /// </summary>
+    public UiControlMode ControlMode
+    {
+        get => _ui.ControlMode;
+        set
+        {
+            if (_ui.ControlMode == value)
+            {
+                return;
+            }
+
+            _ui.ControlMode = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsProfessionalMode));
+            OnPropertyChanged(nameof(EffectiveCompactMode));
+        }
+    }
+
+    /// <summary>True while the Professional dashboard is the active control mode.</summary>
+    public bool IsProfessionalMode => ControlMode == UiControlMode.Professional;
+
+    /// <summary>
+    /// The compact card scale should apply either because the admin picked the
+    /// dedicated "Kompaktný" control mode, or because the separate legacy
+    /// <see cref="CompactMode"/> checkbox is on — the two are independent knobs
+    /// that both shrink the same Classic card layout.
+    /// </summary>
+    public bool EffectiveCompactMode => CompactMode || ControlMode == UiControlMode.Compact;
+
+    /// <summary>
+    /// Admin toggle (persisted): the Professional dashboard asks for
+    /// confirmation before stopping a device or a running profile. Only
+    /// affects the Professional layout — the Classic Stop buttons are
+    /// unchanged so existing operators keep their familiar one-click Stop.
+    /// </summary>
+    public bool ConfirmStopAction
+    {
+        get => _ui.ConfirmStopAction;
+        set
+        {
+            if (_ui.ConfirmStopAction == value)
+            {
+                return;
+            }
+
+            _ui.ConfirmStopAction = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Admin toggle (persisted): the Professional dashboard asks for
+    /// confirmation (range, duration, cycles) before starting a profile.
+    /// Only affects the Professional layout.
+    /// </summary>
+    public bool ConfirmProfileStart
+    {
+        get => _ui.ConfirmProfileStart;
+        set
+        {
+            if (_ui.ConfirmProfileStart == value)
+            {
+                return;
+            }
+
+            _ui.ConfirmProfileStart = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Admin toggle (persisted): show the alarm center panel on the
+    /// Professional dashboard.
+    /// </summary>
+    public bool ShowAlarmCenter
+    {
+        get => _ui.ShowAlarmCenter;
+        set
+        {
+            if (_ui.ShowAlarmCenter == value)
+            {
+                return;
+            }
+
+            _ui.ShowAlarmCenter = value;
+            SaveUiSettings();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Persisted: whether the Professional dashboard's sidebar is collapsed to
+    /// icons only. Off by default (full labels shown).
+    /// </summary>
+    public bool ProfessionalSidebarCollapsed
+    {
+        get => _ui.ProfessionalSidebarCollapsed;
+        set
+        {
+            if (_ui.ProfessionalSidebarCollapsed == value)
+            {
+                return;
+            }
+
+            _ui.ProfessionalSidebarCollapsed = value;
+            SaveUiSettings();
+            OnPropertyChanged();
         }
     }
 
@@ -670,6 +790,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Shows / hides the dashboard timeline.</summary>
     public RelayCommand ToggleTimelineCommand { get; }
+
+    /// <summary>Collapses / expands the Professional dashboard's sidebar.</summary>
+    public RelayCommand ToggleProfessionalSidebarCommand { get; }
 
     private void SaveUiSettings()
     {
