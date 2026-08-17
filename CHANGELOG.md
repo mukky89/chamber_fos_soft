@@ -4,6 +4,33 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.46.0] – 2026-08-17
+
+### Pridané / zmenené
+- **SIKA – krok a výdrž pre celý profil, nielen výdrže.** Garantovaná výdrž (v1.45.0)
+  teraz platí pre **každý krok profilu** na SIKA zariadeniach, vrátane rámp: namiesto
+  postupného rampovania sa cieľová teplota nastaví naraz, počká sa kým ju kúpeľ
+  skutočne dosiahne, a **až potom** sa počíta nastavený čas kroku, kým profil postúpi
+  na ďalšiu teplotu.
+- **Robustnejšie ukončenie profilu.** Vypnutie výkonu po dokončení/zastavení profilu
+  teraz skúša opakovane (3×) a ak zlyhá aj tak, zobrazí viditeľný alarm (nielen záznam
+  do logu) – operátor tak vidí, že komora môže stále aktívne regulovať.
+- **Rýchly profil – postupnosť teplôt.** Nový režim, kde sa profil zadá ako zoznam
+  teplôt oddelený bodkočiarkou (napr. `0;20;30;60;30;20;0`) so zdieľanou dĺžkou
+  rampy/plata; vygenerujú sa striedavo rampy a platá.
+  **Load & Edit** – existujúci profil z knižnice sa dá načítať priamo do Rýchleho
+  profilu na úpravu a opätovné uloženie (aj po premenovaní).
+  **Editovateľný graf náhľadu** – bod v grafe sa dá ťahať zvisle (teplota) aj
+  vodorovne (trvanie segmentu), rovnako ako v plnom Editore profilov.
+- **Vždy zapnutý priebežný záznam teplôt.** Záznam sa už nemusí ručne spúšťať –
+  pri každom pripojení komory (aj automatickom znovupripojení) sa automaticky
+  otvorí nový záznam v `Lab Control\Recordings`, takže aj bežná manuálna prevádzka
+  mimo profilu je zachytená. Zastaví sa pri odpojení a znova naštartuje pri
+  ďalšom pripojení.
+- **Prehliadač záznamov – zoznam posledných záznamov.** Namiesto len „Otvoriť CSV…"
+  cez Windows dialóg teraz vidno priamo v aplikácii zoznam posledných záznamov –
+  behy profilov aj priebežné záznamy – zoradené podľa času.
+
 ## [1.45.0] – 2026-08-04
 
 ### Pridané / zmenené
