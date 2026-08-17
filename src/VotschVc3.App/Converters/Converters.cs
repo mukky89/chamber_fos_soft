@@ -163,3 +163,42 @@ public sealed class BoolToVisibilityConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         Binding.DoNothing;
 }
+
+/// <summary>
+/// Binds a <c>RadioButton.IsChecked</c> to one member of an enum: <c>true</c> when the
+/// bound enum value equals the member named by <c>ConverterParameter</c>, and checking the
+/// radio sets the source property to that member. Used by the Professional/Classic/Compact
+/// control-mode picker in Administrácia.
+/// </summary>
+public sealed class EnumToBooleanConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is not null && parameter is string name && value.ToString() == name;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is true && parameter is string name ? Enum.Parse(targetType, name) : Binding.DoNothing;
+}
+
+/// <summary>
+/// Formats the difference between a measured value and its setpoint as a signed string
+/// (e.g. "+0.4 °C", "−1.2 °C"), or an em dash when either value is missing. Bindings
+/// pass <c>[measured, setpoint]</c> and a unit suffix via <c>ConverterParameter</c>.
+/// </summary>
+public sealed class DeltaConverter : IMultiValueConverter
+{
+    public object Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (values is not [double measured, double setpoint, ..])
+        {
+            return "—";
+        }
+
+        double delta = measured - setpoint;
+        string unit = parameter as string ?? string.Empty;
+        string sign = delta > 0 ? "+" : delta < 0 ? "−" : "±";
+        return $"{sign}{Math.Abs(delta):0.0}{unit}";
+    }
+
+    public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}

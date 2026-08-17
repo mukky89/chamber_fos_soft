@@ -54,8 +54,14 @@
         </Style>
     </UserControl.Resources>
 
-    <!-- ===== Sidebar (left) + main content (right) ===== -->
+    <!-- Root switches between the original Classic layout and the new Professional
+         dashboard (Administrácia → Vzhľad a ovládanie → Režim ovládania). Both live
+         in the same cell; only one is ever visible, so nothing below this point in
+         the Classic branch changed to make room for the new mode. -->
     <Grid>
+
+    <!-- ===== Classic: sidebar (left) + main content (right) ===== -->
+    <Grid Visibility="{Binding IsProfessionalMode, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="236" />
             <ColumnDefinition Width="*" />
@@ -230,7 +236,7 @@
                             <Border.Style>
                                 <Style TargetType="Border" BasedOn="{StaticResource Card}">
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding DataContext.CompactMode, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                        <DataTrigger Binding="{Binding DataContext.EffectiveCompactMode, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                                             <Setter Property="LayoutTransform">
                                                 <Setter.Value>
                                                     <ScaleTransform ScaleX="0.8" ScaleY="0.8" />
@@ -712,5 +718,10 @@
             </ItemsControl>
             </StackPanel>
         </ScrollViewer>
+    </Grid>
+
+    <!-- ===== Professional dashboard ===== -->
+    <views:ProfessionalHomeView Visibility="{Binding IsProfessionalMode, Converter={StaticResource BoolToVisibility}}" />
+
     </Grid>
 </UserControl>

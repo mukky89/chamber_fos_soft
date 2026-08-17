@@ -51,6 +51,52 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===== Vzhľad a ovládanie: Klasický / Profesionálny / Kompaktný ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Vzhľad a ovládanie zariadení" Style="{StaticResource Heading}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="Vyber rozloženie nástenky pre všetkých používateľov. Zmena sa uloží a prejaví okamžite pri ďalšom zobrazení domovskej obrazovky." />
+
+                    <TextBlock Text="Režim ovládania" Style="{StaticResource Label}" />
+                    <RadioButton GroupName="ControlMode" Margin="0,2,0,7"
+                                 IsChecked="{Binding ControlMode, Converter={StaticResource EnumToBoolean}, ConverterParameter=Classic}">
+                        <StackPanel>
+                            <TextBlock Text="Klasické rozhranie" FontFamily="Segoe UI Semibold" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                       Text="Pôvodné, priestranné karty zariadení. Predvolené — nič sa nemení pre existujúcich používateľov." />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton GroupName="ControlMode" Margin="0,0,0,7"
+                                 IsChecked="{Binding ControlMode, Converter={StaticResource EnumToBoolean}, ConverterParameter=Professional}">
+                        <StackPanel>
+                            <TextBlock Text="Profesionálne rozhranie" FontFamily="Segoe UI Semibold" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                       Text="Kompaktný operačný dashboard: prehľad stavu flotily, alarm center, hustejší grid kariet zariadení s rovnakým ovládaním." />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton GroupName="ControlMode" Margin="0,0,0,4"
+                                 IsChecked="{Binding ControlMode, Converter={StaticResource EnumToBoolean}, ConverterParameter=Compact}">
+                        <StackPanel>
+                            <TextBlock Text="Kompaktné rozhranie" FontFamily="Segoe UI Semibold" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                       Text="Klasické karty, ale vždy zmenšené (rovnaké ako zapnutý „Kompaktný režim nástenky“ nižšie), aby sa zmestilo viac zariadení." />
+                        </StackPanel>
+                    </RadioButton>
+
+                    <Separator Margin="0,10,0,10" Background="{StaticResource BorderBrush}" />
+
+                    <TextBlock Text="Profesionálny režim — bezpečnostné potvrdenia" Style="{StaticResource Label}" Margin="0,0,0,4" />
+                    <CheckBox Content="Potvrdenie pred zastavením zariadenia / profilu (STOP)" IsChecked="{Binding ConfirmStopAction}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,8"
+                               Text="Platí len pre profesionálny dashboard. Klasické tlačidlo Stop sa nemení." />
+                    <CheckBox Content="Potvrdenie pred spustením profilu" IsChecked="{Binding ConfirmProfileStart}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,8"
+                               Text="Pred štartom sa zobrazí zariadenie, rozsah, trvanie a počet cyklov na potvrdenie. Platí len pre profesionálny dashboard." />
+                    <CheckBox Content="Zobraziť alarm center na profesionálnom dashboarde" IsChecked="{Binding ShowAlarmCenter}" />
+                </StackPanel>
+            </Border>
+
             <!-- ===== Dashboard layout ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
