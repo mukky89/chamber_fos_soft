@@ -70,7 +70,7 @@ public sealed class QuickProfileViewModel : ObservableObject
     public RelayCommand LoadSelectedProfileCommand { get; }
 
     /// <summary>Refreshes <see cref="LibraryProfiles"/> from the store, keeping the current selection if it still exists.</summary>
-    private void RefreshLibraryProfiles()
+    public void RefreshLibraryProfiles()
     {
         Guid? previously = SelectedLibraryProfile?.Id;
         LibraryProfiles.Clear();

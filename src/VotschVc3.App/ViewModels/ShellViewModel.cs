@@ -85,7 +85,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             ProfileLibrary.RefreshFromStore();
             CurrentView = ProfileLibrary;
         });
-        OpenQuickProfileCommand = new RelayCommand(() => CurrentView = QuickProfile);
+        OpenQuickProfileCommand = new RelayCommand(() =>
+        {
+            // Always show the latest saved profiles when entering the panel.
+            QuickProfile.RefreshLibraryProfiles();
+            CurrentView = QuickProfile;
+        });
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
         OpenAppLogCommand = new RelayCommand(() => CurrentView = AppLog);
         OpenChangelogCommand = new RelayCommand(() => CurrentView = Changelog);

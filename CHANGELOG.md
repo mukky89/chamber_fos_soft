@@ -4,6 +4,22 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.47.1] – 2026-08-17
+
+### Opravené
+- **Rýchly profil – načítanie existujúceho profilu.** Zoznam profilov na výber sa
+  načítaval iba raz pri štarte aplikácie, takže profily pridané/zmazané/premenované
+  v Editore profilov (alebo v inej relácii) sa v Rýchlom profile neobjavili, kým sa
+  aplikácia nereštartovala. Zoznam sa teraz obnoví vždy pri otvorení panela Rýchly
+  profil, rovnako ako v Editore profilov.
+
+### Pridané / zmenené
+- **Rýchly profil – vyhľadávanie a kategórie pri výbere profilu.** Jednoduchý
+  rozbaľovací zoznam v „Načítať existujúci profil" je nahradený rovnakým
+  vyhľadávacím výberom profilov ako v Editore profilov a na karte komory: textové
+  hľadanie podľa názvu/snímača/zákazníka/projektu/tagu a stromová štruktúra
+  zoskupená podľa zákazníka/snímača.
+
 ## [1.47.0] – 2026-08-17
 
 ### Pridané / zmenené
