@@ -38,8 +38,10 @@
                         <StackPanel>
                     <TextBlock Text="Načítať existujúci profil" Style="{StaticResource Heading}" />
                     <StackPanel Style="{StaticResource QpField}">
-                        <ComboBox ItemsSource="{Binding LibraryProfiles}" DisplayMemberPath="Name"
-                                  SelectedItem="{Binding SelectedLibraryProfile}" />
+                        <views:ProfilePicker ItemsSource="{Binding LibraryProfiles}"
+                                              SelectedProfile="{Binding SelectedLibraryProfile, Mode=TwoWay}"
+                                              Placeholder="Vyber profil"
+                                              ToolTip="Vyber uložený profil – hľadaj hore a rozbaľ stromovú štruktúru (zákazník/snímač → profily)." />
                         <Button Content="Načítať na úpravu" Style="{StaticResource GhostButton}"
                                 Margin="0,6,0,0" HorizontalAlignment="Left"
                                 Command="{Binding LoadSelectedProfileCommand}"
