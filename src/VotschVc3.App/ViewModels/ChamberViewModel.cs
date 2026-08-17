@@ -598,6 +598,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SetManualStarted(false);
         SetReadRunning(null);
         ClearAllAlarms();
+        if (IsRecording)
+        {
+            StopRecording();
+        }
+
         ShowActionInfo("🔌 Odpojené");
         _audit.Log(Name, "Odpojenie", Endpoint);
     }
@@ -677,6 +682,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _firstReadLogged = false;
         _pollingCts = new CancellationTokenSource();
         _ = PollLoopAsync(_pollingCts.Token);
+        EnsureRecordingStarted();
     }
 
     private void StopPolling()
@@ -2575,6 +2581,38 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StatusMessage = "Záznam zastavený.";
     }
 
+    /// <summary>
+    /// Recording is always on: every time polling (re)starts – on connect, on an
+    /// automatic reconnect, or when polling is switched back on – a fresh
+    /// continuous CSV log opens automatically under <see cref="AppPaths.RecordingDir"/>,
+    /// so routine manual operation of the chamber (outside a test profile) is
+    /// captured without the operator having to remember "Start Recording". Leaves
+    /// an already-running recording alone (e.g. one the operator pointed at a
+    /// custom path via "Browse").
+    /// </summary>
+    private void EnsureRecordingStarted()
+    {
+        if (IsRecording)
+        {
+            return;
+        }
+
+        RecordingPath = System.IO.Path.Combine(
+            AppPaths.RecordingDir, $"{SanitizeFileName(Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+        StartRecording();
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(c, '_');
+        }
+
+        name = name.Trim();
+        return string.IsNullOrEmpty(name) ? "komora" : (name.Length > 60 ? name[..60] : name);
+    }
+
     private void BrowseRecordingPath()
     {
         var dialog = new Microsoft.Win32.SaveFileDialog
@@ -3124,6 +3162,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         await _client.DisconnectAsync();
         IsConnected = false;
         SetReadRunning(null);
+        if (IsRecording)
+        {
+            StopRecording();
+        }
 
         RaiseAlarm("link", $"Strata spojenia: {reason}");
 

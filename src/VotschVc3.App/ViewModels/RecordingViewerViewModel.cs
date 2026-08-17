@@ -8,22 +8,31 @@ using VotschVc3.Core.Recording;
 
 namespace VotschVc3.App.ViewModels;
 
-/// <summary>One automatic per-profile temperature log found in <see cref="AppPaths.ProfileLogDir"/>.</summary>
+/// <summary>
+/// One automatically written temperature log, either a per-profile run (see
+/// <see cref="AppPaths.ProfileLogDir"/>) or a continuous per-connection recording
+/// (see <see cref="AppPaths.RecordingDir"/>).
+/// </summary>
 public sealed class RecordingLogEntry
 {
-    public RecordingLogEntry(string path)
+    public RecordingLogEntry(string path, string kind)
     {
         FilePath = path;
+        Kind = kind;
         FileName = System.IO.Path.GetFileName(path);
         Modified = System.IO.File.GetLastWriteTime(path);
     }
 
     public string FilePath { get; }
+
+    /// <summary>"Profil" or "Priebežný", shown in the picker to tell the two sources apart.</summary>
+    public string Kind { get; }
+
     public string FileName { get; }
     public DateTime Modified { get; }
 
-    /// <summary>What the picker list shows: timestamp then file name.</summary>
-    public string DisplayText => $"{Modified:dd.MM.yyyy HH:mm}  ·  {FileName}";
+    /// <summary>What the picker list shows: timestamp, source and file name.</summary>
+    public string DisplayText => $"{Modified:dd.MM.yyyy HH:mm}  ·  {Kind}  ·  {FileName}";
 }
 
 /// <summary>Summary statistics of one recorded series, formatted for the table.</summary>
@@ -82,11 +91,11 @@ public sealed class RecordingViewerViewModel : ObservableObject
     public RelayCommand OpenCommand { get; }
 
     /// <summary>
-    /// Every automatic per-profile temperature log found in <see cref="AppPaths.ProfileLogDir"/>,
-    /// newest first, so a run can be opened without going through the OS file picker.
-    /// Continuous manual recordings (started from a chamber card, written to whatever path
-    /// the operator picked there) are not indexed anywhere and stay reachable only via
-    /// "Otvoriť CSV…".
+    /// Every automatic temperature log – per-profile runs (<see cref="AppPaths.ProfileLogDir"/>)
+    /// and continuous per-connection recordings (<see cref="AppPaths.RecordingDir"/>, always
+    /// started automatically while a chamber is connected) – newest first, so a run can be
+    /// opened without going through the OS file picker. A recording explicitly redirected to a
+    /// custom path via "Browse" is not indexed here and stays reachable only via "Otvoriť CSV…".
     /// </summary>
     public ObservableCollection<RecordingLogEntry> RecentLogs { get; } = new();
 
@@ -110,7 +119,8 @@ public sealed class RecordingViewerViewModel : ObservableObject
         }
     }
 
-    /// <summary>Re-scans <see cref="AppPaths.ProfileLogDir"/> (e.g. after a new profile run finished).</summary>
+    /// <summary>Re-scans <see cref="AppPaths.ProfileLogDir"/> and <see cref="AppPaths.RecordingDir"/>
+    /// (e.g. after a new profile run finished, or a chamber connected and started recording).</summary>
     public RelayCommand RefreshRecentLogsCommand { get; }
 
     private void RefreshRecentLogs()
@@ -118,22 +128,30 @@ public sealed class RecordingViewerViewModel : ObservableObject
         RecentLogs.Clear();
         try
         {
-            if (!System.IO.Directory.Exists(AppPaths.ProfileLogDir))
-            {
-                return;
-            }
+            var entries = new List<RecordingLogEntry>();
+            entries.AddRange(ListCsv(AppPaths.ProfileLogDir, "Profil"));
+            entries.AddRange(ListCsv(AppPaths.RecordingDir, "Priebežný"));
 
-            IEnumerable<string> files = System.IO.Directory.GetFiles(AppPaths.ProfileLogDir, "*.csv")
-                .OrderByDescending(f => System.IO.File.GetLastWriteTime(f));
-            foreach (string f in files)
+            foreach (RecordingLogEntry entry in entries.OrderByDescending(e => e.Modified))
             {
-                RecentLogs.Add(new RecordingLogEntry(f));
+                RecentLogs.Add(entry);
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Zoznam záznamov profilov sa nepodarilo načítať: {ex.Message}";
+            StatusMessage = $"Zoznam záznamov sa nepodarilo načítať: {ex.Message}";
         }
+    }
+
+    private static IEnumerable<RecordingLogEntry> ListCsv(string directory, string kind)
+    {
+        if (!System.IO.Directory.Exists(directory))
+        {
+            return Array.Empty<RecordingLogEntry>();
+        }
+
+        return System.IO.Directory.GetFiles(directory, "*.csv")
+            .Select(f => new RecordingLogEntry(f, kind));
     }
 
     private void Open()
