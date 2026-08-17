@@ -598,6 +598,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SetManualStarted(false);
         SetReadRunning(null);
         ClearAllAlarms();
+        if (IsRecording)
+        {
+            StopRecording();
+        }
+
         ShowActionInfo("🔌 Odpojené");
         _audit.Log(Name, "Odpojenie", Endpoint);
     }
@@ -677,6 +682,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _firstReadLogged = false;
         _pollingCts = new CancellationTokenSource();
         _ = PollLoopAsync(_pollingCts.Token);
+        EnsureRecordingStarted();
     }
 
     private void StopPolling()
@@ -1796,15 +1802,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             AppLog.Warn(Name, "Profil zrušený používateľom.");
             if (_powerOffOnProfileCancel)
             {
-                try
+                bool stopped = await StopChamberOutputAsync("po zastavení profilu").ConfigureAwait(false);
+                if (stopped)
                 {
-                    await _client.StopAsync();
                     SetManualStarted(false);
                     ShowActionInfo("⏹ Profil zastavený – výkon komory VYPNUTÝ");
                 }
-                catch (Exception ex)
+                else
                 {
-                    AppLog.Warn(Name, $"Vypnutie výkonu po zastavení profilu zlyhalo: {ex.Message}");
+                    ShowActionInfo("⚠ Profil zastavený – VYPNUTIE VÝKONU ZLYHALO, skontroluj komoru");
                 }
             }
             else
@@ -1833,15 +1839,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
         double? startHum = SupportsHumidity ? MeasuredHumidity : null;
 
-        // SIKA thermal baths must settle precisely on each hold temperature before
-        // the dwell time counts: every hold waits until the measured value is within
-        // SikaSoakToleranceC of the target (guaranteed soak), regardless of the
-        // per-segment "Soak" flag. Other devices keep the per-segment behaviour.
+        // SIKA thermal baths settle on a new set point on their own – ramping the
+        // set point from the PC gains nothing. Every step (ramp or hold) is driven
+        // as an immediate jump to the target, waits until the measured value is
+        // within SikaSoakToleranceC of it (guaranteed soak), and only then starts
+        // counting down the step's own duration before moving to the next one.
+        // Other devices keep the per-segment ramp/hold behaviour.
         var runner = new ProfileRunner(
             _client,
             TimeSpan.FromSeconds(ProfileUpdateIntervalSeconds),
-            soakAllHolds: IsSika,
-            defaultSoakTolerance: SikaSoakToleranceC);
+            defaultSoakTolerance: SikaSoakToleranceC,
+            soakAllSegments: IsSika);
         _activeRunner = runner;
         double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
 
@@ -1908,25 +1916,69 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>
     /// Cuts the chamber output after a profile has finished normally (stop program +
-    /// start channel OFF). Failures are logged but never propagate – a communication
-    /// hiccup on power-off must not turn a completed run into a fault.
+    /// start channel OFF). Retries a few times and raises a visible alarm if every
+    /// attempt fails – a communication hiccup on power-off must not turn a completed
+    /// run into a silent fault that leaves the chamber actively driving to its last
+    /// set point.
     /// </summary>
     private async Task<bool> PowerOffAfterCompletionAsync()
     {
-        try
+        bool stopped = await StopChamberOutputAsync("po dokončení profilu").ConfigureAwait(false);
+        if (stopped)
         {
-            await _client.StopAsync();
             SetManualStarted(false);
             ShowActionInfo("🏁 Profil dokončený – výkon komory VYPNUTÝ");
             _audit.Log(Name, "Vypnutie výkonu po dokončení profilu", string.Empty);
             AppLog.Info(Name, "Profil dokončený – výkon komory vypnutý.");
-            return true;
         }
-        catch (Exception ex)
+        else
         {
-            AppLog.Warn(Name, $"Vypnutie výkonu po dokončení profilu zlyhalo: {ex.Message}");
-            return false;
+            ShowActionInfo("⚠ Profil dokončený – VYPNUTIE VÝKONU ZLYHALO, skontroluj komoru");
         }
+
+        return stopped;
+    }
+
+    /// <summary>Number of attempts <see cref="StopChamberOutputAsync"/> makes before giving up.</summary>
+    private const int StopOutputRetryAttempts = 3;
+
+    /// <summary>Delay between retry attempts in <see cref="StopChamberOutputAsync"/>.</summary>
+    private static readonly TimeSpan StopOutputRetryDelay = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Stops the chamber output (<see cref="IChamberDevice.StopAsync"/>), retrying a
+    /// few times on communication failure. If every attempt fails, raises a visible
+    /// alarm (banner + notification + audit log) instead of only writing to the log
+    /// file, so the operator knows the chamber may still be actively regulating to
+    /// its last set point and needs to be checked manually. Clears that alarm again
+    /// on the next successful stop.
+    /// </summary>
+    private async Task<bool> StopChamberOutputAsync(string context)
+    {
+        Exception? lastError = null;
+        for (int attempt = 1; attempt <= StopOutputRetryAttempts; attempt++)
+        {
+            try
+            {
+                await _client.StopAsync();
+                ClearAlarm("stopFailed");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+                AppLog.Warn(Name, $"Vypnutie výkonu ({context}) zlyhalo, pokus {attempt}/{StopOutputRetryAttempts}: {ex.Message}");
+                if (attempt < StopOutputRetryAttempts)
+                {
+                    await Task.Delay(StopOutputRetryDelay);
+                }
+            }
+        }
+
+        string message = $"Nepodarilo sa vypnúť výkon komory {context} po {StopOutputRetryAttempts} pokusoch " +
+            $"({lastError?.Message}). Komora môže stále aktívne regulovať na poslednú nastavenú teplotu – skontroluj ju manuálne.";
+        RaiseAlarm("stopFailed", message);
+        return false;
     }
 
     private async Task NotifyCompletionAsync()
@@ -2529,6 +2581,38 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StatusMessage = "Záznam zastavený.";
     }
 
+    /// <summary>
+    /// Recording is always on: every time polling (re)starts – on connect, on an
+    /// automatic reconnect, or when polling is switched back on – a fresh
+    /// continuous CSV log opens automatically under <see cref="AppPaths.RecordingDir"/>,
+    /// so routine manual operation of the chamber (outside a test profile) is
+    /// captured without the operator having to remember "Start Recording". Leaves
+    /// an already-running recording alone (e.g. one the operator pointed at a
+    /// custom path via "Browse").
+    /// </summary>
+    private void EnsureRecordingStarted()
+    {
+        if (IsRecording)
+        {
+            return;
+        }
+
+        RecordingPath = System.IO.Path.Combine(
+            AppPaths.RecordingDir, $"{SanitizeFileName(Name)}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+        StartRecording();
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(c, '_');
+        }
+
+        name = name.Trim();
+        return string.IsNullOrEmpty(name) ? "komora" : (name.Length > 60 ? name[..60] : name);
+    }
+
     private void BrowseRecordingPath()
     {
         var dialog = new Microsoft.Win32.SaveFileDialog
@@ -3078,6 +3162,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         await _client.DisconnectAsync();
         IsConnected = false;
         SetReadRunning(null);
+        if (IsRecording)
+        {
+            StopRecording();
+        }
 
         RaiseAlarm("link", $"Strata spojenia: {reason}");
 

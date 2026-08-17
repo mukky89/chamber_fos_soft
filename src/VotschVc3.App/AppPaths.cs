@@ -10,6 +10,7 @@ namespace VotschVc3.App;
 ///   <item><see cref="ProfilesDir"/> – profile library (profiles.json + seeded defaults),</item>
 ///   <item><see cref="AppLogDir"/> – application diagnostic log,</item>
 ///   <item><see cref="ProfileLogDir"/> – per-run temperature logs of running profiles,</item>
+///   <item><see cref="RecordingDir"/> – continuous per-connection temperature recordings,</item>
 ///   <item><see cref="SettingsDir"/> – other settings (chambers, users, e-mail, audit, UI, markers).</item>
 /// </list>
 /// On first run the folders are created; data from the previous
@@ -33,6 +34,12 @@ public static class AppPaths
 
     /// <summary>Per-profile temperature-log folder (records from running profiles).</summary>
     public static string ProfileLogDir { get; } = Path.Combine(Root, "Profilelog");
+
+    /// <summary>
+    /// Continuous per-connection temperature recordings (started automatically whenever
+    /// a chamber connects, so routine manual operation outside a profile is captured too).
+    /// </summary>
+    public static string RecordingDir { get; } = Path.Combine(Root, "Recordings");
 
     /// <summary>Settings folder (chambers, users, e-mail, audit, UI, seed markers).</summary>
     public static string SettingsDir => Root;
@@ -58,7 +65,7 @@ public static class AppPaths
 
             _initialised = true;
 
-            foreach (string dir in new[] { Root, ProfilesDir, AppLogDir, ProfileLogDir })
+            foreach (string dir in new[] { Root, ProfilesDir, AppLogDir, ProfileLogDir, RecordingDir })
             {
                 TryCreate(dir);
             }

@@ -23,10 +23,35 @@
                     Command="{Binding OpenCommand}" />
         </Grid>
 
-        <!-- Chart -->
-        <Border Grid.Row="1" Style="{StaticResource Card}">
-            <views:ChartView Series="{Binding Series}" EmptyText="Otvor CSV záznam…" />
-        </Border>
+        <!-- Chart + recent profile logs -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,10,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,6">
+                        <TextBlock Text="Posledné záznamy" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                        <Button DockPanel.Dock="Right" Content="⟳" Style="{StaticResource GhostButton}" Padding="6,1"
+                                Command="{Binding RefreshRecentLogsCommand}"
+                                ToolTip="Znovu načítať zoznam zo zložiek Profilelog a Recordings." />
+                    </DockPanel>
+                    <ListBox Grid.Row="1" ItemsSource="{Binding RecentLogs}" DisplayMemberPath="DisplayText"
+                             SelectedItem="{Binding SelectedRecentLog}"
+                             ToolTip="Automatické záznamy teplôt: „Profil“ = beh testovacieho profilu (Documents\Lab Control\Profilelog), „Priebežný“ = nepretržitý záznam bežiaci automaticky, kým je komora pripojená (Documents\Lab Control\Recordings). Záznam presmerovaný na vlastnú cestu cez „Browse“ tu nie je – otvorí sa cez „Otvoriť CSV…“." />
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource Card}">
+                <views:ChartView Series="{Binding Series}" EmptyText="Otvor CSV záznam alebo vyber záznam profilu vľavo…" />
+            </Border>
+        </Grid>
 
         <!-- Statistics -->
         <Border Grid.Row="2" Style="{StaticResource Card}">

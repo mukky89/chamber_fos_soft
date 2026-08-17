@@ -36,7 +36,15 @@
                     </Grid.RowDefinitions>
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
                         <StackPanel>
-                    <TextBlock Text="Parametre sweepu" Style="{StaticResource Heading}" />
+                    <TextBlock Text="Načítať existujúci profil" Style="{StaticResource Heading}" />
+                    <StackPanel Style="{StaticResource QpField}">
+                        <ComboBox ItemsSource="{Binding LibraryProfiles}" DisplayMemberPath="Name"
+                                  SelectedItem="{Binding SelectedLibraryProfile}" />
+                        <Button Content="Načítať na úpravu" Style="{StaticResource GhostButton}"
+                                Margin="0,6,0,0" HorizontalAlignment="Left"
+                                Command="{Binding LoadSelectedProfileCommand}"
+                                ToolTip="Načíta vybraný profil ako postupnosť teplôt na úpravu a uloženie prepíše ten istý profil." />
+                    </StackPanel>
 
                     <StackPanel Style="{StaticResource QpField}">
                         <TextBlock Text="Predpona názvu (voliteľné)" Style="{StaticResource Label}" />
@@ -82,6 +90,30 @@
                         <views:TagEditor Items="{Binding EditorTags, Mode=OneWay}" Suggestions="{Binding KnownTags}" />
                     </StackPanel>
 
+                    <TextBlock Text="Režim" Style="{StaticResource Heading}" Margin="0,4,0,4" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <RadioButton Content="Sweep (rozsah)" IsChecked="{Binding IsParametricMode}"
+                                     VerticalAlignment="Center"
+                                     ToolTip="Symetrický sweep: od–do, počet krokov, voliteľne späť dole." />
+                        <RadioButton Content="Postupnosť teplôt" IsChecked="{Binding IsSequenceMode}"
+                                     Margin="16,0,0,0" VerticalAlignment="Center"
+                                     ToolTip="Napíš postupnosť teplôt oddelenú bodkočiarkou, napr. 0;20;30;60;30;20;0 – medzi každou dvojicou sa vygeneruje rampa a plato." />
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsSequenceMode, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Style="{StaticResource QpField}">
+                            <TextBlock Text="Teploty oddelené bodkočiarkou" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding SequenceText, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Napr. 0;20;30;60;30;20;0 – medzi každou dvojicou hodnôt sa vygeneruje rampa (dĺžka nábehu) a plato (dĺžka plata) nižšie." />
+                            <TextBlock Text="{Binding SequenceParseError}" Foreground="{StaticResource DangerBrush}"
+                                       TextWrapping="Wrap" Margin="0,2,0,0"
+                                       Visibility="{Binding HasSequenceParseError, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding IsParametricMode, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Parametre sweepu" Style="{StaticResource Heading}" />
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -122,6 +154,18 @@
                         <TextBlock Text="Počet krokov sa dopočíta z rozsahu a vygeneruje sa." Style="{StaticResource Caption}" Margin="0,2,0,0" />
                     </StackPanel>
 
+                    <CheckBox Content="Aj zostupná časť (späť dole)" IsChecked="{Binding IncludeDescending}"
+                              Margin="0,2,0,6" />
+                    <CheckBox Content="Dvojitý vrchol (dva najvyššie body)" IsChecked="{Binding DoublePeak}"
+                              Margin="0,0,0,6"
+                              ToolTip="Na vrchole vytvorí dva najvyššie body a medzi nimi plato o pár °C nižšie, aby prebehla zmena teploty." />
+                    <StackPanel Style="{StaticResource QpField}"
+                                Visibility="{Binding DoublePeak, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Pokles medzi vrcholmi (°C)" Style="{StaticResource Label}" />
+                        <views:NumericStepper Value="{Binding PeakDipCelsius, Mode=TwoWay}" Step="1" Minimum="0" />
+                    </StackPanel>
+                    </StackPanel>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -137,17 +181,6 @@
                             <views:NumericStepper Value="{Binding RampMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
                         </StackPanel>
                     </Grid>
-
-                    <CheckBox Content="Aj zostupná časť (späť dole)" IsChecked="{Binding IncludeDescending}"
-                              Margin="0,2,0,6" />
-                    <CheckBox Content="Dvojitý vrchol (dva najvyššie body)" IsChecked="{Binding DoublePeak}"
-                              Margin="0,0,0,6"
-                              ToolTip="Na vrchole vytvorí dva najvyššie body a medzi nimi plato o pár °C nižšie, aby prebehla zmena teploty." />
-                    <StackPanel Style="{StaticResource QpField}"
-                                Visibility="{Binding DoublePeak, Converter={StaticResource BoolToVisibility}}">
-                        <TextBlock Text="Pokles medzi vrcholmi (°C)" Style="{StaticResource Label}" />
-                        <views:NumericStepper Value="{Binding PeakDipCelsius, Mode=TwoWay}" Step="1" Minimum="0" />
-                    </StackPanel>
 
                     <CheckBox Content="Nábeh z aktuálnej teploty" IsChecked="{Binding StartFromCurrent}"
                               Margin="0,0,0,6"
@@ -196,11 +229,13 @@
                                   ToolTip="Opakuje sa iba sweep; začiatočný nábeh na prvú teplotu a koncový nábeh na izbovú teplotu prebehnú len raz." />
                     </StackPanel>
 
+                    <StackPanel Visibility="{Binding IsParametricMode, Converter={StaticResource BoolToVisibility}}">
                     <TextBlock Text="Optimalizácia" Style="{StaticResource Heading}" Margin="0,4,0,4" />
                     <StackPanel Style="{StaticResource QpField}">
                         <TextBlock Text="Skrátiť celkový čas o (hodín)" Style="{StaticResource Label}" />
                         <views:NumericStepper Value="{Binding ShortenByHours, Mode=TwoWay}" Step="0.5" Minimum="0" />
                         <TextBlock Text="Rovnomerne skráti všetky plata." Style="{StaticResource Caption}" Margin="0,2,0,0" />
+                    </StackPanel>
                     </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
@@ -261,18 +296,14 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal">
-                        <TextBlock Text="Náhľad profilu" Style="{StaticResource Heading}" />
+                        <TextBlock Text="Náhľad profilu — ťahaj body myšou (zvisle = teplota, vodorovne = trvanie)" Style="{StaticResource Heading}" />
                         <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}"
                                    VerticalAlignment="Center" Margin="12,0,0,0" />
                     </StackPanel>
 
-                    <views:ChartView Grid.Row="1" Series="{Binding TempPreview}" Unit=" °C"
-                                     EmptyText="Zadaj parametre" MinHeight="240" Margin="0,8,0,8"
-                                     ShowStages="True"
-                                     CycleStartX="{Binding CyclePreviewStartMinutes}"
-                                     CycleEndX="{Binding CyclePreviewEndMinutes}"
-                                     CycleCount="{Binding Cycles}"
-                                     ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode aj to, či ide o rampu (nábeh) alebo výdrž (plato). Podfarbené stĺpce = výdrž, zvýraznená plocha = cyklovaná časť profilu." />
+                    <views:ProfileEditorChart Grid.Row="1" Segments="{Binding Segments}" MinHeight="240" Margin="0,8,0,8"
+                                     CycleStart="{Binding CycleBandStart}" CycleEnd="{Binding CycleBandEnd}"
+                                     CycleCount="{Binding Cycles}" />
 
                     <WrapPanel Grid.Row="2">
                         <StackPanel Margin="0,0,28,0">

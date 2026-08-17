@@ -11,8 +11,9 @@ namespace VotschVc3.App.Views;
 
 /// <summary>
 /// Interactive temperature-profile editor. Renders the programmed profile and
-/// lets the user drag the handle of each segment up/down to change its target
-/// temperature directly in the graph. Durations stay editable in the grid.
+/// lets the user drag the handle of each segment: vertically to change its
+/// target temperature, horizontally to resize its duration (stretch/shrink the
+/// ramp or plateau). Both are editable in the grid too.
 /// </summary>
 public partial class ProfileEditorChart : UserControl
 {
@@ -23,7 +24,11 @@ public partial class ProfileEditorChart : UserControl
 
     private double _minY;
     private double _maxY;
+    private double _pxPerMinute = 1;
     private int _dragIndex = -1;
+    private Point _dragStartMouse;
+    private double _dragStartDuration;
+    private double _dragPxPerMinute = 1;
 
     public ProfileEditorChart()
     {
@@ -164,6 +169,7 @@ public partial class ProfileEditorChart : UserControl
 
         double plotW = w - PadLeft - PadRight;
         double plotH = h - PadTop - PadBottom;
+        _pxPerMinute = plotW / totalMin;
 
         // Gridlines + Y labels.
         for (int i = 0; i <= 4; i++)
@@ -251,8 +257,9 @@ public partial class ProfileEditorChart : UserControl
                 Fill = Accent,
                 Stroke = Brushes.White,
                 StrokeThickness = 1.5,
-                Cursor = Cursors.SizeNS,
+                Cursor = Cursors.SizeAll,
                 Tag = index,
+                ToolTip = "Ťahaj zvisle = teplota, vodorovne = trvanie segmentu",
             };
             Canvas.SetLeft(dot, x - 6);
             Canvas.SetTop(dot, y - 6);
@@ -265,7 +272,19 @@ public partial class ProfileEditorChart : UserControl
     {
         if (sender is Ellipse { Tag: int index })
         {
+            List<SegmentViewModel> segments = GetSegments();
+            if (index >= segments.Count)
+            {
+                return;
+            }
+
             _dragIndex = index;
+            _dragStartMouse = e.GetPosition(PlotCanvas);
+            _dragStartDuration = segments[index].DurationMinutes;
+            // Fixed for the whole gesture: resizing this segment changes the total
+            // duration, which would otherwise change px-per-minute mid-drag and
+            // make the handle chase the pointer.
+            _dragPxPerMinute = _pxPerMinute;
             PlotCanvas.CaptureMouse();
             e.Handled = true;
         }
@@ -290,10 +309,23 @@ public partial class ProfileEditorChart : UserControl
             return;
         }
 
-        double py = e.GetPosition(PlotCanvas).Y;
-        double t = _minY + (1 - (py - PadTop) / plotH) * (_maxY - _minY);
+        Point pos = e.GetPosition(PlotCanvas);
+
+        // Vertical: absolute position maps straight to temperature.
+        double t = _minY + (1 - (pos.Y - PadTop) / plotH) * (_maxY - _minY);
         t = Math.Clamp(t, -90, 250);
         segments[_dragIndex].TargetTemperature = Math.Round(t, 1);
+
+        // Horizontal: relative offset from the drag start resizes this segment's
+        // own duration – every later handle shifts along with it, earlier ones
+        // are untouched.
+        if (_dragPxPerMinute > 0)
+        {
+            double deltaMinutes = (pos.X - _dragStartMouse.X) / _dragPxPerMinute;
+            double duration = Math.Max(1, Math.Round(_dragStartDuration + deltaMinutes));
+            segments[_dragIndex].DurationMinutes = duration;
+        }
+
         Redraw();
     }
 

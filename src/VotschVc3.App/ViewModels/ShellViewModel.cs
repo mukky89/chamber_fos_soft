@@ -73,7 +73,12 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // Commands must exist before chambers are built (AddChamberInternal uses them).
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
-        OpenRecordingViewerCommand = new RelayCommand(() => CurrentView = RecordingViewer);
+        OpenRecordingViewerCommand = new RelayCommand(() =>
+        {
+            // Always show logs from profiles that finished since the viewer was last opened.
+            RecordingViewer.RefreshRecentLogsCommand.Execute(null);
+            CurrentView = RecordingViewer;
+        });
         OpenProfileLibraryCommand = new RelayCommand(() =>
         {
             // Always show the latest saved profiles when entering the editor.
