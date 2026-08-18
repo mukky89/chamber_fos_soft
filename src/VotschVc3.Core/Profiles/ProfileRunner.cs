@@ -95,11 +95,20 @@ public sealed class ProfileRunner
     /// </param>
     /// <param name="startHumidity">Humidity the first ramp starts from.</param>
     /// <param name="cancellationToken">Cancels the run between / during segments.</param>
+    /// <param name="resumeFrom">
+    /// When set, every segment before this position is fast-forwarded (bookkeeping only –
+    /// no device writes, no waiting) and the run starts actually driving the chamber at this
+    /// exact segment/cycle, continuing its dwell/ramp clock from
+    /// <see cref="ProfileRunPosition.ElapsedInSegment"/> (or, if it was mid-soak, by
+    /// re-entering the soak wait from scratch). Used to recover a run interrupted by a power
+    /// outage or crash from its last saved <see cref="ProfileRunCheckpoint"/>.
+    /// </param>
     public async Task RunAsync(
         TestProfile profile,
         double startTemperature,
         double? startHumidity,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ProfileRunPosition? resumeFrom = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         if (profile.Segments.Count == 0)
@@ -116,15 +125,42 @@ public sealed class ProfileRunner
         double segStartTemp = startTemperature;
         double? segStartHum = startHumidity;
 
+        // While resuming, every segment strictly before resumeFrom is skipped: no device
+        // writes, no waiting, just the same bookkeeping RunOneAsync would have done. Once
+        // the position matches resumeFrom this flips true and every later segment (incl. all
+        // of the following cycles/outro) runs normally.
+        bool resumed = resumeFrom is null;
+
         // Runs one segment, then advances the ramp origin and the completed-time counter.
         // Segments before the region are the intro (run once), the region repeats
         // `cycles` times, and segments after it are the outro (run once).
         async Task RunOneAsync(int index, ProfileRunPhase phase, int cycleIndex)
         {
             ProfileSegment segment = profile.Segments[index];
+
+            bool isResumeTarget = !resumed && resumeFrom is { } r &&
+                r.Phase == phase && r.CycleIndex == cycleIndex && r.SegmentIndex == index;
+
+            if (!resumed && !isResumeTarget)
+            {
+                completed += segment.Duration.TotalSeconds;
+                segStartTemp = segment.TargetTemperature;
+                segStartHum = segment.TargetHumidity ?? segStartHum;
+                return;
+            }
+
+            // A segment that was mid-soak had not started its own dwell clock yet (the
+            // soak wait runs before it), so it always resumes from zero; a segment that
+            // was timing a ramp/hold continues from where its clock stood.
+            TimeSpan initialElapsed = isResumeTarget && !resumeFrom!.Value.IsSoaking
+                ? resumeFrom!.Value.ElapsedInSegment
+                : TimeSpan.Zero;
+
+            resumed = true;
+
             await RunSegmentAsync(
                 profile, segment, cycleIndex, index, segStartTemp, segStartHum,
-                phase, cycles, completed, totalSeconds, cancellationToken).ConfigureAwait(false);
+                phase, cycles, completed, totalSeconds, cancellationToken, initialElapsed).ConfigureAwait(false);
 
             completed += segment.Duration.TotalSeconds;
             segStartTemp = segment.TargetTemperature;
@@ -161,7 +197,8 @@ public sealed class ProfileRunner
         int totalCycles,
         double completedSeconds,
         double totalSeconds,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan initialElapsed = default)
     {
         TimeSpan duration = segment.Duration > TimeSpan.Zero ? segment.Duration : TimeSpan.FromSeconds(1);
 
@@ -188,7 +225,7 @@ public sealed class ProfileRunner
             cancellationToken.ThrowIfCancellationRequested();
             await WaitWhilePausedAsync(segmentClock, cancellationToken).ConfigureAwait(false);
 
-            double elapsedSeconds = segmentClock.Elapsed.TotalSeconds;
+            double elapsedSeconds = initialElapsed.TotalSeconds + segmentClock.Elapsed.TotalSeconds;
             double fraction = Math.Clamp(elapsedSeconds / duration.TotalSeconds, 0d, 1d);
 
             double temperature = holdBehavior ? segment.TargetTemperature : segment.TemperatureAt(fraction, startTemp);
@@ -299,6 +336,13 @@ public sealed class ProfileRunner
         return _client.WriteSetpointsAsync(setpoints, digital, cancellationToken);
     }
 }
+
+/// <summary>
+/// Exact point inside a profile run to resume from – captured from a
+/// <see cref="ProfileRunCheckpoint"/> and passed to <see cref="ProfileRunner.RunAsync"/>.
+/// </summary>
+public readonly record struct ProfileRunPosition(
+    ProfileRunPhase Phase, int CycleIndex, int SegmentIndex, TimeSpan ElapsedInSegment, bool IsSoaking);
 
 /// <summary>Which part of the run a segment belongs to.</summary>
 public enum ProfileRunPhase

@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.48.0] – 2026-08-18
+
+### Pridané / zmenené
+- **Automatické obnovenie profilu po výpadku prúdu / páde aplikácie.** Beh profilu
+  sa priebežne ukladá na disk (segment, cyklus, uplynutý čas, zvyšok fronty). Po
+  ďalšom úspešnom pripojení komory appka rozpozná prerušený beh a ponúkne operátorovi
+  obnovenie presne od miesta prerušenia (vrátane fronty nasledujúcich profilov);
+  segment, ktorý práve čakal na dosiahnutie teploty (guaranteed soak), sa po obnovení
+  vždy znovu overí voči reálne nameranej hodnote namiesto slepého pokračovania podľa
+  uloženého času. Nová voľba na karte komory (záložka Bezpečnosť) „Po výpadku prúdu
+  ponúknuť obnovenie prerušeného profilu" (predvolene zapnuté) umožňuje funkciu pre
+  dané zariadenie vypnúť. Explicitné zastavenie profilu (tlačidlo Stop) checkpoint
+  vždy zmaže – ponuka na obnovenie sa zobrazí iba pri skutočnom neplánovanom prerušení.
+
 ## [1.47.1] – 2026-08-17
 
 ### Opravené

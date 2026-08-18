@@ -44,6 +44,12 @@ public static class AppPaths
     /// <summary>Settings folder (chambers, users, e-mail, audit, UI, seed markers).</summary>
     public static string SettingsDir => Root;
 
+    /// <summary>
+    /// Profile-run checkpoints (one JSON file per chamber), written on every set-point
+    /// update so an interrupted run (power outage, crash) can be offered for resume.
+    /// </summary>
+    public static string ProfileRecoveryDir { get; } = Path.Combine(Root, "Profile recovery");
+
     private static readonly string LegacyRoot = Path.Combine(Documents, "VotschVc3");
 
     private static readonly object Gate = new();
@@ -65,7 +71,7 @@ public static class AppPaths
 
             _initialised = true;
 
-            foreach (string dir in new[] { Root, ProfilesDir, AppLogDir, ProfileLogDir, RecordingDir })
+            foreach (string dir in new[] { Root, ProfilesDir, AppLogDir, ProfileLogDir, RecordingDir, ProfileRecoveryDir })
             {
                 TryCreate(dir);
             }

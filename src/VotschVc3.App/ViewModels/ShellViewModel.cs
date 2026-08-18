@@ -25,6 +25,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         nameof(ChamberViewModel.AlarmsEnabled), nameof(ChamberViewModel.TempMin), nameof(ChamberViewModel.TempMax),
         nameof(ChamberViewModel.HumMin), nameof(ChamberViewModel.HumMax),
         nameof(ChamberViewModel.AutoStopOnAlarm), nameof(ChamberViewModel.AutoReconnect),
+        nameof(ChamberViewModel.AutoRecoverProfile),
         nameof(ChamberViewModel.QuickPresets), nameof(ChamberViewModel.QuickProfiles),
         nameof(ChamberViewModel.IsLocked), nameof(ChamberViewModel.LockPasswordHash),
     }.Concat(ChamberViewModel.NameplatePropertyNames).ToHashSet();
@@ -32,6 +33,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private readonly ProfileStore _store;
     private readonly EmailSettingsStore _emailStore;
     private readonly ChamberConfigStore _configStore;
+    private readonly ProfileRunCheckpointStore _checkpointStore;
     private readonly UserStore _userStore;
     private readonly AuditLog _audit;
     private readonly LoginViewModel _login;
@@ -51,6 +53,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _store = new ProfileStore(System.IO.Path.Combine(AppPaths.ProfilesDir, "profiles.json"));
         _emailStore = new EmailSettingsStore(System.IO.Path.Combine(dir, "email.json"));
         _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
+        _checkpointStore = new ProfileRunCheckpointStore(AppPaths.ProfileRecoveryDir);
         _userStore = new UserStore(System.IO.Path.Combine(dir, "users.json"));
         _audit = new AuditLog(System.IO.Path.Combine(dir, "audit.csv"));
         _uiStore = new UiSettingsStore(System.IO.Path.Combine(dir, "ui.json"));
@@ -1256,7 +1259,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private void AddChamberInternal(ChamberConfig config)
     {
-        var chamber = new ChamberViewModel(config, _store, _notifier, Thermometers, _audit);
+        var chamber = new ChamberViewModel(config, _store, _notifier, Thermometers, _audit, _checkpointStore);
         chamber.SetControlAllowed(CanControl);
         chamber.PropertyChanged += OnChamberPropertyChanged;
         Chambers.Add(chamber);

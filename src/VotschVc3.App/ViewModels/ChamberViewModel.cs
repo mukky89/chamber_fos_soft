@@ -32,6 +32,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private readonly EmailNotifier _email;
     private readonly ThermometersViewModel _thermometers;
     private readonly AuditLog _audit;
+    private readonly ProfileRunCheckpointStore? _checkpointStore;
     private CancellationTokenSource? _pollingCts;
     private CancellationTokenSource? _profileCts;
     private bool _powerOffOnProfileCancel;
@@ -43,7 +44,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private System.Windows.Threading.DispatcherTimer? _countdownTimer;
     private ProfileRunner? _activeRunner;
 
-    public ChamberViewModel(ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit)
+    public ChamberViewModel(
+        ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit,
+        ProfileRunCheckpointStore? checkpointStore = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         Id = config.Id;
@@ -55,6 +58,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _email = email ?? throw new ArgumentNullException(nameof(email));
         _thermometers = thermometers ?? throw new ArgumentNullException(nameof(thermometers));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
+        _checkpointStore = checkpointStore;
 
         _client = Protocol switch
         {
@@ -583,6 +587,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             StartPolling();
         }
+
+        CheckProfileRecovery();
     }
 
     private async Task DisconnectAsync()
@@ -1729,8 +1735,90 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Looks for a profile-run checkpoint left by an interrupted run (power outage, crash)
+    /// and, if the operator confirms, resumes it exactly where it stopped. Called after
+    /// every successful connect (manual or auto-reconnect); a no-op when there is nothing
+    /// to recover, a profile is already running, or recovery is disabled for this chamber.
+    /// </summary>
+    private void CheckProfileRecovery()
+    {
+        if (!AutoRecoverProfile || IsProfileRunning || _checkpointStore is null)
+        {
+            return;
+        }
+
+        ProfileRunCheckpoint? checkpoint = _checkpointStore.TryLoad(Id);
+        if (checkpoint is null)
+        {
+            return;
+        }
+
+        TimeSpan age = DateTime.UtcNow - checkpoint.LastWriteUtc;
+        string ageText = age.TotalMinutes < 1 ? "< 1 min"
+            : age.TotalHours < 1 ? $"{(int)age.TotalMinutes} min"
+            : $"{(int)age.TotalHours} h {age.Minutes} min";
+        string segInfo = $"segment {checkpoint.SegmentIndex + 1}/{checkpoint.Profile.Segments.Count}";
+
+        bool confirmed = false;
+        RunOnUi(() => confirmed = Views.ConfirmDialog.Ask(
+            $"Zistil sa prerušený profil „{checkpoint.Profile.Name}“ na zariadení „{Name}“ ({segInfo}), " +
+            $"naposledy zaznamenaný pred {ageText}.\n\nObnoviť beh presne od miesta prerušenia?",
+            "Obnovenie profilu po výpadku",
+            "Obnoviť profil",
+            danger: false));
+
+        if (!confirmed)
+        {
+            _checkpointStore.Delete(Id);
+            _audit.Log(Name, "Obnovenie profilu odmietnuté", checkpoint.Profile.Name);
+            AppLog.Warn(Name, $"Operátor odmietol obnovenie prerušeného profilu \"{checkpoint.Profile.Name}\".");
+            return;
+        }
+
+        _audit.Log(Name, "Profil obnovený po výpadku", $"{checkpoint.Profile.Name} ({segInfo})");
+        AppLog.Info(Name, $"Obnovujem prerušený profil \"{checkpoint.Profile.Name}\" od {segInfo}.");
+        DesktopNotifier.Notify(
+            $"Profil obnovený · {Name}",
+            $"„{checkpoint.Profile.Name}“ pokračuje od miesta prerušenia ({segInfo}).",
+            DesktopNotificationKind.Warning);
+
+        var resumeFrom = new ProfileRunPosition(
+            checkpoint.Phase, checkpoint.CycleIndex, checkpoint.SegmentIndex,
+            TimeSpan.FromSeconds(checkpoint.ElapsedInSegmentSeconds), checkpoint.IsSoaking);
+
+        var profiles = new List<TestProfile> { checkpoint.Profile };
+        profiles.AddRange(checkpoint.RemainingQueue);
+
+        _ = RunSequenceAsync(profiles, resumeFrom);
+    }
+
+    private void SaveProfileCheckpoint(
+        TestProfile profile, IReadOnlyList<TestProfile> allProfiles, int indexInQueue, ProfileProgressEventArgs e)
+    {
+        if (_checkpointStore is null)
+        {
+            return;
+        }
+
+        _checkpointStore.Save(new ProfileRunCheckpoint
+        {
+            ChamberId = Id,
+            ChamberName = Name,
+            Profile = profile,
+            RemainingQueue = allProfiles.Skip(indexInQueue + 1).ToList(),
+            SegmentIndex = e.SegmentIndex,
+            CycleIndex = e.Cycle,
+            Phase = e.Phase,
+            ElapsedInSegmentSeconds = e.ElapsedInSegment.TotalSeconds,
+            IsSoaking = e.IsSoaking,
+            StartedUtc = _profileActualStart?.ToUniversalTime() ?? DateTime.UtcNow,
+            LastWriteUtc = DateTime.UtcNow,
+        });
+    }
+
     /// <summary>Runs one or more profiles back-to-back (the test queue).</summary>
-    private async Task RunSequenceAsync(IReadOnlyList<TestProfile> profiles)
+    private async Task RunSequenceAsync(IReadOnlyList<TestProfile> profiles, ProfileRunPosition? resumeFrom = null)
     {
         if (profiles.Count == 0)
         {
@@ -1746,9 +1834,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         // Safety: lock the device the moment a test/quick profile starts.
         AutoLockOnRun(profiles.Count > 1 ? "spustená fronta profilov" : "spustený profil");
 
+        bool completedNormally = false;
         try
         {
-            if (UseDelayedStart && ScheduledStart > DateTime.Now)
+            // A resumed run continues immediately – any delayed-start countdown belongs
+            // to a fresh launch, not to picking a checkpoint back up.
+            if (resumeFrom is null && UseDelayedStart && ScheduledStart > DateTime.Now)
             {
                 await WaitForScheduledStartAsync(token);
             }
@@ -1773,7 +1864,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 ShowActionInfo($"▶ Spustený profil „{profile.Name}\" ({i + 1}/{profiles.Count})");
                 _audit.Log(Name, "Štart profilu", $"{profile.Name} ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov)");
                 AppLog.Info(Name, $"Štart profilu \"{profile.Name}\" ({i + 1}/{profiles.Count}, {profile.Cycles} cyklov, {profile.Segments.Count} segmentov).");
-                await RunProfileCoreAsync(profile, i, profiles.Count, token);
+                await RunProfileCoreAsync(profile, i, profiles.Count, token, profiles, i == 0 ? resumeFrom : null);
             }
 
             ProfileProgress = 100;
@@ -1794,9 +1885,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 poweredOff ? $"{doneName} Výkon komory vypnutý." : doneName,
                 DesktopNotificationKind.Success);
             await NotifyCompletionAsync();
+            completedNormally = true;
         }
         catch (OperationCanceledException)
         {
+            // An explicit Stop is a deliberate end of the run too – no checkpoint should
+            // be left behind to offer a "resume" the operator did not ask for. A genuine
+            // interruption (crash, power loss) never reaches this catch – the process is
+            // simply gone – so the checkpoint from the last write survives for recovery.
+            completedNormally = true;
             ProfileStatus = "Profil zrušený.";
             _audit.Log(Name, "Profil zrušený", string.Empty);
             AppLog.Warn(Name, "Profil zrušený používateľom.");
@@ -1820,6 +1917,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
         finally
         {
+            if (completedNormally)
+            {
+                _checkpointStore?.Delete(Id);
+            }
+
             _powerOffOnProfileCancel = false;
             IsProfileRunning = false;
             _activeRunner = null;
@@ -1834,7 +1936,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private async Task RunProfileCoreAsync(TestProfile profile, int indexInQueue, int queueCount, CancellationToken token)
+    private async Task RunProfileCoreAsync(
+        TestProfile profile, int indexInQueue, int queueCount, CancellationToken token,
+        IReadOnlyList<TestProfile> allProfiles, ProfileRunPosition? resumeFrom = null)
     {
         double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
         double? startHum = SupportsHumidity ? MeasuredHumidity : null;
@@ -1893,9 +1997,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                         e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
                 }
             }
+
+            // Checkpoint the run so it can be recovered after a power outage / crash.
+            SaveProfileCheckpoint(profile, allProfiles, indexInQueue, e);
         });
 
-        await runner.RunAsync(profile, startTemp, startHum, token);
+        await runner.RunAsync(profile, startTemp, startHum, token, resumeFrom);
     }
 
     private async Task WaitForScheduledStartAsync(CancellationToken token)
@@ -3056,6 +3163,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Automatically try to reconnect after a connection loss.</summary>
     public bool AutoReconnect { get => _autoReconnect; set => SetProperty(ref _autoReconnect, value); }
 
+    private bool _autoRecoverProfile = true;
+    /// <summary>Offer to resume a profile interrupted by a power outage / crash on next connect.</summary>
+    public bool AutoRecoverProfile { get => _autoRecoverProfile; set => SetProperty(ref _autoRecoverProfile, value); }
+
     private bool _isAlarm;
     public bool IsAlarm { get => _isAlarm; private set => SetProperty(ref _isAlarm, value); }
 
@@ -3233,6 +3344,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 StartPolling();
             }
 
+            CheckProfileRecovery();
             return;
         }
     }
@@ -3507,6 +3619,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         HumMax = c.HumMax;
         AutoStopOnAlarm = c.AutoStopOnAlarm;
         AutoReconnect = c.AutoReconnect;
+        AutoRecoverProfile = c.AutoRecoverProfile;
 
         List<double> presets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
         // One-time upgrade: a dryer still carrying the old 4-value default gets the
@@ -3551,6 +3664,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         HumMax = HumMax,
         AutoStopOnAlarm = AutoStopOnAlarm,
         AutoReconnect = AutoReconnect,
+        AutoRecoverProfile = AutoRecoverProfile,
         QuickPresets = new List<double>(_quickPresets),
         QuickProfiles = new List<string>(_pinnedQuickProfiles),
         Nameplate = _nameplate.Clone(),

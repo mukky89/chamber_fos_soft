@@ -35,6 +35,12 @@ public sealed class ChamberConfig
     public bool AutoReconnect { get; set; } = true;
 
     /// <summary>
+    /// When <c>true</c>, a profile interrupted by a power outage / app crash is offered
+    /// for resume (with operator confirmation) the next time this chamber connects.
+    /// </summary>
+    public bool AutoRecoverProfile { get; set; } = true;
+
+    /// <summary>
     /// Dashboard quick-set temperature presets (°C) for this device. Null or empty
     /// falls back to protocol defaults. Editable by admins per device.
     /// </summary>

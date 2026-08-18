@@ -550,6 +550,8 @@
                                   IsChecked="{Binding AutoStopOnAlarm}" Margin="0,6,0,0" />
                         <CheckBox Content="Automaticky sa znovu pripájať po výpadku spojenia"
                                   IsChecked="{Binding AutoReconnect}" />
+                        <CheckBox Content="Po výpadku prúdu ponúknuť obnovenie prerušeného profilu"
+                                  IsChecked="{Binding AutoRecoverProfile}" Margin="0,6,0,0" />
 
                         <Separator Margin="0,14" Background="{StaticResource BorderBrush}" />
 
