@@ -74,11 +74,17 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Zákazník" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding Customer, UpdateSourceTrigger=PropertyChanged}" />
+                            <ComboBox IsEditable="True" IsTextSearchEnabled="True"
+                                      ItemsSource="{Binding KnownCustomers}"
+                                      Text="{Binding Customer, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Napíš nového zákazníka, alebo vyber existujúceho zo zoznamu." />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Projekt" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding Project, UpdateSourceTrigger=PropertyChanged}" />
+                            <ComboBox IsEditable="True" IsTextSearchEnabled="True"
+                                      ItemsSource="{Binding KnownProjects}"
+                                      Text="{Binding Project, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Napíš nový projekt, alebo vyber existujúci zo zoznamu." />
                         </StackPanel>
                     </Grid>
 

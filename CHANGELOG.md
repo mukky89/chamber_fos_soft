@@ -4,6 +4,30 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.49.0] – 2026-08-19
+
+### Pridané / zmenené
+- **Rýchly vytvárač profilov – vylepšenia editora.**
+  - Prepnutie zo Sweepu na Postupnosť teplôt teraz do textového poľa zapíše
+    aktuálne teploty, na ktoré je sweep nastavený, namiesto predvolenej
+    (nesúvisiacej) ukážkovej postupnosti.
+  - Číselné polia (Od/Do °C, dĺžka nábehu/plata, ...) teraz akceptujú desatinnú
+    čiarku aj bodku (napr. „22,5" aj „22.5").
+  - Zákazník a Projekt sa dajú vybrať zo zoznamu už použitých hodnôt (alebo
+    napísať nové) – predtým to boli len prázdne textové polia.
+  - Snímače a Tagy: opravená neviditeľnosť písaného textu vo vstupnom poli
+    (rovnaký problém, aký mal predtým NumericStepper) a pole na písanie novej
+    hodnoty je teraz širšie.
+  - Náhľad profilu (graf) teraz pri prejdení myšou nad krivkou zobrazí
+    aktuálnu teplotu a čas v danom bode.
+
+### Opravené
+- **Graf profilu pri behu s cyklovaním.** Počas skutočného behu profilu graf na
+  dashboarde vždy zobrazoval iba jeden priebeh (bez ohľadu na nastavený počet
+  cyklov) – operátor tak nevidel, že profil má cyklovať. Graf teraz pri behu
+  aj pred jeho spustením vykresľuje celý cyklovaný priebeh (telo ×počet
+  cyklov) a ukazovateľ „Teraz" správne postupuje naprieč všetkými cyklami.
+
 ## [1.48.0] – 2026-08-18
 
 ### Pridané / zmenené

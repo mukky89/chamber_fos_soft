@@ -30,6 +30,13 @@ public partial class ProfileEditorChart : UserControl
     private double _dragStartDuration;
     private double _dragPxPerMinute = 1;
 
+    // Plot transform + curve captured on the last Redraw, so the hover read-out can
+    // map a cursor position back to a temperature/time without recomputing the chart.
+    private double _plotW;
+    private double _plotH;
+    private List<Point> _hoverPoints = new();
+    private readonly List<UIElement> _hoverOverlay = new();
+
     public ProfileEditorChart()
     {
         InitializeComponent();
@@ -137,6 +144,8 @@ public partial class ProfileEditorChart : UserControl
     private void Redraw()
     {
         PlotCanvas.Children.Clear();
+        _hoverOverlay.Clear();
+        _hoverPoints = new List<Point>();
         double w = PlotCanvas.ActualWidth, h = PlotCanvas.ActualHeight;
         if (w <= 0 || h <= 0)
         {
@@ -170,6 +179,8 @@ public partial class ProfileEditorChart : UserControl
         double plotW = w - PadLeft - PadRight;
         double plotH = h - PadTop - PadBottom;
         _pxPerMinute = plotW / totalMin;
+        _plotW = plotW;
+        _plotH = plotH;
 
         // Gridlines + Y labels.
         for (int i = 0; i <= 4; i++)
@@ -246,6 +257,7 @@ public partial class ProfileEditorChart : UserControl
         }
 
         PlotCanvas.Children.Add(new Polyline { Points = linePoints, Stroke = Accent, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round });
+        _hoverPoints = linePoints.ToList();
 
         // Draggable handles.
         foreach ((int index, double x, double y) in handles)
@@ -294,9 +306,11 @@ public partial class ProfileEditorChart : UserControl
     {
         if (_dragIndex < 0)
         {
+            UpdateHover(e.GetPosition(PlotCanvas));
             return;
         }
 
+        ClearHoverOverlay();
         List<SegmentViewModel> segments = GetSegments();
         if (_dragIndex >= segments.Count)
         {
@@ -344,5 +358,122 @@ public partial class ProfileEditorChart : UserControl
         Canvas.SetLeft(tb, left);
         Canvas.SetTop(tb, top);
         PlotCanvas.Children.Add(tb);
+    }
+
+    // ===== Hover read-out: crosshair + temperature/time chip following the cursor =====
+
+    private void PlotCanvas_MouseLeave(object sender, MouseEventArgs e) => ClearHoverOverlay();
+
+    private void UpdateHover(Point pos)
+    {
+        ClearHoverOverlay();
+        if (_dragIndex >= 0 || _hoverPoints.Count == 0 || _plotW <= 0 || _pxPerMinute <= 0)
+        {
+            return;
+        }
+
+        double left = PadLeft;
+        double mx = Math.Clamp(pos.X, left, left + _plotW);
+        if (InterpolateY(_hoverPoints, mx) is not { } py)
+        {
+            return;
+        }
+
+        double minutes = (mx - left) / _pxPerMinute;
+        double temperature = _maxY - (py - PadTop) / _plotH * (_maxY - _minY);
+
+        Brush accent = Accent;
+        AddHoverOverlay(new Line
+        {
+            X1 = mx, Y1 = PadTop, X2 = mx, Y2 = PadTop + _plotH,
+            Stroke = accent, StrokeThickness = 1, Opacity = 0.6,
+            StrokeDashArray = new DoubleCollection { 3, 3 },
+        });
+
+        var dot = new Ellipse { Width = 8, Height = 8, Fill = accent, Stroke = Brushes.White, StrokeThickness = 1 };
+        Canvas.SetLeft(dot, mx - 4);
+        Canvas.SetTop(dot, py - 4);
+        AddHoverOverlay(dot);
+
+        var chip = new Border
+        {
+            Background = accent,
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(6, 2, 6, 2),
+            Child = new TextBlock
+            {
+                Text = $"{temperature:0.0} °C  ·  {FormatMinutesShort(minutes)}",
+                Foreground = Brushes.White,
+                FontSize = 11,
+                FontFamily = new FontFamily("Segoe UI Semibold"),
+            },
+        };
+        chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double cx = mx + 8;
+        if (cx + chip.DesiredSize.Width > left + _plotW)
+        {
+            cx = mx - chip.DesiredSize.Width - 8;
+        }
+
+        double cy = py - 26 < PadTop ? py + 10 : py - 26;
+        Canvas.SetLeft(chip, Math.Max(left, cx));
+        Canvas.SetTop(chip, cy);
+        AddHoverOverlay(chip);
+    }
+
+    private static string FormatMinutesShort(double minutes)
+    {
+        if (minutes < 60)
+        {
+            return $"{minutes:0.#} min";
+        }
+
+        var ts = TimeSpan.FromMinutes(minutes);
+        return ts.TotalDays >= 1
+            ? $"{(int)ts.TotalDays} d {ts.Hours} h"
+            : $"{(int)ts.TotalHours} h {ts.Minutes} min";
+    }
+
+    /// <summary>Linearly interpolates the Y (px) of a monotonically non-decreasing-X
+    /// point list at a given X (px); flat jumps between equal X values pick the
+    /// nearer neighbour rather than dividing by zero.</summary>
+    private static double? InterpolateY(IReadOnlyList<Point> pts, double x)
+    {
+        if (pts.Count == 0)
+        {
+            return null;
+        }
+
+        if (x <= pts[0].X) return pts[0].Y;
+        if (x >= pts[^1].X) return pts[^1].Y;
+        for (int i = 1; i < pts.Count; i++)
+        {
+            if (x <= pts[i].X)
+            {
+                Point a = pts[i - 1];
+                Point b = pts[i];
+                double dx = b.X - a.X;
+                double t = dx == 0 ? 0 : (x - a.X) / dx;
+                return a.Y + (b.Y - a.Y) * t;
+            }
+        }
+
+        return pts[^1].Y;
+    }
+
+    private void AddHoverOverlay(UIElement element)
+    {
+        _hoverOverlay.Add(element);
+        PlotCanvas.Children.Add(element);
+    }
+
+    private void ClearHoverOverlay()
+    {
+        foreach (UIElement element in _hoverOverlay)
+        {
+            PlotCanvas.Children.Remove(element);
+        }
+
+        _hoverOverlay.Clear();
     }
 }

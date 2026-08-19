@@ -1955,7 +1955,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             defaultSoakTolerance: SikaSoakToleranceC,
             soakAllSegments: IsSika);
         _activeRunner = runner;
-        double singlePassSeconds = Math.Max(1, profile.SinglePassDuration.TotalSeconds);
 
         runner.Progress += (_, e) => RunOnUi(() =>
         {
@@ -1977,10 +1976,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 $"· {e.TemperatureSetpoint:0.0} °C" +
                 (e.HumiditySetpoint is { } h ? $", {h:0.0} %" : string.Empty);
 
-            // Advance the "now" marker on the profile preview (within a single pass of the segments).
-            double completedBeforeSegment = ElapsedBeforeSegment(profile, e.SegmentIndex);
-            double doneThisPass = completedBeforeSegment + e.Segment.Duration.TotalSeconds * e.Fraction;
-            _profileNowFraction = Math.Clamp(doneThisPass / singlePassSeconds, 0d, 1d);
+            // Advance the "now" marker on the profile preview: OverallFraction already
+            // spans intro + all cycles + outro, matching the now-always-fully-cycled
+            // preview curve built below.
+            _profileNowFraction = Math.Clamp(e.OverallFraction, 0d, 1d);
             BuildProfilePreview();
 
             // Per-profile temperature record (set point vs measured chamber
@@ -2117,17 +2116,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         if (t.TotalHours >= 1) return $"{(int)t.TotalHours} h {t.Minutes} min";
         if (t.TotalMinutes >= 1) return $"{t.Minutes} min {t.Seconds} s";
         return $"{t.Seconds} s";
-    }
-
-    private static double ElapsedBeforeSegment(TestProfile profile, int segmentIndex)
-    {
-        double seconds = 0;
-        for (int i = 0; i < segmentIndex && i < profile.Segments.Count; i++)
-        {
-            seconds += profile.Segments[i].Duration.TotalSeconds;
-        }
-
-        return seconds;
     }
 
     private void StopProfile()
@@ -3425,10 +3413,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        // Before a run, repeat only the BODY ×Cycles (nábeh a dobeh run once) and shade
-        // the repeated stretch, so the operator sees exactly what will be cycled. During
-        // a run keep a single pass (the "now" marker + "cyklus X/Y" status show progress).
-        int cycles = IsProfileRunning ? 1 : Math.Max(1, Cycles);
+        // Repeat the BODY ×Cycles (nábeh a dobeh run once) and shade the repeated
+        // stretch, so the operator sees exactly what is (or will be) cycled – both
+        // before a run and while it's in progress, where the "now" marker then shows
+        // how far into the whole multi-cycle run the test actually is.
+        int cycles = Math.Max(1, Cycles);
         (int bStart, int bEnd) = BodyRegion(segs);
 
         var pts = new List<Point>();

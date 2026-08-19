@@ -38,8 +38,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         LoadSelectedProfileCommand = new RelayCommand(
             () => { if (SelectedLibraryProfile is { } p) LoadProfile(p); },
             () => SelectedLibraryProfile is not null);
-        LoadKnownValues();
-        RefreshLibraryProfiles();
+        RefreshLibraryProfiles(); // also loads known sensors/tags/customers/projects
         Recalculate(); // also generates the initial automatic name
     }
 
@@ -54,6 +53,12 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     /// <summary>Known tags from the library (suggestions).</summary>
     public ObservableCollection<string> KnownTags { get; } = new();
+
+    /// <summary>Known customer names from the library, for the "Zákazník" picker.</summary>
+    public ObservableCollection<string> KnownCustomers { get; } = new();
+
+    /// <summary>Known project names from the library, for the "Projekt" picker.</summary>
+    public ObservableCollection<string> KnownProjects { get; } = new();
 
     /// <summary>Profiles available in the shared library, for the "load existing profile to edit" picker.</summary>
     public ObservableCollection<TestProfile> LibraryProfiles { get; } = new();
@@ -80,6 +85,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         SelectedLibraryProfile = previously is { } id ? LibraryProfiles.FirstOrDefault(p => p.Id == id) : null;
+        LoadKnownValues();
     }
 
     /// <summary>
@@ -96,9 +102,13 @@ public sealed class QuickProfileViewModel : ObservableObject
     private string _project = string.Empty;
     public string Project { get => _project; set => SetProperty(ref _project, value); }
 
+    /// <summary>(Re)loads the sensor/tag/customer/project suggestion lists from every
+    /// profile in the library, so newly saved values show up without a restart.</summary>
     private void LoadKnownValues()
     {
         List<TestProfile> all = _store.LoadAll();
+
+        KnownSensors.Clear();
         foreach (string s in all.SelectMany(p => p.Sensors ?? new List<string>())
                      .Where(s => !string.IsNullOrWhiteSpace(s))
                      .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -107,12 +117,31 @@ public sealed class QuickProfileViewModel : ObservableObject
             KnownSensors.Add(s);
         }
 
+        KnownTags.Clear();
         foreach (string t in all.SelectMany(p => p.Tags ?? new List<string>())
                      .Where(t => !string.IsNullOrWhiteSpace(t))
                      .Distinct(StringComparer.OrdinalIgnoreCase)
                      .OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase))
         {
             KnownTags.Add(t);
+        }
+
+        KnownCustomers.Clear();
+        foreach (string c in all.Select(p => p.Customer)
+                     .Where(c => !string.IsNullOrWhiteSpace(c))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(c => c, StringComparer.CurrentCultureIgnoreCase))
+        {
+            KnownCustomers.Add(c);
+        }
+
+        KnownProjects.Clear();
+        foreach (string p in all.Select(x => x.Project)
+                     .Where(p => !string.IsNullOrWhiteSpace(p))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(p => p, StringComparer.CurrentCultureIgnoreCase))
+        {
+            KnownProjects.Add(p);
         }
     }
 
@@ -140,8 +169,19 @@ public sealed class QuickProfileViewModel : ObservableObject
         get => _mode;
         set
         {
+            QuickProfileMode previous = _mode;
             if (SetProperty(ref _mode, value))
             {
+                // Switching from the sweep into the typed sequence: carry over the
+                // temperatures the sweep is currently set to, so the sequence starts
+                // as an editable copy of what was just configured instead of the
+                // (likely stale) default "0;20;40;20;0".
+                if (value == QuickProfileMode.Sequence && previous == QuickProfileMode.Parametric)
+                {
+                    SequenceText = string.Join(";",
+                        ComputeSweepSequence().Select(t => t.ToString("0.#", CultureInfo.InvariantCulture)));
+                }
+
                 OnPropertyChanged(nameof(IsParametricMode));
                 OnPropertyChanged(nameof(IsSequenceMode));
                 OnPropertyChanged(nameof(HasLeadIn));
@@ -539,6 +579,34 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         temps[n - 1] = HighTemperature; // pin the endpoint to avoid float drift
+        return temps;
+    }
+
+    /// <summary>
+    /// The sweep's own temperature points, in the same order the parametric builder
+    /// visits them – ascending run, optional double-peak dip/high, optional descending
+    /// run back down – but without the lead-in or end-safety segments. Used to seed
+    /// <see cref="SequenceText"/> when switching from "Sweep" to "Postupnosť teplôt".
+    /// </summary>
+    private List<double> ComputeSweepSequence()
+    {
+        List<double> up = AscendingTemps();
+        var temps = new List<double>(up);
+
+        if (DoublePeak)
+        {
+            temps.Add(HighTemperature - PeakDipCelsius);
+            temps.Add(HighTemperature);
+        }
+
+        if (IncludeDescending)
+        {
+            for (int i = up.Count - 2; i >= 0; i--)
+            {
+                temps.Add(up[i]);
+            }
+        }
+
         return temps;
     }
 

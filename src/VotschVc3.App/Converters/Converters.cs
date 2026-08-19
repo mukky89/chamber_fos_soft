@@ -133,6 +133,27 @@ public sealed class TagBrushConverter : IValueConverter
         Binding.DoNothing;
 }
 
+/// <summary>
+/// Two-way converts between a <see cref="double"/> and its text representation for a
+/// plain numeric-entry <see cref="System.Windows.Controls.TextBox"/>. Parsing back
+/// accepts either <c>.</c> or <c>,</c> as the decimal separator regardless of the
+/// control's <c>Language</c>/culture (which WPF's default numeric binding conversion
+/// does not), so typing "22,5" works the same as "22.5".
+/// </summary>
+public sealed class FlexibleDecimalConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is double d ? d.ToString("0.###", CultureInfo.InvariantCulture) : string.Empty;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        string text = (value as string)?.Trim().Replace(',', '.') ?? string.Empty;
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double result)
+            ? result
+            : Binding.DoNothing;
+    }
+}
+
 /// <summary>Inverts a boolean.</summary>
 public sealed class InverseBooleanConverter : IValueConverter
 {

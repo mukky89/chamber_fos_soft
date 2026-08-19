@@ -562,11 +562,20 @@
                         <ToggleButton Template="{StaticResource ComboToggleTemplate}"
                                       Focusable="False" ClickMode="Press"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
-                        <ContentPresenter IsHitTestVisible="False" Margin="9,0,26,0"
+                        <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False" Margin="9,0,26,0"
                                           VerticalAlignment="Center" HorizontalAlignment="Left"
                                           Content="{TemplateBinding SelectionBoxItem}"
                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                           TextElement.Foreground="{TemplateBinding Foreground}" />
+                        <!-- Editable-mode text part (IsEditable="True"): a plain, self-styled
+                             TextBox so it isn't picked up by the implicit dark TextBox style
+                             (which would give it its own border/background on top of this one). -->
+                        <TextBox x:Name="PART_EditableTextBox" Style="{x:Null}"
+                                 Margin="9,0,26,0" Padding="0" Background="Transparent" BorderThickness="0"
+                                 Foreground="{TemplateBinding Foreground}" CaretBrush="White"
+                                 VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                 IsReadOnly="{TemplateBinding IsReadOnly}"
+                                 Visibility="Collapsed" Focusable="True" />
                         <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
                                AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
                             <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
@@ -582,6 +591,10 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="ContentSite" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

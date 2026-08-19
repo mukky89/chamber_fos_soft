@@ -64,7 +64,7 @@
                 <ColumnDefinition Width="24" />
             </Grid.ColumnDefinitions>
             <TextBox x:Name="ValueBox" Grid.Column="0" Style="{StaticResource StepperTextBox}"
-                     Text="{Binding Value, ElementName=Root, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                     Text="{Binding Value, ElementName=Root, UpdateSourceTrigger=LostFocus, Converter={StaticResource FlexibleDecimal}}" />
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
