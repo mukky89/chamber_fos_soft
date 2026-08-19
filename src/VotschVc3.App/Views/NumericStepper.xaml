@@ -63,8 +63,10 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="24" />
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="ValueBox" Grid.Column="0" Style="{StaticResource StepperTextBox}"
-                     Text="{Binding Value, ElementName=Root, UpdateSourceTrigger=LostFocus, Converter={StaticResource FlexibleDecimal}}" />
+            <!-- Text is managed entirely in code-behind (see NumericStepper.xaml.cs):
+                 every valid keystroke commits live to Value without reformatting the
+                 box mid-edit; Enter/losing focus canonicalises the display text. -->
+            <TextBox x:Name="ValueBox" Grid.Column="0" Style="{StaticResource StepperTextBox}" />
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />

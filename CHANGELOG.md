@@ -4,6 +4,25 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.50.0] – 2026-08-19
+
+### Pridané / zmenené
+- **Rýchly vytvárač profilov – živý náhľad pri písaní.** Číselné polia (Od/Do,
+  dĺžka plata/nábehu, počet cyklov, ...) teraz aktualizujú graf a súhrn priamo
+  počas písania platnej hodnoty (nie až po opustení poľa) – neúplný zápis
+  (napr. „-" alebo „22,") sa jednoducho ignoruje, kým ho nedopíšeš. Enter
+  vždy vynúti aplikovanie a zarovnanie zapísanej hodnoty ako poistka.
+- **Postupnosť teplôt – vlastná dĺžka plata pre každý bod.** Namiesto jedného
+  textového poľa so zdieľanou dĺžkou plata je postupnosť teraz zoznam
+  editovateľných bodov (teplota + vlastná dĺžka plata), s tlačidlami na
+  pridanie bodu, rýchle hromadné pridanie (oddelené bodkočiarkou), presun
+  hore/dole a odobratie. Rampa medzi bodmi zostáva zdieľaná.
+- **Načítanie existujúceho profilu – presné dáta.** Pri načítaní profilu na
+  úpravu sa dĺžka plata každého bodu teraz rekonštruuje z jeho skutočného
+  segmentu namiesto toho, aby sa všetkým bodom priradila jedna spoločná
+  dĺžka (podľa prvého nájdeného plata) – graf aj zoznam bodov po načítaní
+  presne zodpovedajú uloženému profilu, aj keď mal rôzne dĺžky plata.
+
 ## [1.49.0] – 2026-08-19
 
 ### Pridané / zmenené

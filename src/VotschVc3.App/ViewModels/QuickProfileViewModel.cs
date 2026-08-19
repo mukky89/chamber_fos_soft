@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Profiles;
@@ -11,7 +12,7 @@ public enum QuickProfileMode
     /// <summary>Low/high range + step count/size, optionally descending back down (the original builder).</summary>
     Parametric,
 
-    /// <summary>An explicit, semicolon-separated list of temperatures, e.g. "0;20;30;60;30;20;0".</summary>
+    /// <summary>An explicit, editable list of temperature points, each with its own plateau (hold) length.</summary>
     Sequence,
 }
 
@@ -38,7 +39,13 @@ public sealed class QuickProfileViewModel : ObservableObject
         LoadSelectedProfileCommand = new RelayCommand(
             () => { if (SelectedLibraryProfile is { } p) LoadProfile(p); },
             () => SelectedLibraryProfile is not null);
+        AddSequenceStepCommand = new RelayCommand(AddSequenceStep);
+        AddSequenceStepsFromTextCommand = new RelayCommand(AddSequenceStepsFromText);
+        RemoveSequenceStepCommand = new RelayCommand<SequenceStepViewModel>(RemoveSequenceStep);
+        MoveSequenceStepUpCommand = new RelayCommand<SequenceStepViewModel>(s => MoveSequenceStep(s, -1));
+        MoveSequenceStepDownCommand = new RelayCommand<SequenceStepViewModel>(s => MoveSequenceStep(s, +1));
         RefreshLibraryProfiles(); // also loads known sensors/tags/customers/projects
+        ReplaceSequenceSteps(DefaultSequenceSteps());
         Recalculate(); // also generates the initial automatic name
     }
 
@@ -175,11 +182,10 @@ public sealed class QuickProfileViewModel : ObservableObject
                 // Switching from the sweep into the typed sequence: carry over the
                 // temperatures the sweep is currently set to, so the sequence starts
                 // as an editable copy of what was just configured instead of the
-                // (likely stale) default "0;20;40;20;0".
+                // (likely stale) default points.
                 if (value == QuickProfileMode.Sequence && previous == QuickProfileMode.Parametric)
                 {
-                    SequenceText = string.Join(";",
-                        ComputeSweepSequence().Select(t => t.ToString("0.#", CultureInfo.InvariantCulture)));
+                    ReplaceSequenceSteps(ComputeSweepSequence().Select(t => (t, PlateauMinutes)));
                 }
 
                 OnPropertyChanged(nameof(IsParametricMode));
@@ -202,24 +208,44 @@ public sealed class QuickProfileViewModel : ObservableObject
         set { if (value) Mode = QuickProfileMode.Sequence; }
     }
 
-    private string _sequenceText = "0;20;40;20;0";
-    /// <summary>Typed temperature sequence, e.g. "0;20;30;60;30;20;0" – a ramp+plateau
-    /// pair is generated between every consecutive pair of values.</summary>
-    public string SequenceText
+    /// <summary>
+    /// The typed temperature sequence, as individually editable points – each with its
+    /// own plateau (hold) length – instead of one raw semicolon-separated string with a
+    /// single shared hold time. Ramps between consecutive points still share
+    /// <see cref="RampMinutes"/>.
+    /// </summary>
+    public ObservableCollection<SequenceStepViewModel> SequenceSteps { get; } = new();
+
+    private string _newSequenceTemperatures = string.Empty;
+    /// <summary>
+    /// Quick-add buffer: one or more temperatures separated by semicolons (comma or dot
+    /// decimals), appended as new points via <see cref="AddSequenceStepsFromTextCommand"/>
+    /// instead of retyping the whole sequence for every point.
+    /// </summary>
+    public string NewSequenceTemperatures
     {
-        get => _sequenceText;
-        set
-        {
-            if (SetProperty(ref _sequenceText, value))
-            {
-                OnPropertyChanged(nameof(HasLeadIn));
-                Recalculate();
-            }
-        }
+        get => _newSequenceTemperatures;
+        set => SetProperty(ref _newSequenceTemperatures, value);
     }
 
+    /// <summary>Appends a single blank point (same temperature as the last one) to <see cref="SequenceSteps"/>.</summary>
+    public RelayCommand AddSequenceStepCommand { get; }
+
+    /// <summary>Parses <see cref="NewSequenceTemperatures"/> and appends each value as a new point.</summary>
+    public RelayCommand AddSequenceStepsFromTextCommand { get; }
+
+    /// <summary>Removes one point from <see cref="SequenceSteps"/>.</summary>
+    public RelayCommand<SequenceStepViewModel> RemoveSequenceStepCommand { get; }
+
+    /// <summary>Moves a point one position earlier in <see cref="SequenceSteps"/>.</summary>
+    public RelayCommand<SequenceStepViewModel> MoveSequenceStepUpCommand { get; }
+
+    /// <summary>Moves a point one position later in <see cref="SequenceSteps"/>.</summary>
+    public RelayCommand<SequenceStepViewModel> MoveSequenceStepDownCommand { get; }
+
     private string _sequenceParseError = string.Empty;
-    /// <summary>Non-empty when <see cref="SequenceText"/> could not be parsed (shown next to the input).</summary>
+    /// <summary>Non-empty when <see cref="SequenceSteps"/> does not have enough points, or the
+    /// quick-add text could not be parsed (shown next to the sequence editor).</summary>
     public string SequenceParseError
     {
         get => _sequenceParseError;
@@ -228,6 +254,93 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     /// <summary>True when <see cref="SequenceParseError"/> has a message to show.</summary>
     public bool HasSequenceParseError => !string.IsNullOrEmpty(SequenceParseError);
+
+    private void AddSequenceStep()
+    {
+        double temperature = SequenceSteps.Count > 0 ? SequenceSteps[^1].Temperature : 20;
+        AddSequenceStepInternal(temperature, PlateauMinutes);
+        Recalculate();
+    }
+
+    private void AddSequenceStepsFromText()
+    {
+        if (!TryParseTemperatureList(NewSequenceTemperatures, out List<double> values, out string error))
+        {
+            Status = error;
+            return;
+        }
+
+        foreach (double v in values)
+        {
+            AddSequenceStepInternal(v, PlateauMinutes);
+        }
+
+        NewSequenceTemperatures = string.Empty;
+        Recalculate();
+    }
+
+    private void RemoveSequenceStep(SequenceStepViewModel? step)
+    {
+        if (step is null)
+        {
+            return;
+        }
+
+        UnhookSequenceStep(step);
+        SequenceSteps.Remove(step);
+        Recalculate();
+    }
+
+    private void MoveSequenceStep(SequenceStepViewModel? step, int direction)
+    {
+        if (step is null)
+        {
+            return;
+        }
+
+        int from = SequenceSteps.IndexOf(step);
+        int to = from + direction;
+        if (from < 0 || to < 0 || to >= SequenceSteps.Count)
+        {
+            return;
+        }
+
+        SequenceSteps.Move(from, to);
+        Recalculate();
+    }
+
+    private void AddSequenceStepInternal(double temperature, double plateauMinutes)
+    {
+        var step = new SequenceStepViewModel(temperature, plateauMinutes);
+        HookSequenceStep(step);
+        SequenceSteps.Add(step);
+    }
+
+    private void HookSequenceStep(SequenceStepViewModel step) => step.PropertyChanged += OnSequenceStepChanged;
+
+    private void UnhookSequenceStep(SequenceStepViewModel step) => step.PropertyChanged -= OnSequenceStepChanged;
+
+    private void OnSequenceStepChanged(object? sender, PropertyChangedEventArgs e) => Recalculate();
+
+    /// <summary>Replaces <see cref="SequenceSteps"/> wholesale (unhooking/hooking change
+    /// notifications correctly) without triggering a recalculation itself – callers
+    /// recalculate afterward alongside whatever else they changed.</summary>
+    private void ReplaceSequenceSteps(IEnumerable<(double Temperature, double PlateauMinutes)> steps)
+    {
+        foreach (SequenceStepViewModel s in SequenceSteps)
+        {
+            UnhookSequenceStep(s);
+        }
+
+        SequenceSteps.Clear();
+        foreach ((double temperature, double plateauMinutes) in steps)
+        {
+            AddSequenceStepInternal(temperature, plateauMinutes);
+        }
+    }
+
+    private List<(double Temperature, double PlateauMinutes)> DefaultSequenceSteps() =>
+        new List<double> { 0, 20, 40, 20, 0 }.Select(t => (t, PlateauMinutes)).ToList();
 
     private bool _autoName = true;
     /// <summary>
@@ -342,9 +455,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         {
             if (Mode == QuickProfileMode.Sequence)
             {
-                return TryParseSequence(SequenceText, out List<double> seq, out _) && seq.Count > 0
-                    ? seq[0]
-                    : StartTemperature;
+                return SequenceSteps.Count > 0 ? SequenceSteps[0].Temperature : StartTemperature;
             }
 
             return LowTemperature;
@@ -446,8 +557,10 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// Loads an existing profile back into the editor as an editable temperature
     /// sequence, so a previously created profile (whether built here or in the full
     /// editor) can be tweaked and re-saved instead of only ever creating new ones.
-    /// The sequence is reconstructed from each segment's distinct target temperature;
-    /// the shared ramp/hold length is taken from the first ramp/hold segment found.
+    /// Each point's own plateau length is reconstructed from its actual hold segment
+    /// (see <see cref="ExtractSequenceSteps"/>), so a profile with different hold times
+    /// per step is reproduced faithfully instead of being flattened to one shared
+    /// length; the shared ramp length is taken from the first ramp segment found.
     /// Lead-in and end-safety-cooldown are turned off (their source segments become
     /// part of the plain sequence instead) so nothing is double-added; re-enable them
     /// from the checkboxes if the loaded profile needs them.
@@ -462,15 +575,11 @@ public sealed class QuickProfileViewModel : ObservableObject
         StartFromCurrent = false;
         EndAtSafeTemperature = false;
 
-        List<double> sequence = ExtractSequence(profile.Segments);
-        SequenceText = sequence.Count > 0
-            ? string.Join(";", sequence.Select(t => t.ToString("0.#", CultureInfo.InvariantCulture)))
-            : "0;20;40;20;0";
+        List<(double Temperature, double PlateauMinutes)> sequence = ExtractSequenceSteps(profile.Segments);
+        ReplaceSequenceSteps(sequence.Count > 0 ? sequence : DefaultSequenceSteps());
 
         ProfileSegment? firstRamp = profile.Segments.FirstOrDefault(s => s.IsRamp);
-        ProfileSegment? firstHold = profile.Segments.FirstOrDefault(s => !s.IsRamp);
         if (firstRamp is not null) RampMinutes = Math.Max(0, firstRamp.Duration.TotalMinutes);
-        if (firstHold is not null) PlateauMinutes = Math.Max(0, firstHold.Duration.TotalMinutes);
 
         Cycles = Math.Max(1, profile.Cycles);
         CycleBodyOnly = profile.HasCycleRegion;
@@ -488,21 +597,35 @@ public sealed class QuickProfileViewModel : ObservableObject
         IsAutoName = false;
 
         IsSaveSuccess = false;
-        Status = $"Profil „{profile.Name}“ načítaný na úpravu ({sequence.Count} teplotných bodov). " +
+        Status = $"Profil „{profile.Name}“ načítaný na úpravu ({sequence.Count} teplotných bodov, každý s vlastnou dĺžkou plata). " +
             "Nábeh a bezpečnostné ukončenie sú vypnuté – zapni ich znova, ak ich profil potrebuje.";
         Recalculate();
     }
 
-    /// <summary>Collapses a segment list down to its distinct consecutive target temperatures.</summary>
-    private static List<double> ExtractSequence(IReadOnlyList<ProfileSegment> segments)
+    /// <summary>
+    /// Reconstructs sequence points from a segment list: every hold (non-ramp) segment
+    /// becomes one point, carrying its own actual duration as that point's plateau
+    /// length – so re-loading a profile reproduces its original per-step hold times
+    /// instead of flattening them to one shared length. A ramp's target temperature
+    /// becomes a (zero-length) point of its own only when nothing follows it at the
+    /// same temperature (e.g. a profile with no explicit holds); otherwise the ramp
+    /// simply establishes the point that the next hold's duration then folds into.
+    /// </summary>
+    private static List<(double Temperature, double PlateauMinutes)> ExtractSequenceSteps(IReadOnlyList<ProfileSegment> segments)
     {
-        var result = new List<double>();
+        var result = new List<(double Temperature, double PlateauMinutes)>();
         foreach (ProfileSegment s in segments)
         {
             double t = Math.Round(s.TargetTemperature, 1);
-            if (result.Count == 0 || Math.Abs(result[^1] - t) > 0.05)
+            double holdMinutes = s.IsRamp ? 0 : Math.Max(0, s.Duration.TotalMinutes);
+
+            if (result.Count > 0 && Math.Abs(result[^1].Temperature - t) <= 0.05)
             {
-                result.Add(t);
+                result[^1] = (result[^1].Temperature, result[^1].PlateauMinutes + holdMinutes);
+            }
+            else
+            {
+                result.Add((t, holdMinutes));
             }
         }
 
@@ -586,7 +709,7 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// The sweep's own temperature points, in the same order the parametric builder
     /// visits them – ascending run, optional double-peak dip/high, optional descending
     /// run back down – but without the lead-in or end-safety segments. Used to seed
-    /// <see cref="SequenceText"/> when switching from "Sweep" to "Postupnosť teplôt".
+    /// <see cref="SequenceSteps"/> when switching from "Sweep" to "Postupnosť teplôt".
     /// </summary>
     private List<double> ComputeSweepSequence()
     {
@@ -669,29 +792,29 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Builds a step-and-hold segment list from <see cref="SequenceText"/>: a plateau
-    /// at the first temperature, then a ramp+plateau pair for every following value,
-    /// using the shared <see cref="RampMinutes"/> / <see cref="PlateauMinutes"/> for
-    /// every step. Returns an empty list while the sequence text does not parse.
+    /// Builds a step-and-hold segment list from <see cref="SequenceSteps"/>: a plateau
+    /// at the first point (its own length), then a ramp (shared <see cref="RampMinutes"/>)
+    /// + plateau (that point's own length) for every following point. Returns an empty
+    /// list while there are fewer than two points.
     /// </summary>
     private List<ProfileSegment> BuildSequenceSegments()
     {
         var segs = new List<ProfileSegment>();
-        if (!TryParseSequence(SequenceText, out List<double> seq, out _))
+        if (SequenceSteps.Count < 2)
         {
             return segs;
         }
 
         if (HasLeadIn)
         {
-            segs.Add(Ramp(seq[0], StartRampMinutes));
+            segs.Add(Ramp(SequenceSteps[0].Temperature, StartRampMinutes));
         }
 
-        segs.Add(Plateau(seq[0], PlateauMinutes));
-        for (int i = 1; i < seq.Count; i++)
+        segs.Add(Plateau(SequenceSteps[0].Temperature, SequenceSteps[0].PlateauMinutes));
+        for (int i = 1; i < SequenceSteps.Count; i++)
         {
-            segs.Add(Ramp(seq[i], RampMinutes));
-            segs.Add(Plateau(seq[i], PlateauMinutes));
+            segs.Add(Ramp(SequenceSteps[i].Temperature, RampMinutes));
+            segs.Add(Plateau(SequenceSteps[i].Temperature, SequenceSteps[i].PlateauMinutes));
         }
 
         if (EndAtSafeTemperature)
@@ -704,17 +827,18 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Parses a semicolon-separated temperature sequence, e.g. "0;20;30;60;30;20;0".
-    /// Each token accepts either '.' or ',' as the decimal separator. Requires at
-    /// least two values (otherwise there is nothing to ramp between).
+    /// Parses a semicolon-separated list of temperatures, e.g. "20;30,5;60" for the
+    /// quick-add buffer. Each token accepts either '.' or ',' as the decimal separator.
+    /// Unlike the old whole-sequence parser this only needs one value (it appends to
+    /// whatever points already exist).
     /// </summary>
-    private static bool TryParseSequence(string? text, out List<double> values, out string error)
+    private static bool TryParseTemperatureList(string? text, out List<double> values, out string error)
     {
         values = new List<double>();
         error = string.Empty;
         if (string.IsNullOrWhiteSpace(text))
         {
-            error = "Zadaj postupnosť teplôt oddelenú bodkočiarkou, napr. 0;20;30;60;30;20;0.";
+            error = "Zadaj aspoň jednu teplotu (voliteľne viac oddelených bodkočiarkou).";
             return false;
         }
 
@@ -736,9 +860,9 @@ public sealed class QuickProfileViewModel : ObservableObject
             values.Add(value);
         }
 
-        if (values.Count < 2)
+        if (values.Count == 0)
         {
-            error = "Zadaj aspoň dve teploty oddelené bodkočiarkou.";
+            error = "Zadaj aspoň jednu teplotu.";
             return false;
         }
 
@@ -877,22 +1001,24 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     private void RecalculateSequence()
     {
-        bool ok = TryParseSequence(SequenceText, out List<double> seq, out string error);
-        SequenceParseError = ok ? string.Empty : error;
+        SequenceParseError = SequenceSteps.Count < 2
+            ? "Pridaj aspoň dve teploty (body postupnosti)."
+            : string.Empty;
 
         StepTemperatures.Clear();
-        foreach (double t in seq)
+        foreach (SequenceStepViewModel step in SequenceSteps)
         {
-            StepTemperatures.Add($"{t:0.#} °C");
+            StepTemperatures.Add($"{step.Temperature:0.#} °C · {step.PlateauMinutes:0.#} min");
         }
 
         SegmentCount = Segments.Count;
         TestProfile profile = BuildProfile();
         BaseTotalText = Format(profile.TotalDuration.TotalMinutes);
         OptimizedTotalText = BaseTotalText;
-        EffectivePlateauText = $"{PlateauMinutes:0.#} min / plato";
+        double avgPlateau = SequenceSteps.Count > 0 ? SequenceSteps.Average(s => s.PlateauMinutes) : 0;
+        EffectivePlateauText = $"{avgPlateau:0.#} min / plato (priemer)";
         RampRateText = RampMinutes > 0 ? $"{RampMinutes:0.#} min / rampa" : "skok (0 min)";
-        Summary = ComposeSequenceSummary(seq);
+        Summary = ComposeSequenceSummary();
     }
 
     /// <summary>
@@ -911,11 +1037,11 @@ public sealed class QuickProfileViewModel : ObservableObject
         (Cycles > 1 ? $" · cyklus ×{Cycles}{(CycleBodyOnly ? " (telo)" : string.Empty)}" : string.Empty);
 
     /// <summary>Same description as <see cref="ComposeSummary"/>, for a typed sequence.</summary>
-    private string ComposeSequenceSummary(List<double> seq) =>
-        seq.Count == 0
+    private string ComposeSequenceSummary() =>
+        SequenceSteps.Count == 0
             ? SequenceParseError
-            : string.Join(" → ", seq.Select(t => t.ToString("0.#", CultureInfo.CurrentCulture))) + " °C" +
-              $" · rampa {RampMinutes:0.#} min · plato {PlateauMinutes:0.#} min" +
+            : string.Join(" → ", SequenceSteps.Select(s => s.Temperature.ToString("0.#", CultureInfo.CurrentCulture))) + " °C" +
+              $" · rampa {RampMinutes:0.#} min" +
               (HasLeadIn ? $" · nábeh z {StartTemperature:0.#} °C ({StartRampMinutes:0} min)" : string.Empty) +
               (EndAtSafeTemperature ? $" · koniec na {EndTemperature:0.#} °C ({Math.Max(60, EndHoldMinutes):0} min)" : string.Empty) +
               (Cycles > 1 ? $" · cyklus ×{Cycles}{(CycleBodyOnly ? " (telo)" : string.Empty)}" : string.Empty);
@@ -974,13 +1100,13 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>Compact technical name for a typed sequence, e.g. <c>0-20-40-20-0 °C · Σ 3h 20min</c>.</summary>
     private string ComposeSequenceAutoNameCore()
     {
-        if (!TryParseSequence(SequenceText, out List<double> seq, out _))
+        if (SequenceSteps.Count < 2)
         {
             return "Rýchly profil (postupnosť)";
         }
 
         double totalMinutes = Segments.Sum(s => s.DurationMinutes);
-        return $"{string.Join("-", seq.Select(t => t.ToString("0.#", CultureInfo.InvariantCulture)))} °C" +
+        return $"{string.Join("-", SequenceSteps.Select(s => s.Temperature.ToString("0.#", CultureInfo.InvariantCulture)))} °C" +
             (Cycles > 1 ? $" · ×{Cycles}" : string.Empty) +
             $" · Σ {FormatDurationCompact(totalMinutes)}";
     }
@@ -1054,7 +1180,6 @@ public sealed class QuickProfileViewModel : ObservableObject
         DisarmDelete();
         _editingProfileId = null;
         Mode = QuickProfileMode.Parametric;
-        SequenceText = "0;20;40;20;0";
         NamePrefix = string.Empty;
         LowTemperature = -20;
         HighTemperature = 60;
@@ -1063,6 +1188,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         TemperatureStep = 10;
         PlateauMinutes = 30;
         RampMinutes = 20;
+        ReplaceSequenceSteps(DefaultSequenceSteps());
         IncludeDescending = true;
         DoublePeak = true;
         PeakDipCelsius = 10;
@@ -1082,6 +1208,8 @@ public sealed class QuickProfileViewModel : ObservableObject
         EnableAutoName(); // back to an auto-generated name
         IsSaveSuccess = false;
         Status = "Nový rýchly profil – parametre vynulované na predvolené.";
+        Recalculate(); // make sure the graph reflects the reset state even if every
+                        // individual setter above happened to be a no-op change
     }
 
     private System.Threading.CancellationTokenSource? _deleteArmCts;

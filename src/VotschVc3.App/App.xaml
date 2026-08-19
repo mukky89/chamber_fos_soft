@@ -20,7 +20,7 @@
             <conv:TagBrushConverter x:Key="TagBrush" />
             <conv:EnumToBooleanConverter x:Key="EnumToBoolean" />
             <conv:DeltaConverter x:Key="Delta" />
-            <conv:FlexibleDecimalConverter x:Key="FlexibleDecimal" />
+            <conv:OneBasedIndexConverter x:Key="OneBasedIndex" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

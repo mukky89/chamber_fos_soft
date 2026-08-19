@@ -105,14 +105,88 @@
                                      ToolTip="Symetrický sweep: od–do, počet krokov, voliteľne späť dole." />
                         <RadioButton Content="Postupnosť teplôt" IsChecked="{Binding IsSequenceMode}"
                                      Margin="16,0,0,0" VerticalAlignment="Center"
-                                     ToolTip="Napíš postupnosť teplôt oddelenú bodkočiarkou, napr. 0;20;30;60;30;20;0 – medzi každou dvojicou sa vygeneruje rampa a plato." />
+                                     ToolTip="Zoznam teplotných bodov, každý s vlastnou dĺžkou plata – medzi každou dvojicou sa vygeneruje rampa." />
                     </StackPanel>
 
                     <StackPanel Visibility="{Binding IsSequenceMode, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel Style="{StaticResource QpField}">
-                            <TextBlock Text="Teploty oddelené bodkočiarkou" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding SequenceText, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Napr. 0;20;30;60;30;20;0 – medzi každou dvojicou hodnôt sa vygeneruje rampa (dĺžka nábehu) a plato (dĺžka plata) nižšie." />
+                            <TextBlock Text="Rýchle pridanie (oddelené bodkočiarkou)" Style="{StaticResource Label}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding NewSequenceTemperatures, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Napr. 20;30,5;60 – každá hodnota sa pridá ako nový bod s aktuálnou dĺžkou plata (uprav ju potom priamo pri bode nižšie).">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding AddSequenceStepsFromTextCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                <Button Grid.Column="2" Content="＋ Pridať" Padding="10,0"
+                                        Command="{Binding AddSequenceStepsFromTextCommand}"
+                                        ToolTip="Pridá zadané teploty ako nové body na koniec postupnosti." />
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource QpField}">
+                            <DockPanel LastChildFill="False">
+                                <TextBlock Text="Body postupnosti (teplota · dĺžka plata)" Style="{StaticResource Label}" DockPanel.Dock="Left" />
+                                <Button DockPanel.Dock="Right" Content="＋ Bod" Style="{StaticResource GhostButton}"
+                                        Padding="8,1" Command="{Binding AddSequenceStepCommand}"
+                                        ToolTip="Pridá bod s rovnakou teplotou ako posledný a aktuálnou dĺžkou plata." />
+                            </DockPanel>
+
+                            <ItemsControl ItemsSource="{Binding SequenceSteps}" AlternationCount="999">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="6" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="6" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="4" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Width="18"
+                                                           Foreground="{StaticResource MutedBrush}" FontSize="12"
+                                                           Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter}, Path=(ItemsControl.AlternationIndex), Converter={StaticResource OneBasedIndex}}" />
+
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="°C" Style="{StaticResource Caption}" />
+                                                    <views:NumericStepper Value="{Binding Temperature, Mode=TwoWay}" Step="1" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="4">
+                                                    <TextBlock Text="plato (min)" Style="{StaticResource Caption}" />
+                                                    <views:NumericStepper Value="{Binding PlateauMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <Button Content="▲" Style="{StaticResource GhostButton}" Padding="7,1" FontSize="10"
+                                                                Command="{Binding DataContext.MoveSequenceStepUpCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
+                                                                CommandParameter="{Binding}" ToolTip="Posunúť vyššie" />
+                                                        <Button Content="▼" Style="{StaticResource GhostButton}" Padding="7,1" FontSize="10" Margin="0,2,0,0"
+                                                                Command="{Binding DataContext.MoveSequenceStepDownCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
+                                                                CommandParameter="{Binding}" ToolTip="Posunúť nižšie" />
+                                                    </StackPanel>
+                                                    <Button Content="✕" Style="{StaticResource GhostButton}" Padding="9,7" FontSize="12" Margin="6,0,0,0"
+                                                            Foreground="{StaticResource MutedBrush}"
+                                                            Command="{Binding DataContext.RemoveSequenceStepCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
+                                                            CommandParameter="{Binding}" ToolTip="Odobrať bod" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
                             <TextBlock Text="{Binding SequenceParseError}" Foreground="{StaticResource DangerBrush}"
                                        TextWrapping="Wrap" Margin="0,2,0,0"
                                        Visibility="{Binding HasSequenceParseError, Converter={StaticResource BoolToVisibility}}" />
