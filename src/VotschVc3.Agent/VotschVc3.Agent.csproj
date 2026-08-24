@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Version>1.51.0</Version>
+    <Product>Lab Control Bridge</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VotschVc3.Core\VotschVc3.Core.csproj" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="bridge.example.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

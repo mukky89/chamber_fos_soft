@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.51.0] – 2026-08-24
+
+### Pridané
+- **Lab Control Bridge pre FOS Dashboard.** Nový Windows agent používa existujúce
+  jadro Chamber FOS Soft na živé čítanie a bezpečné ovládanie troch komôr a dvoch
+  SIKA zariadení, ASL F100 cez USB/COM, spúšťanie a riadenie profilov a odosielanie
+  telemetrie do webového Dashboardu cez odchádzajúce HTTPS spojenie.
+- **Bezpečný prístup webu k lokálnym a sieťovým priečinkom.** Agent indexuje iba
+  explicitne povolené korene, podporuje obojsmerný prenos súborov, blokuje path
+  traversal, reparse pointy a zápis spustiteľných súborov. Absolútne lokálne cesty
+  sa do webu neposielajú.
+- **Inštalačný návod a automatické spustenie.** Pribudol vzor `bridge.json`, detailná
+  prevádzková dokumentácia a PowerShell skript na vytvorenie Windows Scheduled Task.
+
 ## [1.50.0] – 2026-08-19
 
 ### Pridané / zmenené

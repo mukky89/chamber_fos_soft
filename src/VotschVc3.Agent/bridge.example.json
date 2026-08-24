@@ -1,0 +1,23 @@
+{
+  "dashboardUrl": "https://YOUR-RAILWAY-DASHBOARD.example",
+  "agentKey": "lab_VLOZ_TOKEN_Z_ADMINISTRACIE",
+  "pollSeconds": 3,
+  "fileScanEveryCycles": 10,
+  "maxIndexedFiles": 5000,
+  "devices": [
+    { "id": "vc3", "name": "Klimatická komora VC3", "kind": "chamber", "host": "10.88.5.181", "port": 1080, "address": 1, "analogChannelCount": 6, "startChannelIndex": 1, "hasHumidity": true, "enabled": true, "allowControl": false },
+    { "id": "vt3", "name": "Teplotná komora VT3", "kind": "chamber", "host": "10.88.5.182", "port": 1080, "address": 1, "analogChannelCount": 6, "startChannelIndex": 1, "hasHumidity": false, "enabled": true, "allowControl": false },
+    { "id": "komora3", "name": "Komora 3 - FOI", "kind": "chamber", "host": "10.88.5.233", "port": 2049, "address": 1, "analogChannelCount": 6, "startChannelIndex": 1, "hasHumidity": true, "enabled": true, "allowControl": false },
+    { "id": "sika-sylex", "name": "SIKA Sylex", "kind": "sika", "host": "10.88.5.226", "port": 8081, "enabled": true, "allowControl": false },
+    { "id": "sika-polytech", "name": "SIKA PolyTech", "kind": "sika", "host": "10.88.6.28", "port": 80, "enabled": true, "allowControl": false }
+  ],
+  "thermometers": [],
+  "folders": [
+    { "alias": "Profiles", "path": "%USERPROFILE%\\Documents\\Lab Control\\Profiles", "writable": true },
+    { "alias": "Recordings", "path": "%USERPROFILE%\\Documents\\Lab Control\\Recordings", "writable": true },
+    { "alias": "Profilelog", "path": "%USERPROFILE%\\Documents\\Lab Control\\Profilelog", "writable": true },
+    { "alias": "AppLog", "path": "%USERPROFILE%\\Documents\\Lab Control\\App log", "writable": false },
+    { "alias": "AllData", "path": "%USERPROFILE%\\Documents\\Lab Control", "writable": false }
+  ],
+  "profilesFile": "%USERPROFILE%\\Documents\\Lab Control\\Profiles\\profiles.json"
+}
