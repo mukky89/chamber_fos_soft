@@ -6,7 +6,12 @@ Moderná **WPF (.NET 8) MVVM** aplikácia na ovládanie klimatických komôr
 
 Súčasťou je aj **odčítavanie presných teplomerov ASL F100** cez USB.
 
-**Verzia: 1.6.3** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+Pre webový FOS Dashboard je súčasťou riešenia aj **Lab Control Bridge** — lokálny
+Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťové
+priečinky. Inštalácia a bezpečnostný model sú v
+[`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
+
+**Verzia: 1.51.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
