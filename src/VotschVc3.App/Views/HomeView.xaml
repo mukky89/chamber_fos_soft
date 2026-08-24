@@ -683,6 +683,13 @@
                                         <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"
                                                 Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
                                             <StackPanel>
+                                                <DockPanel LastChildFill="False" Margin="4,2,0,4">
+                                                    <TextBlock Text="Graf profilu" Style="{StaticResource Caption}"
+                                                               DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                                    <Button DockPanel.Dock="Right" Content="⛶ Zväčšiť" Style="{StaticResource GhostButton}"
+                                                            Padding="9,3" FontSize="13" Click="MaximizeChart_Click"
+                                                            ToolTip="Zväčšiť graf profilu na celú obrazovku (zavrieš ✕ alebo klávesom Esc)." />
+                                                </DockPanel>
                                                 <views:ChartView Height="210" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
                                                                  ShowStages="True"
                                                                  CycleStartX="{Binding PreviewCycleStartX}"

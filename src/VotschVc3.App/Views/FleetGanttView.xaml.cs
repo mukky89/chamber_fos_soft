@@ -39,6 +39,9 @@ public partial class FleetGanttView : UserControl
         Unloaded += (_, _) => _refresh.Stop();
         _refresh.Tick += (_, _) => Redraw();
         SizeChanged += (_, _) => Redraw();
+        // The dashboard stays alive (hidden) while another screen is open, so the
+        // timeline skips drawing while invisible and catches up when shown again.
+        IsVisibleChanged += (_, _) => Redraw();
     }
 
     public static readonly DependencyProperty ChambersProperty = DependencyProperty.Register(
@@ -115,6 +118,11 @@ public partial class FleetGanttView : UserControl
 
     private void Redraw()
     {
+        if (!IsVisible)
+        {
+            return;
+        }
+
         PlotCanvas.Children.Clear();
 
         double width = ActualWidth;

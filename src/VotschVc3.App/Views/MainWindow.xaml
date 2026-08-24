@@ -12,9 +12,6 @@
         UseLayoutRounding="True">
 
     <Window.Resources>
-        <DataTemplate DataType="{x:Type vm:ShellViewModel}">
-            <views:HomeView />
-        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ChamberViewModel}">
             <views:ChamberView />
         </DataTemplate>
@@ -48,6 +45,10 @@
     </Window.Resources>
 
     <Grid Margin="14">
-        <ContentControl Content="{Binding CurrentView}" />
+        <!-- The home dashboard lives here permanently and is only hidden/shown on
+             navigation. Rebuilding it from a DataTemplate on every "← Domov" made
+             the return from the profile editor take seconds. -->
+        <views:HomeView Visibility="{Binding IsHome, Converter={StaticResource BoolToVisibility}}" />
+        <ContentControl Content="{Binding DetailView}" />
     </Grid>
 </Window>
