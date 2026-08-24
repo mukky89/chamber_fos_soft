@@ -39,6 +39,19 @@ public partial class ChartView : UserControl
         PlotCanvas.MouseLeave += (_, _) => ClearOverlay();
     }
 
+    public static readonly DependencyProperty AllowZoomProperty = DependencyProperty.Register(
+        nameof(AllowZoom), typeof(bool), typeof(ChartView), new PropertyMetadata(true));
+    public bool AllowZoom { get => (bool)GetValue(AllowZoomProperty); set => SetValue(AllowZoomProperty, value); }
+
+    public static readonly DependencyProperty ChartTitleProperty = DependencyProperty.Register(
+        nameof(ChartTitle), typeof(string), typeof(ChartView), new PropertyMetadata("Graf"));
+    public string ChartTitle { get => (string)GetValue(ChartTitleProperty); set => SetValue(ChartTitleProperty, value); }
+
+    private void OnZoomClick(object sender, RoutedEventArgs e)
+    {
+        if (AllowZoom) ChartZoomWindow.Show(this, ChartTitle);
+    }
+
     public static readonly DependencyProperty SeriesProperty = DependencyProperty.Register(
         nameof(Series), typeof(IEnumerable<ChartSeries>), typeof(ChartView),
         new PropertyMetadata(null, OnVisualChanged));

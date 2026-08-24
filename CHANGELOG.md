@@ -4,6 +4,24 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.52.0] – 2026-08-24
+
+### Integrované
+- **Zlúčené všetky zostávajúce vzdialené vývojové vetvy.** História vetiev je
+  obsiahnutá v `main`; konflikty zachovávajú novšie implementácie a aktuálnu
+  zostavu troch komôr a dvoch SIKA zariadení.
+- **Obnovenie rozbehnutého profilu po páde alebo výpadku.** Checkpoint uchováva
+  profil, cyklus, segment a uplynutý čas. Starší aj novší formát pozície behu sú
+  spätne kompatibilné a obnovená výdrž neopakuje už dokončený guaranteed soak.
+- **Fullscreen grafy a branding.** Grafy komory a teplomerov možno otvoriť v
+  samostatnom maximalizovanom okne; doplnené sú uložené SVG/PNG Sylex assety.
+- **Optimalizácia knižnice profilov a Ganttu.** Prenesené boli nekonfliktné
+  optimalizácie uloženia, cyklických profilov, časovej osi a navigácie.
+
+### Bezpečnosť konfigurácie
+- POL-EKO zostáva v aktuálnej prevádzkovej konfigurácii skryté a bridge ho
+  nepublikuje ani nepripája; predvolená flotila zostáva 3 komory + 2 SIKA.
+
 ## [1.51.0] – 2026-08-24
 
 ### Pridané
