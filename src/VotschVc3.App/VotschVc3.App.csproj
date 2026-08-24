@@ -17,7 +17,7 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.51.0</Version>
+    <Version>1.52.0</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -42,6 +42,11 @@
          with the corrected name, original name, sensors and tags per file. -->
     <EmbeddedResource Include="seed-profiles.zip" LogicalName="seed-profiles.zip" />
     <EmbeddedResource Include="seed-profiles-manifest.json" LogicalName="seed-profiles-manifest.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Sylex logo (branding), shown on the login screen and the sidebar. -->
+    <Resource Include="..\..\assets\sylex-logo-red.png" Link="Assets\sylex-logo-red.png" />
   </ItemGroup>
 
   <ItemGroup>

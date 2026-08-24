@@ -156,6 +156,12 @@ public sealed class ProfileRunner
                 ? resumeFrom!.Value.ElapsedInSegment
                 : TimeSpan.Zero;
 
+            if (isResumeTarget && resumeFrom!.Value.SegmentStartTemperature is { } restoredTemp)
+            {
+                segStartTemp = restoredTemp;
+                segStartHum = resumeFrom.Value.SegmentStartHumidity;
+            }
+
             resumed = true;
 
             await RunSegmentAsync(
@@ -186,6 +192,10 @@ public sealed class ProfileRunner
         }
     }
 
+    public Task RunAsync(TestProfile profile, double startTemperature, double? startHumidity,
+        ProfileRunPosition resumeFrom) =>
+        RunAsync(profile, startTemperature, startHumidity, CancellationToken.None, resumeFrom);
+
     private async Task RunSegmentAsync(
         TestProfile profile,
         ProfileSegment segment,
@@ -212,7 +222,8 @@ public sealed class ProfileRunner
         // when it is explicitly marked, when the device soaks every hold
         // (soakAllHolds), or when the device soaks every segment including ramps
         // (soakAllSegments – SIKA baths).
-        if (holdBehavior && (segment.GuaranteedSoak || _soakAllHolds || _soakAllSegments))
+        if (initialElapsed <= TimeSpan.Zero && holdBehavior &&
+            (segment.GuaranteedSoak || _soakAllHolds || _soakAllSegments))
         {
             await SoakWaitAsync(segment, cycle, index, startHum, phase, totalCycles,
                 completedSeconds, totalSeconds, cancellationToken).ConfigureAwait(false);
@@ -236,7 +247,7 @@ public sealed class ProfileRunner
             double overall = Math.Clamp((completedSeconds + Math.Min(elapsedSeconds, duration.TotalSeconds)) / totalSeconds, 0d, 1d);
             Progress?.Invoke(this, new ProfileProgressEventArgs(
                 cycle, index, segment, fraction, temperature, humidity, segmentClock.Elapsed,
-                phase, totalCycles, overall));
+                phase, totalCycles, overall, segmentStartTemperature: startTemp));
 
             if (fraction >= 1d)
             {
@@ -339,10 +350,34 @@ public sealed class ProfileRunner
 
 /// <summary>
 /// Exact point inside a profile run to resume from – captured from a
-/// <see cref="ProfileRunCheckpoint"/> and passed to <see cref="ProfileRunner.RunAsync"/>.
+/// <see cref="ProfileRunCheckpoint"/> and passed to <c>ProfileRunner.RunAsync</c>.
 /// </summary>
-public readonly record struct ProfileRunPosition(
-    ProfileRunPhase Phase, int CycleIndex, int SegmentIndex, TimeSpan ElapsedInSegment, bool IsSoaking);
+public readonly record struct ProfileRunPosition
+{
+    public ProfileRunPhase Phase { get; init; }
+    public int CycleIndex { get; init; }
+    public int SegmentIndex { get; init; }
+    public TimeSpan ElapsedInSegment { get; init; }
+    public bool IsSoaking { get; init; }
+    public double? SegmentStartTemperature { get; init; }
+    public double? SegmentStartHumidity { get; init; }
+
+    public ProfileRunPosition(ProfileRunPhase Phase, int CycleIndex, int SegmentIndex, TimeSpan ElapsedInSegment, bool IsSoaking)
+    {
+        this.Phase = Phase; this.CycleIndex = CycleIndex; this.SegmentIndex = SegmentIndex;
+        this.ElapsedInSegment = ElapsedInSegment; this.IsSoaking = IsSoaking;
+    }
+
+    // Compatibility with checkpoints produced by the older crash-recovery branch.
+    public ProfileRunPosition(int Cycle, int SegmentIndex, TimeSpan ElapsedInSegment,
+        double SegmentStartTemperature, double? SegmentStartHumidity)
+    {
+        Phase = ProfileRunPhase.Cycle; CycleIndex = Cycle; this.SegmentIndex = SegmentIndex;
+        this.ElapsedInSegment = ElapsedInSegment; IsSoaking = false;
+        this.SegmentStartTemperature = SegmentStartTemperature;
+        this.SegmentStartHumidity = SegmentStartHumidity;
+    }
+}
 
 /// <summary>Which part of the run a segment belongs to.</summary>
 public enum ProfileRunPhase
@@ -371,7 +406,8 @@ public sealed class ProfileProgressEventArgs : EventArgs
         ProfileRunPhase phase = ProfileRunPhase.Cycle,
         int totalCycles = 1,
         double overallFraction = 0,
-        bool isSoaking = false)
+        bool isSoaking = false,
+        double? segmentStartTemperature = null)
     {
         Cycle = cycle;
         SegmentIndex = segmentIndex;
@@ -384,6 +420,7 @@ public sealed class ProfileProgressEventArgs : EventArgs
         TotalCycles = totalCycles;
         OverallFraction = overallFraction;
         IsSoaking = isSoaking;
+        SegmentStartTemperature = segmentStartTemperature;
     }
 
     /// <summary>Which part of the run (intro / cycled region / outro) this segment is in.</summary>
@@ -418,4 +455,6 @@ public sealed class ProfileProgressEventArgs : EventArgs
 
     /// <summary>Time elapsed inside the current segment.</summary>
     public TimeSpan ElapsedInSegment { get; }
+
+    public double? SegmentStartTemperature { get; }
 }

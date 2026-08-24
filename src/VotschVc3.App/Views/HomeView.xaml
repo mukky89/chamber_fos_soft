@@ -72,6 +72,8 @@
             <DockPanel>
                 <!-- Brand -->
                 <StackPanel DockPanel.Dock="Top">
+                    <Image Source="/Assets/sylex-logo-red.png" Height="30" HorizontalAlignment="Left"
+                           Margin="0,0,0,10" />
                     <TextBlock Text="Riadenie laboratórnych zariadení" FontFamily="Segoe UI Semibold"
                                FontSize="16" TextWrapping="Wrap" TextTrimming="None" />
                     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="8,3"
@@ -488,6 +490,25 @@
                                 <Border Style="{StaticResource Section}">
                                     <StackPanel>
                                         <TextBlock Text="Testovací profil" Style="{StaticResource Label}" />
+
+                                        <!-- Prerušený beh profilu – kompaktná ponuka pokračovania na karte. -->
+                                        <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource WarnBrush}"
+                                                BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,0,8"
+                                                Visibility="{Binding HasInterruptedRun, Converter={StaticResource BoolToVisibility}}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding InterruptedRunInfo}" TextWrapping="Wrap"
+                                                           FontFamily="Segoe UI Semibold" FontSize="12"
+                                                           Foreground="{StaticResource WarnBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <Button Content="▶ Pokračovať" Style="{StaticResource AccentButton}" Margin="0" Height="30"
+                                                            Command="{Binding ResumeInterruptedRunCommand}"
+                                                            ToolTip="Pokračuje v prerušenom profile od miesta prerušenia." />
+                                                    <Button Content="✕ Zahodiť" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Height="30"
+                                                            Command="{Binding DiscardInterruptedRunCommand}"
+                                                            ToolTip="Zahodí uložený bod prerušenia." />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -683,6 +704,13 @@
                                         <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"
                                                 Visibility="{Binding HasProfilePreview, Converter={StaticResource BoolToVisibility}}">
                                             <StackPanel>
+                                                <DockPanel LastChildFill="False" Margin="4,2,0,4">
+                                                    <TextBlock Text="Graf profilu" Style="{StaticResource Caption}"
+                                                               DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                                    <Button DockPanel.Dock="Right" Content="⛶ Zväčšiť" Style="{StaticResource GhostButton}"
+                                                            Padding="9,3" FontSize="13" Click="MaximizeChart_Click"
+                                                            ToolTip="Zväčšiť graf profilu na celú obrazovku (zavrieš ✕ alebo klávesom Esc)." />
+                                                </DockPanel>
                                                 <views:ChartView Height="210" Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
                                                                  ShowStages="True"
                                                                  CycleStartX="{Binding PreviewCycleStartX}"

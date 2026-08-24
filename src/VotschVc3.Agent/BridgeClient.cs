@@ -21,12 +21,12 @@ public sealed class BridgeClient : IAsyncDisposable
         _devices = new DeviceManager(options);
         _http = new HttpClient { BaseAddress = new Uri(options.DashboardUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromMinutes(10) };
         _http.DefaultRequestHeaders.Add("X-Lab-Agent-Key", options.AgentKey);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.51.0");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.52.0");
     }
 
     public async Task RunAsync(CancellationToken ct)
     {
-        Console.WriteLine($"Lab Control Bridge 1.51.0 → {_http.BaseAddress}");
+        Console.WriteLine($"Lab Control Bridge 1.52.0 → {_http.BaseAddress}");
         while (!ct.IsCancellationRequested)
         {
             try
@@ -47,7 +47,7 @@ public sealed class BridgeClient : IAsyncDisposable
     {
         var request = new HeartbeatRequest(
             Environment.MachineName,
-            Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.51.0",
+            Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.52.0",
             new[] { "ascii2", "simserv", "sika-rest", "asl-f100", "profiles", "files-read", "files-write" },
             _options.Folders.Select(f => new FolderSnapshot(f.Alias, f.Writable)).ToArray(),
             devices, files, _lastError);

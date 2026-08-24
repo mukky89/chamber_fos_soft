@@ -32,8 +32,24 @@ public partial class ChartView : UserControl
         InitializeComponent();
         PlotCanvas.SizeChanged += (_, _) => Redraw();
         Loaded += (_, _) => Redraw();
+        // The dashboard stays alive (hidden) while another screen is open, so
+        // charts skip drawing while invisible and catch up when shown again.
+        IsVisibleChanged += (_, _) => Redraw();
         PlotCanvas.MouseMove += OnPlotMouseMove;
         PlotCanvas.MouseLeave += (_, _) => ClearOverlay();
+    }
+
+    public static readonly DependencyProperty AllowZoomProperty = DependencyProperty.Register(
+        nameof(AllowZoom), typeof(bool), typeof(ChartView), new PropertyMetadata(true));
+    public bool AllowZoom { get => (bool)GetValue(AllowZoomProperty); set => SetValue(AllowZoomProperty, value); }
+
+    public static readonly DependencyProperty ChartTitleProperty = DependencyProperty.Register(
+        nameof(ChartTitle), typeof(string), typeof(ChartView), new PropertyMetadata("Graf"));
+    public string ChartTitle { get => (string)GetValue(ChartTitleProperty); set => SetValue(ChartTitleProperty, value); }
+
+    private void OnZoomClick(object sender, RoutedEventArgs e)
+    {
+        if (AllowZoom) ChartZoomWindow.Show(this, ChartTitle);
     }
 
     public static readonly DependencyProperty SeriesProperty = DependencyProperty.Register(
@@ -139,6 +155,11 @@ public partial class ChartView : UserControl
 
     private void Redraw()
     {
+        if (!IsVisible)
+        {
+            return;
+        }
+
         PlotCanvas.Children.Clear();
 
         double width = PlotCanvas.ActualWidth;

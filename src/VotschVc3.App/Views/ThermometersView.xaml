@@ -178,7 +178,7 @@
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Priebeh teploty" Style="{StaticResource Label}" Margin="0,0,0,6" />
                             <views:ChartView Grid.Row="1" Series="{Binding LiveSeries}" Unit="{Binding Unit}"
-                                             EmptyText="Pripoj a načítaj…" />
+                                             EmptyText="Pripoj a načítaj…" ChartTitle="Teplomery — priebeh teploty" />
                         </Grid>
                     </Border>
 
