@@ -246,15 +246,16 @@ public sealed class ProfileRunner
 
             double overall = Math.Clamp((completedSeconds + Math.Min(elapsedSeconds, duration.TotalSeconds)) / totalSeconds, 0d, 1d);
             Progress?.Invoke(this, new ProfileProgressEventArgs(
-                cycle, index, segment, fraction, temperature, humidity, segmentClock.Elapsed,
-                phase, totalCycles, overall, segmentStartTemperature: startTemp));
+                cycle, index, segment, fraction, temperature, humidity,
+                TimeSpan.FromSeconds(elapsedSeconds), phase, totalCycles, overall,
+                segmentStartTemperature: startTemp, segmentStartHumidity: startHum));
 
             if (fraction >= 1d)
             {
                 return;
             }
 
-            TimeSpan remaining = duration - segmentClock.Elapsed;
+            TimeSpan remaining = duration - TimeSpan.FromSeconds(elapsedSeconds);
             TimeSpan delay = remaining < _updateInterval ? remaining : _updateInterval;
             if (delay > TimeSpan.Zero)
             {
@@ -299,7 +300,9 @@ public sealed class ProfileRunner
 
             Progress?.Invoke(this, new ProfileProgressEventArgs(
                 cycle, index, segment, 0d, segment.TargetTemperature, humidity, TimeSpan.Zero,
-                phase, totalCycles, overall, isSoaking: true));
+                phase, totalCycles, overall, isSoaking: true,
+                segmentStartTemperature: segment.TargetTemperature,
+                segmentStartHumidity: startHum));
 
             if (measured is { } m && Math.Abs(m - segment.TargetTemperature) <= tolerance)
             {
@@ -407,7 +410,8 @@ public sealed class ProfileProgressEventArgs : EventArgs
         int totalCycles = 1,
         double overallFraction = 0,
         bool isSoaking = false,
-        double? segmentStartTemperature = null)
+        double? segmentStartTemperature = null,
+        double? segmentStartHumidity = null)
     {
         Cycle = cycle;
         SegmentIndex = segmentIndex;
@@ -421,6 +425,7 @@ public sealed class ProfileProgressEventArgs : EventArgs
         OverallFraction = overallFraction;
         IsSoaking = isSoaking;
         SegmentStartTemperature = segmentStartTemperature;
+        SegmentStartHumidity = segmentStartHumidity;
     }
 
     /// <summary>Which part of the run (intro / cycled region / outro) this segment is in.</summary>
@@ -457,4 +462,6 @@ public sealed class ProfileProgressEventArgs : EventArgs
     public TimeSpan ElapsedInSegment { get; }
 
     public double? SegmentStartTemperature { get; }
+
+    public double? SegmentStartHumidity { get; }
 }

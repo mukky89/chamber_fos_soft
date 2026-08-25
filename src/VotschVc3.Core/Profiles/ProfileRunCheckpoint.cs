@@ -33,6 +33,15 @@ public sealed class ProfileRunCheckpoint
     public double ElapsedInSegmentSeconds { get; set; }
 
     /// <summary>
+    /// Actual ramp origin captured when the segment started. Required to restore
+    /// the exact interpolated setpoint instead of recalculating from the measured
+    /// chamber temperature after a restart.
+    /// </summary>
+    public double? SegmentStartTemperature { get; set; }
+
+    public double? SegmentStartHumidity { get; set; }
+
+    /// <summary>
     /// <c>true</c> when the run was waiting for a guaranteed-soak tolerance at the moment
     /// of the write. On resume the soak wait is re-entered from scratch (the measured
     /// temperature is re-checked rather than trusting stale elapsed time).

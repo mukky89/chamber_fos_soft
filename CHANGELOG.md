@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.54.9
+
+- Obnovená rampa pokračuje z presného uloženého setpointu: checkpoint teraz
+  uchováva pôvodnú štartovaciu teplotu a vlhkosť segmentu, takže sa rampa po
+  reštarte neprepočíta od aktuálne nameranej teploty komory.
+- Po obnove sa do ďalšieho checkpointu zapisuje celkový uplynutý čas segmentu,
+  nie iba čas od reštartu. Staršie checkpointy odvodia začiatok rampy z
+  predchádzajúceho segmentu profilu, ak je to možné.
+
 ## 1.54.8
 
 - Opravené balenie Bridge Agenta pri spustení cez F5: do `LabBridge` sa teraz

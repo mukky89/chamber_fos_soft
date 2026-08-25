@@ -80,6 +80,42 @@ public class ProfileRunnerResumeTests
         Assert.All(device.WrittenTemperatures, t => Assert.Equal(60, t));
     }
 
+    [Fact]
+    public async Task ResumeFrom_mid_ramp_uses_saved_origin_and_preserves_total_elapsed_time()
+    {
+        var device = new FakeChamberDevice();
+        var profile = new TestProfile
+        {
+            Segments =
+            {
+                new ProfileSegment
+                {
+                    TargetTemperature = 100,
+                    IsRamp = true,
+                    Duration = TimeSpan.FromMilliseconds(100),
+                },
+            },
+        };
+
+        var runner = new ProfileRunner(device, updateInterval: TimeSpan.FromMilliseconds(5));
+        var elapsed = new List<TimeSpan>();
+        runner.Progress += (_, e) => elapsed.Add(e.ElapsedInSegment);
+        var resumeFrom = new ProfileRunPosition(
+            ProfileRunPhase.Cycle, CycleIndex: 0, SegmentIndex: 0,
+            ElapsedInSegment: TimeSpan.FromMilliseconds(50), IsSoaking: false)
+        {
+            SegmentStartTemperature = 0,
+        };
+
+        // Current measured temperature deliberately differs from the saved ramp
+        // origin. Recovery must continue around 50 °C, not restart near 80 °C.
+        await runner.RunAsync(profile, startTemperature: 80, startHumidity: null, resumeFrom: resumeFrom);
+
+        Assert.InRange(device.WrittenTemperatures[0], 45, 65);
+        Assert.True(elapsed[0] >= TimeSpan.FromMilliseconds(50));
+        Assert.True(elapsed[^1] >= profile.Segments[0].Duration);
+    }
+
     private sealed class FakeChamberDevice : IChamberDevice
     {
         private readonly int _reachAfterReads;

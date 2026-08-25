@@ -31,6 +31,8 @@ public class ProfileRunCheckpointStoreTests
         CycleIndex = 1,
         Phase = ProfileRunPhase.Cycle,
         ElapsedInSegmentSeconds = 123.5,
+        SegmentStartTemperature = -40,
+        SegmentStartHumidity = 35,
         IsSoaking = false,
         StartedUtc = new DateTime(2026, 1, 1, 8, 0, 0, DateTimeKind.Utc),
         LastWriteUtc = new DateTime(2026, 1, 1, 9, 30, 0, DateTimeKind.Utc),
@@ -63,6 +65,8 @@ public class ProfileRunCheckpointStoreTests
         Assert.Equal(saved.CycleIndex, loaded.CycleIndex);
         Assert.Equal(saved.Phase, loaded.Phase);
         Assert.Equal(saved.ElapsedInSegmentSeconds, loaded.ElapsedInSegmentSeconds);
+        Assert.Equal(saved.SegmentStartTemperature, loaded.SegmentStartTemperature);
+        Assert.Equal(saved.SegmentStartHumidity, loaded.SegmentStartHumidity);
         Assert.Equal(saved.IsSoaking, loaded.IsSoaking);
         Assert.Equal(saved.StartedUtc, loaded.StartedUtc);
         Assert.Equal(saved.LastWriteUtc, loaded.LastWriteUtc);

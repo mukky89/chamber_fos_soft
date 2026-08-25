@@ -1893,9 +1893,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             $"„{checkpoint.Profile.Name}“ pokračuje od miesta prerušenia ({segInfo}).",
             DesktopNotificationKind.Warning);
 
+        (double? restoredStartTemp, double? restoredStartHum) = ResolveCheckpointSegmentStart(checkpoint);
         var resumeFrom = new ProfileRunPosition(
             checkpoint.Phase, checkpoint.CycleIndex, checkpoint.SegmentIndex,
-            TimeSpan.FromSeconds(checkpoint.ElapsedInSegmentSeconds), checkpoint.IsSoaking);
+            TimeSpan.FromSeconds(checkpoint.ElapsedInSegmentSeconds), checkpoint.IsSoaking)
+        {
+            SegmentStartTemperature = restoredStartTemp,
+            SegmentStartHumidity = restoredStartHum,
+        };
 
         var profiles = new List<TestProfile> { checkpoint.Profile };
         profiles.AddRange(checkpoint.RemainingQueue);
@@ -1917,6 +1922,36 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             CheckProfileRecovery();
             throw;
         }
+    }
+
+    private static (double? Temperature, double? Humidity) ResolveCheckpointSegmentStart(
+        ProfileRunCheckpoint checkpoint)
+    {
+        if (checkpoint.SegmentStartTemperature is not null)
+        {
+            return (checkpoint.SegmentStartTemperature, checkpoint.SegmentStartHumidity);
+        }
+
+        TestProfile profile = checkpoint.Profile;
+        // At the first segment of a later cycle the previous executed point is
+        // the end of the repeated region, not the current measured temperature.
+        if (checkpoint.Phase == ProfileRunPhase.Cycle && checkpoint.CycleIndex > 0 &&
+            checkpoint.SegmentIndex == profile.ResolvedCycleStart && profile.Segments.Count > 0)
+        {
+            ProfileSegment previousCycleEnd = profile.Segments[profile.ResolvedCycleEnd];
+            return (previousCycleEnd.TargetTemperature, previousCycleEnd.TargetHumidity);
+        }
+
+        int index = checkpoint.SegmentIndex;
+        if (index > 0 && index <= profile.Segments.Count - 1)
+        {
+            ProfileSegment previous = profile.Segments[index - 1];
+            return (previous.TargetTemperature, previous.TargetHumidity);
+        }
+
+        // Old checkpoints at the very first segment predate ramp-origin storage.
+        // Measured temperature remains the only truthful fallback for those files.
+        return (null, null);
     }
 
     private bool CanResumeInterruptedRun() =>
@@ -1990,6 +2025,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             CycleIndex = e.Cycle,
             Phase = e.Phase,
             ElapsedInSegmentSeconds = e.ElapsedInSegment.TotalSeconds,
+            SegmentStartTemperature = e.SegmentStartTemperature,
+            SegmentStartHumidity = e.SegmentStartHumidity,
             IsSoaking = e.IsSoaking,
             StartedUtc = _profileActualStart?.ToUniversalTime() ?? DateTime.UtcNow,
             LastWriteUtc = DateTime.UtcNow,
