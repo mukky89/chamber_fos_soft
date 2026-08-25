@@ -19,15 +19,15 @@ spojenie; komory, USB/COM porty ani zdieľané disky sa nevystavujú internetu.
 
 1. V Dashboarde otvor **Laboratórium FOS → Lokálny bridge**, ako admin vytvor
    agenta a jednorazovo skopíruj `lab_...` token.
-2. Publikuj agenta:
+2. Pri prvom otvorení desktopovej aplikácie sa automaticky vytvorí bezpečný vzor
+   `%USERPROFILE%\Documents\Lab Control\bridge.json`. Potom publikuj agenta:
 
    ```powershell
    dotnet publish src\VotschVc3.Agent\VotschVc3.Agent.csproj -c Release -r win-x64 --self-contained false -o publish\LabBridge
    ```
 
-3. Skopíruj `bridge.example.json` do
-   `%USERPROFILE%\Documents\Lab Control\bridge.json`, nastav `dashboardUrl` a
-   vlož `agentKey`. Token nevkladaj do Gitu; server ukladá iba jeho SHA-256 hash.
+3. V automaticky vytvorenom `bridge.json` nastav `dashboardUrl` a vlož
+   `agentKey`. Token nevkladaj do Gitu; server ukladá iba jeho SHA-256 hash.
 
 ## Zariadenia a bezpečné ovládanie
 

@@ -17,7 +17,7 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.54.5</Version>
+    <Version>1.54.6</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -42,6 +42,8 @@
          with the corrected name, original name, sensors and tags per file. -->
     <EmbeddedResource Include="seed-profiles.zip" LogicalName="seed-profiles.zip" />
     <EmbeddedResource Include="seed-profiles-manifest.json" LogicalName="seed-profiles-manifest.json" />
+    <!-- The desktop app creates bridge.json itself before starting the separate agent. -->
+    <EmbeddedResource Include="..\VotschVc3.Agent\bridge.example.json" LogicalName="bridge.example.json" />
   </ItemGroup>
 
   <ItemGroup>

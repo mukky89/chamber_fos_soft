@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.54.6
+
+- Desktopová aplikácia pri prvom spustení sama vytvorí
+  `Documents\Lab Control\bridge.json` zo zabudovaného bezpečného vzoru; vytvorenie
+  konfigurácie už nezávisí od úspešného štartu samostatného agenta.
+- Po spustení naplánovanej úlohy sa overí skutočný proces agenta. Ak úloha síce
+  vráti úspech, ale agent nenabehne, aplikácia skúsi lokálny executable.
+
 ## 1.54.5
 
 - Prerušený profil sa po spustení aplikácie a úspešnom pripojení zariadenia

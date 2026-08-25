@@ -1113,6 +1113,17 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private void EnsureBridgeStarted(bool showAlreadyRunningStatus = false)
     {
+        try
+        {
+            EnsureBridgeConfigurationExists();
+        }
+        catch (Exception ex)
+        {
+            BridgeStatusTitle = "🔴 Konfiguráciu Bridge sa nepodarilo vytvoriť";
+            BridgeStatusDetail = ex.Message;
+            return;
+        }
+
         if (Process.GetProcessesByName("VotschVc3.Agent").Length > 0)
         {
             if (showAlreadyRunningStatus)
@@ -1136,9 +1147,18 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             task?.WaitForExit(3000);
             if (task is not null && task.HasExited && task.ExitCode == 0)
             {
-                BridgeStatusTitle = "🟠 Bridge sa automaticky spúšťa…";
-                BridgeStatusDetail = "Stav sa automaticky obnoví do niekoľkých sekúnd.";
-                return;
+                // schtasks reports that the task was accepted, not that its target
+                // executable really stayed alive. Briefly verify the actual agent.
+                for (int attempt = 0; attempt < 6; attempt++)
+                {
+                    if (Process.GetProcessesByName("VotschVc3.Agent").Length > 0)
+                    {
+                        BridgeStatusTitle = "🟠 Bridge sa automaticky spúšťa…";
+                        BridgeStatusDetail = "Stav sa automaticky obnoví do niekoľkých sekúnd.";
+                        return;
+                    }
+                    System.Threading.Thread.Sleep(250);
+                }
             }
 
             string? agentPath = FindBridgeAgentExecutable();
@@ -1162,6 +1182,42 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         {
             BridgeStatusTitle = "🔴 Bridge sa nepodarilo spustiť";
             BridgeStatusDetail = ex.Message;
+        }
+    }
+
+    private void EnsureBridgeConfigurationExists()
+    {
+        if (System.IO.File.Exists(BridgeConfigPath))
+        {
+            return;
+        }
+
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(BridgeConfigPath)!);
+        using System.IO.Stream? source = typeof(ShellViewModel).Assembly.GetManifestResourceStream("bridge.example.json");
+        if (source is null)
+        {
+            throw new InvalidOperationException("V aplikácii chýba zabudovaný vzor bridge.example.json.");
+        }
+
+        string temporaryPath = BridgeConfigPath + ".tmp";
+        try
+        {
+            using (var destination = new System.IO.FileStream(
+                temporaryPath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None))
+            {
+                source.CopyTo(destination);
+                destination.Flush(flushToDisk: true);
+            }
+            System.IO.File.Move(temporaryPath, BridgeConfigPath, overwrite: false);
+            VotschVc3.Core.Diagnostics.AppLog.Info(
+                "Bridge", $"Vytvorená predvolená konfigurácia: {BridgeConfigPath}");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(temporaryPath))
+            {
+                System.IO.File.Delete(temporaryPath);
+            }
         }
     }
 
