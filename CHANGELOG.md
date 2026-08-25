@@ -4,6 +4,15 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.54.2] – 2026-08-25
+
+### Pridané
+- Administrácia zobrazuje živý stav FOS Dashboard Bridge: online/offline,
+  cieľovú URL, čas heartbeat-u, verziu agenta, stav konfigurácie a poslednú chybu.
+- Tlačidlá na obnovenie stavu, spustenie naplánovanej úlohy Bridge a otvorenie
+  priečinka s `bridge.json`.
+- Bridge zapisuje bezpečný lokálny stav do `Dokumenty/Lab Control/bridge-status.json`.
+
 ## [1.54.1] – 2026-08-25
 
 ### Opravené

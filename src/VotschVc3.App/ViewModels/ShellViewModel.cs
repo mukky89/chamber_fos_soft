@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Text.Json;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
@@ -41,6 +43,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private readonly UiSettingsStore _uiStore;
     private readonly UiSettings _ui;
     private CancellationTokenSource? _saveCts;
+    private readonly System.Windows.Threading.DispatcherTimer _bridgeStatusTimer;
 
     public ShellViewModel()
     {
@@ -102,6 +105,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OpenProfilesFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.ProfilesDir));
         OpenProfileLogFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.ProfileLogDir));
         OpenAppLogFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.AppLogDir));
+        RefreshBridgeStatusCommand = new RelayCommand(RefreshBridgeStatus);
+        StartBridgeCommand = new RelayCommand(StartBridge);
+        OpenBridgeFolderCommand = new RelayCommand(() => OpenFolder(AppPaths.Root));
         GoHomeCommand = new RelayCommand(GoHome);
         LogoutCommand = new RelayCommand(Logout);
         ToggleTimelineCommand = new RelayCommand(() => ShowTimeline = !ShowTimeline);
@@ -117,6 +123,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         DeleteUserCommand = new RelayCommand<User>(DeleteUser, u => CanManage && u is not null);
         SaveUsersCommand = new RelayCommand(SaveUsers, () => CanManage);
         RefreshUsers();
+
+        _bridgeStatusTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _bridgeStatusTimer.Tick += (_, _) => RefreshBridgeStatus();
+        _bridgeStatusTimer.Start();
+        RefreshBridgeStatus();
 
         // Build chambers from the saved configuration (seed defaults on first run).
         List<ChamberConfig> configs = _configStore.LoadAll();
@@ -467,6 +478,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Opens the application-log folder (Documents\Lab Control\App log).</summary>
     public RelayCommand OpenAppLogFolderCommand { get; }
+    public RelayCommand RefreshBridgeStatusCommand { get; }
+    public RelayCommand StartBridgeCommand { get; }
+    public RelayCommand OpenBridgeFolderCommand { get; }
 
     /// <summary>Creates the folder if needed and opens it in the OS file explorer.</summary>
     private static void OpenFolder(string path)
@@ -1017,6 +1031,104 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     #endregion
 
+    #region FOS Dashboard bridge
+
+    private string _bridgeStatusTitle = "⚪ Bridge: zisťujem stav…";
+    public string BridgeStatusTitle { get => _bridgeStatusTitle; private set => SetProperty(ref _bridgeStatusTitle, value); }
+
+    private string _bridgeStatusDetail = string.Empty;
+    public string BridgeStatusDetail { get => _bridgeStatusDetail; private set => SetProperty(ref _bridgeStatusDetail, value); }
+
+    private string _bridgeConfigurationStatus = string.Empty;
+    public string BridgeConfigurationStatus { get => _bridgeConfigurationStatus; private set => SetProperty(ref _bridgeConfigurationStatus, value); }
+
+    public string BridgeConfigPath => System.IO.Path.Combine(AppPaths.Root, "bridge.json");
+    public string BridgeStatusPath => System.IO.Path.Combine(AppPaths.Root, "bridge-status.json");
+
+    private void RefreshBridgeStatus()
+    {
+        bool processRunning = Process.GetProcessesByName("VotschVc3.Agent").Length > 0;
+        BridgeStatus? status = BridgeStatusFile.Read(BridgeStatusPath);
+        TimeSpan age = status is null ? TimeSpan.MaxValue : DateTime.UtcNow - status.UpdatedUtc;
+        bool fresh = age < TimeSpan.FromSeconds(30);
+
+        if (status is { Running: true, DashboardReachable: true } && fresh)
+        {
+            BridgeStatusTitle = "🟢 FOS Dashboard Bridge je online";
+            BridgeStatusDetail = $"{status.DashboardUrl} · PC {status.MachineName} · heartbeat {status.UpdatedUtc.ToLocalTime():dd.MM.yyyy HH:mm:ss} · agent v{status.Version}";
+        }
+        else if (status is { Running: true } && fresh)
+        {
+            BridgeStatusTitle = "🟠 Bridge beží, ale web nie je dostupný";
+            BridgeStatusDetail = string.IsNullOrWhiteSpace(status.LastError)
+                ? "Agent sa pripája k FOS Dashboardu."
+                : status.LastError;
+        }
+        else if (processRunning)
+        {
+            BridgeStatusTitle = "🟠 Proces Bridge beží, heartbeat je neaktuálny";
+            BridgeStatusDetail = status?.LastError ?? "Čakám na prvý heartbeat agenta.";
+        }
+        else
+        {
+            BridgeStatusTitle = "🔴 FOS Dashboard Bridge nie je spustený";
+            BridgeStatusDetail = status is null
+                ? "Desktopová aplikácia beží, ale samostatný Bridge Agent ešte nebol spustený."
+                : $"Posledný stav {status.UpdatedUtc.ToLocalTime():dd.MM.yyyy HH:mm:ss}: {status.LastError}";
+        }
+
+        BridgeConfigurationStatus = ReadBridgeConfigurationStatus();
+    }
+
+    private string ReadBridgeConfigurationStatus()
+    {
+        if (!System.IO.File.Exists(BridgeConfigPath))
+        {
+            return $"Konfigurácia chýba: {BridgeConfigPath}";
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(System.IO.File.ReadAllText(BridgeConfigPath));
+            JsonElement root = document.RootElement;
+            string url = root.TryGetProperty("dashboardUrl", out JsonElement urlNode) ? urlNode.GetString() ?? "" : "";
+            string key = root.TryGetProperty("agentKey", out JsonElement keyNode) ? keyNode.GetString() ?? "" : "";
+            bool validUrl = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) && uri.Scheme == Uri.UriSchemeHttps && !url.Contains("YOUR-DASHBOARD", StringComparison.OrdinalIgnoreCase);
+            bool validKey = key.StartsWith("lab_", StringComparison.Ordinal) && key.Length >= 44;
+            return validUrl && validKey
+                ? $"Konfigurácia pripravená · {url} · párovací token nastavený"
+                : "Konfigurácia nie je dokončená – nastav dashboardUrl a párovací agentKey (lab_…).";
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or JsonException or UnauthorizedAccessException)
+        {
+            return $"Konfiguráciu sa nepodarilo načítať: {ex.Message}";
+        }
+    }
+
+    private void StartBridge()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "schtasks.exe",
+                Arguments = "/Run /TN \"Sylex Lab Control Bridge\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            });
+            BridgeStatusTitle = "🟠 Odoslaná požiadavka na spustenie Bridge…";
+            BridgeStatusDetail = "Stav sa automaticky obnoví do niekoľkých sekúnd.";
+        }
+        catch (Exception ex)
+        {
+            BridgeStatusTitle = "🔴 Bridge sa nepodarilo spustiť";
+            BridgeStatusDetail = $"Naplánovaná úloha „Sylex Lab Control Bridge“ chýba alebo sa nedá spustiť: {ex.Message}";
+        }
+    }
+
+    #endregion
+
     #region E-mail notifications
 
     /// <summary>Live e-mail settings, bound directly by the home page.</summary>
@@ -1414,6 +1526,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _bridgeStatusTimer.Stop();
         _saveCts?.Cancel();
         _saveCts?.Dispose();
         SaveConfigs();

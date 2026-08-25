@@ -25,6 +25,26 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
             <StackPanel>
 
+            <!-- ===== FOS Dashboard Bridge ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Prepojenie s FOS Dashboardom" Style="{StaticResource Heading}" />
+                    <TextBlock Text="{Binding BridgeStatusTitle}" FontFamily="Segoe UI Semibold" FontSize="15"
+                               Margin="0,8,0,4" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding BridgeStatusDetail}" Style="{StaticResource Caption}"
+                               TextWrapping="Wrap" Margin="0,0,0,5" />
+                    <TextBlock Text="{Binding BridgeConfigurationStatus}" Style="{StaticResource Caption}"
+                               TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="Desktopová aplikácia a Lab Control Bridge sú dva samostatné procesy. Aby zariadenia bolo vidieť na webe, musí byť Bridge nakonfigurovaný, spustený a jeho heartbeat musí byť online." />
+                    <WrapPanel>
+                        <Button Content="Obnoviť stav" Command="{Binding RefreshBridgeStatusCommand}" />
+                        <Button Content="Spustiť Bridge" Style="{StaticResource AccentButton}" Command="{Binding StartBridgeCommand}" />
+                        <Button Content="Otvoriť priečinok konfigurácie" Command="{Binding OpenBridgeFolderCommand}" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
             <!-- ===== Add chamber ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel Orientation="Horizontal">

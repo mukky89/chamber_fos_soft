@@ -28,6 +28,9 @@ Essential invariants:
 - Start live diagnostics read-only. Do not issue START, STOP, setpoint, register
   write, delete, or export-trigger commands without an explicit request and an
   operator-safe device state.
+- Keep Bridge health observable through `bridge-status.json` and the desktop
+  Admin card. Do not equate the WPF process with the separate Bridge Agent, and
+  report missing dashboard endpoints as a real error rather than an online state.
 
 Established implementation seams:
 

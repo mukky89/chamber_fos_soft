@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
+using VotschVc3.Core.Settings;
 
 namespace VotschVc3.Agent;
 
@@ -14,6 +15,8 @@ public sealed class BridgeClient : IAsyncDisposable
     private readonly HttpClient _http;
     private int _cycle;
     private string _lastError = "";
+    private readonly string _statusPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Lab Control", "bridge-status.json");
 
     public BridgeClient(BridgeOptions options)
     {
@@ -21,12 +24,13 @@ public sealed class BridgeClient : IAsyncDisposable
         _devices = new DeviceManager(options);
         _http = new HttpClient { BaseAddress = new Uri(options.DashboardUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromMinutes(10) };
         _http.DefaultRequestHeaders.Add("X-Lab-Agent-Key", options.AgentKey);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.52.0");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.52.1");
     }
 
     public async Task RunAsync(CancellationToken ct)
     {
-        Console.WriteLine($"Lab Control Bridge 1.52.0 → {_http.BaseAddress}");
+        Console.WriteLine($"Lab Control Bridge 1.52.1 → {_http.BaseAddress}");
+        WriteStatus(false, "Agent sa pripája k Dashboardu…");
         while (!ct.IsCancellationRequested)
         {
             try
@@ -36,12 +40,27 @@ public sealed class BridgeClient : IAsyncDisposable
                 await HeartbeatAsync(devices, files, ct);
                 await ProcessCommandsAsync(ct);
                 _lastError = "";
+                WriteStatus(true, "");
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
-            catch (Exception ex) { _lastError = ex.Message; Console.Error.WriteLine($"[{DateTime.Now:HH:mm:ss}] {ex.Message}"); }
+            catch (Exception ex) { _lastError = ex.Message; WriteStatus(false, ex.Message); Console.Error.WriteLine($"[{DateTime.Now:HH:mm:ss}] {ex.Message}"); }
             await Task.Delay(TimeSpan.FromSeconds(_options.PollSeconds), ct);
         }
+        WriteStatus(false, "Agent bol zastavený.", running: false);
     }
+
+    private void WriteStatus(bool reachable, string error, bool running = true) =>
+        BridgeStatusFile.Write(_statusPath, new BridgeStatus
+        {
+            Running = running,
+            DashboardReachable = reachable,
+            UpdatedUtc = DateTime.UtcNow,
+            LastHeartbeatUtc = reachable ? DateTime.UtcNow : null,
+            DashboardUrl = _options.DashboardUrl,
+            MachineName = Environment.MachineName,
+            Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.52.1",
+            LastError = error,
+        });
 
     private async Task HeartbeatAsync(DeviceSnapshot[] devices, FileSnapshot[]? files, CancellationToken ct)
     {

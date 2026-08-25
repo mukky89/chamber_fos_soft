@@ -80,3 +80,17 @@ Windows účet musí mať prístup k COM portom a UNC cestám.
 - Desktop WPF a agent nemajú súčasne otvárať rovnaký COM port.
 - Pred ostrým profilom overiť limity a digitálny start kanál na bezpečnej teplote.
 - Pri strate Dashboardu agent nemení setpoint; lokálne bežiaci profil pokračuje.
+
+## Stav v desktopovej aplikácii
+
+V **Administrácia → Prepojenie s FOS Dashboardom** sa každých päť sekúnd
+zobrazuje, či proces agenta beží, či Dashboard prijal heartbeat, cieľová URL,
+čas posledného stavu, verzia a posledná chyba. Agent zapisuje stav atomicky do
+`Dokumenty\Lab Control\bridge-status.json`. Tlačidlo **Spustiť Bridge** spustí
+naplánovanú úlohu `Sylex Lab Control Bridge`; desktopová aplikácia sama osebe
+nie je Bridge Agent.
+
+Aktuálny web `sylex_fos_dashboard` má laboratórnu obrazovku v demo režime.
+Kým webový backend neposkytuje `/api/lab-agent/heartbeat`,
+`/api/lab-agent/commands` a párovanie tokenu, karta správne zobrazí chybu
+Dashboardu a web nebude agenta označovať ako online.
