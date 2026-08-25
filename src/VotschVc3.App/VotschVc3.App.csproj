@@ -17,7 +17,7 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.54.7</Version>
+    <Version>1.54.8</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -35,6 +35,18 @@
     <!-- F5/build of the desktop app must also produce the separate Bridge Agent. -->
     <ProjectReference Include="..\VotschVc3.Agent\VotschVc3.Agent.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- ProjectReference makes sure the Agent is built. Copy its complete output
+       (DLL, host EXE, runtimeconfig, deps and package files) into an isolated
+       folder; copying only the EXE produces a process that exits before Main. -->
+  <Target Name="CopyBridgeAgent" AfterTargets="Build">
+    <ItemGroup>
+      <BridgeAgentFiles Include="..\VotschVc3.Agent\bin\$(Configuration)\net8.0-windows\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BridgeAgentFiles)"
+          DestinationFiles="@(BridgeAgentFiles->'$(OutDir)LabBridge\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 
   <ItemGroup>
     <!-- Embed the changelog so it can be shown inside the app. -->

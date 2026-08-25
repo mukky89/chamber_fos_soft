@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.54.8
+
+- Opravené balenie Bridge Agenta pri spustení cez F5: do `LabBridge` sa teraz
+  kopíruje kompletný výstup vrátane `VotschVc3.Agent.dll`, `.deps.json` a
+  `.runtimeconfig.json`, nie iba nefunkčný EXE host.
+- Desktopová aplikácia uprednostní kompletný Agent v `LabBridge`; proces už
+  neskončí pred vytvorením `bridge-status.json`.
+
 ## 1.54.7
 
 - Zostavenie/spustenie desktopovej aplikácie teraz automaticky zostaví aj samostatný
