@@ -128,6 +128,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _bridgeStatusTimer.Tick += (_, _) => RefreshBridgeStatus();
         _bridgeStatusTimer.Start();
         RefreshBridgeStatus();
+        EnsureBridgeStarted();
 
         // Build chambers from the saved configuration (seed defaults on first run).
         List<ChamberConfig> configs = _configStore.LoadAll();
@@ -1107,9 +1108,24 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private void StartBridge()
     {
+        EnsureBridgeStarted(showAlreadyRunningStatus: true);
+    }
+
+    private void EnsureBridgeStarted(bool showAlreadyRunningStatus = false)
+    {
+        if (Process.GetProcessesByName("VotschVc3.Agent").Length > 0)
+        {
+            if (showAlreadyRunningStatus)
+            {
+                BridgeStatusTitle = "🟢 FOS Dashboard Bridge už beží";
+                BridgeStatusDetail = "Nie je potrebné spúšťať ďalší proces.";
+            }
+            return;
+        }
+
         try
         {
-            Process.Start(new ProcessStartInfo
+            using Process? task = Process.Start(new ProcessStartInfo
             {
                 FileName = "schtasks.exe",
                 Arguments = "/Run /TN \"Sylex Lab Control Bridge\"",
@@ -1117,14 +1133,51 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden,
             });
-            BridgeStatusTitle = "🟠 Odoslaná požiadavka na spustenie Bridge…";
-            BridgeStatusDetail = "Stav sa automaticky obnoví do niekoľkých sekúnd.";
+            task?.WaitForExit(3000);
+            if (task is not null && task.HasExited && task.ExitCode == 0)
+            {
+                BridgeStatusTitle = "🟠 Bridge sa automaticky spúšťa…";
+                BridgeStatusDetail = "Stav sa automaticky obnoví do niekoľkých sekúnd.";
+                return;
+            }
+
+            string? agentPath = FindBridgeAgentExecutable();
+            if (agentPath is null)
+            {
+                throw new System.IO.FileNotFoundException(
+                    "Naplánovaná úloha nie je nainštalovaná a VotschVc3.Agent.exe sa nenašiel.");
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = agentPath,
+                WorkingDirectory = System.IO.Path.GetDirectoryName(agentPath)!,
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            });
+            BridgeStatusTitle = "🟠 Bridge sa automaticky spúšťa…";
+            BridgeStatusDetail = $"Agent spustený priamo z {agentPath}.";
         }
         catch (Exception ex)
         {
             BridgeStatusTitle = "🔴 Bridge sa nepodarilo spustiť";
-            BridgeStatusDetail = $"Naplánovaná úloha „Sylex Lab Control Bridge“ chýba alebo sa nedá spustiť: {ex.Message}";
+            BridgeStatusDetail = ex.Message;
         }
+    }
+
+    private static string? FindBridgeAgentExecutable()
+    {
+        string baseDir = AppContext.BaseDirectory;
+        string configuration = baseDir.Contains($"{System.IO.Path.DirectorySeparatorChar}Debug{System.IO.Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+            ? "Debug"
+            : "Release";
+        string[] candidates =
+        {
+            System.IO.Path.Combine(baseDir, "VotschVc3.Agent.exe"),
+            System.IO.Path.Combine(baseDir, "LabBridge", "VotschVc3.Agent.exe"),
+            System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "..", "..", "..", "VotschVc3.Agent", "bin", configuration, "net8.0-windows", "VotschVc3.Agent.exe")),
+        };
+        return candidates.FirstOrDefault(System.IO.File.Exists);
     }
 
     #endregion

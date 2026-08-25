@@ -83,6 +83,11 @@ Windows účet musí mať prístup k COM portom a UNC cestám.
 
 ## Stav v desktopovej aplikácii
 
+Pri otvorení desktopovej aplikácie sa Bridge Agent automaticky spustí, ak ešte
+nebeží. Preferuje sa naplánovaná úloha `Sylex Lab Control Bridge`; ak nie je
+nainštalovaná, aplikácia skúsi nájsť `VotschVc3.Agent.exe` vedľa aplikácie,
+v podpriečinku `LabBridge` alebo vo vývojovom výstupe riešenia.
+
 V **Administrácia → Prepojenie s FOS Dashboardom** sa každých päť sekúnd
 zobrazuje, či proces agenta beží, či Dashboard prijal heartbeat, cieľová URL,
 čas posledného stavu, verzia a posledná chyba. Agent zapisuje stav atomicky do

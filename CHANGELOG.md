@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.54.4
+
+- FOS Dashboard Bridge Agent sa teraz automaticky spustí pri otvorení desktopovej
+  aplikácie. Aplikácia najprv overí, či agent už nebeží, aby nevytvorila duplicitný
+  proces.
+- Preferuje sa nainštalovaná naplánovaná úloha Windows; pri vývoji alebo prenosnej
+  inštalácii sa aplikácia pokúsi nájsť a spustiť `VotschVc3.Agent.exe` priamo.
+
 Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
