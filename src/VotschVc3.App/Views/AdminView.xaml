@@ -247,14 +247,14 @@
                         </StackPanel>
                     </WrapPanel>
 
-                    <TextBlock Text="HTTP API (napr. dbfood endpoint)" Style="{StaticResource Caption}" Margin="0,6,0,4" />
+                    <TextBlock Text="Brevo HTTP API (odporúčané podľa FOS Dashboard; HTTPS/443)" Style="{StaticResource Caption}" Margin="0,6,0,4" />
                     <WrapPanel>
                         <StackPanel Style="{StaticResource MiniField}" Width="320">
                             <TextBlock Text="Endpoint URL" Style="{StaticResource Label}" />
                             <TextBox Text="{Binding Email.HttpEndpoint, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}" Width="220">
-                            <TextBlock Text="API kľúč (Bearer)" Style="{StaticResource Label}" />
+                            <TextBlock Text="Brevo API kľúč" Style="{StaticResource Label}" />
                             <TextBox Text="{Binding Email.HttpApiKey, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                     </WrapPanel>

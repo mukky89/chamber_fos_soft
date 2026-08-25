@@ -21,6 +21,10 @@ Essential invariants:
 - Open SIKA/Vötsch pages at `http://<host>/`; do not reuse communication ports.
 - E-mail or log failures must not interrupt chamber control or alter a completed
   profile's result.
+- For e-mail delivery mirror `sylex_fos_dashboard/utils/mailer.js`: prefer the
+  Brevo API (`POST https://api.brevo.com/v3/smtp/email`, header `api-key`, Brevo
+  sender/to/content payload) and retain authenticated Brevo SMTP on port 587 as
+  fallback. Never commit API keys, SMTP logins, or SMTP keys.
 - Start live diagnostics read-only. Do not issue START, STOP, setpoint, register
   write, delete, or export-trigger commands without an explicit request and an
   operator-safe device state.

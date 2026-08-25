@@ -47,6 +47,14 @@ public sealed class SmtpEmailSender : IEmailSender
         }
 
         string from = !string.IsNullOrWhiteSpace(_settings.From) ? _settings.From : _settings.SmtpUser;
+        if (string.IsNullOrWhiteSpace(from))
+        {
+            throw new InvalidOperationException("Chýba adresa odosielateľa. Vyplň pole Odosielateľ (from).");
+        }
+        if (string.IsNullOrWhiteSpace(_settings.SmtpUser) || string.IsNullOrWhiteSpace(_settings.SmtpPassword))
+        {
+            throw new InvalidOperationException("Chýba SMTP používateľ alebo heslo. Pre Brevo použi SMTP login a SMTP key, alebo zvoľ BrevoApi.");
+        }
         using var mail = new MailMessage { From = new MailAddress(from, "Lab Control"), Subject = message.Subject, Body = message.Body };
         foreach (string recipient in EmailAddressParser.Parse(message.To))
         {
@@ -79,6 +87,63 @@ public sealed class SmtpEmailSender : IEmailSender
                 new MemoryStream(attachment.Content, writable: false), attachment.FileName, attachment.MediaType));
         }
         await client.SendMailAsync(mail, cancellationToken).ConfigureAwait(false);
+    }
+}
+
+/// <summary>Sends transactional e-mail using the same Brevo HTTPS API as FOS Dashboard.</summary>
+public sealed class BrevoEmailSender : IEmailSender
+{
+    private static readonly HttpClient SharedClient = new() { Timeout = TimeSpan.FromSeconds(20) };
+    private readonly EmailSettings _settings;
+    private readonly HttpClient _http;
+
+    public BrevoEmailSender(EmailSettings settings, HttpClient? http = null)
+    {
+        _settings = settings;
+        _http = http ?? SharedClient;
+    }
+
+    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_settings.From))
+        {
+            throw new InvalidOperationException("Chýba overená Brevo adresa odosielateľa.");
+        }
+        if (string.IsNullOrWhiteSpace(_settings.HttpApiKey))
+        {
+            throw new InvalidOperationException("Chýba Brevo API kľúč. Vlož ho do poľa API kľúč v administrácii.");
+        }
+
+        string endpoint = string.IsNullOrWhiteSpace(_settings.HttpEndpoint)
+            ? "https://api.brevo.com/v3/smtp/email"
+            : _settings.HttpEndpoint;
+        var payload = new
+        {
+            sender = new { name = "Lab Control", email = _settings.From.Trim() },
+            to = EmailAddressParser.Parse(message.To).Select(email => new { email }).ToArray(),
+            subject = message.Subject,
+            textContent = message.Body,
+            htmlContent = message.HtmlBody,
+            attachment = message.Attachments?.Select(a => new
+            {
+                name = a.FileName,
+                content = Convert.ToBase64String(a.Content),
+            }).ToArray(),
+        };
+        if (payload.to.Length == 0)
+        {
+            throw new InvalidOperationException("Chýba platný adresát.");
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = JsonContent.Create(payload) };
+        request.Headers.TryAddWithoutValidation("api-key", _settings.HttpApiKey.Trim());
+        request.Headers.TryAddWithoutValidation("accept", "application/json");
+        using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            string detail = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException($"Brevo API {(int)response.StatusCode}: {detail[..Math.Min(detail.Length, 300)]}");
+        }
     }
 }
 

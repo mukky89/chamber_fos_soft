@@ -12,6 +12,9 @@ public sealed class ProfileCompletionEmailTests
         var settings = new EmailSettings();
         Assert.Equal("smtp-relay.brevo.com", settings.SmtpHost);
         Assert.Equal(587, settings.SmtpPort);
+        Assert.Equal(EmailMethod.BrevoApi, settings.Method);
+        Assert.Equal("no-reply@sylex.sk", settings.From);
+        Assert.Equal("https://api.brevo.com/v3/smtp/email", settings.HttpEndpoint);
         Assert.Equal(3, EmailAddressParser.Parse(settings.Recipient).Count);
     }
 

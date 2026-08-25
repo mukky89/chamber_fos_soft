@@ -44,6 +44,14 @@ public sealed class EmailSettingsStore
                 {
                     settings.SmtpHost = "smtp-relay.brevo.com";
                 }
+                if (string.IsNullOrWhiteSpace(settings.From))
+                {
+                    settings.From = "no-reply@sylex.sk";
+                }
+                if (string.IsNullOrWhiteSpace(settings.HttpEndpoint))
+                {
+                    settings.HttpEndpoint = "https://api.brevo.com/v3/smtp/email";
+                }
                 return settings;
             }
             catch (Exception ex) when (ex is JsonException or IOException)

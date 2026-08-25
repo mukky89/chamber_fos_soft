@@ -60,9 +60,12 @@ public sealed class EmailNotifier
     {
         try
         {
-            IEmailSender sender = Settings.Method == EmailMethod.Http
-                ? new HttpEmailSender(Settings)
-                : new SmtpEmailSender(Settings);
+            IEmailSender sender = Settings.Method switch
+            {
+                EmailMethod.BrevoApi => new BrevoEmailSender(Settings),
+                EmailMethod.Http => new HttpEmailSender(Settings),
+                _ => new SmtpEmailSender(Settings),
+            };
 
             await sender.SendAsync(new EmailMessage(to, subject, body, htmlBody, attachments), cancellationToken).ConfigureAwait(false);
             return EmailResult.Ok();

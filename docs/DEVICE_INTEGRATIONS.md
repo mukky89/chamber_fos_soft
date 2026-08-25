@@ -125,11 +125,14 @@ staršie merania a obnovu dát po výpadku PC.
 
 ## E-mail po dokončení profilu
 
-Admin zapína/vypína notifikácie a upravuje adresátov i SMTP. Predvolení
+Admin zapína/vypína notifikácie a upravuje adresátov aj transport. Predvolení
 adresáti: `mmucka@sylex.sk; tsalat@sylex.sk; mplevka@sylex.sk`.
 
-SMTP podľa `sylex_fos_dashboard`: `smtp-relay.brevo.com`, port `587`, TLS/SSL;
-používateľ, heslo a overený odosielateľ sa doplnia v Admin zóne.
+Podľa `sylex_fos_dashboard` sa prednostne používa Brevo HTTP API
+`https://api.brevo.com/v3/smtp/email` s hlavičkou `api-key` (HTTPS/443).
+Záloha je SMTP `smtp-relay.brevo.com`, port `587`, STARTTLS. Predvolený
+odosielateľ je `no-reply@sylex.sk` a musí byť v Brevo overený. API kľúč,
+SMTP login a SMTP key sa nezapisujú do repozitára; zadávajú sa v Admin zóne.
 
 E-mail obsahuje zariadenie, profil/frontu, začiatok, koniec, trvanie, stav
 vypnutia výkonu, graf setpoint/nameraná teplota a CSV prílohu. Implementácia je

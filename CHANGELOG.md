@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.54.1] – 2026-08-25
+
+### Opravené
+- **E-mailové notifikácie podľa FOS Dashboard.** Pribudol natívny Brevo HTTP
+  API transport cez HTTPS/443 so správnou hlavičkou `api-key` a Brevo payloadom.
+- Predvolený odosielateľ je `no-reply@sylex.sk`; staré prázdne nastavenia sa
+  automaticky doplnia. SMTP zrozumiteľne overí odosielateľa, login a SMTP key.
+
 ## [1.54.0] – 2026-08-25
 
 ### Pridané / zmenené

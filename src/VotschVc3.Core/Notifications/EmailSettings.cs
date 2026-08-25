@@ -8,6 +8,9 @@ public enum EmailMethod
 
     /// <summary>An HTTP API endpoint (SendGrid / Mailgun / internal service).</summary>
     Http,
+
+    /// <summary>Brevo transactional e-mail API over HTTPS (preferred by FOS Dashboard).</summary>
+    BrevoApi,
 }
 
 /// <summary>
@@ -22,13 +25,13 @@ public sealed class EmailSettings
     public bool Enabled { get; set; }
 
     /// <summary>Delivery mechanism.</summary>
-    public EmailMethod Method { get; set; } = EmailMethod.Smtp;
+    public EmailMethod Method { get; set; } = EmailMethod.BrevoApi;
 
     /// <summary>Recipient address that receives the notifications.</summary>
     public string Recipient { get; set; } = DefaultRecipients;
 
     /// <summary>Sender ("from") address.</summary>
-    public string From { get; set; } = string.Empty;
+    public string From { get; set; } = "no-reply@sylex.sk";
 
     // --- SMTP ---
     public string SmtpHost { get; set; } = "smtp-relay.brevo.com";
@@ -39,7 +42,7 @@ public sealed class EmailSettings
 
     // --- HTTP API ---
     /// <summary>POST endpoint that accepts the e-mail (JSON body).</summary>
-    public string HttpEndpoint { get; set; } = string.Empty;
+    public string HttpEndpoint { get; set; } = "https://api.brevo.com/v3/smtp/email";
 
     /// <summary>Optional bearer API key sent as the Authorization header.</summary>
     public string HttpApiKey { get; set; } = string.Empty;

@@ -220,10 +220,11 @@ kľúčových slov (`Dauer/Duration/Zeit/Time`, `Temperatur/Temperature`,
 - **E-mail upozornenie** – na obrazovke *Administrácia* (prístupná len rola
   **Admin**, tlačidlo *Administrácia →* na home page) v karte
   *Notifikácie e-mailom* zapni posielanie, zadaj adresáta a vyber spôsob:
-  - **SMTP** (host, port, SSL, login) – univerzálne, cez `System.Net.Mail`;
-  - **HTTP API** (endpoint + voliteľný Bearer kľúč) – POST JSON
-    `{ to, from, subject, text }`; sem zadáš váš dbfood endpoint. Formát tela
-    prípadne uprav v `HttpEmailSender`.
+  - **BrevoApi** (odporúčané podľa FOS Dashboard) – HTTPS/443, overený
+    odosielateľ a Brevo API kľúč;
+  - **SMTP** – záložná cesta cez `smtp-relay.brevo.com:587`, ktorá vyžaduje
+    SMTP login a SMTP key;
+  - **HTTP** – voliteľný všeobecný endpoint s Bearer kľúčom.
 
   Po dokončení profilu sa odošle HTML e-mail s údajmi o zariadení a profile,
   stavom vypnutia výkonu, grafom setpointu/nameranej teploty a CSV logom v
