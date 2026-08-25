@@ -93,6 +93,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickStartProfileCommand = new AsyncRelayCommand<TestProfile?>(QuickStartProfileAsync,
             p => p is not null && IsConnected && IsOperable && !IsProfileRunning, ReportError);
         PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning && IsUnlocked);
+        SkipHoldCommand = new RelayCommand(SkipHold, () => IsProfileRunning && IsUnlocked && IsOnHoldSegment);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning && IsUnlocked);
         ResumeInterruptedRunCommand = new AsyncRelayCommand(ResumeInterruptedRunAsync,
             CanResumeInterruptedRun, ReportError);
@@ -1821,6 +1822,47 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         return StartProfileAsync();
     }
 
+    /// <summary>Dashboard ⏭: ends the plateau that is running and moves to the next segment.</summary>
+    public RelayCommand SkipHoldCommand { get; }
+
+    private bool _isOnHoldSegment;
+    /// <summary>
+    /// True while the running profile sits on a plateau (a hold), so the "skip plateau"
+    /// button is offered. False during a ramp – cutting a ramp short would let the next
+    /// segment jump straight to its target instead of approaching it in a controlled way.
+    /// On SIKA every step is driven as a jump-and-settle, so every segment counts as a hold.
+    /// </summary>
+    public bool IsOnHoldSegment
+    {
+        get => _isOnHoldSegment;
+        private set { if (SetProperty(ref _isOnHoldSegment, value)) SkipHoldCommand.RaiseCanExecuteChanged(); }
+    }
+
+    /// <summary>
+    /// Finishes the current plateau immediately: the run continues with the next ramp and
+    /// the plateau after it, exactly as if the remaining dwell time had elapsed. The rest
+    /// of the profile is untouched – nothing is dropped, only this one wait is cut short.
+    /// </summary>
+    private void SkipHold()
+    {
+        if (_activeRunner is not { } runner)
+        {
+            StatusMessage = "Profil ešte nebeží – plato sa dá preskočiť až po štarte.";
+            return;
+        }
+
+        if (!IsOnHoldSegment)
+        {
+            StatusMessage = "Práve beží nábeh (rampa) – preskočiť sa dá až plato.";
+            return;
+        }
+
+        runner.SkipCurrentHold();
+        StatusMessage = $"Plato {MeasuredTemperatureSetpoint:0.#} °C ukončené – pokračujem na ďalší krok.";
+        _audit.Log(Name, "Plato preskočené", $"{ProfileName} · {ProfileStatus}");
+        AppLog.Info(Name, $"Operátor ukončil aktuálne plato profilu \"{ProfileName}\" – beh pokračuje ďalším segmentom.");
+    }
+
     /// <summary>Dashboard ⏸ / ▶: toggles pause on the running profile.</summary>
     private void PauseResumeProfile()
     {
@@ -2140,6 +2182,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
             _powerOffOnProfileCancel = false;
             IsProfileRunning = false;
+            IsOnHoldSegment = false;
             _activeRunner = null;
             _profileActualStart = null;
             _profileEstimatedEnd = null;
@@ -2177,6 +2220,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             // The runner reports an absolute fraction across intro + all cycles + outro.
             double profileFraction = e.OverallFraction;
             ProfileProgress = Math.Clamp((indexInQueue + profileFraction) / queueCount * 100d, 0, 100);
+
+            // Only a plateau can be skipped (on SIKA every step is a jump-and-settle hold).
+            IsOnHoldSegment = !e.Segment.IsRamp || IsSika;
 
             // Phase / cycle label: only show the cycle counter inside the repeated region.
             string phase = e.Phase switch
@@ -3959,6 +4005,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickStartProfileCommand.RaiseCanExecuteChanged();
         PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
+        SkipHoldCommand.RaiseCanExecuteChanged();
         ResumeInterruptedRunCommand.RaiseCanExecuteChanged();
         DiscardInterruptedRunCommand.RaiseCanExecuteChanged();
         CancelProfileCommand.RaiseCanExecuteChanged();

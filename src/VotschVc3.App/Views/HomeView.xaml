@@ -532,6 +532,9 @@
                                                 <Button Style="{StaticResource IconActionButton}" Content="{Binding PauseResumeGlyph}"
                                                         Foreground="{StaticResource WarnBrush}" Command="{Binding PauseResumeProfileCommand}"
                                                         ToolTip="Pozastaviť / pokračovať" />
+                                                <Button Style="{StaticResource IconActionButton}" Content="⏭"
+                                                        Foreground="{StaticResource AccentBrush}" Command="{Binding SkipHoldCommand}"
+                                                        ToolTip="Ukončiť aktuálne plato a pokračovať na ďalší nábeh a plato. Zvyšok profilu zostáva nezmenený; počas nábehu je tlačidlo neaktívne." />
                                                 <Button Style="{StaticResource IconActionButton}" Content="⏹"
                                                         Foreground="{StaticResource ErrorBrush}" Command="{Binding StopProfileCommand}"
                                                         Margin="0" ToolTip="Zastaviť profil" />

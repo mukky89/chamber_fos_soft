@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.55.0] – 2026-08-25
+
+### Pridané
+- **Preskočenie plata počas behu.** Nové tlačidlo „⏭“ (na karte zariadenia, v
+  profesionálnom dashboarde aj v detaile komory) ukončí plato, ktoré práve beží,
+  a beh pokračuje ďalším nábehom a platom v poradí. Zvyšok profilu sa nemení –
+  skráti sa iba toto jedno čakanie. Akcia sa zapisuje do auditu.
+- Preskočiť sa dá aj čakanie na **garantovanú výdrž**, keď komora cieľovú teplotu
+  nedosiahne a beh by inak čakal donekonečna.
+- ⚠️ Počas **nábehu (rampy) je tlačidlo neaktívne** zámerne: skrátenie rampy by
+  nechalo ďalší segment zapísať svoju cieľovú teplotu okamžite, teda skok
+  namiesto riadeného nábehu. Požiadavka podaná počas rampy sa zahodí, nikdy sa
+  neprenesie na nasledujúce plato. Na SIKA, kde je každý krok skok a ustálenie,
+  je tlačidlo aktívne pri každom segmente.
+
 ## 1.54.9
 
 - Obnovená rampa pokračuje z presného uloženého setpointu: checkpoint teraz

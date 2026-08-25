@@ -83,6 +83,34 @@ public sealed class ProfileRunner
         _resume.Set();
     }
 
+    private volatile bool _skipHoldRequested;
+
+    /// <summary>
+    /// Ends the plateau (hold) that is running right now and moves straight on to the
+    /// next segment – the following ramp and its plateau – instead of waiting out the
+    /// rest of the dwell time. Also gives up a guaranteed-soak wait that is still
+    /// waiting for the chamber to reach the target.
+    /// <para>
+    /// Deliberately limited to holds: skipping a ramp would let the next segment write
+    /// its target immediately, turning a controlled ramp into a step change on a
+    /// chamber that may be hundreds of degrees away. A request made while a ramp is
+    /// running is dropped when that ramp ends, so it never leaks into the next segment.
+    /// </para>
+    /// </summary>
+    public void SkipCurrentHold() => _skipHoldRequested = true;
+
+    /// <summary>Takes the pending skip request, if any, so it is honoured exactly once.</summary>
+    private bool ConsumeSkipRequest()
+    {
+        if (!_skipHoldRequested)
+        {
+            return false;
+        }
+
+        _skipHoldRequested = false;
+        return true;
+    }
+
     /// <summary>
     /// Runs the profile to completion (or until <paramref name="cancellationToken"/>
     /// is cancelled). The chamber is started by setting the start digital channel
@@ -225,8 +253,12 @@ public sealed class ProfileRunner
         if (initialElapsed <= TimeSpan.Zero && holdBehavior &&
             (segment.GuaranteedSoak || _soakAllHolds || _soakAllSegments))
         {
-            await SoakWaitAsync(segment, cycle, index, startHum, phase, totalCycles,
+            bool skipped = await SoakWaitAsync(segment, cycle, index, startHum, phase, totalCycles,
                 completedSeconds, totalSeconds, cancellationToken).ConfigureAwait(false);
+            if (skipped)
+            {
+                return;
+            }
         }
 
         var segmentClock = System.Diagnostics.Stopwatch.StartNew();
@@ -235,6 +267,21 @@ public sealed class ProfileRunner
         {
             cancellationToken.ThrowIfCancellationRequested();
             await WaitWhilePausedAsync(segmentClock, cancellationToken).ConfigureAwait(false);
+
+            // Operator asked to cut this plateau short: report it as finished and let the
+            // run move on to the next ramp + plateau. The request is always consumed, so
+            // one made while a ramp is running is dropped instead of leaking into the
+            // plateau that follows it.
+            if (ConsumeSkipRequest() && holdBehavior)
+            {
+                double skippedOverall = Math.Clamp(
+                    (completedSeconds + duration.TotalSeconds) / totalSeconds, 0d, 1d);
+                Progress?.Invoke(this, new ProfileProgressEventArgs(
+                    cycle, index, segment, 1d, segment.TargetTemperature,
+                    segment.TargetHumidity ?? startHum, segmentClock.Elapsed,
+                    phase, totalCycles, skippedOverall, segmentStartTemperature: startTemp));
+                return;
+            }
 
             double elapsedSeconds = initialElapsed.TotalSeconds + segmentClock.Elapsed.TotalSeconds;
             double fraction = Math.Clamp(elapsedSeconds / duration.TotalSeconds, 0d, 1d);
@@ -264,7 +311,11 @@ public sealed class ProfileRunner
         }
     }
 
-    private async Task SoakWaitAsync(
+    /// <summary>
+    /// Holds the target and waits until the measured temperature is within tolerance.
+    /// Returns <c>true</c> when the operator skipped the plateau instead of waiting.
+    /// </summary>
+    private async Task<bool> SoakWaitAsync(
         ProfileSegment segment, int cycle, int index, double? startHum,
         ProfileRunPhase phase, int totalCycles, double completedSeconds, double totalSeconds,
         CancellationToken cancellationToken)
@@ -279,6 +330,13 @@ public sealed class ProfileRunner
         {
             cancellationToken.ThrowIfCancellationRequested();
             await WaitWhilePausedAsync(null, cancellationToken).ConfigureAwait(false);
+
+            // Skipping out of the wait ends the plateau – useful when the chamber cannot
+            // reach the target and the run would otherwise wait indefinitely.
+            if (ConsumeSkipRequest())
+            {
+                return true;
+            }
 
             // Keep driving the chamber to the target while waiting.
             await WriteSetpointAsync(segment.TargetTemperature, humidity, cancellationToken).ConfigureAwait(false);
@@ -306,7 +364,7 @@ public sealed class ProfileRunner
 
             if (measured is { } m && Math.Abs(m - segment.TargetTemperature) <= tolerance)
             {
-                return;
+                return false;
             }
 
             await Task.Delay(_updateInterval, cancellationToken).ConfigureAwait(false);

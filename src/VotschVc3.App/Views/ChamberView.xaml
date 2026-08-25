@@ -406,6 +406,8 @@
                                     <StackPanel Orientation="Horizontal">
                                         <Button Content="Spustiť profil" Style="{StaticResource AccentButton}" Command="{Binding StartProfileCommand}" />
                                         <Button Content="Pozastaviť / pokračovať" Command="{Binding PauseResumeProfileCommand}" />
+                                        <Button Content="⏭ Preskočiť plato" Command="{Binding SkipHoldCommand}"
+                                                ToolTip="Ukončí plato, ktoré práve beží, a beh pokračuje ďalším nábehom a platom v poradí. Zvyšok profilu sa nemení. Počas nábehu je tlačidlo neaktívne – skrátenie rampy by nechalo komoru skočiť na ďalšiu teplotu." />
                                         <Button Content="Zastaviť" Style="{StaticResource DangerButton}" Command="{Binding StopProfileCommand}" />
                                     </StackPanel>
                                     <StackPanel HorizontalAlignment="Right">
