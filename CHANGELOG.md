@@ -4,6 +4,38 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.53.1] – 2026-08-25
+
+### Opravené
+- **Vrátené opravy pripojenia na SIKA, ktoré sa stratili pri včerajšom zlučovaní
+  vetiev.** Vetva `sika-connection-temperature` bola do `main` zlúčená, ale
+  konflikt v `SikaTpClient.cs` sa vyriešil v prospech druhej strany, takže
+  samotné opravy v kóde neskončili. Prenesené sú teraz na aktuálny (novší,
+  `setRegister`) zápis setpointu:
+  - **Obídenie systémovej HTTP proxy** (`SocketsHttpHandler.UseProxy = false`).
+    Toto bola hlavná príčina „pripojenie nefunguje“: s firemnou proxy na PC
+    zomreli požiadavky na lokálnu IP kúpeľa v proxy, kým zariadenia po surovom
+    TCP fungovali ďalej.
+  - **Test pripojenia cez lacný `getRegister`** namiesto `getInfoReport`, ktorého
+    generovanie na prístroji trvalo dlhšie než timeout pripojenia. Ak niečo na
+    porte odpovie, ale nie je to REST-API, hlási sa to zrozumiteľne (skontroluj
+    port 8081 / povolenie REST-API) namiesto tichého zlyhania.
+  - **Opakovanie pri výpadku** (3 pokusy po 350 ms) pre jednorazové príkazy –
+    pripojenie, zápis setpointu, START/STOP. Vstavaný webserver kúpeľa občas
+    odpovie sporadickým 404, jeden zádrhel už nezhodí celú operáciu. Živé
+    načítavanie sa neopakuje, to sa aj tak opýta znova.
+  - **`Connection: close`** pri každej požiadavke (keep-alive proti vstavanému
+    serveru vracal staré odpovede).
+  - **Overenie zapísaného setpointu** spätným čítaním `TRset_SP`. Prístroj vie
+    zápis potvrdiť a napriek tomu ho ignorovať (ručný režim, prebiehajúca
+    kalibrácia, zakázané vzdialené ovládanie) – doteraz to operátor videl len
+    tak, že sa kúpeľ nerozbehol. Teraz sa to ohlási ako chyba.
+  - Zrozumiteľné slovenské hlášky pri odmietnutom spojení, nedostupnom prístroji
+    a nepreložiteľnej adrese.
+- Ponechaný je novší, na prístroji overený spôsob zápisu setpointu
+  (`Task_SetPointList` + `TRset_SP` cez `setRegister`) aj funkčné `StopAsync`
+  (`stopCurrentTask` + `System_ReglerOnOff=0`) – tie sú novšie než stratená vetva.
+
 ## [1.53.0] – 2026-08-25
 
 ### Opravené
