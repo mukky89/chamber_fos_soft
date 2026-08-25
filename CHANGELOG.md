@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.56.0] – 2026-08-25
+
+### Opravené
+- **Bridge používa aktuálne nastavenia desktopovej aplikácie.** Pri štarte načíta
+  `Documents\\Lab Control\\chambers.json` a pre tri komory a dve SIKA prevezme
+  reálny názov, IP, port, adresu a mapovanie kanálov. POL-EKO ignoruje.
+- **Synchronizácia profilovej knižnice do Dashboardu.** Heartbeat prenáša profily
+  z `Profiles\\profiles.json` vrátane segmentov, cyklovania, rampy, guaranteed
+  soak a tolerancií.
+- Zachovaná je nová observabilita agenta cez `bridge-status.json`; neúspešný
+  Dashboard endpoint sa ďalej zobrazuje ako reálna chyba, nie ako online stav.
+
 ## [1.55.1] – 2026-08-25
 
 ### Odstránené

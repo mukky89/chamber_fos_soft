@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using VotschVc3.Core.Profiles;
 
 namespace VotschVc3.Agent;
 
@@ -14,6 +15,7 @@ public sealed class BridgeOptions
     public List<ThermometerOptions> Thermometers { get; set; } = new();
     public List<FolderOptions> Folders { get; set; } = DefaultFolders();
     public string ProfilesFile { get; set; } = Path.Combine(LabRoot(), "Profiles", "profiles.json");
+    public string ChambersFile { get; set; } = Path.Combine(LabRoot(), "chambers.json");
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -41,8 +43,28 @@ public sealed class BridgeOptions
             throw new InvalidOperationException("V bridge.json chýba pairing AgentKey z administrácie Dashboardu.");
         PollSeconds = Math.Clamp(PollSeconds, 2, 60);
         MaxIndexedFiles = Math.Clamp(MaxIndexedFiles, 100, 20_000);
+        ImportDesktopConfiguration();
         foreach (FolderOptions folder in Folders) folder.Validate();
     }
+
+    private void ImportDesktopConfiguration()
+    {
+        string file = System.IO.Path.GetFullPath(Environment.ExpandEnvironmentVariables(ChambersFile));
+        foreach (ChamberConfig source in new ChamberConfigStore(file).LoadAll()
+            .Where(c => c.Protocol != ChamberProtocol.PolEkoModbus))
+        {
+            DeviceOptions? target = Devices.FirstOrDefault(d => string.Equals(d.Host, source.Host, StringComparison.OrdinalIgnoreCase));
+            target ??= Devices.FirstOrDefault(d => Normalize(d.Name).Contains(Normalize(source.Name)) || Normalize(source.Name).Contains(Normalize(d.Name)));
+            if (target is null) continue;
+            target.Name = source.Name; target.Host = source.Host; target.Port = source.Port;
+            target.Address = source.Address; target.AnalogChannelCount = source.AnalogChannelCount;
+            target.StartChannelIndex = source.StartChannelIndex;
+            target.HasHumidity = source.Kind == ChamberKind.TemperatureHumidity;
+            target.Kind = source.Protocol == ChamberProtocol.SikaRestApi ? DeviceKind.Sika : DeviceKind.Chamber;
+        }
+    }
+
+    private static string Normalize(string value) => new((value ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
     public FolderOptions RequireFolder(string alias, bool write = false)
     {
