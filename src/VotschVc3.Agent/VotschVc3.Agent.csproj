@@ -7,6 +7,13 @@
     <LangVersion>latest</LangVersion>
     <Version>1.52.1</Version>
     <Product>Lab Control Bridge</Product>
+    <!-- The desktop app references this project (build-only) and publishes itself
+         framework-dependent. A RID passed on the publish command line flows into this
+         project too, and an Exe with a RID would otherwise default to self-contained,
+         which the SDK refuses to let a framework-dependent app reference (NETSDK1151).
+         The bridge is deployed framework-dependent anyway (its LabBridge payload is
+         the .dll + .deps.json + .runtimeconfig.json), so pin it explicitly. -->
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\VotschVc3.Core\VotschVc3.Core.csproj" />
