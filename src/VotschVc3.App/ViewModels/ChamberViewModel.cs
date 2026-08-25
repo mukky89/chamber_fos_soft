@@ -43,6 +43,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private DateTime? _profileEstimatedEnd;
     private System.Windows.Threading.DispatcherTimer? _countdownTimer;
     private ProfileRunner? _activeRunner;
+    private ProfileRunCheckpoint? _interruptedRun;
 
     public ChamberViewModel(
         ChamberConfig config, ProfileStore store, EmailNotifier email, ThermometersViewModel thermometers, AuditLog audit,
@@ -93,6 +94,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             p => p is not null && IsConnected && IsOperable && !IsProfileRunning, ReportError);
         PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning && IsUnlocked);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning && IsUnlocked);
+        ResumeInterruptedRunCommand = new AsyncRelayCommand(ResumeInterruptedRunAsync,
+            () => HasInterruptedRun && IsConnected && IsOperable && !IsProfileRunning, ReportError);
+        DiscardInterruptedRunCommand = new RelayCommand(DiscardInterruptedRun,
+            () => HasInterruptedRun && !IsProfileRunning && IsUnlocked);
         CancelProfileCommand = new RelayCommand(CancelProfile, CanCancelProfile);
         StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsOperable && !IsProfileRunning && Queue.Count > 0, ReportError);
         AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
@@ -1584,6 +1589,21 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public RelayCommand StopProfileCommand { get; }
 
+    /// <summary>Resumes a profile run saved before an application or connection interruption.</summary>
+    public AsyncRelayCommand ResumeInterruptedRunCommand { get; }
+
+    /// <summary>Deletes the saved interrupted run without resuming it.</summary>
+    public RelayCommand DiscardInterruptedRunCommand { get; }
+
+    public bool HasInterruptedRun => _interruptedRun is not null;
+
+    private string _interruptedRunInfo = string.Empty;
+    public string InterruptedRunInfo
+    {
+        get => _interruptedRunInfo;
+        private set => SetProperty(ref _interruptedRunInfo, value);
+    }
+
     /// <summary>Cancels a quick-started (or loaded) profile and clears it off the card.</summary>
     public RelayCommand CancelProfileCommand { get; }
     public RelayCommand AddSegmentCommand { get; }
@@ -1820,9 +1840,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>
     /// Looks for a profile-run checkpoint left by an interrupted run (power outage, crash)
-    /// and, if the operator confirms, resumes it exactly where it stopped. Called after
-    /// every successful connect (manual or auto-reconnect); a no-op when there is nothing
-    /// to recover, a profile is already running, or recovery is disabled for this chamber.
+    /// and offers it to the operator in the chamber and dashboard recovery banners.
     /// </summary>
     private void CheckProfileRecovery()
     {
@@ -1832,33 +1850,29 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
 
         ProfileRunCheckpoint? checkpoint = _checkpointStore.TryLoad(Id);
-        if (checkpoint is null)
+        SetInterruptedRun(checkpoint);
+    }
+
+    private void SetInterruptedRun(ProfileRunCheckpoint? checkpoint)
+    {
+        _interruptedRun = checkpoint;
+        InterruptedRunInfo = checkpoint is null
+            ? string.Empty
+            : $"⚠ Prerušený beh: „{checkpoint.Profile.Name}“ · cyklus {checkpoint.CycleIndex + 1}/{Math.Max(1, checkpoint.Profile.Cycles)} " +
+              $"· segment {checkpoint.SegmentIndex + 1}/{checkpoint.Profile.Segments.Count} · uložené {checkpoint.LastWriteUtc.ToLocalTime():dd.MM. HH:mm:ss}";
+        OnPropertyChanged(nameof(HasInterruptedRun));
+        ResumeInterruptedRunCommand.RaiseCanExecuteChanged();
+        DiscardInterruptedRunCommand.RaiseCanExecuteChanged();
+    }
+
+    private async Task ResumeInterruptedRunAsync()
+    {
+        if (_interruptedRun is not { } checkpoint)
         {
             return;
         }
 
-        TimeSpan age = DateTime.UtcNow - checkpoint.LastWriteUtc;
-        string ageText = age.TotalMinutes < 1 ? "< 1 min"
-            : age.TotalHours < 1 ? $"{(int)age.TotalMinutes} min"
-            : $"{(int)age.TotalHours} h {age.Minutes} min";
         string segInfo = $"segment {checkpoint.SegmentIndex + 1}/{checkpoint.Profile.Segments.Count}";
-
-        bool confirmed = false;
-        RunOnUi(() => confirmed = Views.ConfirmDialog.Ask(
-            $"Zistil sa prerušený profil „{checkpoint.Profile.Name}“ na zariadení „{Name}“ ({segInfo}), " +
-            $"naposledy zaznamenaný pred {ageText}.\n\nObnoviť beh presne od miesta prerušenia?",
-            "Obnovenie profilu po výpadku",
-            "Obnoviť profil",
-            danger: false));
-
-        if (!confirmed)
-        {
-            _checkpointStore.Delete(Id);
-            _audit.Log(Name, "Obnovenie profilu odmietnuté", checkpoint.Profile.Name);
-            AppLog.Warn(Name, $"Operátor odmietol obnovenie prerušeného profilu \"{checkpoint.Profile.Name}\".");
-            return;
-        }
-
         _audit.Log(Name, "Profil obnovený po výpadku", $"{checkpoint.Profile.Name} ({segInfo})");
         AppLog.Info(Name, $"Obnovujem prerušený profil \"{checkpoint.Profile.Name}\" od {segInfo}.");
         DesktopNotifier.Notify(
@@ -1873,7 +1887,21 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         var profiles = new List<TestProfile> { checkpoint.Profile };
         profiles.AddRange(checkpoint.RemainingQueue);
 
-        _ = RunSequenceAsync(profiles, resumeFrom);
+        SetInterruptedRun(null);
+        await RunSequenceAsync(profiles, resumeFrom);
+    }
+
+    private void DiscardInterruptedRun()
+    {
+        if (_interruptedRun is not { } checkpoint)
+        {
+            return;
+        }
+
+        _checkpointStore?.Delete(Id);
+        _audit.Log(Name, "Prerušený profil zahodený", checkpoint.Profile.Name);
+        AppLog.Info(Name, $"Uložený prerušený profil \"{checkpoint.Profile.Name}\" bol zahodený.");
+        SetInterruptedRun(null);
     }
 
     private void SaveProfileCheckpoint(
@@ -3821,6 +3849,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickStartProfileCommand.RaiseCanExecuteChanged();
         PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
+        ResumeInterruptedRunCommand.RaiseCanExecuteChanged();
+        DiscardInterruptedRunCommand.RaiseCanExecuteChanged();
         CancelProfileCommand.RaiseCanExecuteChanged();
         StartQueueCommand.RaiseCanExecuteChanged();
         StartChainCommand.RaiseCanExecuteChanged();

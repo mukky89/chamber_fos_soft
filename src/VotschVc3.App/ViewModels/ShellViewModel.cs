@@ -426,11 +426,18 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             if (SetProperty(ref _currentView, value))
             {
                 OnPropertyChanged(nameof(IsHome));
+                OnPropertyChanged(nameof(DetailView));
             }
         }
     }
 
     public bool IsHome => ReferenceEquals(CurrentView, this);
+
+    /// <summary>
+    /// View shown above the permanently retained home dashboard. Returning null on
+    /// the home page prevents the shell itself from being rendered recursively.
+    /// </summary>
+    public object? DetailView => IsHome ? null : CurrentView;
 
     /// <summary>Application version (e.g. "v1.0.0"), read from the assembly.</summary>
     public string AppVersion { get; } =
