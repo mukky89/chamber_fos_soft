@@ -19,5 +19,6 @@
     { "alias": "AppLog", "path": "%USERPROFILE%\\Documents\\Lab Control\\App log", "writable": false },
     { "alias": "AllData", "path": "%USERPROFILE%\\Documents\\Lab Control", "writable": false }
   ],
-  "profilesFile": "%USERPROFILE%\\Documents\\Lab Control\\Profiles\\profiles.json"
+  "profilesFile": "%USERPROFILE%\\Documents\\Lab Control\\Profiles\\profiles.json",
+  "chambersFile": "%USERPROFILE%\\Documents\\Lab Control\\chambers.json"
 }

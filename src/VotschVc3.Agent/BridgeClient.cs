@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
+using VotschVc3.Core.Profiles;
 
 namespace VotschVc3.Agent;
 
@@ -12,6 +13,7 @@ public sealed class BridgeClient : IAsyncDisposable
     private readonly BridgeOptions _options;
     private readonly DeviceManager _devices;
     private readonly HttpClient _http;
+    private readonly ProfileStore _profiles;
     private int _cycle;
     private string _lastError = "";
 
@@ -19,14 +21,15 @@ public sealed class BridgeClient : IAsyncDisposable
     {
         _options = options;
         _devices = new DeviceManager(options);
+        _profiles = new ProfileStore(options.ProfilesFile);
         _http = new HttpClient { BaseAddress = new Uri(options.DashboardUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromMinutes(10) };
         _http.DefaultRequestHeaders.Add("X-Lab-Agent-Key", options.AgentKey);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.52.0");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.53.0");
     }
 
     public async Task RunAsync(CancellationToken ct)
     {
-        Console.WriteLine($"Lab Control Bridge 1.52.0 → {_http.BaseAddress}");
+        Console.WriteLine($"Lab Control Bridge 1.53.0 → {_http.BaseAddress}");
         while (!ct.IsCancellationRequested)
         {
             try
@@ -47,10 +50,10 @@ public sealed class BridgeClient : IAsyncDisposable
     {
         var request = new HeartbeatRequest(
             Environment.MachineName,
-            Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.52.0",
+            Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.53.0",
             new[] { "ascii2", "simserv", "sika-rest", "asl-f100", "profiles", "files-read", "files-write" },
             _options.Folders.Select(f => new FolderSnapshot(f.Alias, f.Writable)).ToArray(),
-            devices, files, _lastError);
+            devices, _profiles.LoadAll().Take(2000).ToArray(), files, _lastError);
         using HttpResponseMessage response = await _http.PostAsJsonAsync("api/lab-agent/heartbeat", request, BridgeOptions.Json, ct);
         await EnsureSuccessAsync(response, ct);
     }

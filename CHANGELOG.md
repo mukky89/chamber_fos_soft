@@ -4,6 +4,12 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.53.0] – 2026-08-25
+
+### Opravené
+- **Bridge automaticky používa aktuálne nastavenia desktopovej aplikácie.** Pri štarte načíta `Documents\\Lab Control\\chambers.json` a pre známe tri komory a dve SIKA prevezme reálny názov, IP, port, adresu a mapovanie kanálov. POL-EKO sa ignoruje.
+- **Synchronizácia profilovej knižnice.** Každý heartbeat prenesie profily z `Profiles\\profiles.json` vrátane segmentov, cyklovania, rampy a guaranteed soak, takže web používa rovnaké dostupné profily ako WPF aplikácia.
+
 ## [1.52.0] – 2026-08-24
 
 ### Integrované

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using VotschVc3.Core.Profiles;
 
 namespace VotschVc3.Agent;
 
@@ -9,7 +10,7 @@ public sealed record DeviceSnapshot(
 
 public sealed record FileSnapshot(string RootAlias, string RelativePath, string Name, bool IsDirectory, long Size, DateTimeOffset? ModifiedAt);
 public sealed record FolderSnapshot(string Alias, bool Writable);
-public sealed record HeartbeatRequest(string HostName, string Version, string[] Capabilities, FolderSnapshot[] Folders, DeviceSnapshot[] Devices, FileSnapshot[]? Files, string LastError);
+public sealed record HeartbeatRequest(string HostName, string Version, string[] Capabilities, FolderSnapshot[] Folders, DeviceSnapshot[] Devices, TestProfile[] Profiles, FileSnapshot[]? Files, string LastError);
 public sealed class AgentCommand
 {
     public string Id { get; set; } = "";
