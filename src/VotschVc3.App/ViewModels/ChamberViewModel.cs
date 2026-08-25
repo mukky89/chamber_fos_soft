@@ -95,7 +95,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning && IsUnlocked);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning && IsUnlocked);
         ResumeInterruptedRunCommand = new AsyncRelayCommand(ResumeInterruptedRunAsync,
-            () => HasInterruptedRun && IsConnected && IsOperable && !IsProfileRunning, ReportError);
+            CanResumeInterruptedRun, ReportError);
         DiscardInterruptedRunCommand = new RelayCommand(DiscardInterruptedRun,
             () => HasInterruptedRun && !IsProfileRunning && IsUnlocked);
         CancelProfileCommand = new RelayCommand(CancelProfile, CanCancelProfile);
@@ -669,12 +669,20 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _audit.Log(Name, "Pripojenie", Endpoint);
         AppLog.Info(Name, $"Pripojené na {Endpoint}.");
 
+        CheckProfileRecovery();
+        if (HasInterruptedRun)
+        {
+            // Confirm the live device state before an automatic recovery. Besides
+            // validating the link, this obtains SIKA's current Remote Control flag.
+            ApplyReading(await _client.ReadAsync());
+        }
+
         if (PollingEnabled)
         {
             StartPolling();
         }
 
-        CheckProfileRecovery();
+        StartAutomaticProfileRecovery();
     }
 
     private async Task DisconnectAsync()
@@ -1898,7 +1906,57 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == checkpoint.Profile.Id)
             ?? checkpoint.Profile;
         SetInterruptedRun(null);
-        await RunSequenceAsync(profiles, resumeFrom);
+        try
+        {
+            await RunSequenceAsync(profiles, resumeFrom);
+        }
+        catch
+        {
+            // RunSequence keeps the checkpoint on unexpected failure. Restore the
+            // banner as well so the operator can retry after fixing the connection.
+            CheckProfileRecovery();
+            throw;
+        }
+    }
+
+    private bool CanResumeInterruptedRun() =>
+        HasInterruptedRun && IsConnected && IsControlAllowed &&
+        (!IsSika || SikaRemoteControlEnabled == true) && !IsProfileRunning;
+
+    private bool _automaticRecoveryRunning;
+
+    /// <summary>
+    /// Continues a checkpoint automatically after startup/reconnect. The persisted
+    /// device lock is deliberately not treated as a blocker: it was applied by the
+    /// interrupted run itself and still protects the controls while that same run
+    /// continues.
+    /// </summary>
+    private void StartAutomaticProfileRecovery()
+    {
+        if (!AutoRecoverProfile || !CanResumeInterruptedRun() || _automaticRecoveryRunning)
+        {
+            return;
+        }
+
+        _automaticRecoveryRunning = true;
+        _ = ResumeAutomaticallyAsync();
+    }
+
+    private async Task ResumeAutomaticallyAsync()
+    {
+        try
+        {
+            StatusMessage = "Obnovujem prerušený profil automaticky…";
+            await ResumeInterruptedRunAsync();
+        }
+        catch (Exception ex)
+        {
+            ReportError(ex);
+        }
+        finally
+        {
+            _automaticRecoveryRunning = false;
+        }
     }
 
     private void DiscardInterruptedRun()
@@ -3475,6 +3533,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         while (!token.IsCancellationRequested)
         {
             StatusMessage = $"Pokus o opätovné pripojenie o {delaySeconds} s…";
+            ChamberReading probe;
             try
             {
                 await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token);
@@ -3483,7 +3542,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 // only replies with a version banner on the wrong port), so confirm
                 // the link with a real read before declaring success. This stops the
                 // connect / drop flapping and the alarm-log spam.
-                ChamberReading probe = await _client.ReadAsync(token);
+                probe = await _client.ReadAsync(token);
                 if (LooksLikeControllerBanner(probe.Raw))
                 {
                     WarnControllerBannerOnce(probe.Raw);
@@ -3506,6 +3565,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _connectionLostHandled = false;
             _pollFailureCount = 0;
             IsConnected = true;
+            ApplyReading(probe);
             ClearAlarm("link");
             StatusMessage = "Opätovne pripojené.";
             if (PollingEnabled)
@@ -3514,6 +3574,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             }
 
             CheckProfileRecovery();
+            StartAutomaticProfileRecovery();
             return;
         }
     }

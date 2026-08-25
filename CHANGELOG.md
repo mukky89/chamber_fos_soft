@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.54.5
+
+- Prerušený profil sa po spustení aplikácie a úspešnom pripojení zariadenia
+  automaticky obnoví od posledného uloženého segmentu, cyklu a času v segmente.
+- Pred automatickým pokračovaním sa vykoná živé čítanie zariadenia. Pri SIKA sa
+  profil spustí iba so zapnutým Remote Control; pri chybe zostáva kontrolný bod
+  zachovaný a znovu sa zobrazí možnosť pokračovať.
+
 ## 1.54.4
 
 - FOS Dashboard Bridge Agent sa teraz automaticky spustí pri otvorení desktopovej
