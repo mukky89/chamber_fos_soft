@@ -35,7 +35,9 @@ public class SikaTpClientTests
 
         Assert.Equal(-19.999613, reading.Temperature);
         Assert.Equal(-20.0, reading.TemperatureSetpoint);
-        Assert.DoesNotContain(handler.Requested.Skip(afterConnect), u => u.Contains("getRegister"));
+        Assert.DoesNotContain(
+            handler.Requested.Skip(afterConnect),
+            u => u.Contains("register=TRset_TR") || u.Contains("register=TRset_SP"));
     }
 
     /// <summary>
@@ -78,6 +80,8 @@ public class SikaTpClientTests
             ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
             ["ajax/getRegister?register=TRset_TR"] =
                 ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=Com_ExternWriteFlag"] =
+                ("{\"register\":\"Com_ExternWriteFlag\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/getRegister?register=System_ReglerOnOff"] =
                 ("{\"register\":\"System_ReglerOnOff\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/setRegister?register=Task_SetPointList&value=40"] =
@@ -111,6 +115,8 @@ public class SikaTpClientTests
             ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
             ["ajax/getRegister?register=TRset_TR"] =
                 ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=Com_ExternWriteFlag"] =
+                ("{\"register\":\"Com_ExternWriteFlag\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/getRegister?register=System_ReglerOnOff"] =
                 ("{\"register\":\"System_ReglerOnOff\",\"values\":[{\"value\":0.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/setRegister?register=Task_SetPointList&value=100"] =
@@ -149,6 +155,8 @@ public class SikaTpClientTests
             ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
             ["ajax/getRegister?register=TRset_TR"] =
                 ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=Com_ExternWriteFlag"] =
+                ("{\"register\":\"Com_ExternWriteFlag\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/stopCurrentTask"] =
                 ("{\"value\":\"success\",\"info\":\"stop current task and reload current task\"}", HttpStatusCode.OK),
             ["ajax/setRegister?register=System_ReglerOnOff&value=0"] =
@@ -237,6 +245,54 @@ public class SikaTpClientTests
 
         Assert.Contains("25", ex.Message);
         Assert.Contains("40", ex.Message);
+    }
+
+    /// <summary>
+    /// With "Remote Control" off the bath ignores writes, so the client must refuse the
+    /// command outright instead of sending it and reporting success.
+    /// </summary>
+    [Fact]
+    public async Task WriteSetpointsAsync_is_blocked_when_remote_control_is_off()
+    {
+        var handler = new RouteHandler
+        {
+            ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=TRset_TR"] =
+                ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=Com_ExternWriteFlag"] =
+                ("{\"register\":\"Com_ExternWriteFlag\",\"values\":[{\"value\":0.0}]}", HttpStatusCode.OK),
+        };
+        await using var client = new SikaTpClient(_ => new HttpClient(handler));
+        await client.ConnectAsync(new ChamberConnectionSettings { Host = "sika", Port = 80 });
+
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.WriteSetpointsAsync([40], new DigitalChannels { Start = true }));
+
+        Assert.Contains("Remote Control", error.Message);
+        Assert.DoesNotContain(handler.Requested, u => u.Contains("setRegister"));
+        Assert.DoesNotContain(handler.Requested, u => u.Contains("startCurrentTask"));
+    }
+
+    [Fact]
+    public async Task Task_logs_are_loaded_from_verified_endpoints()
+    {
+        var handler = new RouteHandler
+        {
+            ["ajax/getInfoReport"] = ("{}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=TRset_TR"] =
+                ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/getTaskLog"] = ("{\"values\":[{\"ID\":4,\"Name\":\"DEFAULT\",\"Type\":\"Stufen\",\"Version\":\"27.41\",\"Start\":\"1787318471\",\"End\":\"1787364920\",\"Task\":{\"Name\":\"-20TO100\"}}]}", HttpStatusCode.OK),
+            ["ajax/getTaskLogs?taskid=4"] = ("{\"values\":[{\"n\":\"TRset_SP\",\"l\":[{\"v\":-20,\"t\":0}]},{\"n\":\"TRset_TR\",\"l\":[{\"v\":30,\"t\":0}]}]}", HttpStatusCode.OK),
+        };
+        await using var client = new SikaTpClient(_ => new HttpClient(handler));
+        await client.ConnectAsync(new ChamberConnectionSettings { Host = "sika", Port = 80 });
+
+        SikaTaskLogSummary log = Assert.Single(await client.GetTaskLogsAsync());
+        SikaTaskLogData data = await client.GetTaskLogDataAsync(log.Id);
+
+        Assert.Equal("-20TO100", log.TaskName);
+        Assert.Equal(-20, Assert.Single(data.Setpoints).Value);
+        Assert.Equal(30, Assert.Single(data.Temperatures).Value);
     }
 
     /// <summary>Routes canned responses by the request URL's ajax command; records every request.</summary>

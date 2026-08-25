@@ -268,6 +268,10 @@
                                             Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}"
                                             ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
+                                    <Button DockPanel.Dock="Right" Content="🌐 Web" Style="{StaticResource GhostButton}"
+                                            Margin="0,0,8,0" Padding="12,9" FontSize="13"
+                                            Command="{Binding OpenDeviceWebCommand}"
+                                            ToolTip="Otvoriť webové rozhranie zariadenia v predvolenom prehliadači." />
                                     <!-- Lock toggle: always enabled so a locked device can be unlocked. -->
                                     <Button DockPanel.Dock="Right" Margin="0,0,8,0" Padding="12,9" FontSize="13"
                                             Style="{StaticResource GhostButton}" Command="{Binding ToggleLockCommand}"
@@ -364,6 +368,9 @@
                                         </StackPanel>
                                         <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
                                                    Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding SikaRemoteControlStatus}" Foreground="{StaticResource WarnBrush}"
+                                                   FontFamily="Segoe UI Semibold" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Visibility="{Binding IsSikaRemoteControlBlocked, Converter={StaticResource BoolToVisibility}}" />
                                         <!-- Completion (day + time + countdown) right under the profile name. -->
                                         <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
                                                    Foreground="{StaticResource OkBrush}" Margin="0,4,0,0" TextWrapping="Wrap"

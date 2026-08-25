@@ -209,8 +209,9 @@
 
                     <WrapPanel>
                         <StackPanel Style="{StaticResource MiniField}" Width="220">
-                            <TextBlock Text="Adresát (komu)" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding Email.Recipient, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="Adresáti (komu)" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding Email.Recipient, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Viac adries oddeľ bodkočiarkou alebo čiarkou." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
                             <TextBlock Text="Spôsob" Style="{StaticResource Label}" />
@@ -222,7 +223,7 @@
                         </StackPanel>
                     </WrapPanel>
 
-                    <TextBlock Text="SMTP" Style="{StaticResource Caption}" Margin="0,6,0,4" />
+                    <TextBlock Text="SMTP · predvolené podľa sylex_fos_dashboard (Brevo relay)" Style="{StaticResource Caption}" Margin="0,6,0,4" />
                     <WrapPanel>
                         <StackPanel Style="{StaticResource MiniField}" Width="200">
                             <TextBlock Text="Host" Style="{StaticResource Label}" />

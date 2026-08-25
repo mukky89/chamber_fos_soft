@@ -1018,7 +1018,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Delivery method choices for the combo box.</summary>
     public Array EmailMethods { get; } = Enum.GetValues(typeof(EmailMethod));
 
-    private string _emailStatus = "E-mail upozornenie po dokončení profilu (voliteľné).";
+    private string _emailStatus = "Po dokončení odošle HTML súhrn, graf teploty a CSV log (voliteľné).";
     public string EmailStatus { get => _emailStatus; private set => SetProperty(ref _emailStatus, value); }
 
     public RelayCommand SaveEmailSettingsCommand { get; }

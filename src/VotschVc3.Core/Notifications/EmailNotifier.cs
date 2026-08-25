@@ -24,14 +24,19 @@ public sealed class EmailNotifier
     public bool CanSend => Settings.Enabled && !string.IsNullOrWhiteSpace(Settings.Recipient);
 
     /// <summary>Sends a notification, honouring the enabled flag.</summary>
-    public Task<EmailResult> SendAsync(string subject, string body, CancellationToken cancellationToken = default)
+    public Task<EmailResult> SendAsync(
+        string subject,
+        string body,
+        string? htmlBody = null,
+        IReadOnlyList<EmailAttachment>? attachments = null,
+        CancellationToken cancellationToken = default)
     {
         if (!CanSend)
         {
             return Task.FromResult(EmailResult.SkippedResult);
         }
 
-        return DeliverAsync(Settings.Recipient, subject, body, cancellationToken);
+        return DeliverAsync(Settings.Recipient, subject, body, htmlBody, attachments, cancellationToken);
     }
 
     /// <summary>Sends a test message, ignoring the enabled flag (recipient still required).</summary>
@@ -46,10 +51,12 @@ public sealed class EmailNotifier
             Settings.Recipient,
             "Test – Vötsch riadenie komôr",
             "Toto je testovací e-mail z aplikácie na riadenie laboratórnych zariadení.",
-            cancellationToken);
+            null, null, cancellationToken);
     }
 
-    private async Task<EmailResult> DeliverAsync(string to, string subject, string body, CancellationToken cancellationToken)
+    private async Task<EmailResult> DeliverAsync(
+        string to, string subject, string body, string? htmlBody,
+        IReadOnlyList<EmailAttachment>? attachments, CancellationToken cancellationToken)
     {
         try
         {
@@ -57,7 +64,7 @@ public sealed class EmailNotifier
                 ? new HttpEmailSender(Settings)
                 : new SmtpEmailSender(Settings);
 
-            await sender.SendAsync(new EmailMessage(to, subject, body), cancellationToken).ConfigureAwait(false);
+            await sender.SendAsync(new EmailMessage(to, subject, body, htmlBody, attachments), cancellationToken).ConfigureAwait(false);
             return EmailResult.Ok();
         }
         catch (Exception ex)

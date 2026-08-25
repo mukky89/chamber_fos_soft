@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.53.1** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.54.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
@@ -225,8 +225,23 @@ kľúčových slov (`Dauer/Duration/Zeit/Time`, `Temperatur/Temperature`,
     `{ to, from, subject, text }`; sem zadáš váš dbfood endpoint. Formát tela
     prípadne uprav v `HttpEmailSender`.
 
-  Po dokončení profilu sa odošle e-mail s názvom komory, profilu a časom.
-  Nastavenia sa ukladajú do `Dokumenty/VotschVc3/email.json`.
+  Po dokončení profilu sa odošle HTML e-mail s údajmi o zariadení a profile,
+  stavom vypnutia výkonu, grafom setpointu/nameranej teploty a CSV logom v
+  prílohe. Podporuje viac adresátov oddelených čiarkou alebo bodkočiarkou.
+  Nastavenia sa ukladajú do `Dokumenty/Lab Control/email.json`.
+
+## SIKA/Vötsch web a interné logy
+
+- Karty a detail SIKA/Vötsch majú tlačidlo **Web zariadenia**, ktoré otvorí
+  vstavané rozhranie na `http://<IP>/`.
+- SIKA TP Premium poskytuje zoznam interných meraní cez `getTaskLog` a časové
+  rady cez `getTaskLogs?taskid=<ID>`. Dajú sa previesť na CSV a graf.
+- Remote Control stav SIKA poskytuje register `Com_ExternWriteFlag`. Read-only
+  monitoring pokračuje pri vypnutom Remote Control; START, STOP, setpointy,
+  profily a mutačné terminálové príkazy sa zablokujú.
+
+Endpointy, overené HAR payloady, formát logov, e-mail a integračné pravidlá sú v
+[`docs/DEVICE_INTEGRATIONS.md`](docs/DEVICE_INTEGRATIONS.md).
 
 ## Bezpečnosť (alarmy, watchdog, auto-reconnect)
 

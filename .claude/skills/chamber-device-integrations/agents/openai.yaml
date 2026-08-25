@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chamber Device Integrations"
+  short_description: "Integrate SIKA and Vötsch chamber devices"
+  default_prompt: "Use $chamber-device-integrations to implement or diagnose this SIKA/Vötsch integration safely."

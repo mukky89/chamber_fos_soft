@@ -33,7 +33,18 @@ public sealed class EmailSettingsStore
 
             try
             {
-                return JsonSerializer.Deserialize<EmailSettings>(File.ReadAllText(FilePath), Options) ?? new EmailSettings();
+                EmailSettings settings = JsonSerializer.Deserialize<EmailSettings>(File.ReadAllText(FilePath), Options) ?? new EmailSettings();
+                // Older versions stored empty values because notifications only supported
+                // one manually entered recipient and had no dashboard-compatible defaults.
+                if (string.IsNullOrWhiteSpace(settings.Recipient))
+                {
+                    settings.Recipient = EmailSettings.DefaultRecipients;
+                }
+                if (string.IsNullOrWhiteSpace(settings.SmtpHost))
+                {
+                    settings.SmtpHost = "smtp-relay.brevo.com";
+                }
+                return settings;
             }
             catch (Exception ex) when (ex is JsonException or IOException)
             {

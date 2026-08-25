@@ -4,6 +4,29 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.54.0] – 2026-08-25
+
+### Pridané / zmenené
+- **Odkaz na webové rozhranie zariadenia.** Karty zariadení aj detail komory majú
+  tlačidlo „🌐 Web“, ktoré otvorí vstavanú stránku prístroja (`http://<IP>/`)
+  v predvolenom prehliadači. Komunikačný port (ASCII-2, REST-API) sa zámerne
+  nepoužíva – operátorské rozhranie beží na štandardnom HTTP porte.
+- **Interné SIKA merania a ich export.** Na karte Záznam pribudol zoznam meraní
+  uložených priamo v prístroji (`getTaskLog`) a stiahnutie vybraného záznamu
+  (`getTaskLogs?taskid=…`) do kompletného CSV – bez stráty jediného bodu,
+  podvzorkuje sa iba graf v UI.
+- **Ochrana Remote Control.** Kým `Com_ExternWriteFlag` nepotvrdí zapnutý Remote
+  Control na prístroji, ovládanie SIKA je zablokované (setpoint, START/STOP,
+  zápis registra) a na karte je to vidieť; monitoring beží ďalej. Nečitateľný
+  príznak sa nikdy nepovažuje za povolenie. Kontrola je v oboch vrstvách –
+  zakázané príkazy v UI a čerstvé overenie v Core tesne pred každým zápisom.
+- **Dokončovací e-mail profilu prepracovaný.** Viac adresátov (oddelených
+  bodkočiarkou alebo čiarkou), predvoľby pre Brevo SMTP, HTML šablóna s grafom
+  teploty a CSV log v prílohe. Zlyhanie e-mailu alebo logu nikdy nepreruší
+  ovládanie komory ani nezmení výsledok dokončeného profilu.
+- Zdokumentované overené SIKA endpointy v `docs/DEVICE_INTEGRATIONS.md`
+  a nový projektový skill `chamber-device-integrations`.
+
 ## [1.53.1] – 2026-08-25
 
 ### Opravené
