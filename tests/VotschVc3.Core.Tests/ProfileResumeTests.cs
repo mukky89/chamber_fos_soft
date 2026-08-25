@@ -99,4 +99,41 @@ public class ProfileResumeTests
         Assert.Same(run, finished);
         await run;
     }
+
+    private sealed class FakeChamberDevice : IChamberDevice
+    {
+        public double MeasuredTemperature { get; set; } = 25;
+
+        public List<double> WrittenTemperatures { get; } = new();
+
+        public bool IsConnected => true;
+
+        public ChamberConnectionSettings Settings { get; } = new();
+
+        public event EventHandler<FrameExchangedEventArgs>? FrameExchanged { add { } remove { } }
+
+        public Task ConnectAsync(ChamberConnectionSettings settings, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task DisconnectAsync() => Task.CompletedTask;
+
+        public Task<ChamberReading> ReadAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new ChamberReading(
+                DateTimeOffset.Now, string.Empty,
+                new[] { MeasuredTemperature, MeasuredTemperature }, new DigitalChannels()));
+
+        public Task WriteSetpointsAsync(
+            IReadOnlyList<double> setpoints, DigitalChannels digital, CancellationToken cancellationToken = default)
+        {
+            WrittenTemperatures.Add(setpoints[0]);
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<string> SendRawAsync(string frame, CancellationToken cancellationToken = default)
+            => Task.FromResult(string.Empty);
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 }
