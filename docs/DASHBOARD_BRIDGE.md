@@ -90,7 +90,8 @@ zobrazuje, či proces agenta beží, či Dashboard prijal heartbeat, cieľová U
 naplánovanú úlohu `Sylex Lab Control Bridge`; desktopová aplikácia sama osebe
 nie je Bridge Agent.
 
-Aktuálny web `sylex_fos_dashboard` má laboratórnu obrazovku v demo režime.
-Kým webový backend neposkytuje `/api/lab-agent/heartbeat`,
-`/api/lab-agent/commands` a párovanie tokenu, karta správne zobrazí chybu
-Dashboardu a web nebude agenta označovať ako online.
+Web `sylex_fos_dashboard` od verzie `2.257.0` poskytuje reálny heartbeat,
+frontu príkazov, párovanie tokenu, stav zariadení a bezpečný prenos súborov.
+Párovanie je vo **FOS Laboratórium → Lokálny bridge**; vygenerovaný token sa
+vloží do `bridge.json` ako `agentKey`. Po spustení agenta sa online stav a živé
+hodnoty na webe obnovujú každých päť sekúnd.
