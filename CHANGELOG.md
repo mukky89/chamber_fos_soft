@@ -4,6 +4,14 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.54.3] – 2026-08-25
+
+### Opravené
+- Prerušený profil sa načíta automaticky už pri štarte aplikácie, aj kým sa
+  zariadenie ešte pripája. Karta okamžite zobrazí jeho názov, segmenty a graf.
+- Po potvrdení obnovy sa presný profil z checkpointu načíta do editora a graf
+  zostane viditeľný počas pokračujúceho behu.
+
 ## [1.54.2] – 2026-08-25
 
 ### Pridané

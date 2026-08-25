@@ -169,6 +169,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SeedDefaultProfile();
         RefreshHistory();
         RecalculateTiming();
+        // Recovery is UI state as well as device state: load it immediately so the
+        // saved profile and its chart are visible even before auto-connect finishes.
+        CheckProfileRecovery();
     }
 
     /// <summary>Stable identity (used as a key in the shell and for persistence).</summary>
@@ -1861,6 +1864,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             : $"⚠ Prerušený beh: „{checkpoint.Profile.Name}“ · cyklus {checkpoint.CycleIndex + 1}/{Math.Max(1, checkpoint.Profile.Cycles)} " +
               $"· segment {checkpoint.SegmentIndex + 1}/{checkpoint.Profile.Segments.Count} · uložené {checkpoint.LastWriteUtc.ToLocalTime():dd.MM. HH:mm:ss}";
         OnPropertyChanged(nameof(HasInterruptedRun));
+        OnPropertyChanged(nameof(HasProfilePreview));
+        BuildProfilePreview();
         ResumeInterruptedRunCommand.RaiseCanExecuteChanged();
         DiscardInterruptedRunCommand.RaiseCanExecuteChanged();
     }
@@ -1887,6 +1892,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         var profiles = new List<TestProfile> { checkpoint.Profile };
         profiles.AddRange(checkpoint.RemainingQueue);
 
+        // Restore the exact saved profile into the card/editor before clearing the
+        // offer. RunSequence uses Segments for the visible chart of a single run.
+        ApplyProfile(checkpoint.Profile);
+        SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == checkpoint.Profile.Id)
+            ?? checkpoint.Profile;
         SetInterruptedRun(null);
         await RunSequenceAsync(profiles, resumeFrom);
     }
@@ -3567,13 +3577,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public int PreviewCycleCount { get => _previewCycleCount; private set => SetProperty(ref _previewCycleCount, value); }
 
     /// <summary><c>true</c> when there is a profile to preview (selected or running).</summary>
-    public bool HasProfilePreview => IsProfileRunning || SelectedHistoryProfile is not null;
+    public bool HasProfilePreview => IsProfileRunning || _interruptedRun is not null || SelectedHistoryProfile is not null;
 
     private void BuildProfilePreview()
     {
         List<ProfileSegment> segs =
             IsProfileRunning ? Segments.Select(s => s.ToModel()).ToList()
-            : SelectedHistoryProfile?.Segments ?? Segments.Select(s => s.ToModel()).ToList();
+            : _interruptedRun?.Profile.Segments
+              ?? SelectedHistoryProfile?.Segments
+              ?? Segments.Select(s => s.ToModel()).ToList();
 
         if (segs.Count == 0)
         {
@@ -3588,7 +3600,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         // stretch, so the operator sees exactly what is (or will be) cycled – both
         // before a run and while it's in progress, where the "now" marker then shows
         // how far into the whole multi-cycle run the test actually is.
-        int cycles = Math.Max(1, Cycles);
+        int cycles = Math.Max(1, _interruptedRun?.Profile.Cycles ?? Cycles);
         (int bStart, int bEnd) = BodyRegion(segs);
 
         var pts = new List<Point>();
