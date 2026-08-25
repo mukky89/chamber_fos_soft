@@ -108,6 +108,11 @@ public static class SikaRestApiProtocol
     /// </summary>
     public static string BuildStopCurrentTaskUrl(string host, int port) => BuildCommandUrl(host, port, "stopCurrentTask");
 
+    public static string BuildTaskLogIndexUrl(string host, int port) => BuildCommandUrl(host, port, "getTaskLog");
+
+    public static string BuildTaskLogDataUrl(string host, int port, int taskId) =>
+        BuildCommandUrl(host, port, $"getTaskLogs?taskid={taskId}");
+
     /// <summary>
     /// Parses a <c>getRegister</c> response
     /// (<c>{"register":"TRset_TR","values":[{"value":28.9,"times":...}]}</c>)

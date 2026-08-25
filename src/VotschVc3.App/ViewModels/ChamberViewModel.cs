@@ -73,6 +73,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, () => !IsConnected, ReportError);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, () => IsConnected, ReportError);
+        OpenDeviceWebCommand = new RelayCommand(OpenDeviceWeb, CanOpenDeviceWeb);
         ReadOnceCommand = new AsyncRelayCommand(ReadOnceAsync, () => IsConnected, ReportError);
         ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected && IsOperable, ReportError);
         StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsOperable, ReportError);
@@ -140,6 +141,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ModbusScanCommand = new AsyncRelayCommand(ModbusScanAsync, () => IsConnected && IsPolEko, ReportError);
         SikaInfoReportCommand = new AsyncRelayCommand(SikaInfoReportAsync, () => IsConnected && IsSika, ReportError);
         SikaCalibrationStatusCommand = new AsyncRelayCommand(SikaCalibrationStatusAsync, () => IsConnected && IsSika, ReportError);
+        RefreshSikaLogsCommand = new AsyncRelayCommand(RefreshSikaLogsAsync, () => IsConnected && IsSika, ReportError);
+        ExportSelectedSikaLogCommand = new AsyncRelayCommand(ExportSelectedSikaLogAsync,
+            () => IsConnected && IsSika && SelectedSikaLog is not null, ReportError);
         InsertSimservSetpointCommand = new RelayCommand(
             () => TerminalInput = SimservProtocol.BuildSetNominalValue(Address, 1, DiagTestTemperature).TrimEnd('\r'));
         InsertSimservStartCommand = new RelayCommand(
@@ -298,7 +302,32 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public bool IsUnlocked => !IsLocked;
 
     /// <summary>True when the user may actually operate the device: allowed by role AND not locked.</summary>
-    public bool IsOperable => IsControlAllowed && !IsLocked;
+    public bool IsOperable => IsControlAllowed && !IsLocked && (!IsSika || SikaRemoteControlEnabled == true);
+
+    private bool? _sikaRemoteControlEnabled;
+    public bool? SikaRemoteControlEnabled
+    {
+        get => _sikaRemoteControlEnabled;
+        private set
+        {
+            if (SetProperty(ref _sikaRemoteControlEnabled, value))
+            {
+                OnPropertyChanged(nameof(IsOperable));
+                OnPropertyChanged(nameof(SikaRemoteControlStatus));
+                OnPropertyChanged(nameof(IsSikaRemoteControlBlocked));
+                RefreshCommands();
+            }
+        }
+    }
+
+    public bool IsSikaRemoteControlBlocked => IsSika && SikaRemoteControlEnabled != true;
+
+    public string SikaRemoteControlStatus => SikaRemoteControlEnabled switch
+    {
+        true => "Remote Control zapnutý · ovládanie povolené",
+        false => "Remote Control vypnutý na zariadení · iba monitoring",
+        _ => "Remote Control sa nepodarilo overiť · iba monitoring",
+    };
 
     private string? _lockPasswordHash;
     /// <summary>SHA-256 hash of the optional unlock password (persisted); empty = no password.</summary>
@@ -469,12 +498,35 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     #region Connection
 
     private string _host;
-    public string Host { get => _host; set { if (SetProperty(ref _host, value)) OnPropertyChanged(nameof(Endpoint)); } }
+    public string Host
+    {
+        get => _host;
+        set
+        {
+            if (SetProperty(ref _host, value))
+            {
+                OnPropertyChanged(nameof(Endpoint));
+                OnPropertyChanged(nameof(DeviceWebUrl));
+                OpenDeviceWebCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
 
     private int _port = 1080;
     public int Port { get => _port; set { if (SetProperty(ref _port, value)) OnPropertyChanged(nameof(Endpoint)); } }
 
     public string Endpoint => $"{Host}:{Port}";
+
+    /// <summary>
+    /// Browser URL of the controller's built-in web interface. The ASCII-2 / REST
+    /// communication port is deliberately not reused: both Vötsch and SIKA serve
+    /// their operator UI on the standard HTTP port even when machine communication
+    /// uses a separate port (for example 2049 or 8081).
+    /// </summary>
+    public string DeviceWebUrl => Uri.TryCreate($"http://{Host?.Trim()}/", UriKind.Absolute, out Uri? uri) &&
+        Uri.CheckHostName(uri.Host) != UriHostNameType.Unknown
+            ? uri.AbsoluteUri
+            : string.Empty;
 
     private int _address = 1;
     public int Address { get => _address; set => SetProperty(ref _address, value); }
@@ -557,6 +609,32 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public AsyncRelayCommand ConnectCommand { get; }
     public AsyncRelayCommand DisconnectCommand { get; }
+    public RelayCommand OpenDeviceWebCommand { get; }
+
+    private bool CanOpenDeviceWeb() =>
+        (IsSika || IsAsciiProtocol) && !string.IsNullOrEmpty(DeviceWebUrl);
+
+    private void OpenDeviceWeb()
+    {
+        if (!CanOpenDeviceWeb())
+        {
+            StatusMessage = "Webové rozhranie nie je pre toto zariadenie dostupné.";
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(DeviceWebUrl)
+            {
+                UseShellExecute = true,
+            });
+            StatusMessage = $"Otváram webové rozhranie {DeviceWebUrl}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Webové rozhranie sa nepodarilo otvoriť: {ex.Message}";
+        }
+    }
 
     private ChamberConnectionSettings BuildSettings() => new()
     {
@@ -600,6 +678,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _profileCts?.Cancel();
         await _client.DisconnectAsync();
         IsConnected = false;
+        if (IsSika) SikaRemoteControlEnabled = null;
         _connectionLostHandled = false;
         SetManualStarted(false);
         SetReadRunning(null);
@@ -742,6 +821,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         MeasuredTemperature = reading.Temperature;
         MeasuredTemperatureSetpoint = reading.TemperatureSetpoint;
+        if (_client is SikaTpClient sika)
+        {
+            SikaRemoteControlEnabled = sika.RemoteControlEnabled;
+        }
         if (SupportsHumidity)
         {
             MeasuredHumidity = reading.Humidity;
@@ -1884,7 +1967,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 $"{ProfileStatus.TrimEnd('.')} · {Name}",
                 poweredOff ? $"{doneName} Výkon komory vypnutý." : doneName,
                 DesktopNotificationKind.Success);
-            await NotifyCompletionAsync();
+            await NotifyCompletionAsync(profiles, poweredOff);
             completedNormally = true;
         }
         catch (OperationCanceledException)
@@ -2087,19 +2170,26 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         return false;
     }
 
-    private async Task NotifyCompletionAsync()
+    private async Task NotifyCompletionAsync(IReadOnlyList<TestProfile> profiles, bool poweredOff)
     {
         if (!_email.CanSend)
         {
             return;
         }
 
-        string subject = $"Profil dokončený: {ProfileName} ({Name})";
-        string body =
-            $"Testovací profil \"{ProfileName}\" na komore \"{Name}\" bol dokončený " +
-            $"{DateTime.Now:dd.MM.yyyy HH:mm:ss}.\r\nCelkové trvanie: {ProfileDurationText}.";
-
-        EmailResult result = await _email.SendAsync(subject, body);
+        DateTime finished = DateTime.Now;
+        ProfileTemperatureLog? log = _profileTempLog;
+        var info = new ProfileCompletionInfo(
+            Name,
+            profiles.Select(p => p.Name).ToArray(),
+            _profileActualStart ?? finished,
+            finished,
+            poweredOff,
+            log?.GetSamples() ?? [],
+            log?.FilePath);
+        ProfileCompletionMessage message = ProfileCompletionEmail.Create(info);
+        EmailResult result = await _email.SendAsync(
+            message.Subject, message.Text, message.Html, message.Attachments);
         if (result.Sent)
         {
             StatusMessage = "Profil dokončený · e-mail odoslaný.";
@@ -2626,6 +2716,59 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     #endregion
 
     #region Recording
+
+    public ObservableCollection<SikaTaskLogSummary> SikaTaskLogs { get; } = new();
+
+    private SikaTaskLogSummary? _selectedSikaLog;
+    public SikaTaskLogSummary? SelectedSikaLog
+    {
+        get => _selectedSikaLog;
+        set
+        {
+            if (SetProperty(ref _selectedSikaLog, value))
+            {
+                ExportSelectedSikaLogCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    private string _sikaLogStatus = "Načítaj zoznam interných meraní zo zariadenia SIKA.";
+    public string SikaLogStatus { get => _sikaLogStatus; private set => SetProperty(ref _sikaLogStatus, value); }
+
+    public AsyncRelayCommand RefreshSikaLogsCommand { get; }
+    public AsyncRelayCommand ExportSelectedSikaLogCommand { get; }
+
+    private async Task RefreshSikaLogsAsync()
+    {
+        if (_client is not SikaTpClient sika) return;
+        SikaLogStatus = "Načítavam zoznam logov zo SIKA…";
+        IReadOnlyList<SikaTaskLogSummary> logs = await sika.GetTaskLogsAsync();
+        SikaTaskLogs.Clear();
+        foreach (SikaTaskLogSummary log in logs) SikaTaskLogs.Add(log);
+        SelectedSikaLog = SikaTaskLogs.FirstOrDefault();
+        SikaLogStatus = logs.Count == 0 ? "SIKA nevrátila žiadne uložené logy." : $"Načítaných {logs.Count} logov.";
+    }
+
+    private async Task ExportSelectedSikaLogAsync()
+    {
+        if (_client is not SikaTpClient sika || SelectedSikaLog is not { } selected) return;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Uložiť interný SIKA log ako CSV",
+            Filter = "CSV súbory (*.csv)|*.csv",
+            DefaultExt = ".csv",
+            AddExtension = true,
+            FileName = $"SIKA_{selected.Started.LocalDateTime:yyyyMMdd_HHmmss}_{SanitizeFileName(selected.TaskName)}.csv",
+            InitialDirectory = AppPaths.ProfileLogDir,
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        SikaLogStatus = $"Sťahujem log {selected.Id} zo SIKA…";
+        SikaTaskLogData data = await sika.GetTaskLogDataAsync(selected.Id);
+        await data.WriteCsvAsync(dialog.FileName, selected.Started);
+        int rows = Math.Max(data.Setpoints.Count, data.Temperatures.Count);
+        SikaLogStatus = $"CSV uložené: {dialog.FileName} · {rows:N0} riadkov.";
+    }
 
     private string _recordingPath =
         System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
@@ -3684,6 +3827,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SendTerminalCommand.RaiseCanExecuteChanged();
         RunSetpointDiagnosticCommand.RaiseCanExecuteChanged();
         ReadDigitalCommand.RaiseCanExecuteChanged();
+        RefreshSikaLogsCommand.RaiseCanExecuteChanged();
+        ExportSelectedSikaLogCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsConnected));
     }
 

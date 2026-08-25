@@ -45,6 +45,10 @@
                         Command="{Binding Shell.OpenChamberCommand, ElementName=Root}"
                         CommandParameter="{Binding}"
                         ToolTip="Otvoriť plné nastavenia a ovládanie (pripojenie, profily, graf, alarmy, záznam, admin)." />
+                <Button DockPanel.Dock="Right" Content="🌐" Style="{StaticResource GhostButton}"
+                        Padding="8,3" FontSize="12" Margin="0,0,6,0"
+                        Command="{Binding OpenDeviceWebCommand}"
+                        ToolTip="Otvoriť webové rozhranie zariadenia." />
                 <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,3" FontSize="12" Margin="0,0,6,0"
                         Command="{Binding ToggleLockCommand}">
                     <TextBlock><Run Text="{Binding LockGlyph, Mode=OneWay}" /></TextBlock>
@@ -81,6 +85,9 @@
                 <Run Text="● OFFLINE — " Foreground="{StaticResource DangerBrush}" FontFamily="Segoe UI Semibold" />
                 <Run Text="posledná hodnota nižšie, komunikácia sa skúša obnoviť automaticky." />
             </TextBlock>
+            <TextBlock Text="{Binding SikaRemoteControlStatus}" Foreground="{StaticResource WarnBrush}"
+                       FontFamily="Segoe UI Semibold" FontSize="11.5" Margin="0,5,0,0" TextWrapping="Wrap"
+                       Visibility="{Binding IsSikaRemoteControlBlocked, Converter={StaticResource BoolToVisibility}}" />
 
             <!-- Locked banner + inline unlock (compact version of the Classic prompt). -->
             <Border CornerRadius="8" Padding="9,6" Margin="0,7,0,0"

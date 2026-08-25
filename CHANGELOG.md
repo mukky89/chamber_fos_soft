@@ -4,6 +4,20 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [Unreleased]
+
+### Pridané / zmenené
+- Dokončovací e-mail profilu podporuje viac adresátov, Brevo SMTP predvoľby,
+  HTML šablónu, graf teploty a CSV log v prílohe.
+- Karty a detail zariadení SIKA/Vötsch otvárajú ich vstavanú webovú stránku.
+- Zdokumentované overené SIKA endpointy pre Remote Control, zoznam interných
+  logov a stiahnutie časových radov vrátane formátu CSV.
+- SIKA ovládanie je bezpečne blokované, kým `Com_ExternWriteFlag` nepotvrdí
+  zapnutý Remote Control; monitoring zostáva dostupný. V záložke Záznam pribudol
+  zoznam interných SIKA meraní a export vybraného záznamu do kompletného CSV.
+- Pridaný projektový skill `chamber-device-integrations` pre ďalšie bezpečné
+  úpravy komunikácie SIKA/Vötsch.
+
 ## [1.50.0] – 2026-08-19
 
 ### Pridané / zmenené

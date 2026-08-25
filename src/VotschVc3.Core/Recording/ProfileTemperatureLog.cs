@@ -14,6 +14,7 @@ public sealed class ProfileTemperatureLog : IDisposable
 {
     private readonly object _sync = new();
     private StreamWriter? _writer;
+    private readonly List<ProfileTemperatureSample> _samples = [];
 
     /// <summary>
     /// Creates the log file <c>yyyyMMdd_HHmmss_&lt;profil&gt;.csv</c> in <paramref name="directory"/>
@@ -51,6 +52,14 @@ public sealed class ProfileTemperatureLog : IDisposable
     /// <summary>Rows written so far.</summary>
     public long RowCount { get; private set; }
 
+    public IReadOnlyList<ProfileTemperatureSample> GetSamples()
+    {
+        lock (_sync)
+        {
+            return _samples.ToArray();
+        }
+    }
+
     /// <summary>Appends one timestamped row with the set point and measured values.</summary>
     public void Log(DateTime timestamp, double setpoint, double? measured, double? humiditySetpoint = null, double? measuredHumidity = null)
     {
@@ -72,6 +81,7 @@ public sealed class ProfileTemperatureLog : IDisposable
             lock (_sync)
             {
                 _writer.WriteLine(row);
+                _samples.Add(new ProfileTemperatureSample(timestamp, setpoint, measured, humiditySetpoint, measuredHumidity));
                 RowCount++;
             }
         }
@@ -113,3 +123,7 @@ public sealed class ProfileTemperatureLog : IDisposable
         }
     }
 }
+
+public sealed record ProfileTemperatureSample(
+    DateTime Timestamp, double Setpoint, double? Measured,
+    double? HumiditySetpoint, double? MeasuredHumidity);

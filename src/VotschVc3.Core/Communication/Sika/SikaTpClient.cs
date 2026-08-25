@@ -1,3 +1,4 @@
+using System.Text.Json;
 using VotschVc3.Core.Protocol;
 
 namespace VotschVc3.Core.Communication.Sika;
@@ -43,6 +44,8 @@ public sealed class SikaTpClient : IChamberDevice
     public ChamberConnectionSettings Settings { get; private set; }
 
     public bool IsConnected { get; private set; }
+
+    public bool? RemoteControlEnabled { get; private set; }
 
     public event EventHandler<FrameExchangedEventArgs>? FrameExchanged;
 
@@ -126,6 +129,15 @@ public sealed class SikaTpClient : IChamberDevice
             setpoint = SikaRestApiProtocol.ParseRegisterValue(setpointJson);
         }
 
+        try
+        {
+            RemoteControlEnabled = await ReadRemoteControlEnabledAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
+        {
+            RemoteControlEnabled = null;
+        }
+
         var analog = new List<double>();
         if (measured is { } m) analog.Add(m);
         if (setpoint is { } sp) analog.Add(sp);
@@ -145,6 +157,7 @@ public sealed class SikaTpClient : IChamberDevice
         ArgumentNullException.ThrowIfNull(setpoints);
         ArgumentNullException.ThrowIfNull(digital);
 
+        await EnsureRemoteControlEnabledAsync(cancellationToken).ConfigureAwait(false);
         double temperature = setpoints.Count > 0 ? setpoints[0] : 0d;
 
         // START before the set point, the same way turning on a profile does. A set
@@ -207,6 +220,7 @@ public sealed class SikaTpClient : IChamberDevice
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureRemoteControlEnabledAsync(cancellationToken).ConfigureAwait(false);
         string stopUrl = SikaRestApiProtocol.BuildStopCurrentTaskUrl(Settings.Host, Settings.Port);
         string stopResponse = await GetAsync(stopUrl, cancellationToken).ConfigureAwait(false);
         RaiseFrame($"GET {stopUrl}", stopResponse);
@@ -227,10 +241,54 @@ public sealed class SikaTpClient : IChamberDevice
     public async Task<string> SendRawAsync(string frame, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        string command = frame.TrimStart('/');
+        if (command.StartsWith("ajax/", StringComparison.OrdinalIgnoreCase)) command = command[5..];
+        if (command.StartsWith("set", StringComparison.OrdinalIgnoreCase) ||
+            command.StartsWith("start", StringComparison.OrdinalIgnoreCase) ||
+            command.StartsWith("stop", StringComparison.OrdinalIgnoreCase) ||
+            command.StartsWith("delete", StringComparison.OrdinalIgnoreCase))
+        {
+            await EnsureRemoteControlEnabledAsync(cancellationToken).ConfigureAwait(false);
+        }
         string url = SikaRestApiProtocol.BuildCommandUrl(Settings.Host, Settings.Port, frame);
         string response = await GetAsync(url, cancellationToken).ConfigureAwait(false);
         RaiseFrame($"GET {url}", response);
         return response;
+    }
+
+    public async Task<bool> ReadRemoteControlEnabledAsync(CancellationToken cancellationToken = default)
+    {
+        string url = SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, SikaRestApiProtocol.ExternWriteFlagRegister);
+        string json = await GetAsync(url, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {url}", json);
+        double? value = SikaRestApiProtocol.ParseRegisterValue(json);
+        if (value is null) throw new InvalidOperationException("SIKA nevrátila stav Remote Control.");
+        RemoteControlEnabled = value >= 0.5;
+        return RemoteControlEnabled.Value;
+    }
+
+    public async Task<IReadOnlyList<SikaTaskLogSummary>> GetTaskLogsAsync(CancellationToken cancellationToken = default)
+    {
+        string url = SikaRestApiProtocol.BuildTaskLogIndexUrl(Settings.Host, Settings.Port);
+        string json = await GetAsync(url, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {url}", $"Zoznam SIKA logov ({json.Length} znakov)");
+        return SikaTaskLogParser.ParseIndex(json);
+    }
+
+    public async Task<SikaTaskLogData> GetTaskLogDataAsync(int taskId, CancellationToken cancellationToken = default)
+    {
+        if (taskId <= 0) throw new ArgumentOutOfRangeException(nameof(taskId));
+        string url = SikaRestApiProtocol.BuildTaskLogDataUrl(Settings.Host, Settings.Port, taskId);
+        string json = await GetAsync(url, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {url}", $"SIKA log {taskId} ({json.Length} znakov)");
+        return SikaTaskLogParser.ParseData(json);
+    }
+
+    private async Task EnsureRemoteControlEnabledAsync(CancellationToken cancellationToken)
+    {
+        bool enabled = await ReadRemoteControlEnabledAsync(cancellationToken).ConfigureAwait(false);
+        if (!enabled)
+            throw new InvalidOperationException("Remote Control je na zariadení SIKA vypnutý. Zapni ho na displeji zariadenia.");
     }
 
     /// <summary>
@@ -261,6 +319,7 @@ public sealed class SikaTpClient : IChamberDevice
         _http?.Dispose();
         _http = null;
         IsConnected = false;
+        RemoteControlEnabled = null;
     }
 
     public ValueTask DisposeAsync()

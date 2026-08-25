@@ -23,6 +23,9 @@
                 <Button Content="⚡ Rýchly profil" Margin="8,0,0,0"
                         Command="{Binding DataContext.OpenQuickProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         ToolTip="Otvoriť rýchly vytvárač profilov (teplotný sweep)." />
+                <Button Content="🌐 Web zariadenia" Margin="8,0,0,0"
+                        Command="{Binding OpenDeviceWebCommand}"
+                        ToolTip="Otvoriť vstavané webové rozhranie SIKA alebo Vötsch v predvolenom prehliadači." />
                 <Grid Margin="6,0,10,0">
                     <views:ChamberGraphic Width="34" Height="44" IsRunning="{Binding IsActive}"
                                           Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}" />
@@ -112,9 +115,27 @@
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
                                        Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}"
                                        Text="SIKA TP Premium · REST-API cez HTTP (port 8081). Meraná teplota a setpoint sa čítajú príkazom getRegister; zápis cez setSP. Kúpeľ nemá vzdialené vypnutie – beží nepretržite." />
+                            <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,8"
+                                    Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                    Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{Binding SikaRemoteControlStatus}" TextWrapping="Wrap" FontFamily="Segoe UI Semibold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSikaRemoteControlBlocked}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <Button Content="Pripojiť" Style="{StaticResource AccentButton}" Command="{Binding ConnectCommand}" />
                                 <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
+                                <Button Content="🌐 Otvoriť web" Command="{Binding OpenDeviceWebCommand}"
+                                        ToolTip="Adresa webu používa HTTP port 80, nie komunikačný port z poľa vyššie." />
                             </StackPanel>
                             <Separator Margin="0,14" Background="{StaticResource BorderBrush}" />
                             <CheckBox Content="Live polling" IsChecked="{Binding PollingEnabled}" />
@@ -490,6 +511,7 @@
 
             <!-- ===== Recording ===== -->
             <TabItem Header="Záznam">
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                 <Border Style="{StaticResource Card}" HorizontalAlignment="Left" VerticalAlignment="Top" Width="640">
                     <StackPanel>
                         <TextBlock Text="Záznam dát (CSV)" Style="{StaticResource Heading}" />
@@ -516,6 +538,25 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource Card}" Width="760" Margin="0,12,0,0"
+                        Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="Interné logy SIKA" Style="{StaticResource Heading}" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                                   Text="Načíta merania uložené priamo v zariadení. Vybraný log sa stiahne cez HTTP a uloží ako kompletné CSV (setpoint + nameraná teplota)." />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Obnoviť zoznam" Style="{StaticResource AccentButton}"
+                                    Command="{Binding RefreshSikaLogsCommand}" />
+                            <Button Content="Stiahnuť vybraný ako CSV"
+                                    Command="{Binding ExportSelectedSikaLogCommand}" />
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding SikaTaskLogs}" SelectedItem="{Binding SelectedSikaLog}"
+                                 DisplayMemberPath="DisplayText" Height="190" Margin="0,10,0,0" />
+                        <TextBlock Text="{Binding SikaLogStatus}" Style="{StaticResource Caption}"
+                                   TextWrapping="Wrap" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+                </StackPanel>
             </TabItem>
 
             <!-- ===== Safety ===== -->

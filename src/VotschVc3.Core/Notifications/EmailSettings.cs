@@ -16,6 +16,8 @@ public enum EmailMethod
 /// </summary>
 public sealed class EmailSettings
 {
+    public const string DefaultRecipients = "mmucka@sylex.sk; tsalat@sylex.sk; mplevka@sylex.sk";
+
     /// <summary>Master switch for sending notification e-mails.</summary>
     public bool Enabled { get; set; }
 
@@ -23,13 +25,13 @@ public sealed class EmailSettings
     public EmailMethod Method { get; set; } = EmailMethod.Smtp;
 
     /// <summary>Recipient address that receives the notifications.</summary>
-    public string Recipient { get; set; } = string.Empty;
+    public string Recipient { get; set; } = DefaultRecipients;
 
     /// <summary>Sender ("from") address.</summary>
     public string From { get; set; } = string.Empty;
 
     // --- SMTP ---
-    public string SmtpHost { get; set; } = string.Empty;
+    public string SmtpHost { get; set; } = "smtp-relay.brevo.com";
     public int SmtpPort { get; set; } = 587;
     public bool SmtpUseSsl { get; set; } = true;
     public string SmtpUser { get; set; } = string.Empty;
