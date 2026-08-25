@@ -226,6 +226,8 @@ public class SikaTpClientTests
         {
             ["ajax/getRegister?register=TRset_TR"] =
                 ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=Com_ExternWriteFlag"] =
+                ("{\"register\":\"Com_ExternWriteFlag\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/getRegister?register=System_ReglerOnOff"] =
                 ("{\"register\":\"System_ReglerOnOff\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
             ["ajax/setRegister?register=Task_SetPointList&value=40"] =
