@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.55.1] – 2026-08-25
+
+### Odstránené
+- **Mŕtvy druhý mechanizmus obnovy behu.** `ProfileRunState` a `ProfileRunStateStore`
+  (ukladanie do `runstate.json`) zostali v repe ako pozostatok súbežnej implementácie,
+  ktorá sa do aplikácie nikdy nezapojila – produkčný kód ide výhradne cez
+  `ProfileRunCheckpoint` / `ProfileRunCheckpointStore`. Odkazovali na ne už len testy.
+  Dve súbežné „stavy behu" v tom istom priečinku boli presne to, čo pri zlučovaní
+  vetiev spôsobovalo zámeny, takže odchádzajú.
+- Z `ProfileResumeTests` odstránené tri testy, ktoré overovali len tento mŕtvy pár.
+  Tri testy obnovy samotného `ProfileRunner` zostávajú nedotknuté.
+
 ## [1.55.0] – 2026-08-25
 
 ### Pridané
