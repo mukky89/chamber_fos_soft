@@ -1232,6 +1232,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             System.IO.Path.Combine(baseDir, "VotschVc3.Agent.exe"),
             System.IO.Path.Combine(baseDir, "LabBridge", "VotschVc3.Agent.exe"),
             System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "..", "..", "..", "VotschVc3.Agent", "bin", configuration, "net8.0-windows", "VotschVc3.Agent.exe")),
+            System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "..", "..", "..", "VotschVc3.Agent", "bin", "Debug", "net8.0-windows", "VotschVc3.Agent.exe")),
+            System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "..", "..", "..", "VotschVc3.Agent", "bin", "Release", "net8.0-windows", "VotschVc3.Agent.exe")),
         };
         return candidates.FirstOrDefault(System.IO.File.Exists);
     }

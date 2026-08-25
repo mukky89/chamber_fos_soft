@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.54.7
+
+- Zostavenie/spustenie desktopovej aplikácie teraz automaticky zostaví aj samostatný
+  `VotschVc3.Agent`, takže Bridge funguje aj pri spustení iba `VotschVc3.App` cez F5.
+- Hľadanie agenta kontroluje výstupy Debug aj Release. Chýbajúca naplánovaná úloha
+  Windows preto už neblokuje lokálne spustenie existujúceho agenta.
+
 ## 1.54.6
 
 - Desktopová aplikácia pri prvom spustení sama vytvorí
