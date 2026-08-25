@@ -24,6 +24,18 @@ public sealed class TestProfile
     /// <summary>When the profile was created / last saved.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
 
+    /// <summary>
+    /// When the profile was last written to the library (stamped by
+    /// <see cref="ProfileStore.Save"/>). <c>null</c> for profiles stored before this was
+    /// tracked – use <see cref="LastChangedAt"/>, which falls back to <see cref="CreatedAt"/>.
+    /// </summary>
+    public DateTimeOffset? UpdatedAt { get; set; }
+
+    /// <summary>When the profile was last created or edited – the sort key of the
+    /// "Najnovšie" group in the profile picker.</summary>
+    [JsonIgnore]
+    public DateTimeOffset LastChangedAt => UpdatedAt ?? CreatedAt;
+
     /// <summary>The segments executed in order.</summary>
     public List<ProfileSegment> Segments { get; set; } = new();
 
@@ -151,6 +163,7 @@ public sealed class TestProfile
         OriginalName = OriginalName,
         Kind = Kind,
         CreatedAt = CreatedAt,
+        UpdatedAt = UpdatedAt,
         Cycles = Cycles,
         CycleStartIndex = CycleStartIndex,
         CycleEndIndex = CycleEndIndex,

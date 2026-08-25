@@ -163,6 +163,13 @@ public sealed class QuickProfileViewModel : ObservableObject
     private bool _settingNameInternally;
 
     /// <summary>
+    /// True while a whole set of parameters is being applied at once (see
+    /// <see cref="ApplyShape"/>), so the individual setters neither rebuild the preview
+    /// dozens of times nor let the mode switch overwrite the points being loaded.
+    /// </summary>
+    private bool _suspendRecalculate;
+
+    /// <summary>
     /// Id of the library profile currently being edited (set by <see cref="LoadProfile"/>
     /// or by the first successful save of a session), so re-saving – even after a rename –
     /// updates that same profile instead of matching by name or creating a duplicate.
@@ -183,7 +190,7 @@ public sealed class QuickProfileViewModel : ObservableObject
                 // temperatures the sweep is currently set to, so the sequence starts
                 // as an editable copy of what was just configured instead of the
                 // (likely stale) default points.
-                if (value == QuickProfileMode.Sequence && previous == QuickProfileMode.Parametric)
+                if (value == QuickProfileMode.Sequence && previous == QuickProfileMode.Parametric && !_suspendRecalculate)
                 {
                     ReplaceSequenceSteps(ComputeSweepSequence().Select(t => (t, PlateauMinutes)));
                 }
@@ -554,42 +561,37 @@ public sealed class QuickProfileViewModel : ObservableObject
     public RelayCommand ResetNameCommand { get; }
 
     /// <summary>
-    /// Loads an existing profile back into the editor as an editable temperature
-    /// sequence, so a previously created profile (whether built here or in the full
-    /// editor) can be tweaked and re-saved instead of only ever creating new ones.
-    /// Each point's own plateau length is reconstructed from its actual hold segment
-    /// (see <see cref="ExtractSequenceSteps"/>), so a profile with different hold times
-    /// per step is reproduced faithfully instead of being flattened to one shared
-    /// length; the shared ramp length is taken from the first ramp segment found.
-    /// Lead-in and end-safety-cooldown are turned off (their source segments become
-    /// part of the plain sequence instead) so nothing is double-added; re-enable them
-    /// from the checkboxes if the loaded profile needs them.
+    /// Loads an existing profile back into the builder with its <em>real</em> parameters,
+    /// so a previously created profile (whether built here or in the full editor) can be
+    /// tweaked and re-saved instead of only ever creating new ones.
+    /// <para>
+    /// The segment list is analysed by <see cref="QuickProfileShape"/>: a profile that is
+    /// a symmetric sweep comes back in "Sweep (rozsah)" mode with its range, step count,
+    /// plateau and ramp length, double peak and descending run filled in; anything else
+    /// comes back in "Postupnosť teplôt" mode as points, each with its own hold length.
+    /// A lead-in ramp and a closing safety hold are recognised and re-enabled on their
+    /// checkboxes (instead of being silently swallowed by the point list), so saving
+    /// again reproduces the same profile.
+    /// </para>
     /// </summary>
     public void LoadProfile(TestProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
         DisarmDelete();
         _editingProfileId = profile.Id;
-        Mode = QuickProfileMode.Sequence;
 
-        StartFromCurrent = false;
-        EndAtSafeTemperature = false;
-
-        List<(double Temperature, double PlateauMinutes)> sequence = ExtractSequenceSteps(profile.Segments);
-        ReplaceSequenceSteps(sequence.Count > 0 ? sequence : DefaultSequenceSteps());
-
-        ProfileSegment? firstRamp = profile.Segments.FirstOrDefault(s => s.IsRamp);
-        if (firstRamp is not null) RampMinutes = Math.Max(0, firstRamp.Duration.TotalMinutes);
+        QuickProfileShape shape = QuickProfileShape.Analyze(profile.Segments);
+        ApplyShape(shape);
 
         Cycles = Math.Max(1, profile.Cycles);
         CycleBodyOnly = profile.HasCycleRegion;
 
-        Customer = profile.Customer;
-        Project = profile.Project;
+        Customer = profile.Customer ?? string.Empty;
+        Project = profile.Project ?? string.Empty;
         EditorSensors.Clear();
-        foreach (string s in profile.Sensors) EditorSensors.Add(s);
+        foreach (string s in profile.Sensors ?? new List<string>()) EditorSensors.Add(s);
         EditorTags.Clear();
-        foreach (string t in profile.Tags) EditorTags.Add(t);
+        foreach (string t in profile.Tags ?? new List<string>()) EditorTags.Add(t);
 
         _settingNameInternally = true;
         ProfileName = profile.Name;
@@ -597,39 +599,84 @@ public sealed class QuickProfileViewModel : ObservableObject
         IsAutoName = false;
 
         IsSaveSuccess = false;
-        Status = $"Profil „{profile.Name}“ načítaný na úpravu ({sequence.Count} teplotných bodov, každý s vlastnou dĺžkou plata). " +
-            "Nábeh a bezpečnostné ukončenie sú vypnuté – zapni ich znova, ak ich profil potrebuje.";
+        Status = $"Profil „{profile.Name}“ načítaný na úpravu – " + (shape.IsParametric
+            ? $"rozpoznaný ako sweep {shape.LowTemperature:0.#} → {shape.HighTemperature:0.#} °C, " +
+              $"{shape.IntermediateSteps + 2} krokov, plato {shape.PlateauMinutes:0.#} min. Uprav parametre a ulož."
+            : $"{shape.Points.Count} teplotných bodov, každý s vlastnou dĺžkou plata. Uprav ich a ulož.");
         Recalculate();
     }
 
     /// <summary>
-    /// Reconstructs sequence points from a segment list: every hold (non-ramp) segment
-    /// becomes one point, carrying its own actual duration as that point's plateau
-    /// length – so re-loading a profile reproduces its original per-step hold times
-    /// instead of flattening them to one shared length. A ramp's target temperature
-    /// becomes a (zero-length) point of its own only when nothing follows it at the
-    /// same temperature (e.g. a profile with no explicit holds); otherwise the ramp
-    /// simply establishes the point that the next hold's duration then folds into.
+    /// Copies an analysed profile shape into the builder's parameters. Runs with
+    /// <see cref="_suspendRecalculate"/> raised so the dozens of individual setters do not
+    /// each rebuild the preview (and so switching into sequence mode does not overwrite the
+    /// loaded points with the sweep's ones); the caller recalculates once at the end.
     /// </summary>
-    private static List<(double Temperature, double PlateauMinutes)> ExtractSequenceSteps(IReadOnlyList<ProfileSegment> segments)
+    private void ApplyShape(QuickProfileShape shape)
     {
-        var result = new List<(double Temperature, double PlateauMinutes)>();
-        foreach (ProfileSegment s in segments)
+        _suspendRecalculate = true;
+        try
         {
-            double t = Math.Round(s.TargetTemperature, 1);
-            double holdMinutes = s.IsRamp ? 0 : Math.Max(0, s.Duration.TotalMinutes);
+            RampMinutes = Math.Max(0, shape.RampMinutes);
+            PlateauMinutes = Math.Max(0, shape.PlateauMinutes);
+            ShortenByHours = 0;
 
-            if (result.Count > 0 && Math.Abs(result[^1].Temperature - t) <= 0.05)
+            StartFromCurrent = shape.HasLeadIn;
+            if (shape.HasLeadIn)
             {
-                result[^1] = (result[^1].Temperature, result[^1].PlateauMinutes + holdMinutes);
+                StartRampMinutes = Math.Max(0, shape.LeadInMinutes);
+
+                // The temperature the lead-in ramps *from* is not stored in a profile (a real
+                // run starts from the chamber's measured value), so the assumed one is kept.
+                // It only has to differ from the first setpoint – otherwise HasLeadIn goes
+                // false and the next save would quietly drop the lead-in ramp.
+                double first = shape.Points.Count > 0 ? shape.Points[0].Temperature : StartTemperature;
+                if (Math.Abs(StartTemperature - first) <= 0.05)
+                {
+                    StartTemperature = first + 20;
+                }
+            }
+
+            EndAtSafeTemperature = shape.HasEndHold;
+            if (shape.HasEndHold)
+            {
+                EndTemperature = shape.EndTemperature;
+                EndHoldMinutes = Math.Max(60, shape.EndHoldMinutes);
+            }
+
+            if (shape.IsParametric)
+            {
+                Mode = QuickProfileMode.Parametric;
+                LowTemperature = shape.LowTemperature;
+                HighTemperature = shape.HighTemperature;
+                UseTemperatureStep = false;
+                IntermediateSteps = shape.IntermediateSteps;
+                TemperatureStep = Math.Max(0.1, shape.TemperatureStep);
+                IncludeDescending = shape.IncludeDescending;
+                DoublePeak = shape.DoublePeak;
+                if (shape.DoublePeak) PeakDipCelsius = Math.Max(0, shape.PeakDipCelsius);
+
+                // Keep the sequence editor in step with the sweep, so switching to
+                // "Postupnosť teplôt" starts from the loaded profile, not stale points.
+                ReplaceSequenceSteps(shape.Points.Select(p => (p.Temperature, p.PlateauMinutes)));
             }
             else
             {
-                result.Add((t, holdMinutes));
+                Mode = QuickProfileMode.Sequence;
+                if (shape.Points.Count > 0)
+                {
+                    ReplaceSequenceSteps(shape.Points.Select(p => (p.Temperature, p.PlateauMinutes)));
+                }
+                else
+                {
+                    ReplaceSequenceSteps(DefaultSequenceSteps());
+                }
             }
         }
-
-        return result;
+        finally
+        {
+            _suspendRecalculate = false;
+        }
     }
 
     private int TemperaturePointCount()
@@ -959,6 +1006,11 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     private void Recalculate()
     {
+        if (_suspendRecalculate)
+        {
+            return;
+        }
+
         RefreshSegmentsFromGenerator();
 
         if (Mode == QuickProfileMode.Sequence)

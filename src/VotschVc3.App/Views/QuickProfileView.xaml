@@ -45,7 +45,7 @@
                         <Button Content="Načítať na úpravu" Style="{StaticResource GhostButton}"
                                 Margin="0,6,0,0" HorizontalAlignment="Left"
                                 Command="{Binding LoadSelectedProfileCommand}"
-                                ToolTip="Načíta vybraný profil ako postupnosť teplôt na úpravu a uloženie prepíše ten istý profil." />
+                                ToolTip="Načíta vybraný profil aj s jeho parametrami – sweep sa vráti v režime „Sweep (rozsah)“ s rozsahom, krokmi a platom, ostatné ako postupnosť teplôt. Uloženie prepíše ten istý profil." />
                     </StackPanel>
 
                     <StackPanel Style="{StaticResource QpField}">

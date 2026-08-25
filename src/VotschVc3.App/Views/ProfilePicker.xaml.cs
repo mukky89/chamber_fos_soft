@@ -120,6 +120,9 @@ public partial class ProfilePicker : UserControl
         picker.HasSelection = profile is not null;
     }
 
+    /// <summary>How many profiles the synthetic "Najnovšie" shortcut group lists.</summary>
+    private const int RecentCount = 8;
+
     private void RebuildTree()
     {
         string filter = SearchBox?.Text?.Trim() ?? string.Empty;
@@ -129,6 +132,20 @@ public partial class ProfilePicker : UserControl
             .Where(p => Matches(p, filter))
             .ToList();
 
+        // Shortcut group first: the profiles most recently created or edited, so the one
+        // just built in the quick builder is a single click away instead of having to be
+        // hunted for inside its customer / sensor group.
+        List<TestProfile> recent = matched
+            .OrderByDescending(p => p.LastChangedAt)
+            .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Take(RecentCount)
+            .ToList();
+        if (recent.Count > 0)
+        {
+            Groups.Add(new ProfileTreeGroupViewModel("🕘 Najnovšie", recent, isRecent: true) { IsExpanded = true });
+        }
+
+        int groupCount = 0;
         foreach (IGrouping<string, TestProfile> group in matched
                      .GroupBy(p => p.GroupKey)
                      .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase))
@@ -140,11 +157,12 @@ public partial class ProfilePicker : UserControl
                 // Collapsed by default (tidy for large libraries); expanded while filtering.
                 IsExpanded = filter.Length > 0,
             });
+            groupCount++;
         }
 
         ResultSummary = matched.Count == 0
             ? (filter.Length > 0 ? "Žiadny výsledok" : "Žiadne profily")
-            : $"{matched.Count} {ProfileWord(matched.Count)} · {Groups.Count} {GroupWord(Groups.Count)}";
+            : $"{matched.Count} {ProfileWord(matched.Count)} · {groupCount} {GroupWord(groupCount)}";
     }
 
     private static string ProfileWord(int n) => n == 1 ? "profil" : (n is >= 2 and <= 4 ? "profily" : "profilov");

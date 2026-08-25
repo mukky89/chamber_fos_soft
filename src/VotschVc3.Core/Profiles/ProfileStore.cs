@@ -45,10 +45,14 @@ public sealed class ProfileStore
         }
     }
 
-    /// <summary>Inserts or updates a profile (matched by <see cref="TestProfile.Id"/>).</summary>
+    /// <summary>
+    /// Inserts or updates a profile (matched by <see cref="TestProfile.Id"/>) and stamps
+    /// <see cref="TestProfile.UpdatedAt"/>, so the picker can offer a "Najnovšie" group.
+    /// </summary>
     public void Save(TestProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        profile.UpdatedAt = DateTimeOffset.Now;
         lock (_sync)
         {
             List<TestProfile> all = LoadAllNoLock();

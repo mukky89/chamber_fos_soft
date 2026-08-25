@@ -4,6 +4,27 @@ Všetky podstatné zmeny v tomto projekte. Formát vychádza z
 [Keep a Changelog](https://keepachangelog.com/), verzie podľa
 [SemVer](https://semver.org/lang/sk/).
 
+## [1.53.0] – 2026-08-25
+
+### Opravené
+- **Načítanie existujúceho profilu do rýchleho vytvárača.** Načítaný profil sa už
+  neprevádza vždy na plochý zoznam bodov – nová analýza `QuickProfileShape`
+  rozpozná symetrický sweep a doplní jeho skutočné parametre (rozsah od–do, počet
+  krokov a krok v °C, dĺžku plata a rampy, dvojitý vrchol, spiatočnú vetvu).
+  Profil sa tak dá znova upravovať v režime „Sweep (rozsah)“, nie iba po bodoch.
+- **Nábeh a bezpečnostné ukončenie sa pri načítaní nestrácajú.** Úvodná rampa a
+  záverečné plato na bezpečnej teplote sa rozpoznajú a zapnú späť na svojich
+  prepínačoch, takže opätovné uloženie vytvorí ten istý profil (predtým sa dĺžka
+  úvodnej rampy pri uložení stratila).
+- Profily, ktoré sweep nie sú (rôzne dĺžky plat, iba klesajúce), sa naďalej načítajú
+  ako postupnosť teplôt so zachovanou dĺžkou plata pri každom bode.
+
+### Pridané
+- **Skupina „🕘 Najnovšie“ vo výbere profilu.** Výber testovacieho profilu (na karte
+  komory aj v rýchlom vytváraču) má hore rozbalenú skupinu s ôsmimi naposledy
+  vytvorenými alebo upravenými profilmi. Dátum poslednej úpravy sa ukladá do
+  knižnice (`UpdatedAt`), staršie profily sa radia podľa dátumu vytvorenia.
+
 ## [1.52.0] – 2026-08-24
 
 ### Integrované
