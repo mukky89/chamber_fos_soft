@@ -61,7 +61,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Content="Pripojiť PeakLogger" Style="{StaticResource AccentButton}" Command="{Binding ConnectPeakLoggerCommand}" Margin="0,0,8,0" />
-                    <Button Content="↻" Style="{StaticResource GhostButton}" Command="{Binding RefreshSensorsCommand}" ToolTip="Znovu načítať SN a peaky" />
+                    <Button Content="↻" Style="{StaticResource GhostButton}" Command="{Binding RefreshSensorsCommand}" ToolTip="Znovu načítať PeakLogger zariadenia, kanály a peaky" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -74,18 +74,21 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <TextBlock DockPanel.Dock="Left" Text="Vyber konkrétny peak/wavelength pre každý SN. Identita je SN + kanál + PeakId, nie aktuálna hodnota wavelength." Style="{StaticResource Caption}" VerticalAlignment="Center" />
-                        <Button DockPanel.Dock="Right" Content="Navrhnúť 1 peak / SN" Style="{StaticResource GhostButton}" Command="{Binding SelectSuggestedPeaksCommand}" />
+                        <TextBlock DockPanel.Dock="Left"
+                                   Text="PeakLogger deviceSN je SN interrogátora. Produkčné FBG SN zadaj alebo naskenuj samostatne; live identita je PeakLogger SN + kanál + PeakId."
+                                   Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                        <Button DockPanel.Dock="Right" Content="Navrhnúť 1 peak / kanál" Style="{StaticResource GhostButton}" Command="{Binding SelectSuggestedPeaksCommand}" />
                     </DockPanel>
                     <DataGrid Grid.Row="1" ItemsSource="{Binding Peaks}" AutoGenerateColumns="False" CanUserAddRows="False"
                               IsReadOnly="False" HeadersVisibility="Column" EnableRowVirtualization="True"
                               VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                         <DataGrid.Columns>
                             <DataGridCheckBoxColumn Header="Kalibrovať" Binding="{Binding Selected, Mode=TwoWay}" Width="90" />
+                            <DataGridTextColumn Header="PeakLogger SN" Binding="{Binding PeakLoggerDeviceSerialNumber}" IsReadOnly="True" Width="125" />
                             <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" IsReadOnly="True" Width="70" />
                             <DataGridTextColumn Header="Žila 1" Binding="{Binding Core1, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
                             <DataGridTextColumn Header="Žila 2" Binding="{Binding Core2, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
-                            <DataGridTextColumn Header="Sériové číslo" Binding="{Binding SerialNumber}" IsReadOnly="True" Width="150" />
+                            <DataGridTextColumn Header="FBG sensor SN" Binding="{Binding SerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="165" />
                             <DataGridTextColumn Header="Peak" Binding="{Binding PeakId}" IsReadOnly="True" Width="70" />
                             <DataGridTextColumn Header="Pozícia" Binding="{Binding PeakIndex}" IsReadOnly="True" Width="65" />
                             <DataGridTextColumn Header="Aktuálna λ [nm]" Binding="{Binding CurrentWavelengthNm, StringFormat=F6}" IsReadOnly="True" Width="115" />
@@ -135,7 +138,7 @@
                     </WrapPanel>
                     <DataGrid Grid.Row="1" ItemsSource="{Binding TargetProgress}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="SN" Binding="{Binding SerialNumber}" Width="150" />
+                            <DataGridTextColumn Header="FBG SN" Binding="{Binding SerialNumber}" Width="150" />
                             <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" Width="70" />
                             <DataGridTextColumn Header="Peak" Binding="{Binding PeakId}" Width="70" />
                             <DataGridTextColumn Header="Current λ [nm]" Binding="{Binding CurrentWavelengthNm, StringFormat=F6}" Width="120" />
