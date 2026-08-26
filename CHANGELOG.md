@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.62.0] – 2026-08-26
+
+### Zmenené
+- **Rýchly vytvárač sa otvára prázdny.** Po otvorení obrazovky (aj z karty komory)
+  začínaš vždy na predvolenom profile **-20…60 °C, 7 medzikrokov** – dovtedy sa
+  vrátil rozrobený profil z minula, ktorý sa potom nechtiac uložil cez ten
+  načítaný. Existujúci profil si vyberieš v „Načítať existujúci profil“.
+- **Pri načítaní profilu sa appka opýta, či prepísať pôvodný.** „Prepísať pôvodný“
+  ho pri uložení aktualizuje, „Vytvoriť nový“ ho nechá nedotknutý a uloží nový
+  profil (aj keď má rovnaký názov).
+- **Odstránené tlačidlo „Editovať profil“.** Komplexná úprava profilov sa robí
+  priamo v Rýchlom vytváraču.
+- **Priblíženie v grafoch na hlavnej stránke je rovnaké ako v rýchlom profile** –
+  tlačidlá ＋ / － / ⤢ sú vpravo hore (predtým prekrývali popis časovej osi dole),
+  legenda sa presunula vľavo hore a popis cyklu na spodok pásma.
+
+### Opravené
+- **Názov sa po zmene načítaného profilu aktualizuje.** Keď má profil automaticky
+  generovaný názov, po načítaní sa generovanie zapne späť (aj s pôvodnou
+  predponou), takže zmena rozsahu, plata či cyklov názov prepíše. Ručne napísaný
+  názov sa naďalej nechá tak.
+- **Náhľad profilu ukazuje pri prechode myšou, či ide o nábeh alebo plato.**
+  Krok pod kurzorom sa zvýrazní cez celú výšku grafu a bublina píše napr.
+  „↗ Rampa (ohrev) na 60 °C · dĺžka 30 min“ alebo „→ Výdrž (plato) 60 °C ·
+  dĺžka 1 h 40 min“; pri cyklovaní aj to, do ktorého opakovania krok patrí.
+- **Os teploty je orezaná na profil.** Profil -40…120 °C sa kreslil na osi
+  od -100 do 300 °C a krivka sa tlačila do spodnej tretiny grafu. Os už nie je
+  natvrdo na štyroch dielikoch – `NiceAxis.Scale` vyberie krok aj počet čiar tak,
+  aby zostali okrúhle popisy a čo najmenej prázdna. Platí pre náhľad profilu aj
+  pre grafy na hlavnej stránke.
+
 ## [1.61.1] – 2026-08-26
 
 ### Zmenené

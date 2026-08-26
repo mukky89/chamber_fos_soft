@@ -31,8 +31,8 @@
             <Separator Margin="0,18,0,14" Background="{StaticResource BorderBrush}" />
 
             <Grid>
-                <Button Content="Zrušiť" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
-                        Padding="16,7" Click="Cancel_Click" />
+                <Button x:Name="CancelButton" Content="Zrušiť" Style="{StaticResource GhostButton}"
+                        HorizontalAlignment="Left" Padding="16,7" Click="Cancel_Click" />
                 <Button x:Name="ConfirmButton" Content="Áno" Style="{StaticResource DangerButton}"
                         HorizontalAlignment="Right" Padding="18,7" Click="Confirm_Click" />
             </Grid>

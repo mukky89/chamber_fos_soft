@@ -35,6 +35,7 @@ public partial class ChartView : UserControl
     // cursor position back to a data point (hover read-out).
     private bool _hasPlot;
     private double _minX, _maxX, _minY, _maxY, _plotW, _plotH;
+    private ValueAxis _yAxis = new(0, 1, 1, 1);
     private ChartSeries? _hoverSeries;
     private readonly List<UIElement> _overlay = new();
 
@@ -253,18 +254,27 @@ public partial class ChartView : UserControl
         double maxY;
         if (double.IsNaN(YMin) && double.IsNaN(YMax))
         {
-            // Rounded bounds keep the labels readable and – more importantly – hold
-            // the axis still while a zoomed window is panned across the data.
-            (minY, maxY) = NiceAxis.Round(visibleMinY, visibleMaxY, intervals: 4);
+            // Rounded bounds keep the labels readable and hold the axis still while a
+            // zoomed window is panned. Scale also picks how many gridlines there are, so
+            // the axis crops close to the data instead of padding it out to four steps.
+            _yAxis = NiceAxis.Scale(visibleMinY, visibleMaxY);
+            minY = _yAxis.Min;
+            maxY = _yAxis.Max;
         }
         else
         {
             minY = double.IsNaN(YMin) ? visibleMinY : YMin;
             maxY = double.IsNaN(YMax) ? visibleMaxY : YMax;
+            _yAxis = new ValueAxis(minY, maxY, (maxY - minY) / 4, 4);
         }
 
         if (maxX <= minX) maxX = minX + 1;
-        if (maxY <= minY) { maxY = minY + 1; minY -= 1; }
+        if (maxY <= minY)
+        {
+            maxY = minY + 1;
+            minY -= 1;
+            _yAxis = new ValueAxis(minY, maxY, (maxY - minY) / 4, 4);
+        }
 
         double plotW = width - PadLeft - PadRight;
         double plotH = height - PadTop - PadBottom;
@@ -317,7 +327,8 @@ public partial class ChartView : UserControl
                 AddLine(sx1, PadTop, sx1, PadTop + plotH, AccentBrush, 1.5, dashed: true);
                 if (sx2 - sx1 >= 44)
                 {
-                    AddText($"⟲ {c + 1}/{CycleCount}", sx1 + 4, PadTop + 2, AccentBrush, 11);
+                    // Along the bottom of the band – the top-left corner is the legend.
+                    AddText($"⟲ {c + 1}/{CycleCount}", sx1 + 4, PadTop + plotH - 16, AccentBrush, 11);
                 }
             }
 
@@ -326,12 +337,12 @@ public partial class ChartView : UserControl
         }
 
         // Horizontal gridlines + Y labels.
-        for (int i = 0; i <= 4; i++)
+        int gridSteps = Math.Max(1, _yAxis.Intervals);
+        for (int i = 0; i <= gridSteps; i++)
         {
-            double frac = i / 4.0;
-            double yVal = minY + (maxY - minY) * (1 - frac);
-            double py = PadTop + plotH * frac;
-            AddLine(PadLeft, py, PadLeft + plotW, py, GridBrush, 1, dashed: i is not 0 and not 4);
+            double yVal = _yAxis.LabelAt(i);
+            double py = ToPy(yVal);
+            AddLine(PadLeft, py, PadLeft + plotW, py, GridBrush, 1, dashed: i is not 0 && i != gridSteps);
             AddText($"{yVal:0.#}{Unit}", 2, py - 8, MutedBrush, 10, PadLeft - 6, TextAlignment.Right);
         }
 
@@ -410,15 +421,16 @@ public partial class ChartView : UserControl
 
         DrawZoomIndicator(plotW, plotH);
 
-        // Legend (top-right).
+        // Legend, top-left: the top-right corner now holds the zoom bar, and the bottom
+        // corners are taken by the axis labels and the zoom chip.
         double legendY = PadTop + 2;
         foreach (ChartSeries s in series)
         {
-            var swatch = new Rectangle { Width = 14, Height = 3, Fill = s.Stroke };
-            Canvas.SetRight(swatch, PadRight + 56);
+            var swatch = new Rectangle { Width = 14, Height = 3, Fill = s.Stroke, IsHitTestVisible = false };
+            Canvas.SetLeft(swatch, PadLeft + 4);
             Canvas.SetTop(swatch, legendY + 6);
             PlotCanvas.Children.Add(swatch);
-            AddText(s.Name, 0, legendY, MutedBrush, 10, 52, TextAlignment.Right, right: PadRight);
+            AddText(s.Name, PadLeft + 22, legendY, MutedBrush, 10);
             legendY += 15;
         }
     }

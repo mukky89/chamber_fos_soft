@@ -10,12 +10,16 @@ namespace VotschVc3.App.Views;
 /// </summary>
 public partial class ConfirmDialog : Window
 {
-    private ConfirmDialog(string message, string title, string confirmText, bool danger)
+    private ConfirmDialog(string message, string title, string confirmText, bool danger, string? cancelText)
     {
         InitializeComponent();
         TitleText.Text = title;
         MessageText.Text = message;
         ConfirmButton.Content = confirmText;
+        if (!string.IsNullOrWhiteSpace(cancelText))
+        {
+            CancelButton.Content = cancelText;
+        }
 
         if (!danger)
         {
@@ -37,9 +41,17 @@ public partial class ConfirmDialog : Window
     /// Shows a modal confirmation and returns <c>true</c> if the user confirmed. Owned by
     /// the main window and centred on it.
     /// </summary>
-    public static bool Ask(string message, string title = "Potvrdenie", string confirmText = "Áno", bool danger = true)
+    /// <param name="message">What the user is being asked.</param>
+    /// <param name="title">Dialog caption.</param>
+    /// <param name="confirmText">Label of the confirming button.</param>
+    /// <param name="danger">Red (destructive) styling; <c>false</c> gives the neutral accent look.</param>
+    /// <param name="cancelText">Label of the other button – set it when the choice is
+    /// between two actions ("Vytvoriť nový") rather than doing nothing ("Zrušiť").</param>
+    public static bool Ask(
+        string message, string title = "Potvrdenie", string confirmText = "Áno",
+        bool danger = true, string? cancelText = null)
     {
-        var dialog = new ConfirmDialog(message, title, confirmText, danger);
+        var dialog = new ConfirmDialog(message, title, confirmText, danger, cancelText);
         Window? owner = Application.Current?.MainWindow;
         if (owner is not null && owner.IsVisible && !ReferenceEquals(owner, dialog))
         {

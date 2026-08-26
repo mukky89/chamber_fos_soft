@@ -78,6 +78,11 @@ public partial class ProfileEditorChart : UserControl
     private List<Point> _hoverPoints = new();
     private readonly List<UIElement> _hoverOverlay = new();
 
+    // The steps as drawn on the (cycle-expanded) time axis, so the hover read-out can say
+    // whether the cursor is on a ramp or a hold, and how long that step is.
+    private List<DrawnStep> _steps = new();
+    private ValueAxis _yAxis = new(0, 1, 1, 1);
+
     public ProfileEditorChart()
     {
         InitializeComponent();
@@ -192,6 +197,17 @@ public partial class ProfileEditorChart : UserControl
     private Brush Accent => TryFindResource("AccentBrush") as Brush ?? Brushes.SteelBlue;
     private Brush Line => TryFindResource("BorderBrush") as Brush ?? Brushes.DimGray;
     private Brush Hold => TryFindResource("WarnBrush") as Brush ?? Brushes.Orange;
+    private Brush Highlight => TryFindResource("DangerBrush") as Brush ?? Brushes.IndianRed;
+
+    /// <summary>One step of the profile as it appears on the time axis.</summary>
+    /// <param name="StartMin">Where the step starts (minutes from the profile start).</param>
+    /// <param name="EndMin">Where it ends.</param>
+    /// <param name="IsRamp">Ramp (sloped) rather than a hold.</param>
+    /// <param name="FromTemperature">Temperature it starts at – gives a ramp its direction.</param>
+    /// <param name="Target">Temperature it ends at.</param>
+    /// <param name="Cycle">Repetition it belongs to; -1 for the lead-in / closing stages.</param>
+    private readonly record struct DrawnStep(
+        double StartMin, double EndMin, bool IsRamp, double FromTemperature, double Target, int Cycle);
 
     /// <summary>One drawn occurrence of a segment on the (cycle-expanded) time axis.</summary>
     /// <param name="Index">Index of the segment in the edited list.</param>
@@ -246,6 +262,7 @@ public partial class ProfileEditorChart : UserControl
         PlotCanvas.Children.Clear();
         _hoverOverlay.Clear();
         _hoverPoints = new List<Point>();
+        _steps = new List<DrawnStep>();
         double w = PlotCanvas.ActualWidth, h = PlotCanvas.ActualHeight;
         if (w <= 0 || h <= 0)
         {
@@ -267,14 +284,14 @@ public partial class ProfileEditorChart : UserControl
         var allTemps = new List<double> { startTemp };
         allTemps.AddRange(segments.Select(s => s.TargetTemperature));
 
-        // Rounded bounds: raw min/max produced labels like 69,6 / 44,8 / -29,6 °C and made
-        // the axis wobble on every drag. NiceAxis snaps them to 20 / 40 / 60 °C steps.
-        (_minY, _maxY) = NiceAxis.Round(allTemps.Min(), allTemps.Max(), intervals: 4);
-        if (_maxY - _minY < 1)
-        {
-            _maxY += 1;
-            _minY -= 1;
-        }
+        // Rounded bounds cropped close to the data: fixing the axis at four steps used to
+        // put a -40…120 °C profile on a -100…300 °C axis with the curve in the bottom
+        // third. NiceAxis.Scale picks the step *and* the number of gridlines.
+        // Scale already widens a flat profile, so the bounds and the gridline labels can
+        // never drift apart here.
+        _yAxis = NiceAxis.Scale(allTemps.Min(), allTemps.Max());
+        _minY = _yAxis.Min;
+        _maxY = _yAxis.Max;
 
         double plotW = w - PadLeft - PadRight;
         double plotH = h - PadTop - PadBottom;
@@ -302,11 +319,15 @@ public partial class ProfileEditorChart : UserControl
         // the first pass; the repeats show the same values and are edited through it.
         var linePoints = new PointCollection { new(Xpx(0), Ypx(startTemp)) };
         var handles = new List<(int Index, double X, double Y)>();
+        _steps = new List<DrawnStep>(passes.Count);
+        double previousTemp = startTemp;
         foreach (Pass pass in passes)
         {
             SegmentViewModel seg = segments[pass.Index];
             double dur = Math.Max(0, seg.DurationMinutes);
             double end = pass.StartMin + dur;
+            _steps.Add(new DrawnStep(pass.StartMin, end, seg.IsRamp, previousTemp, seg.TargetTemperature, pass.Cycle));
+            previousTemp = seg.TargetTemperature;
             if (seg.IsRamp)
             {
                 linePoints.Add(new Point(Xpx(end), Ypx(seg.TargetTemperature)));
@@ -432,7 +453,7 @@ public partial class ProfileEditorChart : UserControl
 
             var band = new Rectangle
             {
-                Width = x2 - x1, Height = plotH, Fill = Hold, Opacity = 0.10, IsHitTestVisible = false,
+                Width = x2 - x1, Height = plotH, Fill = Hold, Opacity = 0.07, IsHitTestVisible = false,
             };
             Canvas.SetLeft(band, x1);
             Canvas.SetTop(band, PadTop);
@@ -443,11 +464,11 @@ public partial class ProfileEditorChart : UserControl
     /// <summary>Horizontal value gridlines and vertical time gridlines, both on rounded steps.</summary>
     private void DrawGrid(double plotW, double plotH, Func<double, double> Xpx)
     {
-        for (int i = 0; i <= 4; i++)
+        int intervals = Math.Max(1, _yAxis.Intervals);
+        for (int i = 0; i <= intervals; i++)
         {
-            double frac = i / 4.0;
-            double py = PadTop + plotH * frac;
-            double yVal = _maxY - (_maxY - _minY) * frac;
+            double yVal = _yAxis.LabelAt(i);
+            double py = PadTop + (1 - ((yVal - _minY) / (_maxY - _minY))) * plotH;
             PlotCanvas.Children.Add(new Line
             {
                 X1 = PadLeft, Y1 = py, X2 = PadLeft + plotW, Y2 = py,
@@ -856,6 +877,52 @@ public partial class ProfileEditorChart : UserControl
         double temperature = _maxY - (py - PadTop) / _plotH * (_maxY - _minY);
 
         Brush accent = Accent;
+
+        // Highlight the whole step under the cursor, so it is obvious where the ramp ends
+        // and the hold begins – and how long each of them is.
+        DrawnStep? hovered = StepAt(minutes);
+        if (hovered is { } step)
+        {
+            double sx1 = left + (step.StartMin - _window.Min) * _pxPerMinute;
+            double sx2 = left + (step.EndMin - _window.Min) * _pxPerMinute;
+            double bandLeft = Math.Max(left, sx1);
+            double bandRight = Math.Min(left + _plotW, sx2);
+            var band = new Rectangle
+            {
+                Width = Math.Max(1, bandRight - bandLeft),
+                Height = _plotH,
+                Fill = Highlight,
+                Opacity = 0.18,
+                IsHitTestVisible = false,
+            };
+            Canvas.SetLeft(band, bandLeft);
+            Canvas.SetTop(band, PadTop);
+            AddHoverOverlay(band);
+
+            foreach (double edge in new[] { sx1, sx2 })
+            {
+                if (edge < left || edge > left + _plotW)
+                {
+                    continue; // outside the zoomed window
+                }
+
+                AddHoverOverlay(new Line
+                {
+                    X1 = edge, Y1 = PadTop, X2 = edge, Y2 = PadTop + _plotH,
+                    Stroke = Highlight, StrokeThickness = 1.5, Opacity = 0.85,
+                    IsHitTestVisible = false,
+                });
+            }
+
+            double YOf(double t) => PadTop + (1 - ((t - _minY) / (_maxY - _minY))) * _plotH;
+            AddHoverOverlay(new Line
+            {
+                X1 = sx1, Y1 = YOf(step.IsRamp ? step.FromTemperature : step.Target),
+                X2 = sx2, Y2 = YOf(step.Target),
+                Stroke = Highlight, StrokeThickness = 3, IsHitTestVisible = false,
+            });
+        }
+
         AddHoverOverlay(new Line
         {
             X1 = mx, Y1 = PadTop, X2 = mx, Y2 = PadTop + _plotH,
@@ -869,19 +936,42 @@ public partial class ProfileEditorChart : UserControl
         Canvas.SetTop(dot, py - 4);
         AddHoverOverlay(dot);
 
+        var chipContent = new StackPanel();
+        chipContent.Children.Add(new TextBlock
+        {
+            Text = $"{temperature:0.0} °C  ·  {FormatMinutesShort(minutes)}",
+            Foreground = Brushes.White,
+            FontSize = 11,
+            FontFamily = new FontFamily("Segoe UI Semibold"),
+        });
+        if (hovered is { } current)
+        {
+            chipContent.Children.Add(new TextBlock
+            {
+                Text = StepLabel(current),
+                Foreground = Brushes.White,
+                FontSize = 10,
+                Opacity = 0.9,
+            });
+            if (current.Cycle >= 0 && CycleCount > 1)
+            {
+                chipContent.Children.Add(new TextBlock
+                {
+                    Text = $"⟲ cyklus {current.Cycle + 1}/{Math.Max(1, CycleCount)}",
+                    Foreground = Brushes.White,
+                    FontSize = 10,
+                    Opacity = 0.75,
+                });
+            }
+        }
+
         var chip = new Border
         {
             Background = accent,
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(6, 2, 6, 2),
             IsHitTestVisible = false,
-            Child = new TextBlock
-            {
-                Text = $"{temperature:0.0} °C  ·  {FormatMinutesShort(minutes)}",
-                Foreground = Brushes.White,
-                FontSize = 11,
-                FontFamily = new FontFamily("Segoe UI Semibold"),
-            },
+            Child = chipContent,
         };
         chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         double cx = mx + 8;
@@ -894,6 +984,36 @@ public partial class ProfileEditorChart : UserControl
         Canvas.SetLeft(chip, Math.Max(left, cx));
         Canvas.SetTop(chip, cy);
         AddHoverOverlay(chip);
+    }
+
+    /// <summary>The step the given time falls in, or <c>null</c> outside the profile.</summary>
+    private DrawnStep? StepAt(double minutes)
+    {
+        foreach (DrawnStep step in _steps)
+        {
+            if (minutes >= step.StartMin && minutes <= step.EndMin && step.EndMin > step.StartMin)
+            {
+                return step;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>"↗ Rampa (ohrev) na 60 °C · dĺžka 30 min" / "→ Výdrž (plato) 60 °C · dĺžka 1 h 40 min".</summary>
+    private static string StepLabel(DrawnStep step)
+    {
+        string length = $"dĺžka {FormatMinutesShort(step.EndMin - step.StartMin)}";
+        if (!step.IsRamp)
+        {
+            return $"→ Výdrž (plato) {step.Target:0.#} °C · {length}";
+        }
+
+        double delta = step.Target - step.FromTemperature;
+        string direction = Math.Abs(delta) < 0.05
+            ? "→ Rampa (bez zmeny)"
+            : delta > 0 ? "↗ Rampa (ohrev)" : "↘ Rampa (chladenie)";
+        return $"{direction} na {step.Target:0.#} °C · {length}";
     }
 
     private static string FormatMinutesShort(double minutes)

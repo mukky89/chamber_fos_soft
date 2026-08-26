@@ -8,20 +8,54 @@ namespace VotschVc3.Core.Charting;
 /// chart. Snapping the bounds to a "nice" step (1 / 2 / 2,5 / 5 × 10ⁿ) keeps the labels
 /// round and the axis still while the window moves.
 /// </summary>
+/// <summary>
+/// A resolved value axis: the bounds to draw, the step between two gridlines and how
+/// many steps there are (so the renderer draws <c>Intervals + 1</c> labels).
+/// </summary>
+/// <param name="Min">Lower bound of the axis.</param>
+/// <param name="Max">Upper bound of the axis.</param>
+/// <param name="Step">Distance between two gridlines.</param>
+/// <param name="Intervals">Number of steps between <paramref name="Min"/> and <paramref name="Max"/>.</param>
+public readonly record struct ValueAxis(double Min, double Max, double Step, int Intervals)
+{
+    public double Span => Max - Min;
+
+    /// <summary>Value of the <paramref name="index"/>-th gridline, counted from the bottom.</summary>
+    public double LabelAt(int index) => Min + (index * Step);
+}
+
 public static class NiceAxis
 {
-    /// <summary>Headroom added above and below the data before rounding.</summary>
-    private const double Padding = 0.08;
-
     /// <summary>
-    /// Bounds for <paramref name="intervals"/> equal gridline steps that cover
-    /// <paramref name="min"/>..<paramref name="max"/> with a bit of headroom.
+    /// Bounds for exactly <paramref name="intervals"/> equal gridline steps covering
+    /// <paramref name="min"/>..<paramref name="max"/>. Prefer <see cref="Scale"/>, which
+    /// is free to pick the number of steps and therefore crops much closer to the data.
     /// </summary>
     public static (double Min, double Max) Round(double min, double max, int intervals = 4)
     {
+        ValueAxis axis = Fit(min, max, Math.Max(1, intervals));
+        return (axis.Min, axis.Max);
+    }
+
+    /// <summary>
+    /// The tightest readable value axis for <paramref name="min"/>..<paramref name="max"/>:
+    /// round labels on a 1 / 1,5 / 2 / 2,5 / 3 / 5 × 10ⁿ step, and as little empty plot
+    /// above and below the data as those labels allow.
+    /// <para>
+    /// The number of gridline steps is part of the search, not a fixed 4 – forcing four
+    /// steps is what put a -40…120 °C profile on an axis running from -100 to 300 °C,
+    /// with the curve squashed into the bottom third of the chart.
+    /// </para>
+    /// </summary>
+    /// <param name="min">Lowest value that must be visible.</param>
+    /// <param name="max">Highest value that must be visible.</param>
+    /// <param name="minIntervals">Fewest gridline steps to consider.</param>
+    /// <param name="maxIntervals">Most gridline steps to consider.</param>
+    public static ValueAxis Scale(double min, double max, int minIntervals = 3, int maxIntervals = 6)
+    {
         if (!double.IsFinite(min) || !double.IsFinite(max))
         {
-            return (min, max);
+            return new ValueAxis(min, max, 1, 1);
         }
 
         if (max < min)
@@ -29,34 +63,88 @@ public static class NiceAxis
             (min, max) = (max, min);
         }
 
-        double range = max - min;
-        if (range <= 0)
+        if (max - min <= 0)
         {
             // A flat line still needs an axis to sit on.
             min -= 1;
             max += 1;
-            range = max - min;
         }
 
-        double padding = range * Padding;
-        min -= padding;
-        max += padding;
-        intervals = Math.Max(1, intervals);
+        minIntervals = Math.Max(1, minIntervals);
+        maxIntervals = Math.Max(minIntervals, maxIntervals);
+
+        ValueAxis best = Fit(min, max, maxIntervals);
+        for (int intervals = minIntervals; intervals <= maxIntervals; intervals++)
+        {
+            ValueAxis candidate = Fit(min, max, intervals);
+
+            // Smallest axis wins; on a tie take the one with fewer labels.
+            if (candidate.Span < best.Span - 1e-9 ||
+                (candidate.Span < best.Span + 1e-9 && candidate.Intervals < best.Intervals))
+            {
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// The smallest nice step whose gridlines cover the data in at most
+    /// <paramref name="intervals"/> steps, padded out to exactly that many.
+    /// </summary>
+    private static ValueAxis Fit(double min, double max, int intervals)
+    {
+        if (!double.IsFinite(min) || !double.IsFinite(max))
+        {
+            return new ValueAxis(min, max, 1, intervals);
+        }
+
+        if (max < min)
+        {
+            (min, max) = (max, min);
+        }
+
+        if (max - min <= 0)
+        {
+            min -= 1;
+            max += 1;
+        }
 
         double step = NiceStep((max - min) / intervals);
-        for (int attempt = 0; attempt < 8; attempt++)
+        for (int attempt = 0; attempt < 14; attempt++)
         {
-            double low = Math.Floor(min / step) * step;
-            double high = low + (intervals * step);
-            if (high >= max - (step * 1e-9))
+            // Snap outwards to the nearest gridline on both sides, then check whether the
+            // data really fits. Flooring only the lower bound and adding `intervals` steps
+            // on top (what this used to do) throws all the slack above the data.
+            double low = Math.Floor((min / step) + 1e-9) * step;
+            double high = Math.Ceiling((max / step) - 1e-9) * step;
+            int used = (int)Math.Round((high - low) / step);
+            if (used <= intervals)
             {
-                return (low, high);
+                // Pad out to exactly `intervals` equal steps, always extending the side
+                // that currently sits closer to the data, so the curve stays centred.
+                while (used < intervals)
+                {
+                    if (min - low <= high - max)
+                    {
+                        low -= step;
+                    }
+                    else
+                    {
+                        high += step;
+                    }
+
+                    used++;
+                }
+
+                return new ValueAxis(low, high, step, intervals);
             }
 
             step = NextNiceStep(step);
         }
 
-        return (min, max);
+        return new ValueAxis(min, max, (max - min) / intervals, intervals);
     }
 
     /// <summary>Nearest 1 / 1,5 / 2 / 2,5 / 3 / 5 × 10ⁿ step at or above <paramref name="raw"/>.</summary>

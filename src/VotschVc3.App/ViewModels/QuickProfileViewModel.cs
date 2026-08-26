@@ -32,7 +32,6 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         SaveToLibraryCommand = new RelayCommand(SaveToLibrary);
-        EditInEditorCommand = new RelayCommand(EditInEditor);
         NewCommand = new RelayCommand(NewProfile);
         DeleteFromLibraryCommand = new RelayCommand(DeleteFromLibrary);
         ResetNameCommand = new RelayCommand(EnableAutoName);
@@ -93,7 +92,19 @@ public sealed class QuickProfileViewModel : ObservableObject
             }
 
             LoadSelectedProfileCommand.RaiseCanExecuteChanged();
-            if (value is not null && !_syncingSelection)
+            if (value is null || _syncingSelection)
+            {
+                return;
+            }
+
+            // Deferred: the picker is in the middle of its own selection change and
+            // LoadProfile opens a modal dialog – running it now would leave the popup
+            // hanging behind the dialog.
+            if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
+            {
+                dispatcher.BeginInvoke(new Action(() => LoadProfile(value)));
+            }
+            else
             {
                 LoadProfile(value);
             }
@@ -183,12 +194,6 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Set by the shell so the "Editovať profil" action can hand the saved profile
-    /// over to the standalone profile editor (opens it there, loaded and ready).
-    /// </summary>
-    public Action<Guid>? OpenInEditorRequested { get; set; }
-
     /// <summary>True while the name is being set programmatically, so the user-edit
     /// detection in <see cref="ProfileName"/> ignores our own writes.</summary>
     private bool _settingNameInternally;
@@ -214,6 +219,13 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// parameter rebuilds the preview from the generators as usual.
     /// </summary>
     private List<ProfileSegment>? _loadedSegments;
+
+    /// <summary>
+    /// Set when the operator answered "Vytvoriť nový" to the question asked while loading a
+    /// profile: saving then always creates a new library entry instead of overwriting the
+    /// one that was loaded (or any other profile that happens to share its name).
+    /// </summary>
+    private bool _saveAsNewCopy;
 
     private QuickProfileMode _mode = QuickProfileMode.Parametric;
     /// <summary>Which builder is active: the symmetric sweep, or a typed temperature sequence.</summary>
@@ -616,11 +628,16 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     public RelayCommand SaveToLibraryCommand { get; }
 
-    /// <summary>Saves the profile and opens it in the standalone profile editor.</summary>
-    public RelayCommand EditInEditorCommand { get; }
-
     /// <summary>Resets every parameter to defaults – start a new quick profile from scratch.</summary>
     public RelayCommand NewCommand { get; }
+
+    /// <summary>
+    /// Starts from the default profile (-20…60 °C, 7 medzikrokov). Called by the shell every
+    /// time the screen is opened, so the builder never comes up holding whatever was left
+    /// half-edited the last time – you either start from the default or pick a profile from
+    /// the library.
+    /// </summary>
+    public void StartNewProfile() => NewProfile();
 
     /// <summary>Deletes the profile with the current name from the shared library (two-click confirm).</summary>
     public RelayCommand DeleteFromLibraryCommand { get; }
@@ -646,7 +663,20 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(profile);
         DisarmDelete();
-        _editingProfileId = profile.Id;
+
+        // Saving after a load overwrites the profile that was loaded, which is not always
+        // what the operator wants – ask once, here, instead of letting them find out after
+        // the fact.
+        bool overwrite = Views.ConfirmDialog.Ask(
+            $"Profil „{profile.Name}“ sa načíta na úpravu.\n\n" +
+            "Má sa pri uložení prepísať pôvodný profil v knižnici, alebo z neho vytvoriť nový?",
+            "Načítať profil na úpravu",
+            confirmText: "Prepísať pôvodný",
+            danger: false,
+            cancelText: "Vytvoriť nový");
+
+        _editingProfileId = overwrite ? profile.Id : null;
+        _saveAsNewCopy = !overwrite;
 
         QuickProfileShape shape = QuickProfileShape.Analyze(profile.Segments);
 
@@ -673,10 +703,15 @@ public sealed class QuickProfileViewModel : ObservableObject
             _suspendRecalculate = false;
         }
 
+        // A generated name keeps generating: changing a parameter after loading used to
+        // leave the old name (with the old range and total time) sitting in the box. A name
+        // typed by hand is left exactly as it is.
+        bool generated = QuickProfileNaming.TryParseGeneratedName(profile.Name, out string namePrefix);
         _settingNameInternally = true;
         ProfileName = profile.Name;
+        NamePrefix = generated ? namePrefix : NamePrefix;
         _settingNameInternally = false;
-        IsAutoName = false;
+        IsAutoName = generated;
 
         // Show the profile exactly as it was saved. The generators share one ramp length
         // and one closing hold, so regenerating a hand-made or imported profile would
@@ -687,8 +722,11 @@ public sealed class QuickProfileViewModel : ObservableObject
         IsSaveSuccess = false;
         Status = $"Profil „{profile.Name}“ načítaný na úpravu – " + (shape.IsParametric
             ? $"rozpoznaný ako sweep {shape.LowTemperature:0.#} → {shape.HighTemperature:0.#} °C, " +
-              $"{shape.IntermediateSteps + 2} krokov, plato {shape.PlateauMinutes:0.#} min. Uprav parametre a ulož."
-            : $"{shape.Points.Count} teplotných bodov, každý s vlastnou dĺžkou plata. Uprav ich a ulož.");
+              $"{shape.IntermediateSteps + 2} krokov, plato {shape.PlateauMinutes:0.#} min."
+            : $"{shape.Points.Count} teplotných bodov, každý s vlastnou dĺžkou plata.") +
+            (overwrite
+                ? " Uloženie prepíše tento profil."
+                : " Uloženie vytvorí nový profil – pôvodný zostane nezmenený.");
         Recalculate();
     }
 
@@ -1304,16 +1342,23 @@ public sealed class QuickProfileViewModel : ObservableObject
     private TestProfile Persist(out bool created)
     {
         TestProfile profile = BuildProfile();
-        TestProfile? existing = _editingProfileId is { } id
-            ? _store.LoadAll().FirstOrDefault(p => p.Id == id)
-            : _store.LoadAll().FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        // "Vytvoriť nový" has to beat the match-by-name fallback too, otherwise saving under
+        // the loaded profile's name would overwrite it anyway.
+        TestProfile? existing = _saveAsNewCopy
+            ? null
+            : _editingProfileId is { } id
+                ? _store.LoadAll().FirstOrDefault(p => p.Id == id)
+                : _store.LoadAll().FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
         created = existing is null;
         if (existing is not null)
         {
             profile.Id = existing.Id;
         }
 
+        // From here on this is the profile being edited, so a second save updates it.
         _editingProfileId = profile.Id;
+        _saveAsNewCopy = false;
         _store.Save(profile);
         return profile;
     }
@@ -1339,31 +1384,13 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
     }
 
-    /// <summary>Saves the profile and asks the shell to open it in the standalone profile editor.</summary>
-    private void EditInEditor()
-    {
-        DisarmDelete();
-        try
-        {
-            TestProfile profile = Persist(out _);
-            RefreshLibraryProfiles();
-            IsSaveSuccess = true;
-            Status = $"✔ Profil „{profile.Name}“ uložený a otvorený v Editore profilov.";
-            OpenInEditorRequested?.Invoke(profile.Id);
-        }
-        catch (Exception ex)
-        {
-            IsSaveSuccess = false;
-            Status = $"Otvorenie v editore zlyhalo: {ex.Message}";
-        }
-    }
-
     /// <summary>Resets every parameter to its default – starts a brand-new quick profile.</summary>
     private void NewProfile()
     {
         DisarmDelete();
         _editingProfileId = null;
         _loadedSegments = null;
+        _saveAsNewCopy = false;
 
         // Clear the picker too, so the same profile can be picked again afterwards and
         // is loaded rather than silently ignored as "already selected".

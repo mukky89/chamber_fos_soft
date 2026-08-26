@@ -118,4 +118,85 @@ public class NiceAxisTests
 
     [Fact]
     public void TimeStepOfAnEmptySpanIsSafe() => Assert.Equal(1d, NiceAxis.NiceTimeStep(0));
+
+    [Theory]
+    // Rozsah profilu -40…120 °C sa predtým zaokrúhlil na -100…300 °C a krivka
+    // sa tlačila v spodnej tretine grafu.
+    [InlineData(-40, 120)]
+    [InlineData(-30, 60)]
+    [InlineData(0, 85)]
+    [InlineData(-70, 180)]
+    [InlineData(15, 22)]
+    public void BoundsDoNotWasteMoreThanHalfTheAxis(double min, double max)
+    {
+        (double lo, double hi) = NiceAxis.Round(min, max);
+
+        Assert.True(lo <= min, $"{lo} musí byť pod {min}");
+        Assert.True(hi >= max, $"{hi} musí byť nad {max}");
+        Assert.True(hi - lo <= (max - min) * 2,
+            $"os {lo}…{hi} je viac než dvojnásobok dát {min}…{max}");
+    }
+
+    [Fact]
+    public void ProfileRangeGetsATightAxis()
+    {
+        (double lo, double hi) = NiceAxis.Round(-40, 120);
+
+        Assert.Equal(-50, lo);
+        Assert.Equal(150, hi);
+    }
+
+    [Theory]
+    [InlineData(-40, 120)]
+    [InlineData(-30, 60)]
+    [InlineData(0, 85)]
+    [InlineData(-70, 180)]
+    [InlineData(15, 22)]
+    [InlineData(-52.8, -12.1)]
+    [InlineData(20, 100)]
+    public void ScaleCropsCloseToTheDataAndKeepsRoundLabels(double min, double max)
+    {
+        ValueAxis axis = NiceAxis.Scale(min, max);
+
+        Assert.True(axis.Min <= min, $"{axis.Min} musí byť pod {min}");
+        Assert.True(axis.Max >= max, $"{axis.Max} musí byť nad {max}");
+        Assert.True(axis.Span <= (max - min) * 1.5,
+            $"os {axis.Min}…{axis.Max} necháva priveľa prázdna pre dáta {min}…{max}");
+
+        Assert.Equal(axis.Max, axis.LabelAt(axis.Intervals), 9);
+        for (int i = 0; i <= axis.Intervals; i++)
+        {
+            double label = axis.LabelAt(i);
+            Assert.Equal(Math.Round(label / axis.Step), label / axis.Step, 6);
+        }
+    }
+
+    [Fact]
+    public void ScaleOfAProfileRangeIsTightEnoughToRead()
+    {
+        // -40…120 °C sa predtým zaokrúhlilo na -100…300 °C a krivka sa tlačila dole.
+        ValueAxis axis = NiceAxis.Scale(-40, 120);
+
+        Assert.True(axis.Min >= -60 && axis.Min <= -40);
+        Assert.True(axis.Max >= 120 && axis.Max <= 150);
+    }
+
+    [Fact]
+    public void ScaleOfAFlatLineStillGivesAnAxis()
+    {
+        ValueAxis axis = NiceAxis.Scale(25, 25);
+
+        Assert.True(axis.Max > axis.Min);
+        Assert.True(axis.Min <= 25 && axis.Max >= 25);
+        Assert.True(axis.Intervals >= 1);
+    }
+
+    [Fact]
+    public void ScaleHandlesSwappedInput()
+    {
+        ValueAxis axis = NiceAxis.Scale(100, 20);
+
+        Assert.True(axis.Min <= 20);
+        Assert.True(axis.Max >= 100);
+    }
 }

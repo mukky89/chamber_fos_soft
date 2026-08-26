@@ -166,4 +166,47 @@ public class QuickProfileNamingTests
     [InlineData(1440, "1 d 0 h")]
     public void Duration_IsFormattedForOperators(double minutes, string expected) =>
         Assert.Equal(expected, QuickProfileNaming.Duration(minutes, Inv));
+
+    [Fact]
+    public void AGeneratedNameIsRecognisedTogetherWithItsPrefix()
+    {
+        string name = QuickProfileNaming.Name(Sequence(-20, 0, 20), prefix: "1,5h plato", culture: Inv);
+
+        Assert.True(QuickProfileNaming.TryParseGeneratedName(name, out string prefix));
+        Assert.Equal("1,5h plato", prefix);
+    }
+
+    [Fact]
+    public void AGeneratedNameWithoutAPrefixHasAnEmptyPrefix()
+    {
+        var p = new QuickProfileParameters
+        {
+            Temperatures = new[] { -20d, 0, 20, 40, 60 },
+            PlateauMinutes = new[] { 30d },
+            RampMinutes = 20,
+            LowTemperature = -20,
+            HighTemperature = 60,
+            TemperatureStep = 20,
+            Cycles = 1,
+            TotalMinutes = 600,
+        };
+
+        Assert.True(QuickProfileNaming.TryParseGeneratedName(QuickProfileNaming.Name(p, culture: Inv), out string prefix));
+        Assert.Equal(string.Empty, prefix);
+    }
+
+    [Fact]
+    public void NamesGeneratedBeforeTheArrowChangeAreStillRecognised() =>
+        Assert.True(QuickProfileNaming.TryParseGeneratedName(
+            "os4300 -40→120 °C · 17 krokov · krok 10 °C · ↕ · plato 60m · Σ 2d 6h 30min", out _));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    [InlineData("Kalibrácia DTP-01")]
+    [InlineData("Test -20/60 °C ručne")]
+    // Štandardizovaný názov importovaného profilu – rozsah má, ale celkový čas nie.
+    [InlineData("ADXL · -40…85 °C · 6 segm · 3 h 20 min")]
+    public void AHandWrittenNameIsNotTakenForAGeneratedOne(string? name) =>
+        Assert.False(QuickProfileNaming.TryParseGeneratedName(name, out _));
 }

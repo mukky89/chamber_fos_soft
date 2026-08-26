@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace VotschVc3.Core.Profiles;
 
@@ -93,6 +94,48 @@ public sealed record QuickProfileParameters
 /// </summary>
 public static class QuickProfileNaming
 {
+    /// <summary>
+    /// The head of a generated name: a temperature range written with <c>…</c> (current) or
+    /// <c>→</c> (names generated before 1.61.1).
+    /// </summary>
+    private static readonly Regex GeneratedRange = new(
+        @"-?\d+(?:[.,]\d+)?\s*[…→]\s*-?\d+(?:[.,]\d+)?\s*°C",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Recognises a name this class generated and returns the user prefix in front of it.
+    /// <para>
+    /// Used when an existing profile is loaded for editing: a generated name can simply be
+    /// regenerated as the operator changes the parameters, while a name typed by hand must
+    /// be left exactly as it is.
+    /// </para>
+    /// </summary>
+    /// <param name="name">The stored profile name.</param>
+    /// <param name="prefix">The part before the generated core (may be empty).</param>
+    /// <returns><c>true</c> when the name looks generated.</returns>
+    public static bool TryParseGeneratedName(string? name, out string prefix)
+    {
+        prefix = string.Empty;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        Match match = GeneratedRange.Match(name);
+
+        // A generated name always closes with the total run length; without it this is
+        // something else that merely mentions a temperature range (e.g. the standardised
+        // import name "ADXL · -40…85 °C · 6 segm · 3 h 20 min").
+        if (!match.Success ||
+            name.IndexOf(" · Σ ", match.Index + match.Length, StringComparison.Ordinal) < 0)
+        {
+            return false;
+        }
+
+        prefix = name[..match.Index].Trim();
+        return true;
+    }
+
     /// <summary>Sequences up to this many points are listed value by value in the description.</summary>
     private const int MaxDescribedPoints = 10;
 

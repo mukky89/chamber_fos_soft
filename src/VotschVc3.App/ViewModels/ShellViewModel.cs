@@ -73,7 +73,6 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         Admin = new AdminViewModel(this);
         QuickProfile = new QuickProfileViewModel(_store);
         // "Editovať profil" in the quick builder saves the profile and jumps to the editor.
-        QuickProfile.OpenInEditorRequested = OpenQuickProfileInEditor;
         Chambers = new ObservableCollection<ChamberViewModel>();
 
         // Commands must exist before chambers are built (AddChamberInternal uses them).
@@ -95,6 +94,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         {
             // Always show the latest saved profiles when entering the panel.
             QuickProfile.RefreshLibraryProfiles();
+
+            // Start from the default profile every time the screen is opened – the builder
+            // used to come back holding whatever was left half-edited, which then quietly
+            // saved over the profile that had been loaded before.
+            QuickProfile.StartNewProfile();
             CurrentView = QuickProfile;
         });
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
@@ -523,13 +527,6 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             chamber.ReloadProfiles();
             CurrentView = chamber;
         }
-    }
-
-    /// <summary>Opens the profile just built in the quick builder inside the standalone editor.</summary>
-    private void OpenQuickProfileInEditor(Guid profileId)
-    {
-        ProfileLibrary.OpenForEditing(profileId);
-        CurrentView = ProfileLibrary;
     }
 
     private void GoHome()

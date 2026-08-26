@@ -340,15 +340,6 @@
                             <TextBlock Text="Uložiť do knižnice" Style="{StaticResource IconLabel}" />
                         </StackPanel>
                     </Button>
-                    <Button Margin="0,8,0,0" HorizontalAlignment="Stretch"
-                            Command="{Binding EditInEditorCommand}"
-                            ToolTip="Uloží profil a otvorí ho v Editore profilov na ďalšie úpravy segmentov.">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
-                            <TextBlock Text="Editovať profil" Style="{StaticResource IconLabel}" />
-                        </StackPanel>
-                    </Button>
-
                     <Separator Margin="0,10,0,8" Background="{StaticResource BorderBrush}" />
 
                     <!-- Secondary + destructive stacked full-width so long labels are never clipped. -->
