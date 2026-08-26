@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.66.0] – 2026-08-26
+
+### Pridané
+- **Diagnostika odosielania e-mailov.** Každý pokus – test aj notifikácia po profile –
+  sa zapisuje do **Logy aplikácie** pod zdrojom `E-mail`:
+  - pred odoslaním: spôsob, odosielateľ, zoznam adresátov, endpoint alebo SMTP server
+    a **odtlačok kľúča** (prvých 8 znakov + dĺžka, nikdy celý kľúč), čo je z premenných
+    prostredia a čo ešte chýba;
+  - po odoslaní: `✔ Odoslané za 0,4 s · Brevo API 201 · {"messageId":"…"}` – podľa
+    `messageId` sa dá správa dohľadať v Breve (*Transactional → Logs*);
+  - pri zlyhaní: **celá odpoveď od Brevo** (napr. `Brevo API 401 Unauthorized:
+    {"code":"unauthorized","message":"Key not found"}`) aj s vnorenými výnimkami.
+- **Neodoslané ≠ ticho.** Keď boli notifikácie vypnuté alebo nebol nastavený adresát,
+  appka doteraz nespravila nič a nikde to nebolo vidieť. Teraz to zapíše do logu,
+  napíše to pri dokončení profilu aj vo výsledku testu – a povie, ktorá z tých dvoch
+  vecí chýba.
+- **Tlačidlo „🔍 Diagnostika"** v *Administrácia → Notifikácie e-mailom* zapíše
+  aktuálne nastavenie do App logu bez toho, aby čokoľvek posielalo.
+
+### Zmenené
+- **Výsledok testu je čitateľný a dá sa skopírovať** – celá veta od Brevo v textovom
+  poli namiesto orezaného popisku. Pri úspechu sa ukáže aj stav a `messageId`.
+- Chyby SMTP aj HTTP odosielania obsahujú stavový kód a telo odpovede; predtým
+  `EnsureSuccessStatusCode()` zahodilo vysvetlenie a zostalo len „Response status
+  code does not indicate success".
+
 ## [1.65.0] – 2026-08-26
 
 ### Pridané

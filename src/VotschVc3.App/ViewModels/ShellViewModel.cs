@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using VotschVc3.App.Mvvm;
+using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
@@ -121,6 +122,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         MoveChamberUpCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, -1), c => c is not null);
         MoveChamberDownCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, +1), c => c is not null);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
+        LogEmailDiagnosticsCommand = new RelayCommand(LogEmailDiagnostics);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
         AddUserCommand = new RelayCommand(AddUser,
             () => CanManage && !string.IsNullOrWhiteSpace(NewUserName) && !string.IsNullOrEmpty(NewUserPassword));
@@ -1283,6 +1285,17 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand SaveEmailSettingsCommand { get; }
     public AsyncRelayCommand TestEmailCommand { get; }
 
+    /// <summary>Writes the effective e-mail configuration into the application log.</summary>
+    public RelayCommand LogEmailDiagnosticsCommand { get; }
+
+    private void LogEmailDiagnostics()
+    {
+        string description = _notifier.Describe();
+        AppLog.Info(EmailNotifier.LogSource, $"Diagnostika nastavení: {description}");
+        OnPropertyChanged(nameof(EmailReadinessText));
+        EmailStatus = $"Zapísané do App logu · {description}";
+    }
+
     private void SaveEmailSettings()
     {
         try
@@ -1307,8 +1320,13 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         EmailResult result = await _notifier.SendTestAsync();
         EmailStatus = result switch
         {
-            { Sent: true } => $"Testovací e-mail odoslaný na {Email.Recipient}.",
-            { Error: { } err } => $"Test zlyhal: {err}",
+            // The transport detail (status code, message id) is what makes a send that
+            // "went through but did not arrive" traceable in the Brevo logs.
+            { Sent: true, Detail: { Length: > 0 } detail } =>
+                $"✔ Odoslané na {Email.Recipient} · {detail}",
+            { Sent: true } => $"✔ Testovací e-mail odoslaný na {Email.Recipient}.",
+            { Skipped: true, Error: { } why } => $"Neodoslané: {why}. Podrobnosti v App logu.",
+            { Error: { } err } => $"✖ Test zlyhal: {err}",
             _ => "Zadaj adresáta pre test.",
         };
     }

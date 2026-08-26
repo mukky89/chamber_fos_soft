@@ -215,4 +215,62 @@ public class EmailSettingsTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void TheDiagnosticLineNeverPrintsTheWholeKey()
+    {
+        var notifier = new EmailNotifier { Settings = Brevo() };
+        notifier.Settings.HttpApiKey = "xkeysib-0123456789abcdefghijklmnop";
+
+        string description = notifier.Describe();
+
+        Assert.DoesNotContain("0123456789abcdefghijklmnop", description);
+        Assert.Contains("xkeysib-", description);
+        Assert.Contains("34 znakov", description);
+    }
+
+    [Fact]
+    public void TheDiagnosticLineNamesWhatIsMissingAndWhoTheRecipientsAre()
+    {
+        var notifier = new EmailNotifier { Settings = Brevo() };
+        notifier.Settings.HttpApiKey = string.Empty;
+        notifier.Settings.Recipient = "a@sylex.sk; b@sylex.sk";
+
+        WithEnvironment(
+            () =>
+            {
+                string description = notifier.Describe();
+
+                Assert.Contains("CHÝBA: API kľúč", description);
+                Assert.Contains("2: a@sylex.sk, b@sylex.sk", description);
+                Assert.Contains("zapnuté NIE", description);
+            },
+            (EmailEnvironment.ApiKey, null));
+    }
+
+    [Fact]
+    public async Task ADisabledNotifierReportsWhyItSkipped()
+    {
+        var notifier = new EmailNotifier { Settings = Brevo() };
+        notifier.Settings.Enabled = false;
+
+        EmailResult result = await notifier.SendAsync("Test", "telo");
+
+        Assert.True(result.Skipped);
+        Assert.False(result.Sent);
+        Assert.Contains("vypnuté", result.Error);
+    }
+
+    [Fact]
+    public async Task AnEnabledNotifierWithoutRecipientsReportsThat()
+    {
+        var notifier = new EmailNotifier { Settings = Brevo() };
+        notifier.Settings.Enabled = true;
+        notifier.Settings.Recipient = "   ";
+
+        EmailResult result = await notifier.SendAsync("Test", "telo");
+
+        Assert.True(result.Skipped);
+        Assert.Contains("adresát", result.Error);
+    }
 }

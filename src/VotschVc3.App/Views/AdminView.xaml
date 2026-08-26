@@ -290,8 +290,17 @@
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="Uložiť nastavenia" Style="{StaticResource AccentButton}" Command="{Binding SaveEmailSettingsCommand}" />
                         <Button Content="Poslať test" Command="{Binding TestEmailCommand}" />
-                        <TextBlock Text="{Binding EmailStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                        <Button Content="🔍 Diagnostika" Command="{Binding LogEmailDiagnosticsCommand}"
+                                ToolTip="Zapíše do App logu, s akým odosielateľom, kľúčom a adresátmi sa reálne odosiela (kľúč len ako odtlačok). Každý pokus o odoslanie sa tam zapisuje aj sám – vrátane odpovede Brevo." />
                     </StackPanel>
+
+                    <!-- Výsledok testu býva celá veta od Brevo („Sender not valid", „Key not
+                         found") – musí byť čitateľná a dá sa označiť a skopírovať. -->
+                    <TextBox Text="{Binding EmailStatus, Mode=OneWay}" IsReadOnly="True" Margin="0,8,0,0"
+                             TextWrapping="Wrap" BorderThickness="0" Background="Transparent"
+                             Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="Každé odoslanie (test aj notifikácia po profile) sa zapisuje do „Logy aplikácie“ pod zdrojom E-mail – aj dôvod, prečo sa neodoslalo." />
                 </StackPanel>
             </Border>
             </StackPanel>

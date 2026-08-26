@@ -2546,6 +2546,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             StatusMessage = "Profil dokončený · e-mail odoslaný.";
         }
+        else if (result.Skipped)
+        {
+            // Not a failure – notifications are off or nobody is set as a recipient. Say
+            // which, instead of leaving the operator waiting for an e-mail that was never
+            // going to be sent.
+            StatusMessage = $"Profil dokončený · e-mail neodoslaný ({result.Error ?? "notifikácie sú vypnuté"}).";
+        }
         else if (result.Error is not null)
         {
             StatusMessage = $"Profil dokončený · e-mail zlyhal: {result.Error}";

@@ -19,7 +19,11 @@ public sealed record EmailMessage(
 /// <summary>Sends an <see cref="EmailMessage"/>.</summary>
 public interface IEmailSender
 {
-    Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default);
+    /// <summary>Sends the message.</summary>
+    /// <returns>A short technical description of what the transport did (status code,
+    /// message id, relay host) – written to the application log so a delivery that
+    /// "just did not arrive" can be traced afterwards.</returns>
+    Task<string> SendAsync(EmailMessage message, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Sends e-mail through an SMTP server using the built-in mail client.</summary>
@@ -29,7 +33,7 @@ public sealed class SmtpEmailSender : IEmailSender
 
     public SmtpEmailSender(EmailSettings settings) => _settings = settings;
 
-    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    public async Task<string> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         // Fields left empty fall back to the environment variables (see EmailEnvironment),
         // so the SMTP key never has to live in the settings file.
@@ -98,6 +102,7 @@ public sealed class SmtpEmailSender : IEmailSender
                 new MemoryStream(attachment.Content, writable: false), attachment.FileName, attachment.MediaType));
         }
         await client.SendMailAsync(mail, cancellationToken).ConfigureAwait(false);
+        return $"SMTP {host}:{(port > 0 ? port : 587)} (SSL {(_settings.SmtpUseSsl ? "áno" : "nie")}) prijal správu od {from}";
     }
 }
 
@@ -114,7 +119,7 @@ public sealed class BrevoEmailSender : IEmailSender
         _http = http ?? SharedClient;
     }
 
-    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    public async Task<string> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         string from = _settings.ResolveFrom();
         if (string.IsNullOrWhiteSpace(from))
@@ -156,11 +161,27 @@ public sealed class BrevoEmailSender : IEmailSender
         request.Headers.TryAddWithoutValidation("api-key", apiKey);
         request.Headers.TryAddWithoutValidation("accept", "application/json");
         using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        string body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
-            string detail = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            throw new InvalidOperationException($"Brevo API {(int)response.StatusCode}: {detail[..Math.Min(detail.Length, 300)]}");
+            // Brevo explains itself in the body ("Key not found", "Sender not valid" …) –
+            // that sentence is the whole answer to "the e-mail did not arrive".
+            throw new InvalidOperationException(
+                $"Brevo API {(int)response.StatusCode} {response.StatusCode}: {Trim(body)}");
         }
+
+        // The message id ties the send to a row in the Brevo dashboard (Transactional →
+        // Logs), which is where a "sent but not delivered" ends up being explained.
+        return $"Brevo API {(int)response.StatusCode} · odosielateľ {from} · {Trim(body)}";
+    }
+
+    /// <summary>Response body squeezed onto one log line.</summary>
+    internal static string Describe(string body) => Trim(body);
+
+    private static string Trim(string body)
+    {
+        string text = (body ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+        return text.Length <= 300 ? text : text[..300] + "…";
     }
 }
 
@@ -181,7 +202,7 @@ public sealed class HttpEmailSender : IEmailSender
         _http = http ?? SharedClient;
     }
 
-    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    public async Task<string> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_settings.HttpEndpoint))
         {
@@ -215,7 +236,14 @@ public sealed class HttpEmailSender : IEmailSender
         }
 
         using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        string body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"HTTP API {(int)response.StatusCode} {response.StatusCode}: {BrevoEmailSender.Describe(body)}");
+        }
+
+        return $"HTTP API {(int)response.StatusCode} · {BrevoEmailSender.Describe(body)}";
     }
 }
 
