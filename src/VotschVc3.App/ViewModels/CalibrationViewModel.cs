@@ -254,7 +254,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             ProfileSegment segment = SelectedProfile.Segments[i];
             if (!segment.IsRamp)
             {
-                CalibrationPoints.Add(new CalibrationPointRowViewModel(i, segment));
+                var point = new CalibrationPointRowViewModel(i, segment);
+                point.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(CalibrationPointRowViewModel.Selected))
+                    {
+                        StartCalibrationCommand.RaiseCanExecuteChanged();
+                    }
+                };
+                CalibrationPoints.Add(point);
             }
         }
         RefreshSettingsBindings();
@@ -301,6 +309,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 {
                     row.SerialNumber = sensor.SerialNumber;
                 }
+                row.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName is nameof(CalibrationPeakRowViewModel.Selected) or nameof(CalibrationPeakRowViewModel.SerialNumber))
+                    {
+                        StartCalibrationCommand.RaiseCanExecuteChanged();
+                    }
+                };
                 Peaks.Add(row);
             }
         }
@@ -329,6 +344,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         foreach (CalibrationPointRowViewModel point in CalibrationPoints) point.Selected = true;
         StatusMessage = "Všetky hold segmenty boli označené ako kalibračné plata.";
+        StartCalibrationCommand.RaiseCanExecuteChanged();
     }
 
     private void SaveSetup()
