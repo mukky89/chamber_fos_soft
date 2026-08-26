@@ -32,6 +32,13 @@ public sealed class ProfileSegment
     public bool IsRamp { get; set; } = true;
 
     /// <summary>
+    /// Marks this hold as a measurement plateau when the profile is executed in
+    /// <see cref="ProfileExecutionMode.TemperatureCalibration"/> mode. Ramps are never
+    /// used for final FBG calibration data even if this flag is set accidentally.
+    /// </summary>
+    public bool IsCalibrationPoint { get; set; }
+
+    /// <summary>
     /// "Guaranteed soak": for a hold segment, the dwell time only starts counting
     /// once the measured temperature is within <see cref="SoakTolerance"/> of the
     /// target. Ensures the specimen actually reaches the set point before the
