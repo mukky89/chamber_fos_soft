@@ -177,10 +177,11 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         {
             foreach (CalibrationRawSample s in samples)
             {
-                await _rawWriter.WriteLineAsync(string.Join(';',
-                    s.RunId,
-                    s.ProfileId,
-                    s.PlateauIndex,
+                string line = string.Join(";", new[]
+                {
+                    s.RunId.ToString(),
+                    s.ProfileId.ToString(),
+                    s.PlateauIndex.ToString(CultureInfo.InvariantCulture),
                     F(s.TargetTemperatureC),
                     F(s.ActualTemperatureC),
                     s.ReferenceTemperatureC is { } rt ? F(rt) : string.Empty,
@@ -188,9 +189,11 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
                     E(s.SerialNumber),
                     E(s.Channel),
                     E(s.PeakId),
-                    s.PeakIndex,
+                    s.PeakIndex.ToString(CultureInfo.InvariantCulture),
                     F(s.WavelengthNm),
-                    s.Intensity is { } intensity ? F(intensity) : string.Empty)).ConfigureAwait(false);
+                    s.Intensity is { } intensity ? F(intensity) : string.Empty,
+                });
+                await _rawWriter.WriteLineAsync(line).ConfigureAwait(false);
             }
             await _rawWriter.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
