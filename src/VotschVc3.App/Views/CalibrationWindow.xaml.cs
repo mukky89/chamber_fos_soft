@@ -18,7 +18,14 @@ public partial class CalibrationWindow : Window
 
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (_disposing) return;
+        if (_disposing)
+        {
+            return;
+        }
+
+        // Keep the window alive until the long-running calibration resources have
+        // been cancelled/disposed. Then remove this handler and perform the real close.
+        e.Cancel = true;
         _disposing = true;
         Closing -= OnClosing;
         try
