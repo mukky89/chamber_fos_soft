@@ -111,7 +111,7 @@ public sealed class CalibrationStore
     public static void ExportSummaryCsv(CalibrationRunRecord run, string path)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Profile;RunId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;SerialNumber;Channel;PeakId;PeakIndex;MeanWavelengthNm;MedianWavelengthNm;StdDevPm;MinNm;MaxNm;RangePm;DriftPmPerMinute;StabilizationSeconds;Status;Problem");
+        sb.AppendLine("Profile;RunId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;MeanWavelengthNm;MedianWavelengthNm;StdDevPm;MinNm;MaxNm;RangePm;DriftPmPerMinute;StabilizationSeconds;Status;Problem");
         foreach (CalibrationPlateauResult plateau in run.Plateaus)
         {
             foreach (CalibrationMeasurementResult target in plateau.Targets)
@@ -123,6 +123,7 @@ public sealed class CalibrationStore
                   .Append(F(plateau.ActualTemperatureC)).Append(';')
                   .Append(plateau.ReferenceTemperatureC is { } rt ? F(rt) : string.Empty).Append(';')
                   .Append(E(target.SerialNumber)).Append(';')
+                  .Append(E(target.PeakLoggerDeviceSerialNumber)).Append(';')
                   .Append(E(target.Channel)).Append(';')
                   .Append(E(target.PeakId)).Append(';')
                   .Append(target.PeakIndex).Append(';')
@@ -166,7 +167,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         string dir = store.RunDirectory(run.RunId);
         Directory.CreateDirectory(dir);
         _rawWriter = new StreamWriter(Path.Combine(dir, "raw-samples.csv"), append: false, Encoding.UTF8);
-        _rawWriter.WriteLine("RunId;ProfileId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;Timestamp;SerialNumber;Channel;PeakId;PeakIndex;WavelengthNm;Intensity");
+        _rawWriter.WriteLine("RunId;ProfileId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity");
         _rawWriter.Flush();
     }
 
@@ -187,6 +188,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
                     s.ReferenceTemperatureC is { } rt ? F(rt) : string.Empty,
                     s.Timestamp.ToString("O"),
                     E(s.SerialNumber),
+                    E(s.PeakLoggerDeviceSerialNumber),
                     E(s.Channel),
                     E(s.PeakId),
                     s.PeakIndex.ToString(CultureInfo.InvariantCulture),
