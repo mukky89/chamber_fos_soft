@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.63.0] – 2026-08-26
+
+### Opravené
+- **Priblíženie sa zastavilo na plate alebo rampe.** Limit priblíženia bol 200×,
+  takže na viacdňovom profile sa dalo zísť len na ~20-minútový výrez – a po
+  narazení na strop koliesko prepadlo do stránky, ktorá sa pod rukami odrolovala.
+  Limit je teraz 2000× (do jednej rampy sa dá priblížiť naplno) a **kým je graf
+  priblížený, koliesko patrí grafu** – stránka sa už neposunie. Pri celom
+  rozsahu koliesko naďalej roluje stránku ako predtým.
+- **Koliesko funguje aj nad krivkou, bublinou či pásmom výdrže.** Obsluha je
+  teraz na celom grafe a „tunelovaná“ (PreviewMouseWheel), takže ju nemôže
+  pohltiť nič, čo je pod kurzorom; dekoratívne prvky grafu navyše myš vôbec
+  nechytajú.
+- **Zväčšený graf profilu (⛶ Zväčšiť) ukazuje detaily.** Doteraz z neho vypadli
+  podfarbené výdrže, body zlomu, zvýraznenie kroku s jeho dĺžkou aj cyklované
+  pásmo – čiže presne to, kvôli čomu sa otvára. To isté platí pre fullscreen
+  ostatných grafov.
+
+### Zmenené
+- **Os teploty ide vždy od minima po maximum celého záznamu.** Pri priblížení sa
+  už nepreškáluje na viditeľný výrez – na plate to ukazovalo rovnú čiaru
+  uprostred osi 59…61 °C a nedalo sa povedať, kde má profil skutočné maximum
+  a minimum. (Ruší to preškálovanie zavedené v 1.58.)
+- **Mriežka a popisy času aj v grafoch na hlavnej stránke.** Zvislé čiary na
+  čitateľnom kroku (štvrťhodiny / hodiny / dni podľa výrezu) s časom pod každou;
+  predtým boli popísané len oba konce osi. Štítok priblíženia hlási aj to, ktorý
+  úsek je zobrazený.
+
 ## [1.62.0] – 2026-08-26
 
 ### Zmenené

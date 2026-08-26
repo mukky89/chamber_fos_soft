@@ -64,7 +64,10 @@ public partial class ChartView : UserControl
         IsVisibleChanged += (_, _) => Redraw();
         PlotCanvas.MouseMove += OnPlotMouseMove;
         PlotCanvas.MouseLeave += (_, _) => ClearOverlay();
-        PlotCanvas.MouseWheel += OnPlotMouseWheel;
+        // Tunnelling, and on the control itself: a bubbling handler on the canvas only
+        // fires if whatever sits under the cursor lets the event through, and the plot is
+        // covered in curves, dots, bands and the hover chip.
+        PreviewMouseWheel += OnPlotMouseWheel;
         PlotCanvas.MouseLeftButtonDown += OnPlotMouseDown;
         PlotCanvas.MouseLeftButtonUp += OnPlotMouseUp;
     }
@@ -247,9 +250,12 @@ public partial class ChartView : UserControl
         double minX = _window.Min;
         double maxX = _window.Max;
 
-        // Auto-scaled Y follows the visible window, so zooming into a plateau shows
-        // its real ripple instead of a flat line across the full range.
-        (double visibleMinY, double visibleMaxY) = VisibleYRange(series, minX, maxX);
+        // The value axis spans the whole recording, not just the visible window: while
+        // zoomed into a plateau a window-scaled axis showed a flat line in the middle of
+        // a 59…61 °C axis, and there was no way to tell where the profile's real maximum
+        // and minimum are.
+        double visibleMinY = series.Min(s => s.Points.Min(p => p.Y));
+        double visibleMaxY = series.Max(s => s.Points.Max(p => p.Y));
         double minY;
         double maxY;
         if (double.IsNaN(YMin) && double.IsNaN(YMax))
@@ -346,10 +352,21 @@ public partial class ChartView : UserControl
             AddText($"{yVal:0.#}{Unit}", 2, py - 8, MutedBrush, 10, PadLeft - 6, TextAlignment.Right);
         }
 
-        // X axis labels (min / max) with an hours/days read-out for longer spans.
+        // Time axis: a gridline on a readable step (quarter hours / hours / days,
+        // depending on the window) with the elapsed time under each one. Only the two
+        // ends used to be labelled, so nothing in between could be placed in time.
         _trackTop = PadTop + plotH + 17;
-        AddText(FormatMinutes(minX), PadLeft, PadTop + plotH + 3, MutedBrush, 10);
-        AddText(FormatMinutes(maxX), PadLeft + plotW - 150, PadTop + plotH + 3, MutedBrush, 10, 150, TextAlignment.Right);
+        double timeStep = NiceAxis.NiceTimeStep(maxX - minX);
+        if (timeStep > 0)
+        {
+            for (double t = Math.Ceiling(minX / timeStep) * timeStep; t <= maxX + 1e-9; t += timeStep)
+            {
+                double gx = ToPx(t);
+                AddLine(gx, PadTop, gx, PadTop + plotH, GridBrush, 1, dashed: true);
+                AddText(FormatMinutesShort(t), gx - 40, PadTop + plotH + 3, MutedBrush, 10, 80, TextAlignment.Center);
+            }
+        }
+
 
         // Hold ("výdrž") bands – shaded time columns under every flat sub-segment
         // of the profile, so ramps (sloped, un-shaded) and holds read apart at a
@@ -390,6 +407,7 @@ public partial class ChartView : UserControl
                 StrokeThickness = 2,
                 StrokeLineJoin = PenLineJoin.Round,
                 Points = new PointCollection(s.Points.Select(p => new Point(ToPx(p.X), ToPy(p.Y)))),
+                IsHitTestVisible = false,
             };
             if (s.Dashed)
             {
@@ -435,50 +453,6 @@ public partial class ChartView : UserControl
         }
     }
 
-    /// <summary>Y bounds of everything drawn inside the visible X window, including the
-    /// values interpolated at its edges; falls back to the whole series when empty.</summary>
-    private static (double Min, double Max) VisibleYRange(List<ChartSeries> series, double minX, double maxX)
-    {
-        double lo = double.PositiveInfinity;
-        double hi = double.NegativeInfinity;
-        foreach (ChartSeries s in series)
-        {
-            foreach (Point p in s.Points)
-            {
-                if (p.X < minX || p.X > maxX)
-                {
-                    continue;
-                }
-
-                lo = Math.Min(lo, p.Y);
-                hi = Math.Max(hi, p.Y);
-            }
-
-            // A window between two far-apart points contains no point at all – scale
-            // it by the curve crossing its edges instead.
-            foreach (double edge in new[] { minX, maxX })
-            {
-                if (edge < s.Points[0].X || edge > s.Points[^1].X)
-                {
-                    continue;
-                }
-
-                if (InterpolateY(s.Points, edge) is { } y)
-                {
-                    lo = Math.Min(lo, y);
-                    hi = Math.Max(hi, y);
-                }
-            }
-        }
-
-        if (double.IsInfinity(lo) || double.IsInfinity(hi))
-        {
-            return (series.Min(s => s.Points.Min(p => p.Y)), series.Max(s => s.Points.Max(p => p.Y)));
-        }
-
-        return (lo, hi);
-    }
-
     /// <summary>Mini-map strip + chip telling which slice of the data is shown.
     /// Nothing is drawn while the whole range is visible.</summary>
     private void DrawZoomIndicator(double plotW, double plotH)
@@ -521,7 +495,8 @@ public partial class ChartView : UserControl
             IsHitTestVisible = false,
             Child = new TextBlock
             {
-                Text = $"🔍 {_window.Zoom:0.#}× · dvojklik = celý rozsah",
+                Text = $"🔍 {_window.Zoom:0.#}× · {FormatMinutesShort(_window.Min)} – {FormatMinutesShort(_window.Max)}"
+                     + " · dvojklik = celý rozsah",
                 Foreground = MutedBrush,
                 FontSize = 10,
             },
@@ -550,15 +525,14 @@ public partial class ChartView : UserControl
         // once only a slice of a long recording is visible.
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
         {
-            if (!_window.IsZoomed ||
-                !_viewport.MoveTo(_window.Min - (notches * _window.Span * 0.25), _fullMinX, _fullMaxX))
+            if (_window.IsZoomed &&
+                _viewport.MoveTo(_window.Min - (notches * _window.Span * 0.25), _fullMinX, _fullMaxX))
             {
-                return;
+                ClearOverlay();
+                Redraw();
             }
 
-            e.Handled = true;
-            ClearOverlay();
-            Redraw();
+            e.Handled = _window.IsZoomed;
             return;
         }
 
@@ -567,7 +541,10 @@ public partial class ChartView : UserControl
         double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
         if (!_viewport.Zoom(factor, (cursorX - PadLeft) / plotW, _fullMinX, _fullMaxX))
         {
-            // Nothing left to zoom – let the wheel bubble so the page scrolls as usual.
+            // Nothing left to zoom. While the chart is zoomed in, the gesture still belongs
+            // to it – letting it bubble scrolled the whole dashboard out from under the
+            // operator the moment they hit the zoom limit on a plateau.
+            e.Handled = _window.IsZoomed;
             return;
         }
 
@@ -663,6 +640,7 @@ public partial class ChartView : UserControl
             Stroke = brush,
             StrokeThickness = thickness,
             Opacity = dashed ? 0.4 : 0.7,
+            IsHitTestVisible = false,
         };
         if (dashed)
         {
@@ -682,6 +660,7 @@ public partial class ChartView : UserControl
             Foreground = brush,
             FontSize = size,
             TextAlignment = align,
+            IsHitTestVisible = false,
         };
         if (width is { } w)
         {
@@ -800,9 +779,14 @@ public partial class ChartView : UserControl
             X1 = px, Y1 = PadTop, X2 = px, Y2 = PadTop + _plotH,
             Stroke = accent, StrokeThickness = 1, Opacity = 0.6,
             StrokeDashArray = new DoubleCollection { 3, 3 },
+            IsHitTestVisible = false,
         });
 
-        var dot = new Ellipse { Width = 8, Height = 8, Fill = accent, Stroke = Brushes.White, StrokeThickness = 1 };
+        var dot = new Ellipse
+        {
+            Width = 8, Height = 8, Fill = accent, Stroke = Brushes.White, StrokeThickness = 1,
+            IsHitTestVisible = false,
+        };
         Canvas.SetLeft(dot, px - 4);
         Canvas.SetTop(dot, py - 4);
         AddOverlay(dot);
@@ -831,6 +815,7 @@ public partial class ChartView : UserControl
             Background = accent,
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(6, 2, 6, 2),
+            IsHitTestVisible = false,
             Child = chipContent,
         };
         chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));

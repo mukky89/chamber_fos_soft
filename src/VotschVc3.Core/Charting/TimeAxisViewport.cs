@@ -24,8 +24,12 @@ public readonly record struct AxisWindow(double Min, double Max, double Zoom)
 /// </summary>
 public sealed class TimeAxisViewport
 {
-    /// <summary>Hard ceiling so a single stray wheel gesture cannot zoom into nothing.</summary>
-    public const double MaxZoom = 200;
+    /// <summary>
+    /// Hard ceiling so a single stray wheel gesture cannot zoom into nothing. High enough
+    /// that a single ramp of a multi-day profile can still be filled: at 200× a 3-day run
+    /// bottomed out at a 20-minute window, and further scrolling then did nothing.
+    /// </summary>
+    public const double MaxZoom = 2000;
 
     private readonly double _minimumSpan;
     private double _start = double.NaN;

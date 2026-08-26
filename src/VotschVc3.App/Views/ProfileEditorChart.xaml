@@ -17,7 +17,7 @@
         <Grid>
             <Canvas x:Name="PlotCanvas" ClipToBounds="True" Background="Transparent"
                     MouseMove="PlotCanvas_MouseMove" MouseLeftButtonUp="PlotCanvas_MouseUp"
-                    MouseLeftButtonDown="PlotCanvas_MouseDown" MouseWheel="PlotCanvas_MouseWheel"
+                    MouseLeftButtonDown="PlotCanvas_MouseDown"
                     MouseLeave="PlotCanvas_MouseLeave" />
 
             <!-- Zoom controls: the mouse wheel is still there, but a chart this dense is

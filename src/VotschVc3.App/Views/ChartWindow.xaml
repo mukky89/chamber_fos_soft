@@ -32,8 +32,15 @@
         </DockPanel>
 
         <Border Grid.Row="1" Style="{StaticResource Card}" Margin="6,0,6,4" Padding="10">
+            <!-- Same annotations as the dashboard card: without ShowStages the maximised
+                 chart showed a bare line, with no holds, breakpoints or step read-out –
+                 exactly the detail you open it for. -->
             <views:ChartView Unit=" °C" Series="{Binding ProfilePreview}" EmptyText="Vyber profil"
-                             ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode." />
+                             ShowStages="True"
+                             CycleStartX="{Binding PreviewCycleStartX}"
+                             CycleEndX="{Binding PreviewCycleEndX}"
+                             CycleCount="{Binding PreviewCycleCount}"
+                             ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode, typ kroku (nábeh / výdrž) a jeho naprogramovanú dĺžku; celý krok sa zvýrazní.&#10;Priblíženie: tlačidlá ＋ / － / ⤢ vpravo hore alebo koliesko myši okolo kurzora. Pri priblížení: Shift+koliesko alebo ťahanie posúva časovú os, mini-mapa pod grafom sa dá chytiť a ťahať, dvojklik vráti celý rozsah." />
         </Border>
     </Grid>
 </Window>

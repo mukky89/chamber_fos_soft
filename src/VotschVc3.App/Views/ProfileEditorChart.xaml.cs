@@ -88,6 +88,11 @@ public partial class ProfileEditorChart : UserControl
         InitializeComponent();
         PlotCanvas.SizeChanged += (_, _) => Redraw();
         Loaded += (_, _) => Redraw();
+
+        // Tunnelling, and on the control itself: the canvas is covered in bands, the curve,
+        // drag handles and the hover chip, and a bubbling handler only fires if whatever
+        // sits under the cursor lets the event through.
+        PreviewMouseWheel += PlotCanvas_MouseWheel;
     }
 
     public static readonly DependencyProperty SegmentsProperty = DependencyProperty.Register(
@@ -631,15 +636,14 @@ public partial class ProfileEditorChart : UserControl
         // once a long profile is zoomed in and only a slice is visible.
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
         {
-            if (!_window.IsZoomed ||
-                !_viewport.MoveTo(_window.Min - (notches * _window.Span * 0.25), 0, _totalMin))
+            if (_window.IsZoomed &&
+                _viewport.MoveTo(_window.Min - (notches * _window.Span * 0.25), 0, _totalMin))
             {
-                return;
+                ClearHoverOverlay();
+                Redraw();
             }
 
-            e.Handled = true;
-            ClearHoverOverlay();
-            Redraw();
+            e.Handled = _window.IsZoomed;
             return;
         }
 
@@ -651,8 +655,10 @@ public partial class ProfileEditorChart : UserControl
         double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
         if (!_viewport.Zoom(factor, (cursorX - PadLeft) / plotW, 0, _totalMin))
         {
-            // Nothing left to zoom (already at full view / at the limit) – let the
-            // wheel bubble so the page underneath scrolls as usual.
+            // Nothing left to zoom. While the chart is zoomed in the gesture still belongs
+            // to it – letting it bubble scrolled the page out from under the operator the
+            // moment they hit the zoom limit inside a plateau.
+            e.Handled = _window.IsZoomed;
             return;
         }
 

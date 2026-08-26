@@ -23,6 +23,14 @@ public partial class ChartZoomWindow : Window
         Mirror(ChartView.YMinProperty, source, nameof(ChartView.YMin));
         Mirror(ChartView.YMaxProperty, source, nameof(ChartView.YMax));
         Mirror(ChartView.EmptyTextProperty, source, nameof(ChartView.EmptyText));
+
+        // Without these the fullscreen view dropped everything that makes a profile
+        // readable – the hold bands, the breakpoints, the step highlight with its length
+        // read-out and the cycled region – and showed a bare line.
+        Mirror(ChartView.ShowStagesProperty, source, nameof(ChartView.ShowStages));
+        Mirror(ChartView.CycleStartXProperty, source, nameof(ChartView.CycleStartX));
+        Mirror(ChartView.CycleEndXProperty, source, nameof(ChartView.CycleEndX));
+        Mirror(ChartView.CycleCountProperty, source, nameof(ChartView.CycleCount));
     }
 
     /// <summary>Opens the fullscreen chart modally over the window owning <paramref name="source"/>.</summary>
