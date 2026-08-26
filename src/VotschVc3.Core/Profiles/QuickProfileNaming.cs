@@ -84,17 +84,15 @@ public sealed record QuickProfileParameters
 /// switched on.
 /// </para>
 /// <para>
-/// Temperatures are joined with <c>→</c> rather than <c>-</c>: a sequence of negative
-/// setpoints used to come out as <c>-20--10-0-20</c>, which is unreadable and cannot
-/// be parsed back by eye. Long sequences are elided in the middle instead of pasting
-/// dozens of values into the name.
+/// The name stays short on purpose: it gives the covered range and the number of
+/// setpoints, not the setpoints themselves. Only <see cref="Description"/> lists them,
+/// joined with <c>→</c> rather than <c>-</c> – a sequence of negative setpoints used to
+/// come out as <c>-20--10-0-20</c>, which is unreadable and cannot be parsed back by
+/// eye – and elided in the middle once there are too many.
 /// </para>
 /// </summary>
 public static class QuickProfileNaming
 {
-    /// <summary>Sequences up to this many points are listed value by value in the name.</summary>
-    private const int MaxNamedPoints = 7;
-
     /// <summary>Sequences up to this many points are listed value by value in the description.</summary>
     private const int MaxDescribedPoints = 10;
 
@@ -102,9 +100,11 @@ public static class QuickProfileNaming
     private const double MinutesEpsilon = 0.01;
 
     /// <summary>
-    /// Compact, technical profile name, e.g.
+    /// Compact, technical profile name: always the covered temperature range plus how many
+    /// setpoints there are, never the setpoints themselves – e.g.
     /// <c>-20…60 °C · 9 krokov · krok 10 °C · ↕ · plato 30 min · Σ 1 d 2 h</c> for a sweep or
-    /// <c>-20→0→40→0→-20 °C · plato 90 min · rampa 30 min · Σ 8 h 30 min</c> for a sequence.
+    /// <c>-20…60 °C · 13 teplôt · plato 90 min · rampa 30 min · Σ 8 h 30 min</c> for a
+    /// sequence. The individual setpoints are in <see cref="Description"/>.
     /// </summary>
     /// <param name="parameters">The builder's current parameters.</param>
     /// <param name="prefix">Optional user prefix placed in front of the generated name.</param>
@@ -117,7 +117,14 @@ public static class QuickProfileNaming
         var parts = new List<string>();
         if (parameters.IsSequence)
         {
-            parts.Add(SequenceTemperatures(parameters, MaxNamedPoints, culture) + " °C");
+            // Range + count, never the list of setpoints: a 28-point profile pasted its
+            // whole sequence into the name and made it unreadable. What it covers and how
+            // many steps it takes – plus the parameters below – identifies it.
+            IReadOnlyList<double> temps = parameters.Temperatures;
+            parts.Add(temps.Count > 0
+                ? $"{Number(temps.Min(), culture)}…{Number(temps.Max(), culture)} °C"
+                : "— °C");
+            parts.Add($"{temps.Count} {PointWord(temps.Count)}");
         }
         else
         {

@@ -19,25 +19,33 @@ public class QuickProfileNamingTests
     };
 
     [Fact]
-    public void SequenceName_JoinsTemperaturesWithArrows_SoNegativeValuesStayReadable()
+    public void SequenceName_IsTheCoveredRangeAndPointCount_NotTheListOfSetpoints()
     {
         string name = QuickProfileNaming.Name(Sequence(-20, -10, 0, 20), culture: Inv);
 
-        Assert.StartsWith("-20→-10→0→20 °C", name);
-        // The old "-" join produced "-20--10-0-20", which cannot be read back.
-        Assert.DoesNotContain("--", name);
+        Assert.StartsWith("-20…20 °C · 4 teploty", name);
+        Assert.DoesNotContain("→", name);
     }
 
     [Fact]
-    public void SequenceName_ElidesTheMiddleOfALongSequence_AndStatesTheCoveredRange()
+    public void SequenceName_StaysShortForALongSequence()
     {
         double[] temps = { -20, -10, 0, 20, 40, 60, 50, 60, 40, 20, 0, -10, -20 };
 
         string name = QuickProfileNaming.Name(Sequence(temps), culture: Inv);
 
-        Assert.Contains("→…→", name);
-        Assert.Contains("(13 teplôt, -20…60)", name);
-        Assert.True(name.Length < 120, $"name too long: {name}");
+        Assert.StartsWith("-20…60 °C · 13 teplôt", name);
+        Assert.True(name.Length < 80, $"name too long: {name}");
+    }
+
+    [Fact]
+    public void SequenceDescription_ListsTheSetpoints_JoinedSoNegativeValuesStayReadable()
+    {
+        string text = QuickProfileNaming.Description(Sequence(-20, -10, 0, 20), Inv);
+
+        Assert.Contains("-20 → -10 → 0 → 20 °C", text);
+        // The old "-" join produced "-20--10-0-20", which cannot be read back.
+        Assert.DoesNotContain("--", text);
     }
 
     [Fact]
@@ -63,7 +71,7 @@ public class QuickProfileNamingTests
     {
         string name = QuickProfileNaming.Name(Sequence(0, 20), prefix: " SN-42 ", culture: Inv);
 
-        Assert.StartsWith("SN-42 0→20 °C", name);
+        Assert.StartsWith("SN-42 0…20 °C", name);
     }
 
     [Fact]

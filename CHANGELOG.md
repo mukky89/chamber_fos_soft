@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.61.1] – 2026-08-26
+
+### Zmenené
+- **Kratšie automatické názvy profilov.** Názov už nevypisuje všetky teploty –
+  vždy uvedie len **pokrytý rozsah a počet bodov** (napr. `-20…60 °C · 13 teplôt`)
+  a za tým ostatné parametre: plato, rampu, nábeh, koncové plato, cyklovanie
+  a celkový čas. Platí to rovnako pre sweep aj pre postupnosť teplôt, takže
+  názvy sú krátke a navzájom porovnateľné.
+- Jednotlivé teploty zostávajú vo **vete nad náhľadom profilu** (tam sa vypíšu
+  spojené šípkou a pri dlhej postupnosti sa skrátia na začiatok … koniec).
+
 ## [1.61.0] – 2026-08-26
 
 ### Opravené
