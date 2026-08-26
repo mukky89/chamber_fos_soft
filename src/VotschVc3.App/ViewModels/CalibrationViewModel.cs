@@ -126,7 +126,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private string _peakLoggerHost = "localhost";
     public string PeakLoggerHost { get => _peakLoggerHost; set => SetProperty(ref _peakLoggerHost, value); }
 
-    private int _peakLoggerPort;
+    private int _peakLoggerPort = PeakLoggerApiClient.DefaultPort;
     public int PeakLoggerPort { get => _peakLoggerPort; set => SetProperty(ref _peakLoggerPort, Math.Max(0, value)); }
 
     private bool _peakLoggerConnected;
@@ -286,32 +286,42 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (_peakLogger is null || SelectedProfile is null) return;
         IReadOnlyList<PeakLoggerSensor> sensors = await _peakLogger.DiscoverSensorsAsync();
         Dictionary<string, CalibrationSensorMapping> saved = _setup.Mappings
-            .ToDictionary(m => m.Identity, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(m => m.SourceIdentity, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         Peaks.Clear();
         foreach (PeakLoggerSensor sensor in sensors)
         {
             foreach (PeakLoggerPeak peak in sensor.Peaks)
             {
-                string identity = $"{sensor.SerialNumber}|{sensor.Channel}|{peak.PeakId}";
-                saved.TryGetValue(identity, out CalibrationSensorMapping? mapping);
-                Peaks.Add(new CalibrationPeakRowViewModel(sensor, peak, mapping));
+                string sourceIdentity = $"{sensor.SerialNumber}|{sensor.Channel}|{peak.PeakId}";
+                saved.TryGetValue(sourceIdentity, out CalibrationSensorMapping? mapping);
+                var row = new CalibrationPeakRowViewModel(sensor, peak, mapping);
+                if (UseSimulator && string.IsNullOrWhiteSpace(row.SerialNumber))
+                {
+                    row.SerialNumber = sensor.SerialNumber;
+                }
+                Peaks.Add(row);
             }
         }
 
-        PeakLoggerStatus = $"Pripojený · {sensors.Count} snímačov · {Peaks.Count} peakov";
+        PeakLoggerStatus = $"Pripojený · {sensors.Count} zdrojov/kanálov · {Peaks.Count} peakov";
+        if (!UseSimulator && Peaks.Count > 0 && Peaks.All(p => string.IsNullOrWhiteSpace(p.SerialNumber)))
+        {
+            StatusMessage = "PeakLogger peaky načítané. Produkčné SN FBG senzora zadaj alebo naskenuj k vybranému peaku; deviceSN z API je SN interrogátora.";
+        }
         RefreshCommands();
     }
 
     private void SelectSuggestedPeaks()
     {
-        foreach (IGrouping<string, CalibrationPeakRowViewModel> group in Peaks.GroupBy(p => $"{p.SerialNumber}|{p.Channel}"))
+        foreach (IGrouping<string, CalibrationPeakRowViewModel> group in Peaks.GroupBy(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}"))
         {
             foreach (CalibrationPeakRowViewModel row in group) row.Selected = false;
             CalibrationPeakRowViewModel? saved = group.FirstOrDefault(p => p.WasSavedSelected);
             (saved ?? group.First()).Selected = true;
         }
-        StatusMessage = "Pre každý SN bol predvolený jeden peak. Operátor môže výber zmeniť.";
+        StatusMessage = "Pre každý PeakLogger zdroj/kanál bol predvolený jeden peak. Operátor môže výber zmeniť a priradiť produkčné FBG SN.";
         RefreshCommands();
     }
 
@@ -338,9 +348,17 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshCommands();
     }
 
-    private bool CanStartCalibration() =>
-        !IsRunning && PeakLoggerConnected && SelectedProfile is not null && SelectedChamber is not null &&
-        Peaks.Any(p => p.Selected) && CalibrationPoints.Any(p => p.Selected);
+    private bool CanStartCalibration()
+    {
+        if (IsRunning || !PeakLoggerConnected || SelectedProfile is null || SelectedChamber is null ||
+            !CalibrationPoints.Any(p => p.Selected))
+        {
+            return false;
+        }
+
+        List<CalibrationPeakRowViewModel> selected = Peaks.Where(p => p.Selected).ToList();
+        return selected.Count > 0 && selected.All(p => !string.IsNullOrWhiteSpace(p.SerialNumber));
+    }
 
     private async Task StartCalibrationAsync()
     {
@@ -590,6 +608,7 @@ public sealed record CalibrationChamberOption(ChamberConfig Config)
 public sealed class CalibrationPeakRowViewModel : ObservableObject
 {
     private bool _selected;
+    private string _serialNumber;
     private string _notes;
     private string _productDescription;
     private string _customer;
@@ -598,7 +617,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
 
     public CalibrationPeakRowViewModel(PeakLoggerSensor sensor, PeakLoggerPeak peak, CalibrationSensorMapping? saved)
     {
-        SerialNumber = sensor.SerialNumber;
+        PeakLoggerDeviceSerialNumber = sensor.SerialNumber;
+        _serialNumber = saved?.SerialNumber ?? string.Empty;
         Channel = sensor.Channel;
         PeakId = peak.PeakId;
         PeakIndex = peak.PeakIndex;
@@ -615,7 +635,12 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         _timeoutMinutes = saved?.StabilizationTimeoutOverride?.TotalMinutes ?? 0;
     }
 
-    public string SerialNumber { get; }
+    public string PeakLoggerDeviceSerialNumber { get; }
+    public string SerialNumber
+    {
+        get => _serialNumber;
+        set => SetProperty(ref _serialNumber, value?.Trim() ?? string.Empty);
+    }
     public string Channel { get; }
     public string PeakId { get; }
     public int PeakIndex { get; }
@@ -637,6 +662,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         Core1 = Core1,
         Core2 = Core2,
         SerialNumber = SerialNumber,
+        PeakLoggerDeviceSerialNumber = PeakLoggerDeviceSerialNumber,
         PeakId = PeakId,
         PeakIndex = PeakIndex,
         NominalWavelengthNm = CurrentWavelengthNm,
