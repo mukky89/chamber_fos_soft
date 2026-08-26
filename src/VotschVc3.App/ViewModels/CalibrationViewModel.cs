@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using VotschVc3.App.Mvvm;
@@ -25,6 +26,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private CancellationTokenSource? _runCts;
     private CalibrationRunRecord? _activeRun;
     private CalibrationSetup _setup = new();
+    private bool _stopRequested;
 
     public CalibrationViewModel()
     {
@@ -347,6 +349,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         WarningText = string.Empty;
         TargetProgress.Clear();
         _runCts = new CancellationTokenSource();
+        _stopRequested = false;
         IsRunning = true;
 
         try
@@ -355,7 +358,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             ChamberConnectionSettings connection = ToConnectionSettings(SelectedChamber.Config);
             StatusMessage = $"Pripájam komoru {SelectedChamber.Config.Name}…";
             await _chamber.ConnectAsync(connection, _runCts.Token);
-            double startTemperature = (await _chamber.ReadAsync(_runCts.Token)).Temperature;
+            var initialReading = await _chamber.ReadAsync(_runCts.Token);
+            double startTemperature = initialReading.Temperature
+                ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu pred začiatkom kalibrácie.");
 
             _activeRun = new CalibrationRunRecord
             {
@@ -411,10 +416,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _runner = null;
             if (_chamber is not null)
             {
+                if (_stopRequested)
+                {
+                    try { await _chamber.StopAsync(); } catch { }
+                }
                 try { await _chamber.DisconnectAsync(); } catch { }
                 await _chamber.DisposeAsync();
                 _chamber = null;
             }
+            _stopRequested = false;
             _runCts?.Dispose();
             _runCts = null;
             RefreshHistory();
@@ -464,8 +474,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private void StopCalibration()
     {
+        _stopRequested = true;
         _runCts?.Cancel();
-        StatusMessage = "Zastavujem kalibráciu…";
+        StatusMessage = "Zastavujem kalibráciu a posielam bezpečný STOP komore…";
     }
 
     private void RefreshHistory()
@@ -556,8 +567,16 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _stopRequested = IsRunning;
         _runCts?.Cancel();
-        if (_chamber is not null) await _chamber.DisposeAsync();
+        if (_chamber is not null)
+        {
+            if (_stopRequested)
+            {
+                try { await _chamber.StopAsync(); } catch { }
+            }
+            await _chamber.DisposeAsync();
+        }
         if (_peakLogger is not null) await _peakLogger.DisposeAsync();
         _runCts?.Dispose();
     }
