@@ -2,16 +2,18 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using VotschVc3.App.Charting;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Profiles;
 
 namespace VotschVc3.App.Views;
 
 /// <summary>
-/// Dropdown profile picker with a search box and a grouped tree (customer / sensor →
-/// profiles). A reliable replacement for the custom-templated ComboBox, which cannot
-/// render group headers or a tree. Exposes <see cref="ItemsSource"/> and
-/// <see cref="SelectedProfile"/> for MVVM binding.
+/// Dropdown profile picker with search, grouped tree and a non-destructive live preview.
+/// Hovering a profile (or moving to it with the keyboard) updates the graph and summary;
+/// only a click on a leaf or Enter confirms <see cref="SelectedProfile"/>.
 /// </summary>
 public partial class ProfilePicker : UserControl
 {
@@ -24,7 +26,6 @@ public partial class ProfilePicker : UserControl
         nameof(ItemsSource), typeof(IEnumerable<TestProfile>), typeof(ProfilePicker),
         new PropertyMetadata(null, OnItemsSourceChanged));
 
-    /// <summary>The profiles to choose from.</summary>
     public IEnumerable<TestProfile>? ItemsSource
     {
         get => (IEnumerable<TestProfile>?)GetValue(ItemsSourceProperty);
@@ -35,18 +36,31 @@ public partial class ProfilePicker : UserControl
         nameof(SelectedProfile), typeof(TestProfile), typeof(ProfilePicker),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnSelectedProfileChanged));
 
-    /// <summary>The chosen profile (two-way).</summary>
     public TestProfile? SelectedProfile
     {
         get => (TestProfile?)GetValue(SelectedProfileProperty);
         set => SetValue(SelectedProfileProperty, value);
     }
 
+    /// <summary>
+    /// Optional live chamber temperature. It is used as the start of the first ramp;
+    /// without it the preview starts at the first profile target because a saved profile
+    /// intentionally does not persist an absolute starting temperature.
+    /// </summary>
+    public static readonly DependencyProperty InitialTemperatureProperty = DependencyProperty.Register(
+        nameof(InitialTemperature), typeof(double?), typeof(ProfilePicker),
+        new PropertyMetadata(null, OnInitialTemperatureChanged));
+
+    public double? InitialTemperature
+    {
+        get => (double?)GetValue(InitialTemperatureProperty);
+        set => SetValue(InitialTemperatureProperty, value);
+    }
+
     public static readonly DependencyProperty PlaceholderProperty = DependencyProperty.Register(
         nameof(Placeholder), typeof(string), typeof(ProfilePicker),
         new PropertyMetadata("Vyber profil"));
 
-    /// <summary>Text shown on the closed button while nothing is selected.</summary>
     public string Placeholder
     {
         get => (string)GetValue(PlaceholderProperty);
@@ -56,7 +70,6 @@ public partial class ProfilePicker : UserControl
     public static readonly DependencyProperty SelectedNameProperty = DependencyProperty.Register(
         nameof(SelectedName), typeof(string), typeof(ProfilePicker), new PropertyMetadata(string.Empty));
 
-    /// <summary>Name of the selected profile (for the closed button).</summary>
     public string SelectedName
     {
         get => (string)GetValue(SelectedNameProperty);
@@ -66,7 +79,6 @@ public partial class ProfilePicker : UserControl
     public static readonly DependencyProperty SelectedCaptionProperty = DependencyProperty.Register(
         nameof(SelectedCaption), typeof(string), typeof(ProfilePicker), new PropertyMetadata(string.Empty));
 
-    /// <summary>Caption (sensors · project · tags) of the selected profile.</summary>
     public string SelectedCaption
     {
         get => (string)GetValue(SelectedCaptionProperty);
@@ -76,7 +88,6 @@ public partial class ProfilePicker : UserControl
     public static readonly DependencyProperty HasSelectionProperty = DependencyProperty.Register(
         nameof(HasSelection), typeof(bool), typeof(ProfilePicker), new PropertyMetadata(false));
 
-    /// <summary><c>true</c> when a profile is selected (drives placeholder vs. content).</summary>
     public bool HasSelection
     {
         get => (bool)GetValue(HasSelectionProperty);
@@ -86,12 +97,13 @@ public partial class ProfilePicker : UserControl
     public static readonly DependencyProperty ResultSummaryProperty = DependencyProperty.Register(
         nameof(ResultSummary), typeof(string), typeof(ProfilePicker), new PropertyMetadata(string.Empty));
 
-    /// <summary>Footer line under the tree ("12 profilov", "Žiadny výsledok").</summary>
     public string ResultSummary
     {
         get => (string)GetValue(ResultSummaryProperty);
         private set => SetValue(ResultSummaryProperty, value);
     }
+
+    private TestProfile? _previewProfile;
 
     private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -118,9 +130,22 @@ public partial class ProfilePicker : UserControl
         picker.SelectedName = profile?.Name ?? string.Empty;
         picker.SelectedCaption = profile?.PickerCaption ?? string.Empty;
         picker.HasSelection = profile is not null;
+
+        if (picker.Popup?.IsOpen == true && profile is not null)
+        {
+            picker.UpdatePreview(profile);
+        }
     }
 
-    /// <summary>How many profiles the synthetic "Najnovšie" shortcut group lists.</summary>
+    private static void OnInitialTemperatureChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var picker = (ProfilePicker)d;
+        if (picker._previewProfile is not null)
+        {
+            picker.UpdatePreview(picker._previewProfile);
+        }
+    }
+
     private const int RecentCount = 8;
 
     private void RebuildTree()
@@ -132,9 +157,6 @@ public partial class ProfilePicker : UserControl
             .Where(p => Matches(p, filter))
             .ToList();
 
-        // Shortcut group first: the profiles most recently created or edited, so the one
-        // just built in the quick builder is a single click away instead of having to be
-        // hunted for inside its customer / sensor group.
         List<TestProfile> recent = matched
             .OrderByDescending(p => p.LastChangedAt)
             .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -154,7 +176,6 @@ public partial class ProfilePicker : UserControl
                 group.Key,
                 group.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
             {
-                // Collapsed by default (tidy for large libraries); expanded while filtering.
                 IsExpanded = filter.Length > 0,
             });
             groupCount++;
@@ -163,6 +184,14 @@ public partial class ProfilePicker : UserControl
         ResultSummary = matched.Count == 0
             ? (filter.Length > 0 ? "Žiadny výsledok" : "Žiadne profily")
             : $"{matched.Count} {ProfileWord(matched.Count)} · {groupCount} {GroupWord(groupCount)}";
+
+        if (Popup?.IsOpen == true)
+        {
+            TestProfile? next = SelectedProfile is not null && matched.Any(p => p.Id == SelectedProfile.Id)
+                ? matched.First(p => p.Id == SelectedProfile.Id)
+                : matched.FirstOrDefault();
+            UpdatePreview(next);
+        }
     }
 
     private static string ProfileWord(int n) => n == 1 ? "profil" : (n is >= 2 and <= 4 ? "profily" : "profilov");
@@ -187,10 +216,9 @@ public partial class ProfilePicker : UserControl
 
     private void OnToggleChecked(object sender, RoutedEventArgs e)
     {
-        // Fresh tree on each open (reflects new profiles; clears stale TreeView selection
-        // so re-picking the same profile still fires SelectedItemChanged).
         SearchBox.Clear();
         RebuildTree();
+        UpdatePreview(SelectedProfile ?? ItemsSource?.OrderByDescending(p => p.LastChangedAt).FirstOrDefault());
         Dispatcher.BeginInvoke(
             new Action(() => SearchBox.Focus()),
             System.Windows.Threading.DispatcherPriority.Input);
@@ -198,13 +226,196 @@ public partial class ProfilePicker : UserControl
 
     private void OnPopupClosed(object? sender, EventArgs e) => ToggleBtn.IsChecked = false;
 
+    /// <summary>Keyboard arrows may select a leaf, but selection alone is only a preview.</summary>
     private void OnTreeSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
-        // Only leaves (profiles) are selectable; group headers just expand/collapse.
         if (e.NewValue is TestProfile profile)
         {
-            SelectedProfile = profile;
-            ToggleBtn.IsChecked = false;
+            UpdatePreview(profile);
         }
     }
+
+    /// <summary>Mouse hover previews without mutating the actual selected profile.</summary>
+    private void OnProfileMouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: TestProfile profile })
+        {
+            UpdatePreview(profile);
+        }
+    }
+
+    /// <summary>Single click on a leaf confirms it; group clicks still only expand/collapse.</summary>
+    private void OnTreeMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (Tree.SelectedItem is TestProfile profile)
+        {
+            CommitProfile(profile);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Enter confirms the currently highlighted profile; Escape closes without changing it.</summary>
+    private void OnTreeKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && Tree.SelectedItem is TestProfile profile)
+        {
+            CommitProfile(profile);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            ToggleBtn.IsChecked = false;
+            e.Handled = true;
+        }
+    }
+
+    private void CommitProfile(TestProfile profile)
+    {
+        SelectedProfile = profile;
+        ToggleBtn.IsChecked = false;
+    }
+
+    private void UpdatePreview(TestProfile? profile)
+    {
+        _previewProfile = profile;
+        if (PreviewContent is null || PreviewEmpty is null)
+        {
+            return;
+        }
+
+        bool hasProfile = profile is not null;
+        PreviewContent.Visibility = hasProfile ? Visibility.Visible : Visibility.Collapsed;
+        PreviewEmpty.Visibility = hasProfile ? Visibility.Collapsed : Visibility.Visible;
+        if (profile is null)
+        {
+            PreviewChart.Series = Array.Empty<ChartSeries>();
+            PlateauList.ItemsSource = null;
+            return;
+        }
+
+        ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile);
+        PreviewName.Text = profile.Name;
+        PreviewCaption.Text = profile.PickerCaption;
+        MinTemperatureText.Text = summary.MinTemperature is { } min ? $"{min:0.#} °C" : "—";
+        MaxTemperatureText.Text = summary.MaxTemperature is { } max ? $"{max:0.#} °C" : "—";
+        TotalDurationText.Text = FormatDuration(summary.TotalDuration);
+        CyclesText.Text = summary.Cycles.ToString();
+        PlateauCountText.Text = summary.PlateauCount.ToString();
+        TemperatureLevelsText.Text = summary.TemperatureLevelCount.ToString();
+
+        List<PlateauDisplayRow> rows = summary.Plateaus
+            .Select(p => new PlateauDisplayRow(
+                $"{p.Temperature:0.#} °C",
+                FormatDuration(p.Duration),
+                p.Repetitions > 1 ? $"× {p.Repetitions}" : string.Empty))
+            .ToList();
+        PlateauList.ItemsSource = rows;
+        NoPlateausText.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        Brush stroke = TryFindResource("AccentBrush") as Brush ?? Brushes.SteelBlue;
+        PreviewChart.Series = new[]
+        {
+            new ChartSeries("Teplota profilu", stroke, BuildTemperaturePoints(profile)),
+        };
+
+        (double cycleStart, double cycleEnd) = ResolveCycleBand(profile);
+        PreviewChart.CycleStartX = cycleStart;
+        PreviewChart.CycleEndX = cycleEnd;
+        PreviewChart.CycleCount = Math.Max(1, profile.Cycles);
+        PreviewChart.ChartTitle = profile.Name;
+    }
+
+    /// <summary>
+    /// Builds the actual execution path in minutes: intro once, cycle region N times,
+    /// outro once. The first ramp starts at the chamber's live temperature when known.
+    /// </summary>
+    private IReadOnlyList<Point> BuildTemperaturePoints(TestProfile profile)
+    {
+        if (profile.Segments.Count == 0)
+        {
+            return Array.Empty<Point>();
+        }
+
+        List<ProfileSegment> execution = ExpandExecution(profile);
+        if (execution.Count == 0)
+        {
+            return Array.Empty<Point>();
+        }
+
+        double previous = InitialTemperature ?? execution[0].TargetTemperature;
+        double elapsed = 0;
+        var points = new List<Point> { new(0, previous) };
+
+        foreach (ProfileSegment segment in execution)
+        {
+            double end = elapsed + Math.Max(0, segment.Duration.TotalMinutes);
+            if (!segment.IsRamp)
+            {
+                // A hold starts at its target immediately. Add a vertical corner only
+                // when the preceding step did not already finish there.
+                if (Math.Abs(previous - segment.TargetTemperature) > 0.0001)
+                {
+                    points.Add(new Point(elapsed, segment.TargetTemperature));
+                }
+            }
+
+            points.Add(new Point(end, segment.TargetTemperature));
+            previous = segment.TargetTemperature;
+            elapsed = end;
+        }
+
+        return points;
+    }
+
+    private static List<ProfileSegment> ExpandExecution(TestProfile profile)
+    {
+        var result = new List<ProfileSegment>();
+        if (profile.Segments.Count == 0)
+        {
+            return result;
+        }
+
+        int start = profile.ResolvedCycleStart;
+        int end = profile.ResolvedCycleEnd;
+        for (int i = 0; i < start; i++) result.Add(profile.Segments[i]);
+        for (int cycle = 0; cycle < Math.Max(1, profile.Cycles); cycle++)
+        {
+            for (int i = start; i <= end; i++) result.Add(profile.Segments[i]);
+        }
+        for (int i = end + 1; i < profile.Segments.Count; i++) result.Add(profile.Segments[i]);
+        return result;
+    }
+
+    /// <summary>Returns the full repeated-region span in minutes for ChartView's cycle shading.</summary>
+    private static (double Start, double End) ResolveCycleBand(TestProfile profile)
+    {
+        if (profile.Segments.Count == 0 || Math.Max(1, profile.Cycles) <= 1)
+        {
+            return (double.NaN, double.NaN);
+        }
+
+        int start = profile.ResolvedCycleStart;
+        int end = profile.ResolvedCycleEnd;
+        double intro = profile.Segments.Take(start).Sum(s => Math.Max(0, s.Duration.TotalMinutes));
+        double body = profile.Segments.Skip(start).Take(end - start + 1)
+            .Sum(s => Math.Max(0, s.Duration.TotalMinutes));
+        return (intro, intro + (body * Math.Max(1, profile.Cycles)));
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalMinutes < 1)
+        {
+            return $"{Math.Max(0, duration.TotalSeconds):0} s";
+        }
+
+        int days = (int)duration.TotalDays;
+        int hours = duration.Hours;
+        int minutes = duration.Minutes;
+        if (days > 0) return $"{days} d {hours} h {minutes} min";
+        if (duration.TotalHours >= 1) return $"{(int)duration.TotalHours} h {minutes} min";
+        return $"{(int)duration.TotalMinutes} min";
+    }
+
+    private sealed record PlateauDisplayRow(string TemperatureText, string DurationText, string RepeatText);
 }
