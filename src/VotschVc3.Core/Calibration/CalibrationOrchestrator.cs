@@ -30,23 +30,36 @@ public sealed class CalibrationOrchestrator
             throw new InvalidOperationException("Nie je vybraná žiadna wavelength na kalibráciu.");
         }
 
+        foreach (CalibrationSensorMapping mapping in selected)
+        {
+            if (string.IsNullOrWhiteSpace(mapping.SerialNumber))
+            {
+                throw new InvalidOperationException(
+                    $"Pre PeakLogger {mapping.SourceDeviceSerialNumber} / kanál {mapping.Channel} / peak {mapping.PeakId} chýba sériové číslo FBG senzora.");
+            }
+        }
+
         IReadOnlyList<PeakLoggerSensor> sensors = await _peakLogger.DiscoverSensorsAsync(cancellationToken).ConfigureAwait(false);
         foreach (CalibrationSensorMapping mapping in selected)
         {
+            string sourceDeviceSn = mapping.SourceDeviceSerialNumber;
             PeakLoggerSensor? sensor = sensors.FirstOrDefault(s =>
-                string.Equals(s.SerialNumber, mapping.SerialNumber, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(s.SerialNumber, sourceDeviceSn, StringComparison.OrdinalIgnoreCase) &&
                 (string.IsNullOrWhiteSpace(mapping.Channel) || string.Equals(s.Channel, mapping.Channel, StringComparison.OrdinalIgnoreCase)));
             if (sensor is null)
             {
-                throw new InvalidOperationException($"PeakLogger: snímač {mapping.SerialNumber} / kanál {mapping.Channel} nebol nájdený.");
+                throw new InvalidOperationException(
+                    $"PeakLogger: zariadenie {sourceDeviceSn} / kanál {mapping.Channel} pre FBG SN {mapping.SerialNumber} nebolo nájdené.");
             }
 
             PeakLoggerPeak? peak = sensor.Peaks.FirstOrDefault(p => string.Equals(p.PeakId, mapping.PeakId, StringComparison.Ordinal));
             if (peak is null)
             {
-                throw new InvalidOperationException($"PeakLogger: peak {mapping.PeakId} pre SN {mapping.SerialNumber} nebol nájdený.");
+                throw new InvalidOperationException(
+                    $"PeakLogger: peak {mapping.PeakId} na {sourceDeviceSn} / {mapping.Channel} pre FBG SN {mapping.SerialNumber} nebol nájdený.");
             }
 
+            mapping.PeakLoggerDeviceSerialNumber = sensor.SerialNumber;
             mapping.PeakIndex = peak.PeakIndex;
             mapping.CurrentWavelengthNm = peak.WavelengthNm;
             mapping.NominalWavelengthNm ??= peak.WavelengthNm;
@@ -191,7 +204,7 @@ public sealed class CalibrationOrchestrator
             foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
             {
                 PeakLoggerMeasurement? measurement = batch
-                    .Where(m => string.Equals(m.SerialNumber, tracker.Mapping.SerialNumber, StringComparison.OrdinalIgnoreCase))
+                    .Where(m => string.Equals(m.SerialNumber, tracker.Mapping.SourceDeviceSerialNumber, StringComparison.OrdinalIgnoreCase))
                     .Where(m => string.Equals(m.PeakId, tracker.Mapping.PeakId, StringComparison.Ordinal))
                     .Where(m => string.IsNullOrWhiteSpace(tracker.Mapping.Channel) || string.Equals(m.Channel, tracker.Mapping.Channel, StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(m => m.Timestamp)
@@ -205,7 +218,7 @@ public sealed class CalibrationOrchestrator
                         CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
                         {
                             Code = "PEAK_LOST",
-                            Message = $"SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId} sa počas kalibrácie stratil.",
+                            Message = $"FBG SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId} sa počas kalibrácie stratil.",
                             PlateauIndex = plateauIndex,
                             SerialNumber = tracker.Mapping.SerialNumber,
                             PeakId = tracker.Mapping.PeakId,
@@ -229,7 +242,14 @@ public sealed class CalibrationOrchestrator
                 }
 
                 tracker.MarkMeasurement(measurement);
-                CalibrationRawSample raw = CreateRawSample(run, plateauIndex, targetTemperatureC, actualTemperature, referenceTemperature, measurement);
+                CalibrationRawSample raw = CreateRawSample(
+                    run,
+                    plateauIndex,
+                    targetTemperatureC,
+                    actualTemperature,
+                    referenceTemperature,
+                    tracker.Mapping,
+                    measurement);
                 rawToWrite.Add(raw);
                 StabilityMetrics metrics = tracker.Detector.Add(measurement.Timestamp, measurement.WavelengthNm);
                 tracker.LastMetrics = metrics;
@@ -245,7 +265,7 @@ public sealed class CalibrationOrchestrator
                     CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
                     {
                         Code = "SENSOR_STABILITY_TIMEOUT",
-                        Message = $"SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId} sa neustálil do {tracker.Timeout}.",
+                        Message = $"FBG SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId} sa neustálil do {tracker.Timeout}.",
                         PlateauIndex = plateauIndex,
                         SerialNumber = tracker.Mapping.SerialNumber,
                         PeakId = tracker.Mapping.PeakId,
@@ -346,7 +366,7 @@ public sealed class CalibrationOrchestrator
             CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
             {
                 Code = "NO_TEMPERATURE_RESPONSE",
-                Message = $"SN {currentTarget.SerialNumber}, peak {currentTarget.PeakId}: Δλ={deltaPm:F2} pm pri ΔT={deltaT:F2} °C – vybraná wavelength nereaguje podľa nastavených limitov.",
+                Message = $"FBG SN {currentTarget.SerialNumber}, peak {currentTarget.PeakId}: Δλ={deltaPm:F2} pm pri ΔT={deltaT:F2} °C – vybraná wavelength nereaguje podľa nastavených limitov.",
                 PlateauIndex = current.PlateauIndex,
                 SerialNumber = currentTarget.SerialNumber,
                 PeakId = currentTarget.PeakId,
@@ -416,6 +436,7 @@ public sealed class CalibrationOrchestrator
         double targetTemperatureC,
         double actualTemperatureC,
         double? referenceTemperatureC,
+        CalibrationSensorMapping mapping,
         PeakLoggerMeasurement measurement) => new()
     {
         RunId = run.RunId,
@@ -425,7 +446,8 @@ public sealed class CalibrationOrchestrator
         ActualTemperatureC = actualTemperatureC,
         ReferenceTemperatureC = referenceTemperatureC,
         Timestamp = measurement.Timestamp,
-        SerialNumber = measurement.SerialNumber,
+        SerialNumber = mapping.SerialNumber,
+        PeakLoggerDeviceSerialNumber = measurement.SerialNumber,
         Channel = measurement.Channel,
         PeakId = measurement.PeakId,
         PeakIndex = measurement.PeakIndex,
@@ -460,8 +482,6 @@ public sealed class CalibrationOrchestrator
         public CalibrationMeasurementResult? Result { get; private set; }
         public TimeSpan MissingFor => _missingSince is { } since ? DateTimeOffset.UtcNow - since : TimeSpan.Zero;
 
-        // PeakLost is intentionally not terminal while the grace period is running.
-        // It becomes terminal only when Fail(...) stores a result after the grace period.
         public bool IsTerminal => Result is not null ||
             State is CalibrationTargetState.Stable or
                      CalibrationTargetState.TimedOut or
@@ -542,6 +562,7 @@ public sealed class CalibrationOrchestrator
             var result = new CalibrationMeasurementResult
             {
                 SerialNumber = Mapping.SerialNumber,
+                PeakLoggerDeviceSerialNumber = Mapping.SourceDeviceSerialNumber,
                 Channel = Mapping.Channel,
                 PeakId = Mapping.PeakId,
                 PeakIndex = Mapping.PeakIndex,
@@ -572,6 +593,7 @@ public sealed class CalibrationOrchestrator
                         ReferenceTemperatureC = temps.Reference,
                         Timestamp = timestamp,
                         SerialNumber = Mapping.SerialNumber,
+                        PeakLoggerDeviceSerialNumber = Mapping.SourceDeviceSerialNumber,
                         Channel = Mapping.Channel,
                         PeakId = Mapping.PeakId,
                         PeakIndex = Mapping.PeakIndex,
