@@ -1,0 +1,232 @@
+using VotschVc3.Core.Calibration;
+using VotschVc3.Core.Profiles;
+using Xunit;
+
+namespace VotschVc3.Core.Tests;
+
+public sealed class CalibrationTests
+{
+    [Fact]
+    public void RollingStability_RequiresExactlyConfiguredSampleCount()
+    {
+        var detector = new RollingStabilityDetector(50, maxRangePm: 2, maxStdDevPm: 1, maxDriftPmPerMinute: 1);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+
+        StabilityMetrics metrics = default!;
+        for (int i = 0; i < 49; i++)
+        {
+            metrics = detector.Add(t0.AddSeconds(i), 1550.0000);
+        }
+        Assert.False(metrics.IsStable);
+        Assert.Equal(49, metrics.Count);
+
+        metrics = detector.Add(t0.AddSeconds(49), 1550.0000);
+        Assert.True(metrics.IsStable);
+        Assert.Equal(50, metrics.Count);
+    }
+
+    [Fact]
+    public void RollingStability_RejectsNoisyWindow()
+    {
+        var detector = new RollingStabilityDetector(50, maxRangePm: 5, maxStdDevPm: 2, maxDriftPmPerMinute: 0);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+        StabilityMetrics metrics = default!;
+
+        for (int i = 0; i < 50; i++)
+        {
+            double value = 1550 + (i % 2 == 0 ? 0.010 : -0.010);
+            metrics = detector.Add(t0.AddSeconds(i), value);
+        }
+
+        Assert.False(metrics.IsStable);
+        Assert.True(metrics.Range > 5);
+    }
+
+    [Fact]
+    public void RollingStability_SlidingWindowCanRecoverAfterNoise()
+    {
+        var detector = new RollingStabilityDetector(50, maxRangePm: 2, maxStdDevPm: 1, maxDriftPmPerMinute: 1);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+
+        for (int i = 0; i < 10; i++)
+        {
+            detector.Add(t0.AddSeconds(i), 1550 + i * 0.005);
+        }
+
+        StabilityMetrics metrics = default!;
+        for (int i = 0; i < 50; i++)
+        {
+            metrics = detector.Add(t0.AddSeconds(10 + i), 1550.1234);
+        }
+
+        Assert.True(metrics.IsStable);
+        Assert.Equal(50, detector.Count);
+    }
+
+    [Fact]
+    public void RollingStability_RejectsExcessiveDrift()
+    {
+        var detector = new RollingStabilityDetector(50, maxRangePm: 0, maxStdDevPm: 0, maxDriftPmPerMinute: 0.5);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+        StabilityMetrics metrics = default!;
+
+        for (int i = 0; i < 50; i++)
+        {
+            // +1 pm/minute linear drift.
+            double value = 1550 + (i / 60.0) * 0.001;
+            metrics = detector.Add(t0.AddSeconds(i), value);
+        }
+
+        Assert.False(metrics.IsStable);
+        Assert.True(Math.Abs(metrics.SlopePerMinute) > 0.5);
+    }
+
+    [Fact]
+    public async Task FakePeakLogger_DiscoversMultipleSensorsAndTenPeaksOnOneSn()
+    {
+        await using var peakLogger = new FakePeakLoggerClient();
+        await peakLogger.ConnectAsync(new PeakLoggerSettings());
+        IReadOnlyList<PeakLoggerSensor> sensors = await peakLogger.DiscoverSensorsAsync();
+
+        Assert.True(sensors.Count >= 4);
+        PeakLoggerSensor sensor = Assert.Single(sensors.Where(s => s.SerialNumber == "242805A000004"));
+        Assert.Equal(10, sensor.Peaks.Count);
+        Assert.Equal(10, sensor.Peaks.Select(p => p.PeakId).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Preflight_UsesStableIdentitySerialChannelPeakId()
+    {
+        await using var peakLogger = new FakePeakLoggerClient();
+        await peakLogger.ConnectAsync(new PeakLoggerSettings());
+        var orchestrator = new CalibrationOrchestrator(peakLogger);
+        var setup = new CalibrationSetup
+        {
+            Mappings =
+            {
+                new CalibrationSensorMapping
+                {
+                    SerialNumber = "242805A000004",
+                    Channel = "3.2",
+                    PeakId = "P4",
+                    PeakIndex = 99,
+                    Selected = true,
+                },
+            },
+        };
+
+        await orchestrator.PreflightAsync(setup);
+
+        CalibrationSensorMapping mapping = Assert.Single(setup.Mappings);
+        Assert.Equal(4, mapping.PeakIndex);
+        Assert.NotNull(mapping.CurrentWavelengthNm);
+    }
+
+    [Fact]
+    public void TemperatureResponseValidation_PassesResponsivePeak()
+    {
+        var orchestrator = new CalibrationOrchestrator(new FakePeakLoggerClient());
+        var run = new CalibrationRunRecord();
+        CalibrationPlateauResult baseline = Plateau(0, 20, 1550.000);
+        CalibrationPlateauResult current = Plateau(1, 40, 1550.200);
+        var settings = new CalibrationProfileSettings
+        {
+            ValidationMinimumDeltaTemperatureC = 5,
+            ValidationMinimumWavelengthResponsePm = 10,
+            ValidationFailurePolicy = CalibrationFailurePolicy.ContinueAndFlag,
+        };
+
+        Assert.True(orchestrator.ValidateTemperatureResponse(run, baseline, current, settings));
+        Assert.Empty(run.Warnings);
+    }
+
+    [Fact]
+    public void TemperatureResponseValidation_FlagsNonResponsivePeak()
+    {
+        var orchestrator = new CalibrationOrchestrator(new FakePeakLoggerClient());
+        var run = new CalibrationRunRecord();
+        CalibrationPlateauResult baseline = Plateau(0, 20, 1550.000);
+        CalibrationPlateauResult current = Plateau(1, 40, 1550.001);
+        var settings = new CalibrationProfileSettings
+        {
+            ValidationMinimumDeltaTemperatureC = 5,
+            ValidationMinimumWavelengthResponsePm = 10,
+            ValidationFailurePolicy = CalibrationFailurePolicy.ContinueAndFlag,
+        };
+
+        Assert.False(orchestrator.ValidateTemperatureResponse(run, baseline, current, settings));
+        CalibrationWarning warning = Assert.Single(run.Warnings);
+        Assert.Equal("NO_TEMPERATURE_RESPONSE", warning.Code);
+    }
+
+    [Fact]
+    public void CalibrationStore_RoundTripsSetupRunAndCheckpoint()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "VotschVc3-cal-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new CalibrationStore(root);
+            Guid profileId = Guid.NewGuid();
+            Guid chamberId = Guid.NewGuid();
+            var setup = new CalibrationSetup
+            {
+                ProfileId = profileId,
+                Mappings =
+                {
+                    new CalibrationSensorMapping { SerialNumber = "SN1", Channel = "1.1", PeakId = "P2", PeakIndex = 2, Selected = true },
+                },
+            };
+            store.SaveSetup(setup);
+            CalibrationSetup loaded = Assert.IsType<CalibrationSetup>(store.LoadSetup(profileId));
+            Assert.Equal("P2", Assert.Single(loaded.Mappings).PeakId);
+
+            var run = new CalibrationRunRecord { ProfileId = profileId, ChamberId = chamberId, ProfileName = "T CAL", State = CalibrationRunState.Completed };
+            run.Plateaus.Add(Plateau(0, 20, 1550));
+            store.SaveRun(run);
+            Assert.Contains(store.LoadHistory(), x => x.RunId == run.RunId);
+
+            var checkpoint = new CalibrationCheckpoint { RunId = run.RunId, ProfileId = profileId, ChamberId = chamberId, CurrentPlateauIndex = 1 };
+            store.SaveCheckpoint(checkpoint);
+            Assert.Equal(1, store.LoadCheckpoint(chamberId)?.CurrentPlateauIndex);
+            store.DeleteCheckpoint(chamberId);
+            Assert.Null(store.LoadCheckpoint(chamberId));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ProfileClone_PreservesCalibrationMetadata()
+    {
+        var profile = new TestProfile
+        {
+            ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+            Segments = { new ProfileSegment { IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 60 } },
+        };
+
+        TestProfile clone = profile.Clone();
+        Assert.Equal(ProfileExecutionMode.TemperatureCalibration, clone.ExecutionMode);
+        Assert.True(Assert.Single(clone.Segments).IsCalibrationPoint);
+    }
+
+    private static CalibrationPlateauResult Plateau(int index, double temp, double wavelength) => new()
+    {
+        PlateauIndex = index,
+        TargetTemperatureC = temp,
+        ActualTemperatureC = temp,
+        Targets =
+        {
+            new CalibrationMeasurementResult
+            {
+                SerialNumber = "SN1",
+                Channel = "1.1",
+                PeakId = "P1",
+                PeakIndex = 1,
+                Status = CalibrationTargetState.Stable,
+                MeanWavelengthNm = wavelength,
+            },
+        },
+    };
+}
