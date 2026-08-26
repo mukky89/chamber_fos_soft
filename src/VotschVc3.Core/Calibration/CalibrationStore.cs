@@ -111,13 +111,16 @@ public sealed class CalibrationStore
     public static void ExportSummaryCsv(CalibrationRunRecord run, string path)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Profile;RunId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;MeanWavelengthNm;MedianWavelengthNm;StdDevPm;MinNm;MaxNm;RangePm;DriftPmPerMinute;StabilizationSeconds;Status;Problem");
+        sb.AppendLine("Profile;RunId;ReferenceF100Port;ReferenceF100Serial;ReferenceF100Channel;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;MeanWavelengthNm;MedianWavelengthNm;StdDevPm;MinNm;MaxNm;RangePm;DriftPmPerMinute;StabilizationSeconds;Status;Problem");
         foreach (CalibrationPlateauResult plateau in run.Plateaus)
         {
             foreach (CalibrationMeasurementResult target in plateau.Targets)
             {
                 sb.Append(E(run.ProfileName)).Append(';')
                   .Append(run.RunId).Append(';')
+                  .Append(E(run.ReferenceThermometerPort)).Append(';')
+                  .Append(E(run.ReferenceThermometerSerialNumber)).Append(';')
+                  .Append(E(run.ReferenceThermometerChannel)).Append(';')
                   .Append(plateau.PlateauIndex).Append(';')
                   .Append(F(plateau.TargetTemperatureC)).Append(';')
                   .Append(F(plateau.ActualTemperatureC)).Append(';')
@@ -158,6 +161,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
     private readonly CalibrationStore _store;
     private readonly CalibrationRunRecord _run;
     private readonly StreamWriter _rawWriter;
+    private readonly StreamWriter _wavelengthWriter;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     internal CalibrationRunWriter(CalibrationStore store, CalibrationRunRecord run)
@@ -169,6 +173,10 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         _rawWriter = new StreamWriter(Path.Combine(dir, "raw-samples.csv"), append: false, Encoding.UTF8);
         _rawWriter.WriteLine("RunId;ProfileId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity");
         _rawWriter.Flush();
+
+        _wavelengthWriter = new StreamWriter(Path.Combine(dir, "wavelength-trace.csv"), append: false, Encoding.UTF8);
+        _wavelengthWriter.WriteLine("RunId;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity;ChamberTemperatureC;ReferenceTemperatureC");
+        _wavelengthWriter.Flush();
     }
 
     public async Task AppendAsync(IEnumerable<CalibrationRawSample> samples, CancellationToken cancellationToken = default)
@@ -205,6 +213,38 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         }
     }
 
+    /// <summary>Appends the continuous whole-run trace for every selected FBG peak.</summary>
+    public async Task AppendWavelengthTraceAsync(IEnumerable<CalibrationWavelengthTraceSample> samples, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            foreach (CalibrationWavelengthTraceSample s in samples)
+            {
+                string line = string.Join(";", new[]
+                {
+                    s.RunId.ToString(),
+                    s.Timestamp.ToString("O"),
+                    E(s.SerialNumber),
+                    E(s.PeakLoggerDeviceSerialNumber),
+                    E(s.Channel),
+                    E(s.PeakId),
+                    s.PeakIndex.ToString(CultureInfo.InvariantCulture),
+                    F(s.WavelengthNm),
+                    s.Intensity is { } intensity ? F(intensity) : string.Empty,
+                    s.ChamberTemperatureC is { } chamber ? F(chamber) : string.Empty,
+                    s.ReferenceTemperatureC is { } reference ? F(reference) : string.Empty,
+                });
+                await _wavelengthWriter.WriteLineAsync(line).ConfigureAwait(false);
+            }
+            await _wavelengthWriter.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public void SaveSummary() => _store.SaveRun(_run);
 
     private static string F(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
@@ -216,7 +256,9 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         try
         {
             await _rawWriter.FlushAsync().ConfigureAwait(false);
+            await _wavelengthWriter.FlushAsync().ConfigureAwait(false);
             _rawWriter.Dispose();
+            _wavelengthWriter.Dispose();
             _store.SaveRun(_run);
         }
         finally
