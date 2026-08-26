@@ -162,6 +162,10 @@
                     <TextBlock Text="{Binding ProfileStatus}" Style="{StaticResource Caption}" Margin="0,3,0,0" TextWrapping="Wrap" />
                     <ProgressBar Style="{StaticResource ProfileProgressBar}" Height="10" Margin="0,6,0,0"
                                  Value="{Binding ProfileProgress, Mode=OneWay}" Maximum="100" />
+                    <TextBlock Text="{Binding ProfileStepText}" FontFamily="Segoe UI Semibold" FontSize="12"
+                               Margin="0,6,0,0" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap"
+                               Visibility="{Binding HasProfileStep, Converter={StaticResource BoolToVisibility}}"
+                               ToolTip="Aktuálny krok profilu: nábeh (rampa) alebo výdrž (plato), jeho celkové trvanie a čas do konca kroku." />
                     <TextBlock Text="{Binding ProfileTimeRemaining}" FontFamily="Segoe UI Semibold" FontSize="13"
                                Margin="0,6,0,0" Foreground="{StaticResource OkBrush}" />
                     <TextBlock Text="{Binding ProfileCompletionText}" Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap"

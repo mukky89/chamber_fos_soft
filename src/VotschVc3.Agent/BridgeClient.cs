@@ -27,12 +27,12 @@ public sealed class BridgeClient : IAsyncDisposable
         _profiles = new ProfileStore(options.ProfilesFile);
         _http = new HttpClient { BaseAddress = new Uri(options.DashboardUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromMinutes(10) };
         _http.DefaultRequestHeaders.Add("X-Lab-Agent-Key", options.AgentKey);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.58.0");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("LabControlBridge/1.59.0");
     }
 
     public async Task RunAsync(CancellationToken ct)
     {
-        Console.WriteLine($"Lab Control Bridge 1.58.0 → {_http.BaseAddress}");
+        Console.WriteLine($"Lab Control Bridge 1.59.0 → {_http.BaseAddress}");
         WriteStatus(false, "Agent sa pripája k Dashboardu…");
         while (!ct.IsCancellationRequested)
         {
@@ -61,7 +61,7 @@ public sealed class BridgeClient : IAsyncDisposable
             LastHeartbeatUtc = reachable ? DateTime.UtcNow : null,
             DashboardUrl = _options.DashboardUrl,
             MachineName = Environment.MachineName,
-            Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.58.0",
+            Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.59.0",
             LastError = error,
         });
 
@@ -69,7 +69,7 @@ public sealed class BridgeClient : IAsyncDisposable
     {
         var request = new HeartbeatRequest(
             Environment.MachineName,
-            Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.58.0",
+            Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.59.0",
             new[] { "ascii2", "simserv", "sika-rest", "asl-f100", "profiles", "files-read", "files-write" },
             _options.Folders.Select(f => new FolderSnapshot(f.Alias, f.Writable)).ToArray(),
             devices, _profiles.LoadAll().Take(2000).ToArray(), files, _lastError);

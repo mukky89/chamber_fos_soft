@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.59.0] – 2026-08-26
+
+### Pridané
+- **Vždy viditeľný aktuálny krok profilu.** Počas behu sa na hlavnej stránke,
+  v profesionálnom dashboarde aj v detaile komory ukazuje, či práve beží
+  **nábeh (rampa)** alebo **výdrž (plato)**, na akú teplotu, **ako dlho krok trvá**
+  a **koľko do konca kroku zostáva** – napr.
+  „→ Plato 85,0 °C · krok trvá 30 min · zostáva 12:34".
+- Odpočet kroku beží každú sekundu, nezávisle od intervalu hlásení bežca profilu.
+- Pri garantovanej výdrži, kým komora dobieha na teplotu, sa ukazuje
+  „⏳ čaká na ustálenie" – odpočet kroku začne až po dosiahnutí teploty.
+  Pozastavený profil ukazuje „⏸ pozastavené" namiesto bežiaceho odpočtu.
+- Pri rampe je rozlíšený smer: „↗ Rampa (ohrev)" / „↘ Rampa (chladenie)".
+  Na SIKA, kde je každý krok skok a ustálenie, sa krok ukazuje ako plato.
+
 ## [1.58.0] – 2026-08-26
 
 ### Pridané

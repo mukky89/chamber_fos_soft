@@ -1501,10 +1501,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _countdownTimer?.Stop();
         ProfileTimeRemaining = string.Empty;
         ProfileCompletionText = string.Empty;
+        _stepEndsAt = null;
+        _stepDuration = TimeSpan.Zero;
+        ProfileStepText = string.Empty;
     }
 
     private void UpdateCountdown()
     {
+        UpdateStepText();
+
         if (!IsProfileRunning || _profileEstimatedEnd is not { } end)
         {
             ProfileTimeRemaining = string.Empty;
@@ -1518,25 +1523,99 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             left = TimeSpan.Zero;
         }
 
-        string hms;
-        if (left.TotalDays >= 1)
-        {
-            hms = $"{(int)left.TotalDays}d {left.Hours}:{left.Minutes:00}:{left.Seconds:00}";
-        }
-        else if (left.TotalHours >= 1)
-        {
-            hms = $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}";
-        }
-        else
-        {
-            hms = $"{left.Minutes:00}:{left.Seconds:00}";
-        }
+        string hms = FormatHms(left);
 
         ProfileTimeRemaining = $"Zostáva {hms}";
 
         // Compact completion line for the card header, incl. the day name of completion.
         ProfileCompletionText = $"🏁 Koniec: {DayShort(end)} {end:dd.MM.yyyy} {end:HH:mm} · zostáva {hms}";
     }
+
+    /// <summary>Countdown clock: <c>2d 3:04:05</c> / <c>3:04:05</c> / <c>04:05</c>.</summary>
+    private static string FormatHms(TimeSpan left)
+    {
+        if (left < TimeSpan.Zero)
+        {
+            left = TimeSpan.Zero;
+        }
+
+        if (left.TotalDays >= 1)
+        {
+            return $"{(int)left.TotalDays}d {left.Hours}:{left.Minutes:00}:{left.Seconds:00}";
+        }
+
+        return left.TotalHours >= 1
+            ? $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}"
+            : $"{left.Minutes:00}:{left.Seconds:00}";
+    }
+
+    /// <summary>
+    /// Captures what the runner is executing right now, so the read-out can keep
+    /// ticking between progress events (they arrive only every update interval).
+    /// </summary>
+    private void UpdateStepReadout(ProfileProgressEventArgs e)
+    {
+        // On SIKA every step is a jump to the target and a settle – there is no ramp.
+        _stepIsHold = !e.Segment.IsRamp || IsSika;
+        _stepIsSoaking = e.IsSoaking;
+        _stepTarget = e.Segment.TargetTemperature;
+        _stepDuration = e.Segment.Duration;
+        _stepIsRampDown = e.SegmentStartTemperature is { } from && e.Segment.TargetTemperature < from;
+
+        // While soaking, the step's own time has not started running yet – the runner
+        // is still waiting for the chamber to reach the target.
+        _stepEndsAt = e.IsSoaking
+            ? null
+            : DateTime.Now + (e.ElapsedInSegment < _stepDuration ? _stepDuration - e.ElapsedInSegment : TimeSpan.Zero);
+        UpdateStepText();
+    }
+
+    private void UpdateStepText()
+    {
+        if (!IsProfileRunning || (_stepEndsAt is null && !_stepIsSoaking))
+        {
+            ProfileStepText = string.Empty;
+            return;
+        }
+
+        string kind = _stepIsHold
+            ? "→ Plato"
+            : _stepIsRampDown ? "↘ Rampa (chladenie)" : "↗ Rampa (ohrev)";
+        string head = $"{kind} {_stepTarget:0.0} °C · krok trvá {FormatCountdown(_stepDuration)}";
+
+        if (IsProfilePaused)
+        {
+            ProfileStepText = $"{head} · ⏸ pozastavené";
+            return;
+        }
+
+        ProfileStepText = _stepIsSoaking
+            ? $"{head} · ⏳ čaká na ustálenie (odpočet kroku začne po dosiahnutí teploty)"
+            : $"{head} · zostáva {FormatHms(_stepEndsAt!.Value - DateTime.Now)}";
+    }
+
+    private string _profileStepText = string.Empty;
+    /// <summary>
+    /// Read-out of the step that is running right now: ramp or hold, its target,
+    /// how long the step takes and how much of it is left. Kept ticking by the
+    /// 1 s countdown timer, so it stays live between the runner's progress events.
+    /// </summary>
+    public string ProfileStepText
+    {
+        get => _profileStepText;
+        private set { if (SetProperty(ref _profileStepText, value)) OnPropertyChanged(nameof(HasProfileStep)); }
+    }
+
+    /// <summary>True while there is a step read-out to show.</summary>
+    public bool HasProfileStep => !string.IsNullOrEmpty(ProfileStepText);
+
+    // What the running step is + when it ends, captured on every progress event.
+    private bool _stepIsHold;
+    private bool _stepIsSoaking;
+    private bool _stepIsRampDown;
+    private double _stepTarget;
+    private TimeSpan _stepDuration;
+    private DateTime? _stepEndsAt;
 
     private double _profileProgress;
     public double ProfileProgress { get => _profileProgress; private set => SetProperty(ref _profileProgress, value); }
@@ -2223,6 +2302,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
             // Only a plateau can be skipped (on SIKA every step is a jump-and-settle hold).
             IsOnHoldSegment = !e.Segment.IsRamp || IsSika;
+
+            // Ramp/hold + how long this step takes and how much of it is left.
+            UpdateStepReadout(e);
 
             // Phase / cycle label: only show the cycle counter inside the repeated region.
             string phase = e.Phase switch

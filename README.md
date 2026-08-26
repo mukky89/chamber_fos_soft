@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.58.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.59.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
@@ -305,6 +305,12 @@ Profil vykonáva PC (`ProfileRunner`): v pevnom intervale prepočíta interpolov
 setpoint a zapíše ho príkazom `$ddE` so zapnutým štart kanálom. Tým je nezávislý
 od programovej pamäte komory a funguje rovnako na ľubovoľnom kuse. Možno ho
 opakovať v cykloch.
+
+Počas behu je **vždy vidieť aktuálny krok**: či ide o nábeh (rampu) alebo výdrž
+(plato), na akú teplotu, ako dlho krok trvá a koľko z neho zostáva – na hlavnej
+stránke, v profesionálnom dashboarde aj v detaile komory. Kým komora dobieha na
+teplotu pri garantovanej výdrži, ukazuje sa „⏳ čaká na ustálenie" (odpočet kroku
+začne až po dosiahnutí teploty); pri pozastavenom profile „⏸ pozastavené".
 
 **Priblíženie grafov kolieskom myši** funguje vo **všetkých** grafoch – v náhľade
 profilu na hlavnej stránke, v editore profilu (rýchly profil, knižnica, detail

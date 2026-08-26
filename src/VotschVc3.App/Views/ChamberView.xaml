@@ -425,6 +425,10 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White" />
                                 </Grid>
+                                <TextBlock Text="{Binding ProfileStepText}" FontFamily="Segoe UI Semibold" FontSize="13"
+                                           Foreground="{StaticResource AccentBrush}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                           Visibility="{Binding HasProfileStep, Converter={StaticResource BoolToVisibility}}"
+                                           ToolTip="Aktuálny krok profilu: nábeh (rampa) alebo výdrž (plato), jeho celkové trvanie a čas do konca kroku." />
                                 <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="13"
                                            Foreground="{StaticResource OkBrush}" Margin="0,8,0,0" TextWrapping="Wrap"
                                            Visibility="{Binding HasProfileCompletion, Converter={StaticResource BoolToVisibility}}" />
