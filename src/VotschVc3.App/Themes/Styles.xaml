@@ -300,10 +300,13 @@
          Idle: soft colour wash + coloured glyph (each control is instantly colour-coded).
          Hover: fills with the colour, white glyph, glow + animated scale-up. -->
     <Style x:Key="IconActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="FontSize" Value="17" />
-        <Setter Property="FontFamily" Value="Segoe UI" />
-        <Setter Property="Width" Value="44" />
-        <Setter Property="Height" Value="40" />
+        <!-- Run controls (▶ ⏸ ⏭ ⏹) sized for a gloved operator reading the card from a
+             step back: the glyphs used to be 17 px in a 44×40 box and were hard to tell
+             apart at a glance. Segoe UI Symbol draws the transport glyphs properly. -->
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontFamily" Value="Segoe UI Symbol, Segoe UI" />
+        <Setter Property="Width" Value="56" />
+        <Setter Property="Height" Value="48" />
         <Setter Property="Margin" Value="0,0,7,0" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />

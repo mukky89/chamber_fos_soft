@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.64.0] – 2026-08-26
+
+### Opravené
+- **Cyklovalo sa aj záverečné ustálenie na 25 °C.** Karta komory si cyklovanú časť
+  profilu odhadovala zo segmentov a vedela odlúpnuť len koncovú rampu – nie dvojicu
+  *rampa + hodinové plato*, ktorou rýchly vytvárač profil ukončuje. Pri 2 cykloch
+  tak bežala stabilizácia dvakrát, graf ju mal v cyklovanom pásme a celkový čas bol
+  nafúknutý. Teraz sa berie **cyklovaná oblasť uložená v samotnom profile**
+  (rýchly vytvárač ju zapisuje) a heuristika navyše rozpozná aj záverečnú dvojicu.
+  Po zmene počtu cyklov sedí pásmo v grafe, celkový čas aj odhad konca.
+
+### Pridané
+- **Potvrdenie pri zásahu do bežiaceho testu.** Pozastavenie, preskočenie plata aj
+  zastavenie profilu sa najprv opýtajú a povedia, čo to spraví (⏭ ukončí prebiehajúce
+  plato, ⏹ ukončí beh a vypne výkon). Automatické zastavenie pri alarme sa
+  nepýta – to musí prejsť aj keď pri komore nikto nestojí.
+- **E-mail: panel povie, čo ešte chýba.** Namiesto hľadania metódou „Poslať test“
+  je pod nastavením veta typu „⚠ Chýba: API kľúč“. Kontrolujú sa len polia, ktoré
+  zvolený spôsob naozaj používa – v režime **BrevoApi** sa SMTP používateľ a heslo
+  nepoužívajú vôbec.
+- **API kľúč sa dá nechať mimo aplikácie.** Keď je pole prázdne, kľúč sa načíta zo
+  systémovej premennej `BREVO_API_KEY`. Do repozitára sa tak nikdy nedostane.
+
+### Zmenené
+- **Rad profilov a odložený štart sú na spodku karty a zbalené.** Rozbalia sa
+  tlačidlom „▾ Rad profilov a odložený štart“ – predtým boli medzi výberom profilu
+  a grafom a odtláčali dole to, čo operátor sleduje.
+- **Väčšie ovládacie tlačidlá behu** (▶ ⏸ ⏭ ⏹): 56×48 namiesto 44×40, väčší glyf
+  a font so správnymi symbolmi.
+- **Väčšie okno výberu profilu** – 560–820 px široké a 640 px vysoké namiesto
+  340×400, takže sa dlhé názvy profilov zmestia a netreba scrollovať cez skupiny.
+
 ## [1.63.0] – 2026-08-26
 
 ### Opravené

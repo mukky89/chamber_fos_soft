@@ -109,9 +109,12 @@ public sealed class BrevoEmailSender : IEmailSender
         {
             throw new InvalidOperationException("Chýba overená Brevo adresa odosielateľa.");
         }
-        if (string.IsNullOrWhiteSpace(_settings.HttpApiKey))
+        string apiKey = _settings.ResolveApiKey();
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
-            throw new InvalidOperationException("Chýba Brevo API kľúč. Vlož ho do poľa API kľúč v administrácii.");
+            throw new InvalidOperationException(
+                "Chýba Brevo API kľúč. Vlož ho do poľa „Brevo API kľúč“ v administrácii, alebo ho nastav " +
+                $"do systémovej premennej {EmailSettings.ApiKeyEnvironmentVariable} (potom netreba nič zapisovať do aplikácie).");
         }
 
         string endpoint = string.IsNullOrWhiteSpace(_settings.HttpEndpoint)
@@ -136,7 +139,7 @@ public sealed class BrevoEmailSender : IEmailSender
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = JsonContent.Create(payload) };
-        request.Headers.TryAddWithoutValidation("api-key", _settings.HttpApiKey.Trim());
+        request.Headers.TryAddWithoutValidation("api-key", apiKey);
         request.Headers.TryAddWithoutValidation("accept", "application/json");
         using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
@@ -192,9 +195,9 @@ public sealed class HttpEmailSender : IEmailSender
             Content = JsonContent.Create(payload),
         };
 
-        if (!string.IsNullOrWhiteSpace(_settings.HttpApiKey))
+        if (_settings.ResolveApiKey() is { Length: > 0 } bearer)
         {
-            request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {_settings.HttpApiKey}");
+            request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {bearer}");
         }
 
         using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);

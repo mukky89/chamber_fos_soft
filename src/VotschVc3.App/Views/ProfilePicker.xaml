@@ -53,7 +53,7 @@
                MinWidth="{Binding ActualWidth, ElementName=ToggleBtn}" Closed="OnPopupClosed">
             <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,4,8,8"
-                    MaxHeight="400" MinWidth="340">
+                    MaxHeight="640" MinWidth="560" MaxWidth="820">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.5" Color="Black" />
                 </Border.Effect>
@@ -85,7 +85,7 @@
 
                     <TreeView x:Name="Tree"
                               ItemsSource="{Binding Groups, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                              Background="Transparent" BorderThickness="0" MaxHeight="310"
+                              Background="Transparent" BorderThickness="0" MaxHeight="540"
                               SelectedItemChanged="OnTreeSelectedItemChanged"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               ScrollViewer.VerticalScrollBarVisibility="Auto">

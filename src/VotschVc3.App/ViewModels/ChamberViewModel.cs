@@ -100,6 +100,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         DiscardInterruptedRunCommand = new RelayCommand(DiscardInterruptedRun,
             () => HasInterruptedRun && !IsProfileRunning && IsUnlocked);
         CancelProfileCommand = new RelayCommand(CancelProfile, CanCancelProfile);
+        ToggleAdvancedProfileOptionsCommand = new RelayCommand(
+            () => ShowAdvancedProfileOptions = !ShowAdvancedProfileOptions);
         StartQueueCommand = new AsyncRelayCommand(StartQueueAsync, () => IsConnected && IsOperable && !IsProfileRunning && Queue.Count > 0, ReportError);
         AddToQueueCommand = new RelayCommand(AddToQueue, () => Segments.Count > 0);
         RemoveFromQueueCommand = new RelayCommand(RemoveFromQueue, () => SelectedQueueItem is not null);
@@ -1150,6 +1152,23 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         set { if (SetProperty(ref _cycles, Math.Max(1, value))) RecalculateTiming(); }
     }
 
+    private bool _showAdvancedProfileOptions;
+    /// <summary>
+    /// Shows the rarely used run options – the profile chain and the delayed start – at the
+    /// bottom of the card. Hidden by default: they sat between the profile picker and the
+    /// chart and pushed everything the operator actually watches off the screen.
+    /// </summary>
+    public bool ShowAdvancedProfileOptions
+    {
+        get => _showAdvancedProfileOptions;
+        set { if (SetProperty(ref _showAdvancedProfileOptions, value)) OnPropertyChanged(nameof(AdvancedProfileOptionsGlyph)); }
+    }
+
+    /// <summary>Caption of the button that folds the advanced options away.</summary>
+    public string AdvancedProfileOptionsGlyph => ShowAdvancedProfileOptions
+        ? "▴ Rad profilov a odložený štart"
+        : "▾ Rad profilov a odložený štart";
+
     private double _profileUpdateIntervalSeconds = 5;
     public double ProfileUpdateIntervalSeconds { get => _profileUpdateIntervalSeconds; set => SetProperty(ref _profileUpdateIntervalSeconds, Math.Max(1, value)); }
 
@@ -1697,6 +1716,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Cancels a quick-started (or loaded) profile and clears it off the card.</summary>
     public RelayCommand CancelProfileCommand { get; }
+
+    /// <summary>Folds the profile chain and the delayed start in and out (see
+    /// <see cref="ShowAdvancedProfileOptions"/>).</summary>
+    public RelayCommand ToggleAdvancedProfileOptionsCommand { get; }
     public RelayCommand AddSegmentCommand { get; }
     public RelayCommand AddSegmentBeforeCommand { get; }
     public RelayCommand AddSegmentAfterCommand { get; }
@@ -1845,13 +1868,24 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         };
     }
 
+    /// <summary>Cycled region stored with the profile loaded into the editor, and the
+    /// segment count it was valid for – editing the segments invalidates the indices.</summary>
+    private int _loadedCycleStart = -1;
+    private int _loadedCycleEnd = -1;
+    private int _loadedRegionSegmentCount = -1;
+
     /// <summary>
-    /// The body region [start, end] that the dashboard cycle count repeats: the first
-    /// segment is treated as the initial ramp (nábeh) and the last as the final ramp
-    /// (dobeh) when they are ramps, so only the middle repeats. Falls back to the whole
-    /// profile for very short profiles or when there is no clear body.
+    /// The body region [start, end] that the dashboard cycle count repeats: the initial
+    /// ramp (nábeh) and the closing cool-down run once, only the middle repeats.
+    /// <para>
+    /// A profile that carries its own region (everything built in the quick builder does)
+    /// is taken at its word. Otherwise the region is deduced: a leading ramp is the
+    /// lead-in, and a trailing <em>ramp + long hold at the same temperature</em> is the
+    /// safety cool-down. That pair is what the heuristic used to miss – it only peeled off
+    /// a trailing ramp – so the closing hour at 25 °C was repeated inside every cycle.
+    /// </para>
     /// </summary>
-    private static (int Start, int End) BodyRegion(IReadOnlyList<ProfileSegment> segs)
+    private (int Start, int End) BodyRegion(IReadOnlyList<ProfileSegment> segs)
     {
         int last = segs.Count - 1;
         if (segs.Count <= 2)
@@ -1859,10 +1893,39 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             return (0, last);
         }
 
+        // The loaded profile's own region, as long as the segments have not been edited
+        // since (which would shift every index).
+        if (_loadedRegionSegmentCount == segs.Count &&
+            _loadedCycleStart >= 0 && _loadedCycleEnd >= _loadedCycleStart && _loadedCycleEnd <= last)
+        {
+            return (_loadedCycleStart, _loadedCycleEnd);
+        }
+
         int start = segs[0].IsRamp ? 1 : 0;
-        int end = segs[last].IsRamp ? last - 1 : last;
+        int end = last;
+        if (segs[last].IsRamp)
+        {
+            end = last - 1;
+        }
+        else if (IsClosingCoolDown(segs, last))
+        {
+            end = last - 2;
+        }
+
         return start > end ? (0, last) : (start, end);
     }
+
+    /// <summary>
+    /// <c>true</c> when the last two segments are the closing safety cool-down: a ramp to a
+    /// temperature followed by a hold of at least an hour at that same temperature. The
+    /// hour is what tells it apart from an ordinary step of the profile body.
+    /// </summary>
+    private static bool IsClosingCoolDown(IReadOnlyList<ProfileSegment> segs, int last) =>
+        last >= 2 &&
+        !segs[last].IsRamp &&
+        segs[last - 1].IsRamp &&
+        Math.Abs(segs[last].TargetTemperature - segs[last - 1].TargetTemperature) <= 0.05 &&
+        segs[last].Duration.TotalMinutes >= 60;
 
     private Task StartProfileAsync() => RunSequenceAsync(new List<TestProfile> { BuildProfile() });
 
@@ -1936,6 +1999,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
+        // Cutting a hold short changes what the specimen was exposed to, and it cannot be
+        // taken back – ask before it happens, not in the audit log afterwards.
+        if (!Views.ConfirmDialog.Ask(
+                $"Ukončiť práve bežiace plato {MeasuredTemperatureSetpoint:0.#} °C na zariadení „{Name}“ " +
+                "a pokračovať na ďalší krok?\n\nZvyšok profilu zostane nezmenený. Vrátiť sa to nedá.",
+                "Preskočiť plato",
+                confirmText: "Preskočiť plato",
+                danger: false))
+        {
+            StatusMessage = "Preskočenie plata zrušené.";
+            return;
+        }
+
         runner.SkipCurrentHold();
         StatusMessage = $"Plato {MeasuredTemperatureSetpoint:0.#} °C ukončené – pokračujem na ďalší krok.";
         _audit.Log(Name, "Plato preskočené", $"{ProfileName} · {ProfileStatus}");
@@ -1950,6 +2026,21 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             // The runner exists only once segments actually execute; during a
             // delayed-start countdown there is nothing to pause yet.
             StatusMessage = "Profil ešte nebeží (čaká na naplánovaný štart) – pozastaviť sa dá až po štarte.";
+            return;
+        }
+
+        // Pausing holds the chamber at the current set point for as long as nobody
+        // notices – on a running test that is a real intervention, so confirm it.
+        // Resuming needs no confirmation; it just puts the run back on schedule.
+        if (!runner.IsPaused && !Views.ConfirmDialog.Ask(
+                $"Pozastaviť profil „{ProfileName}“ na zariadení „{Name}“?\n\n" +
+                "Komora zostane držať aktuálny setpoint, kým beh znova nespustíš. " +
+                "Celkový čas testu sa o dobu pozastavenia predĺži.",
+                "Pozastaviť profil",
+                confirmText: "Pozastaviť",
+                danger: false))
+        {
+            StatusMessage = "Pozastavenie zrušené.";
             return;
         }
 
@@ -2469,8 +2560,24 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         return $"{t.Seconds} s";
     }
 
-    private void StopProfile()
+    private void StopProfile() => StopProfile(confirm: true);
+
+    /// <summary>Stops the run and cuts the chamber output.</summary>
+    /// <param name="confirm">Ask the operator first. <c>false</c> for callers that have
+    /// already asked (see <see cref="CancelProfile"/>), so the question is not repeated.</param>
+    private void StopProfile(bool confirm)
     {
+        if (confirm && IsProfileRunning && !Views.ConfirmDialog.Ask(
+                $"Zastaviť bežiaci profil „{ProfileName}“ na zariadení „{Name}“?\n\n" +
+                "Beh sa ukončí a výkon komory sa vypne. Test sa nedá obnoviť z tohto miesta – " +
+                "bude ho treba spustiť odznova.",
+                "Zastaviť profil",
+                confirmText: "Zastaviť profil"))
+        {
+            StatusMessage = "Zastavenie profilu zrušené.";
+            return;
+        }
+
         // Pressing Stop on a profile should also cut the chamber output, not just
         // end the schedule. The power-off runs after the runner unwinds (in the
         // cancellation handler of RunSequenceAsync) so it can't race a pending write.
@@ -2492,13 +2599,26 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         bool wasRunning = IsProfileRunning;
         if (wasRunning)
         {
-            StopProfile();
+            if (!Views.ConfirmDialog.Ask(
+                    $"Zastaviť bežiaci profil „{ProfileName}“ na zariadení „{Name}“ a odobrať ho z karty?\n\n" +
+                    "Beh sa ukončí a výkon komory sa vypne.",
+                    "Zrušiť profil",
+                    confirmText: "Zastaviť a odobrať"))
+            {
+                StatusMessage = "Zrušenie profilu zrušené.";
+                return;
+            }
+
+            StopProfile(confirm: false);
         }
 
         Segments.Clear();
         SelectedSegment = null;
         ProfileName = "Profil 1";
         SelectedHistoryProfile = null;
+        _loadedCycleStart = -1;
+        _loadedCycleEnd = -1;
+        _loadedRegionSegmentCount = -1;
         RecalculateTiming();
         OnPropertyChanged(nameof(HasProfilePreview));
         BuildProfilePreview();
@@ -2915,6 +3035,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         ProfileName = profile.Name;
         Cycles = profile.Cycles;
+
+        // Keep the profile's own cycled region: the quick builder knows exactly which
+        // segments are the lead-in and the closing cool-down, and guessing it back from
+        // the segment list is never as reliable.
+        _loadedCycleStart = profile.CycleStartIndex;
+        _loadedCycleEnd = profile.CycleEndIndex;
+        _loadedRegionSegmentCount = profile.Segments.Count;
 
         Segments.Clear();
         foreach (ProfileSegment segment in profile.Segments)
@@ -3612,7 +3739,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _ = SendAlarmEmailAsync(message);
             if (AutoStopOnAlarm && IsProfileRunning)
             {
-                StopProfile();
+                // Safety stop – never behind a dialog that nobody is standing there to answer.
+                StopProfile(confirm: false);
             }
         }
     }
@@ -4125,7 +4253,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         StopReconnect();
         StopPolling();
-        StopProfile();
+        StopProfile(confirm: false);
         StopRecording();
         CloseProfileTemperatureLog();
         if (_selectedReferenceThermometer is not null)

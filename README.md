@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.63.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.64.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**

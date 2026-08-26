@@ -47,5 +47,48 @@ public sealed class EmailSettings
     /// <summary>Optional bearer API key sent as the Authorization header.</summary>
     public string HttpApiKey { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Environment variable read when <see cref="HttpApiKey"/> is empty, so the key can live
+    /// outside the settings file (and outside the repository) on a shared lab PC.
+    /// </summary>
+    public const string ApiKeyEnvironmentVariable = "BREVO_API_KEY";
+
+    /// <summary>
+    /// The API key actually used to send: the one entered in the administration, or – when
+    /// that is empty – the <see cref="ApiKeyEnvironmentVariable"/> environment variable.
+    /// </summary>
+    public string ResolveApiKey() =>
+        !string.IsNullOrWhiteSpace(HttpApiKey)
+            ? HttpApiKey.Trim()
+            : Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariable)?.Trim() ?? string.Empty;
+
+    /// <summary>
+    /// What still has to be filled in before a notification can be sent, or an empty string
+    /// when the settings are complete. Only the fields the chosen <see cref="Method"/>
+    /// actually uses are checked – in <see cref="EmailMethod.BrevoApi"/> mode the SMTP user
+    /// and password are not used at all.
+    /// </summary>
+    public string DescribeMissing()
+    {
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(Recipient)) missing.Add("adresát");
+        if (string.IsNullOrWhiteSpace(From)) missing.Add("odosielateľ (from)");
+
+        switch (Method)
+        {
+            case EmailMethod.BrevoApi:
+            case EmailMethod.Http:
+                if (string.IsNullOrWhiteSpace(HttpEndpoint)) missing.Add("endpoint URL");
+                if (string.IsNullOrWhiteSpace(ResolveApiKey())) missing.Add("API kľúč");
+                break;
+            default:
+                if (string.IsNullOrWhiteSpace(SmtpHost)) missing.Add("SMTP host");
+                if (SmtpPort <= 0) missing.Add("SMTP port");
+                break;
+        }
+
+        return missing.Count == 0 ? string.Empty : string.Join(", ", missing);
+    }
+
     public EmailSettings Clone() => (EmailSettings)MemberwiseClone();
 }

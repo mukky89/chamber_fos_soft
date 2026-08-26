@@ -275,9 +275,17 @@
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}" Width="220">
                             <TextBlock Text="Brevo API kľúč" Style="{StaticResource Label}" />
-                            <TextBox Text="{Binding Email.HttpApiKey, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Text="{Binding Email.HttpApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Vygeneruje sa v Brevo → SMTP &amp; API → API Keys. Do repozitára sa neukladá." />
                         </StackPanel>
                     </WrapPanel>
+                    <TextBlock Text="{Binding EmailApiKeyHint}" Style="{StaticResource Caption}"
+                               TextWrapping="Wrap" Margin="0,2,0,0" />
+
+                    <!-- Says up front what is still missing – previously the only way to find
+                         out was to press "Poslať test" and read the failure. -->
+                    <TextBlock Text="{Binding EmailReadinessText}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               FontFamily="Segoe UI Semibold" Foreground="{StaticResource WarnBrush}" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="Uložiť nastavenia" Style="{StaticResource AccentButton}" Command="{Binding SaveEmailSettingsCommand}" />

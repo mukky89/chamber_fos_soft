@@ -1248,6 +1248,33 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private string _emailStatus = "Po dokončení odošle HTML súhrn, graf teploty a CSV log (voliteľné).";
     public string EmailStatus { get => _emailStatus; private set => SetProperty(ref _emailStatus, value); }
 
+    /// <summary>
+    /// What still has to be filled in before notifications can be sent, spelled out on the
+    /// panel – „Poslať test“ only reported it after failing, and only for the first
+    /// missing field. Only the fields the chosen delivery method actually uses count: in
+    /// BrevoApi mode the SMTP user and password are irrelevant.
+    /// </summary>
+    public string EmailReadinessText
+    {
+        get
+        {
+            string missing = Email.DescribeMissing();
+            if (missing.Length > 0)
+            {
+                return $"⚠ Chýba: {missing}. Bez toho sa notifikácie neodošlú.";
+            }
+
+            return Email.Enabled
+                ? "✔ Nastavené – notifikácie sa odošlú po dokončení profilu."
+                : "✔ Nastavené, ale prepínač notifikácií je vypnutý.";
+        }
+    }
+
+    /// <summary>Where the API key may come from, so it never has to live in the repository.</summary>
+    public string EmailApiKeyHint =>
+        $"Kľúč sa dá nechať prázdny a nastaviť do systémovej premennej {EmailSettings.ApiKeyEnvironmentVariable} " +
+        "(Windows → Premenné prostredia). Aplikácia ho odtiaľ prevezme.";
+
     public RelayCommand SaveEmailSettingsCommand { get; }
     public AsyncRelayCommand TestEmailCommand { get; }
 
@@ -1256,7 +1283,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         try
         {
             _emailStore.Save(_notifier.Settings);
-            EmailStatus = "Nastavenia e-mailu uložené.";
+            OnPropertyChanged(nameof(EmailReadinessText));
+            string missing = Email.DescribeMissing();
+            EmailStatus = missing.Length > 0
+                ? $"Nastavenia uložené, ale ešte chýba: {missing}."
+                : "Nastavenia e-mailu uložené.";
         }
         catch (Exception ex)
         {
@@ -1266,6 +1297,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     private async Task TestEmailAsync()
     {
+        OnPropertyChanged(nameof(EmailReadinessText));
         EmailStatus = "Posielam testovací e-mail…";
         EmailResult result = await _notifier.SendTestAsync();
         EmailStatus = result switch
