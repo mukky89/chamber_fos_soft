@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text;
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Profiles;
 using Xunit;
@@ -89,9 +91,96 @@ public sealed class CalibrationTests
         IReadOnlyList<PeakLoggerSensor> sensors = await peakLogger.DiscoverSensorsAsync();
 
         Assert.True(sensors.Count >= 4);
-        PeakLoggerSensor sensor = Assert.Single(sensors.Where(s => s.SerialNumber == "242805A000004"));
+        PeakLoggerSensor sensor = Assert.Single(sensors, s => s.SerialNumber == "242805A000004");
         Assert.Equal(10, sensor.Peaks.Count);
         Assert.Equal(10, sensor.Peaks.Select(p => p.PeakId).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task PeakLoggerApi_UsesLocal43122AndMapsDocumentedPeakSchema()
+    {
+        const string json = """
+            [
+              {
+                "index": 1,
+                "channel": "4.1",
+                "wavelength": 1512.9482421875,
+                "cog": 1512.95203956298,
+                "intensity": -24.5599994659424,
+                "returnLoss": -53,
+                "slsr": 0,
+                "width": 0.2,
+                "asymmetry": 0.995,
+                "device": {
+                  "deviceType": "Hyperion",
+                  "deviceSN": "HIAER3",
+                  "connector": 4
+                },
+                "fos4x": null
+              },
+              {
+                "index": 2,
+                "channel": "4.1",
+                "wavelength": 1516.57470703125,
+                "cog": 1516.5737324377,
+                "intensity": -24.25,
+                "returnLoss": -53,
+                "slsr": 0,
+                "width": 0.184,
+                "asymmetry": 0.942,
+                "device": {
+                  "deviceType": "Hyperion",
+                  "deviceSN": "HIAER3",
+                  "connector": 4
+                },
+                "fos4x": null
+              }
+            ]
+            """;
+
+        var handler = new PeakLoggerHttpHandler(json);
+        using var http = new HttpClient(handler);
+        await using var peakLogger = new PeakLoggerApiClient(http);
+
+        await peakLogger.ConnectAsync(new PeakLoggerSettings { Host = "localhost", Port = 0 });
+        IReadOnlyList<PeakLoggerSensor> sensors = await peakLogger.DiscoverSensorsAsync();
+        IReadOnlyList<PeakLoggerMeasurement> measurements = await peakLogger.ReadMeasurementsAsync();
+
+        PeakLoggerSensor sensor = Assert.Single(sensors);
+        Assert.Equal("HIAER3", sensor.SerialNumber);
+        Assert.Equal("4.1", sensor.Channel);
+        Assert.Collection(sensor.Peaks,
+            p =>
+            {
+                Assert.Equal("P1", p.PeakId);
+                Assert.Equal(1, p.PeakIndex);
+                Assert.Equal(1512.9482421875, p.WavelengthNm, 10);
+                Assert.Equal(-24.5599994659424, p.Intensity);
+            },
+            p =>
+            {
+                Assert.Equal("P2", p.PeakId);
+                Assert.Equal(2, p.PeakIndex);
+            });
+
+        Assert.Equal(2, measurements.Count);
+        Assert.All(measurements, m => Assert.Equal("HIAER3", m.SerialNumber));
+        Assert.NotNull(peakLogger.LastDataTimestamp);
+        Assert.Contains(handler.Requests, u => u.Host == "localhost" && u.Port == PeakLoggerApiClient.DefaultPort && u.AbsolutePath == "/swagger/index.html");
+        Assert.Contains(handler.Requests, u => u.Host == "localhost" && u.Port == PeakLoggerApiClient.DefaultPort && u.AbsolutePath == "/peaks");
+    }
+
+    [Fact]
+    public async Task PeakLoggerApi_404PeaksReturnsEmptySetLikeExistingIntegration()
+    {
+        var handler = new PeakLoggerHttpHandler("[]", peaksStatus: HttpStatusCode.NotFound);
+        using var http = new HttpClient(handler);
+        await using var peakLogger = new PeakLoggerApiClient(http);
+
+        await peakLogger.ConnectAsync(new PeakLoggerSettings());
+
+        Assert.Empty(await peakLogger.DiscoverSensorsAsync());
+        Assert.Empty(await peakLogger.ReadMeasurementsAsync());
     }
 
     [Fact]
@@ -229,4 +318,42 @@ public sealed class CalibrationTests
             },
         },
     };
+
+    private sealed class PeakLoggerHttpHandler : HttpMessageHandler
+    {
+        private readonly string _peaksJson;
+        private readonly HttpStatusCode _peaksStatus;
+
+        public PeakLoggerHttpHandler(string peaksJson, HttpStatusCode peaksStatus = HttpStatusCode.OK)
+        {
+            _peaksJson = peaksJson;
+            _peaksStatus = peaksStatus;
+        }
+
+        public List<Uri> Requests { get; } = new();
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Uri uri = Assert.IsType<Uri>(request.RequestUri);
+            Requests.Add(uri);
+
+            if (uri.AbsolutePath.Equals("/swagger/index.html", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<html>PeakLogger Swagger</html>", Encoding.UTF8, "text/html"),
+                });
+            }
+
+            if (uri.AbsolutePath.Equals("/peaks", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(new HttpResponseMessage(_peaksStatus)
+                {
+                    Content = new StringContent(_peaksJson, Encoding.UTF8, "application/json"),
+                });
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
 }
