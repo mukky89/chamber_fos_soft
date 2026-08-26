@@ -89,7 +89,8 @@
                         Visibility="{Binding IsSegmentsExpanded, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                     <StackPanel>
                         <DockPanel LastChildFill="False" Margin="0,0,0,4">
-                            <TextBlock Text="Editor profilu — ťahaj body myšou (teplota)" Style="{StaticResource Label}" DockPanel.Dock="Left" />
+                            <TextBlock Text="Editor profilu — ťahaj body myšou (teplota)" Style="{StaticResource Label}" DockPanel.Dock="Left"
+                                       ToolTip="Priblíženie: tlačidlá ＋ / － / ⤢ vpravo hore v grafe alebo koliesko myši okolo kurzora. Pri priblížení: Shift+koliesko alebo ťahanie posúva časovú os, prúžok (mini-mapa) pod grafom sa dá chytiť a ťahať, dvojklik vráti celý profil.&#10;Pri cyklovaní je každé opakovanie tela profilu vykreslené na časovej osi zvlášť, podfarbené a očíslované (⟲ 2/4); ťahať sa dá prvý priebeh, ostatné ho kopírujú." />
                             <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right">
                                 <Run Text="Trvanie: " Foreground="{StaticResource MutedBrush}" />
                                 <Run Text="{Binding ProfileDurationText, Mode=OneWay}" FontFamily="Segoe UI Semibold" />

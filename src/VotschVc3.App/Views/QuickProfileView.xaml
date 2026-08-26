@@ -41,11 +41,13 @@
                         <views:ProfilePicker ItemsSource="{Binding LibraryProfiles}"
                                               SelectedProfile="{Binding SelectedLibraryProfile, Mode=TwoWay}"
                                               Placeholder="Vyber profil"
-                                              ToolTip="Vyber uložený profil – hľadaj hore a rozbaľ stromovú štruktúru (zákazník/snímač → profily)." />
-                        <Button Content="Načítať na úpravu" Style="{StaticResource GhostButton}"
+                                              ToolTip="Vyber uložený profil – hľadaj hore a rozbaľ stromovú štruktúru (zákazník/snímač → profily). Vybraný profil sa hneď načíta do editora aj do grafu." />
+                        <TextBlock Text="Vybraný profil sa načíta hneď – graf aj parametre ukážu presne to, čo je uložené."
+                                   Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <Button Content="↺ Načítať znovu (zahodiť úpravy)" Style="{StaticResource GhostButton}"
                                 Margin="0,6,0,0" HorizontalAlignment="Left"
                                 Command="{Binding LoadSelectedProfileCommand}"
-                                ToolTip="Načíta vybraný profil aj s jeho parametrami – sweep sa vráti v režime „Sweep (rozsah)“ s rozsahom, krokmi a platom, ostatné ako postupnosť teplôt. Uloženie prepíše ten istý profil." />
+                                ToolTip="Znovu načíta vybraný profil z knižnice a zahodí rozrobené úpravy – sweep sa vráti v režime „Sweep (rozsah)“ s rozsahom, krokmi a platom, ostatné ako postupnosť teplôt. Uloženie prepíše ten istý profil." />
                     </StackPanel>
 
                     <StackPanel Style="{StaticResource QpField}">
@@ -138,7 +140,11 @@
                                         ToolTip="Pridá bod s rovnakou teplotou ako posledný a aktuálnou dĺžkou plata." />
                             </DockPanel>
 
-                            <ItemsControl ItemsSource="{Binding SequenceSteps}" AlternationCount="999">
+                            <!-- One row per point. The reorder buttons sit on the left, grouped with the
+                                 point number and clearly apart from the ▲/▼ of the value steppers on the
+                                 right – side by side the two pairs were indistinguishable. They also grey
+                                 out at the ends of the list instead of silently doing nothing. -->
+                            <ItemsControl ItemsSource="{Binding SequenceSteps}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
@@ -146,7 +152,7 @@
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="6" />
+                                                    <ColumnDefinition Width="8" />
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="6" />
                                                     <ColumnDefinition Width="*" />
@@ -154,9 +160,18 @@
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
 
-                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Width="18"
-                                                           Foreground="{StaticResource MutedBrush}" FontSize="12"
-                                                           Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter}, Path=(ItemsControl.AlternationIndex), Converter={StaticResource OneBasedIndex}}" />
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <Button Content="↑" Style="{StaticResource GhostButton}" Width="26" Margin="0" Padding="0,1" FontSize="13"
+                                                            IsEnabled="{Binding CanMoveUp}"
+                                                            Command="{Binding DataContext.MoveSequenceStepUpCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
+                                                            CommandParameter="{Binding}" ToolTip="Posunúť tento bod o jedno miesto vyššie" />
+                                                    <TextBlock Text="{Binding Number, StringFormat={}{0}.}" TextAlignment="Center"
+                                                               Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,3,0,3" />
+                                                    <Button Content="↓" Style="{StaticResource GhostButton}" Width="26" Margin="0" Padding="0,1" FontSize="13"
+                                                            IsEnabled="{Binding CanMoveDown}"
+                                                            Command="{Binding DataContext.MoveSequenceStepDownCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
+                                                            CommandParameter="{Binding}" ToolTip="Posunúť tento bod o jedno miesto nižšie" />
+                                                </StackPanel>
 
                                                 <StackPanel Grid.Column="2">
                                                     <TextBlock Text="°C" Style="{StaticResource Caption}" />
@@ -167,20 +182,11 @@
                                                     <views:NumericStepper Value="{Binding PlateauMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
                                                 </StackPanel>
 
-                                                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <StackPanel VerticalAlignment="Center">
-                                                        <Button Content="▲" Style="{StaticResource GhostButton}" Padding="7,1" FontSize="10"
-                                                                Command="{Binding DataContext.MoveSequenceStepUpCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
-                                                                CommandParameter="{Binding}" ToolTip="Posunúť vyššie" />
-                                                        <Button Content="▼" Style="{StaticResource GhostButton}" Padding="7,1" FontSize="10" Margin="0,2,0,0"
-                                                                Command="{Binding DataContext.MoveSequenceStepDownCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
-                                                                CommandParameter="{Binding}" ToolTip="Posunúť nižšie" />
-                                                    </StackPanel>
-                                                    <Button Content="✕" Style="{StaticResource GhostButton}" Padding="9,7" FontSize="12" Margin="6,0,0,0"
-                                                            Foreground="{StaticResource MutedBrush}"
-                                                            Command="{Binding DataContext.RemoveSequenceStepCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
-                                                            CommandParameter="{Binding}" ToolTip="Odobrať bod" />
-                                                </StackPanel>
+                                                <Button Grid.Column="6" Content="✕" Style="{StaticResource GhostButton}"
+                                                        Margin="0" Padding="9,7" FontSize="12" VerticalAlignment="Center"
+                                                        Foreground="{StaticResource MutedBrush}"
+                                                        Command="{Binding DataContext.RemoveSequenceStepCommand, RelativeSource={RelativeSource AncestorType={x:Type views:QuickProfileView}}}"
+                                                        CommandParameter="{Binding}" ToolTip="Odobrať bod" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -377,14 +383,17 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <WrapPanel Grid.Row="0">
-                        <TextBlock Text="Náhľad profilu — ťahaj body myšou (zvisle = teplota, vodorovne = trvanie)" Style="{StaticResource Heading}" />
+                    <StackPanel Grid.Row="0">
+                        <DockPanel LastChildFill="False">
+                            <TextBlock Text="Náhľad profilu — ťahaj body myšou (zvisle = teplota, vodorovne = trvanie)"
+                                       Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center"
+                                       Text="＋ / － / ⤢ · koliesko = priblíženie · Shift+koliesko = posun · dvojklik = celý profil"
+                                       ToolTip="Priblížiť sa dá tlačidlami ＋ / － vpravo hore v grafe alebo kolieskom myši okolo kurzora; ⤢ (aj dvojklik) vráti celý profil.&#10;Keď je graf priblížený: Shift+koliesko alebo ťahanie prázdnej plochy posúva časovú os a prúžok pod grafom (mini-mapa) sa dá chytiť a ťahať." />
+                        </DockPanel>
                         <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}"
-                                   VerticalAlignment="Center" Margin="12,0,0,0" />
-                        <TextBlock Text="· koliesko myši = priblíženie · ťahanie = posun · dvojklik = celý profil"
-                                   Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0"
-                                   ToolTip="Koliesko myši približuje časovú os okolo kurzora. Keď je graf priblížený, ťahaním prázdnej plochy sa posúvaš po profile a dvojklik vráti celý profil." />
-                    </WrapPanel>
+                                   TextWrapping="Wrap" Margin="0,3,0,0" />
+                    </StackPanel>
 
                     <views:ProfileEditorChart Grid.Row="1" Segments="{Binding Segments}" MinHeight="240" Margin="0,8,0,8"
                                      CycleStart="{Binding CycleBandStart}" CycleEnd="{Binding CycleBandEnd}"

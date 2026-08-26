@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.61.0] – 2026-08-26
+
+### Opravené
+- **Načítanie existujúceho profilu v Rýchlom vytváraču.** Vybraný profil sa teraz
+  načíta **hneď po výbere** – dovtedy sa nič nedialo, kým si nestlačil samostatné
+  tlačidlo, takže to vyzeralo, že výber profilu nefunguje a profil sa nedá
+  editovať. Tlačidlo zostáva ako „↺ Načítať znovu (zahodiť úpravy)".
+- **Načítaný profil sa zobrazí presne tak, ako bol uložený.** Predtým sa hneď po
+  načítaní prekreslil z generátora (jedna spoločná dĺžka rampy, jedno koncové
+  plato), takže ručne robený alebo importovaný profil vyzeral inak, než čo bolo
+  v knižnici. Segmenty načítaného profilu platia, kým naozaj nezmeníš parameter.
+  Aj počty segmentov a celkové časy pod grafom sa teraz počítajú z toho, čo je
+  v grafe.
+- **Generovanie názvu profilu.** Teploty sa spájali spojovníkom, takže postupnosť
+  so zápornými hodnotami vyšla ako nečitateľné `-20--10-0-20-40-…`. Teplotné body
+  sa teraz spájajú šípkou (`-20→-10→0→20`) a dlhá postupnosť sa skráti na
+  začiatok … koniec s uvedeným počtom bodov a pokrytým rozsahom.
+- **Popis profilu pri rôznych nastaveniach** (hlavne v režime „Postupnosť teplôt“).
+  Názov aj veta nad náhľadom teraz vždy uvádzajú dĺžku plata (pri rôznych dĺžkach
+  rozsah „30 min–1 h“), dĺžku rampy, úvodný nábeh, koncové bezpečnostné plato,
+  cyklovanie aj celkový čas. Obe sa skladajú z tých istých pravidiel
+  (`Core/Profiles/QuickProfileNaming`) a sú pokryté testami, takže si navzájom
+  neodporujú.
+- **Tlačidlá na presúvanie bodov postupnosti.** Boli hneď vedľa ▲/▼ číselných polí
+  a nedali sa od nich rozoznať; poradové číslo bodu sa po presune neaktualizovalo
+  (WPF neprepočítava `AlternationIndex` po presune), takže to vyzeralo, že sa nič
+  nestalo. Presun je teraz vľavo pri poradovom čísle (↑ / ↓), číslo sa prepočíta
+  a na kraji zoznamu sú tlačidlá zošednuté.
+
+### Zmenené
+- **Cyklovanie sa v grafoch konečne ukazuje ako beh.** V grafe profilu (rýchly
+  vytvárač aj editor knižnice) sa cyklované telo vykreslí na časovej osi
+  **toľkokrát, koľkokrát naozaj pobeží** – dovtedy sa kreslil len jeden priebeh
+  s podfarbeným úsekom, hoci celkový čas hlásil násobok. Každé opakovanie má
+  vlastné podfarbenie, oddeľovač a číslo (⟲ 2/4). Ťahať sa dá prvý priebeh,
+  ostatné ho kopírujú. Rovnako je rozdelené a očíslované cyklované pásmo v grafe
+  profilu na hlavnej stránke.
+- **Čitateľnejší graf profilu pri veľa krokoch.** Pribudla popísaná časová os
+  (mriežka po štvrťhodinách/hodinách/dňoch podľa výrezu), os teploty sa
+  zaokrúhľuje na „pekné" hodnoty (namiesto 69,6 / 44,8 / −29,6 °C) a plochy
+  výdrže sú jemne podfarbené, takže rampy a plata sa rozoznajú na prvý pohľad.
+  Body na úpravu, ktoré by sa prekrývali, sa nekreslia a graf napíše, koľko ich
+  je skrytých – po priblížení sa objavia.
+- **Jednoduchšie priblíženie grafov.** V grafe profilu aj vo všetkých ostatných
+  grafoch pribudli tlačidlá **＋ / － / ⤢** priamo v grafe (netreba koliesko),
+  **Shift + koliesko** posúva časovú os a **mini-mapa pod grafom sa dá chytiť
+  a ťahať** – na viacdňovom profile je to podstatne rýchlejšie než posúvanie
+  ťahaním krivky.
+
 ## [1.60.0] – 2026-08-26
 
 ### Pridané

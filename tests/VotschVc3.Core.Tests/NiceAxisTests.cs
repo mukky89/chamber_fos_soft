@@ -96,4 +96,26 @@ public class NiceAxisTests
         Assert.True(min <= 20);
         Assert.True(max >= 100);
     }
+
+    [Theory]
+    [InlineData(60, 10)]        // hodinový profil → po desiatich minútach
+    [InlineData(180, 30)]       // tri hodiny → polhodiny
+    [InlineData(480, 120)]      // osem hodín → po dvoch hodinách
+    [InlineData(1635, 360)]     // 1 d 3 h → po šiestich hodinách
+    [InlineData(3270, 720)]     // 2 d 6 h → po dvanástich hodinách
+    [InlineData(20160, 4320)]   // dva týždne → po troch dňoch
+    public void TimeStepLandsOnAReadableUnit(double spanMinutes, double expected) =>
+        Assert.Equal(expected, NiceAxis.NiceTimeStep(spanMinutes));
+
+    [Fact]
+    public void TimeStepOfAVeryLongSpanStaysOnWholeDays()
+    {
+        double step = NiceAxis.NiceTimeStep(365 * 24 * 60);
+
+        Assert.True(step >= 1440);
+        Assert.Equal(0d, step % 1440);
+    }
+
+    [Fact]
+    public void TimeStepOfAnEmptySpanIsSafe() => Assert.Equal(1d, NiceAxis.NiceTimeStep(0));
 }

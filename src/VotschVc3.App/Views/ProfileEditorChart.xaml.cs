@@ -16,22 +16,38 @@ namespace VotschVc3.App.Views;
 /// target temperature, horizontally to resize its duration (stretch/shrink the
 /// ramp or plateau). Both are editable in the grid too.
 ///
-/// The time (X) axis can be zoomed with the mouse wheel around the cursor;
-/// while zoomed in, dragging the empty plot area pans and a double-click resets
-/// the view. Long profiles (many hours) are otherwise squeezed into a few pixels
-/// per segment, which makes both reading and handle dragging impossible.
+/// Cycling is drawn out in full: the repeated body appears once per cycle on the
+/// time axis (so the curve is as long as the run really is), with every repetition
+/// shaded and numbered. Only the first pass carries drag handles – the repeats are
+/// the same segments and are edited through it.
+///
+/// The time (X) axis can be zoomed with the wheel around the cursor, with the
+/// ＋ / － buttons, or by dragging the mini-map strip under the plot; while zoomed
+/// in, dragging the plot pans and a double-click resets the view. Long profiles
+/// (many hours, dozens of steps) are otherwise squeezed into a few pixels per
+/// segment, which makes both reading and handle dragging impossible.
 /// </summary>
 public partial class ProfileEditorChart : UserControl
 {
-    private const double PadLeft = 42;
+    private const double PadLeft = 46;
     private const double PadRight = 12;
     private const double PadTop = 12;
-    private const double PadBottom = 22;
+    /// <summary>Room under the plot for the time labels and the mini-map strip.</summary>
+    private const double PadBottom = 38;
 
     /// <summary>Never zoom past a window this short – below it the handles overlap.</summary>
     private const double MinVisibleMinutes = 1;
     /// <summary>Zoom per full wheel notch (120 units); partial deltas scale smoothly.</summary>
     private const double ZoomStep = 1.4;
+    /// <summary>One press of ＋ / －.</summary>
+    private const double ButtonZoomStep = 1.8;
+
+    /// <summary>
+    /// Handles closer together than this many pixels are not drawn: on a profile with
+    /// dozens of steps they merge into an unreadable string of blobs and cannot be hit
+    /// with the mouse anyway. Zooming in brings them back.
+    /// </summary>
+    private const double MinHandleGapPx = 13;
 
     private double _minY;
     private double _maxY;
@@ -49,6 +65,11 @@ public partial class ProfileEditorChart : UserControl
     private bool _isPanning;
     private Point _panStartMouse;
     private double _panStartViewStart;
+
+    // Mini-map strip under the plot: clicking or dragging it moves the visible window,
+    // which is far quicker than panning across a multi-day profile.
+    private double _trackTop;
+    private bool _isScrubbing;
 
     // Plot transform + curve captured on the last Redraw, so the hover read-out can
     // map a cursor position back to a temperature/time without recomputing the chart.
@@ -101,10 +122,18 @@ public partial class ProfileEditorChart : UserControl
 
     public static readonly DependencyProperty CycleCountProperty = DependencyProperty.Register(
         nameof(CycleCount), typeof(int), typeof(ProfileEditorChart),
-        new PropertyMetadata(1, (d, _) => ((ProfileEditorChart)d).Redraw()));
+        new PropertyMetadata(1, (d, _) => ((ProfileEditorChart)d).OnCycleCountChanged()));
 
-    /// <summary>How many times the region repeats (band is shown only when &gt; 1).</summary>
+    /// <summary>How many times the region repeats; every repetition is drawn on the time axis.</summary>
     public int CycleCount { get => (int)GetValue(CycleCountProperty); set => SetValue(CycleCountProperty, value); }
+
+    private void OnCycleCountChanged()
+    {
+        // A different repeat count is a different time axis – a window resolved against
+        // the old (shorter or longer) total would land somewhere unrelated.
+        _viewport.Reset();
+        Redraw();
+    }
 
     private static void OnSegmentsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -162,6 +191,55 @@ public partial class ProfileEditorChart : UserControl
     private Brush Muted => TryFindResource("MutedBrush") as Brush ?? Brushes.Gray;
     private Brush Accent => TryFindResource("AccentBrush") as Brush ?? Brushes.SteelBlue;
     private Brush Line => TryFindResource("BorderBrush") as Brush ?? Brushes.DimGray;
+    private Brush Hold => TryFindResource("WarnBrush") as Brush ?? Brushes.Orange;
+
+    /// <summary>One drawn occurrence of a segment on the (cycle-expanded) time axis.</summary>
+    /// <param name="Index">Index of the segment in the edited list.</param>
+    /// <param name="StartMin">Where this occurrence starts on the (expanded) time axis.</param>
+    /// <param name="Cycle">Zero-based repetition it belongs to; -1 for the lead-in / closing stages.</param>
+    private readonly record struct Pass(int Index, double StartMin, int Cycle);
+
+    /// <summary>
+    /// The order in which segments appear on the time axis, with the cycled body repeated
+    /// <see cref="CycleCount"/> times. Everything before <see cref="CycleStart"/> and after
+    /// <see cref="CycleEnd"/> (the lead-in ramp and the closing safety hold) runs once.
+    /// </summary>
+    private List<Pass> BuildPasses(List<SegmentViewModel> segments, out double totalMinutes)
+    {
+        var passes = new List<Pass>();
+        double t = 0;
+        void Add(int index, int cycle)
+        {
+            passes.Add(new Pass(index, t, cycle));
+            t += Math.Max(0, segments[index].DurationMinutes);
+        }
+
+        int cycles = Math.Max(1, CycleCount);
+        if (cycles <= 1 || segments.Count == 0)
+        {
+            for (int i = 0; i < segments.Count; i++)
+            {
+                Add(i, 0);
+            }
+
+            totalMinutes = t;
+            return passes;
+        }
+
+        int cs = Math.Clamp(CycleStart, 0, segments.Count - 1);
+        int ce = Math.Clamp(CycleEnd, cs, segments.Count - 1);
+
+        for (int i = 0; i < cs; i++) Add(i, -1);
+        for (int c = 0; c < cycles; c++)
+        {
+            for (int i = cs; i <= ce; i++) Add(i, c);
+        }
+
+        for (int i = ce + 1; i < segments.Count; i++) Add(i, -1);
+
+        totalMinutes = t;
+        return passes;
+    }
 
     private void Redraw()
     {
@@ -181,117 +259,252 @@ public partial class ProfileEditorChart : UserControl
             return;
         }
 
+        List<Pass> passes = BuildPasses(segments, out double totalMin);
+        totalMin = Math.Max(1, totalMin);
+
         double startTemp = double.IsNaN(MeasuredStart) ? segments[0].TargetTemperature : MeasuredStart;
-        double totalMin = Math.Max(1, segments.Sum(s => Math.Max(0, s.DurationMinutes)));
 
         var allTemps = new List<double> { startTemp };
         allTemps.AddRange(segments.Select(s => s.TargetTemperature));
-        _minY = allTemps.Min();
-        _maxY = allTemps.Max();
+
+        // Rounded bounds: raw min/max produced labels like 69,6 / 44,8 / -29,6 °C and made
+        // the axis wobble on every drag. NiceAxis snaps them to 20 / 40 / 60 °C steps.
+        (_minY, _maxY) = NiceAxis.Round(allTemps.Min(), allTemps.Max(), intervals: 4);
         if (_maxY - _minY < 1)
         {
             _maxY += 1;
             _minY -= 1;
         }
 
-        double pad = (_maxY - _minY) * 0.12;
-        _minY -= pad;
-        _maxY += pad;
-
         double plotW = w - PadLeft - PadRight;
         double plotH = h - PadTop - PadBottom;
+        if (plotW <= 0 || plotH <= 0)
+        {
+            return;
+        }
 
         _totalMin = totalMin;
         _window = _viewport.Resolve(0, totalMin);
         _pxPerMinute = plotW / _window.Span;
         _plotW = plotW;
         _plotH = plotH;
+        _trackTop = PadTop + plotH + 20;
         PlotCanvas.Cursor = _window.IsZoomed ? Cursors.SizeWE : Cursors.Arrow;
 
-        // Gridlines + Y labels.
+        double Xpx(double min) => PadLeft + (min - _window.Min) / _window.Span * plotW;
+        double Ypx(double t) => PadTop + (1 - (t - _minY) / (_maxY - _minY)) * plotH;
+
+        DrawCycleBands(passes, segments, plotH, Xpx);
+        DrawHoldBands(passes, segments, plotH, Xpx);
+        DrawGrid(plotW, plotH, Xpx);
+
+        // Profile polyline over the whole (expanded) timeline + one handle per segment of
+        // the first pass; the repeats show the same values and are edited through it.
+        var linePoints = new PointCollection { new(Xpx(0), Ypx(startTemp)) };
+        var handles = new List<(int Index, double X, double Y)>();
+        foreach (Pass pass in passes)
+        {
+            SegmentViewModel seg = segments[pass.Index];
+            double dur = Math.Max(0, seg.DurationMinutes);
+            double end = pass.StartMin + dur;
+            if (seg.IsRamp)
+            {
+                linePoints.Add(new Point(Xpx(end), Ypx(seg.TargetTemperature)));
+            }
+            else
+            {
+                linePoints.Add(new Point(Xpx(pass.StartMin), Ypx(seg.TargetTemperature)));
+                linePoints.Add(new Point(Xpx(end), Ypx(seg.TargetTemperature)));
+            }
+
+            if (pass.Cycle <= 0)
+            {
+                handles.Add((pass.Index, Xpx(end), Ypx(seg.TargetTemperature)));
+            }
+        }
+
+        PlotCanvas.Children.Add(new Polyline
+        {
+            Points = linePoints,
+            Stroke = Accent,
+            StrokeThickness = 1.8,
+            StrokeLineJoin = PenLineJoin.Round,
+            IsHitTestVisible = false,
+        });
+        _hoverPoints = linePoints.ToList();
+
+        DrawHandles(handles, plotW, plotH);
+        DrawZoomIndicator(plotW, plotH);
+    }
+
+    /// <summary>
+    /// One shaded band per repetition of the cycled body, numbered "⟲ 2/4", with a dashed
+    /// divider between neighbouring cycles. Alternating opacity makes the repeats
+    /// countable even when they are only a few pixels wide.
+    /// </summary>
+    private void DrawCycleBands(List<Pass> passes, List<SegmentViewModel> segments, double plotH, Func<double, double> Xpx)
+    {
+        int cycles = Math.Max(1, CycleCount);
+        if (cycles <= 1)
+        {
+            return;
+        }
+
+        for (int c = 0; c < cycles; c++)
+        {
+            List<Pass> inCycle = passes.Where(p => p.Cycle == c).ToList();
+            if (inCycle.Count == 0)
+            {
+                continue;
+            }
+
+            double from = inCycle[0].StartMin;
+            Pass last = inCycle[^1];
+            double to = last.StartMin + Math.Max(0, segments[last.Index].DurationMinutes);
+            double x1 = Xpx(from), x2 = Xpx(to);
+            if (x2 <= x1)
+            {
+                continue;
+            }
+
+            var band = new Rectangle
+            {
+                Width = x2 - x1,
+                Height = plotH,
+                Fill = Accent,
+                Opacity = c % 2 == 0 ? 0.16 : 0.08,
+                IsHitTestVisible = false,
+            };
+            Canvas.SetLeft(band, x1);
+            Canvas.SetTop(band, PadTop);
+            PlotCanvas.Children.Add(band);
+
+            PlotCanvas.Children.Add(new Line
+            {
+                X1 = x1, Y1 = PadTop, X2 = x1, Y2 = PadTop + plotH,
+                Stroke = Accent, StrokeThickness = 1.5, Opacity = 0.7,
+                StrokeDashArray = new DoubleCollection { 4, 3 },
+                IsHitTestVisible = false,
+            });
+
+            // Only label a band that is wide enough to hold the text, so 30 cycles do not
+            // turn the top of the chart into overlapping captions.
+            if (x2 - x1 >= 52)
+            {
+                AddText($"⟲ {c + 1}/{cycles}", x1 + 4, PadTop + 2, Accent, 11);
+            }
+        }
+
+        // Closing divider at the very end of the last repetition.
+        List<Pass> lastCycle = passes.Where(p => p.Cycle == cycles - 1).ToList();
+        if (lastCycle.Count > 0)
+        {
+            Pass last = lastCycle[^1];
+            double endX = Xpx(last.StartMin + Math.Max(0, segments[last.Index].DurationMinutes));
+            PlotCanvas.Children.Add(new Line
+            {
+                X1 = endX, Y1 = PadTop, X2 = endX, Y2 = PadTop + plotH,
+                Stroke = Accent, StrokeThickness = 1.5, Opacity = 0.7,
+                StrokeDashArray = new DoubleCollection { 4, 3 },
+                IsHitTestVisible = false,
+            });
+        }
+    }
+
+    /// <summary>Faint warm column under every hold, so plateaus and ramps read apart at a
+    /// glance on a profile with many steps. Skipped once the columns get too thin to tell.</summary>
+    private void DrawHoldBands(List<Pass> passes, List<SegmentViewModel> segments, double plotH, Func<double, double> Xpx)
+    {
+        foreach (Pass pass in passes)
+        {
+            SegmentViewModel seg = segments[pass.Index];
+            if (seg.IsRamp)
+            {
+                continue;
+            }
+
+            double x1 = Xpx(pass.StartMin);
+            double x2 = Xpx(pass.StartMin + Math.Max(0, seg.DurationMinutes));
+            if (x2 - x1 < 2)
+            {
+                continue;
+            }
+
+            var band = new Rectangle
+            {
+                Width = x2 - x1, Height = plotH, Fill = Hold, Opacity = 0.10, IsHitTestVisible = false,
+            };
+            Canvas.SetLeft(band, x1);
+            Canvas.SetTop(band, PadTop);
+            PlotCanvas.Children.Add(band);
+        }
+    }
+
+    /// <summary>Horizontal value gridlines and vertical time gridlines, both on rounded steps.</summary>
+    private void DrawGrid(double plotW, double plotH, Func<double, double> Xpx)
+    {
         for (int i = 0; i <= 4; i++)
         {
             double frac = i / 4.0;
             double py = PadTop + plotH * frac;
             double yVal = _maxY - (_maxY - _minY) * frac;
-            PlotCanvas.Children.Add(new Line { X1 = PadLeft, Y1 = py, X2 = PadLeft + plotW, Y2 = py, Stroke = Line, StrokeThickness = 1, Opacity = 0.4 });
-            AddText($"{yVal:0.#}", 2, py - 8, Muted, 10);
+            PlotCanvas.Children.Add(new Line
+            {
+                X1 = PadLeft, Y1 = py, X2 = PadLeft + plotW, Y2 = py,
+                Stroke = Line, StrokeThickness = 1, Opacity = 0.4, IsHitTestVisible = false,
+            });
+            AddText($"{yVal:0.#} °C", 0, py - 8, Muted, 10, PadLeft - 6, TextAlignment.Right);
         }
 
-        // Build the profile polyline + handle positions (one per segment end).
-        double Xpx(double min) => PadLeft + (min - _window.Min) / _window.Span * plotW;
-        double Ypx(double t) => PadTop + (1 - (t - _minY) / (_maxY - _minY)) * plotH;
-
-        // Cycled-region band (drawn behind the profile line): shows which segments repeat
-        // and how many times. Only when a repeat count > 1 is set.
-        if (CycleCount > 1)
+        // A labelled time axis – the chart used to have none at all, which is most of why
+        // a long profile was impossible to read.
+        double step = NiceAxis.NiceTimeStep(_window.Span);
+        if (step <= 0)
         {
-            int cs = Math.Clamp(CycleStart, 0, segments.Count - 1);
-            int ce = Math.Clamp(CycleEnd, cs, segments.Count - 1);
-            double startMin = 0;
-            for (int i = 0; i < cs; i++)
-            {
-                startMin += Math.Max(0, segments[i].DurationMinutes);
-            }
-
-            double endMin = startMin;
-            for (int i = cs; i <= ce; i++)
-            {
-                endMin += Math.Max(0, segments[i].DurationMinutes);
-            }
-
-            double bx1 = Xpx(startMin), bx2 = Xpx(endMin);
-            var band = new Rectangle { Width = Math.Max(0, bx2 - bx1), Height = plotH, Fill = Accent, Opacity = 0.14 };
-            Canvas.SetLeft(band, bx1);
-            Canvas.SetTop(band, PadTop);
-            PlotCanvas.Children.Add(band);
-
-            foreach (double bx in new[] { bx1, bx2 })
-            {
-                PlotCanvas.Children.Add(new Line
-                {
-                    X1 = bx, Y1 = PadTop, X2 = bx, Y2 = PadTop + plotH,
-                    Stroke = Accent, StrokeThickness = 1.5, Opacity = 0.7,
-                    StrokeDashArray = new DoubleCollection { 4, 3 },
-                });
-            }
-
-            AddText($"⟲ cyklus ×{CycleCount}  (segmenty {cs + 1}–{ce + 1})",
-                bx1 + 4, PadTop + 2, Accent, 11);
+            return;
         }
 
-        var linePoints = new PointCollection { new(Xpx(0), Ypx(startTemp)) };
-        var handles = new List<(int index, double x, double y)>();
-        double cum = 0;
-
-        foreach ((SegmentViewModel seg, int idx) in segments.Select((s, i) => (s, i)))
+        for (double t = Math.Ceiling(_window.Min / step) * step; t <= _window.Max + 1e-9; t += step)
         {
-            double dur = Math.Max(0, seg.DurationMinutes);
-            if (seg.IsRamp)
+            double px = Xpx(t);
+            PlotCanvas.Children.Add(new Line
             {
-                cum += dur;
-                linePoints.Add(new Point(Xpx(cum), Ypx(seg.TargetTemperature)));
-            }
-            else
-            {
-                linePoints.Add(new Point(Xpx(cum), Ypx(seg.TargetTemperature)));
-                cum += dur;
-                linePoints.Add(new Point(Xpx(cum), Ypx(seg.TargetTemperature)));
-            }
-
-            handles.Add((idx, Xpx(cum), Ypx(seg.TargetTemperature)));
+                X1 = px, Y1 = PadTop, X2 = px, Y2 = PadTop + plotH,
+                Stroke = Line, StrokeThickness = 1, Opacity = 0.22,
+                StrokeDashArray = new DoubleCollection { 3, 4 },
+                IsHitTestVisible = false,
+            });
+            AddText(FormatMinutesShort(t), px - 34, PadTop + plotH + 3, Muted, 10, 68, TextAlignment.Center);
         }
+    }
 
-        PlotCanvas.Children.Add(new Polyline { Points = linePoints, Stroke = Accent, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round });
-        _hoverPoints = linePoints.ToList();
-
-        // Draggable handles.
+    /// <summary>
+    /// Draggable handles, thinned out so they never overlap: on a 60-segment profile only
+    /// the ones at least <see cref="MinHandleGapPx"/> apart are drawn and a hint tells the
+    /// operator to zoom in for the rest.
+    /// </summary>
+    private void DrawHandles(List<(int Index, double X, double Y)> handles, double plotW, double plotH)
+    {
+        double lastX = double.NegativeInfinity;
+        int hidden = 0;
         foreach ((int index, double x, double y) in handles)
         {
+            if (x < PadLeft - 8 || x > PadLeft + plotW + 8)
+            {
+                continue; // outside the zoomed window
+            }
+
+            if (x - lastX < MinHandleGapPx)
+            {
+                hidden++;
+                continue;
+            }
+
+            lastX = x;
             var dot = new Ellipse
             {
-                Width = 12,
-                Height = 12,
+                Width = 11,
+                Height = 11,
                 Fill = Accent,
                 Stroke = Brushes.White,
                 StrokeThickness = 1.5,
@@ -299,13 +512,17 @@ public partial class ProfileEditorChart : UserControl
                 Tag = index,
                 ToolTip = "Ťahaj zvisle = teplota, vodorovne = trvanie segmentu",
             };
-            Canvas.SetLeft(dot, x - 6);
-            Canvas.SetTop(dot, y - 6);
+            Canvas.SetLeft(dot, x - 5.5);
+            Canvas.SetTop(dot, y - 5.5);
             dot.MouseLeftButtonDown += Handle_MouseDown;
             PlotCanvas.Children.Add(dot);
         }
 
-        DrawZoomIndicator(plotW, plotH);
+        if (hidden > 0)
+        {
+            AddChip($"⚠ {hidden} bodov skrytých – priblíž (koliesko / ＋) a objavia sa",
+                PadLeft + 4, PadTop + plotH - 38, Muted);
+        }
     }
 
     /// <summary>Mini-map strip + chip telling which slice of the profile is shown.
@@ -317,24 +534,32 @@ public partial class ProfileEditorChart : UserControl
             return;
         }
 
-        double trackY = PadTop + plotH + 6;
         var track = new Rectangle
         {
-            Width = plotW, Height = 3, RadiusX = 1.5, RadiusY = 1.5, Fill = Line, Opacity = 0.7,
+            Width = plotW, Height = 6, RadiusX = 3, RadiusY = 3, Fill = Line, Opacity = 0.7,
+            Cursor = Cursors.Hand,
+            ToolTip = "Klikni alebo ťahaj – posunieš výrez po celom profile",
         };
         Canvas.SetLeft(track, PadLeft);
-        Canvas.SetTop(track, trackY);
+        Canvas.SetTop(track, _trackTop);
         PlotCanvas.Children.Add(track);
 
         var thumb = new Rectangle
         {
-            Width = Math.Max(6, _window.Span / _totalMin * plotW),
-            Height = 3, RadiusX = 1.5, RadiusY = 1.5, Fill = Accent,
+            Width = Math.Max(8, _window.Span / _totalMin * plotW),
+            Height = 6, RadiusX = 3, RadiusY = 3, Fill = Accent, IsHitTestVisible = false,
         };
         Canvas.SetLeft(thumb, PadLeft + _window.Min / _totalMin * plotW);
-        Canvas.SetTop(thumb, trackY);
+        Canvas.SetTop(thumb, _trackTop);
         PlotCanvas.Children.Add(thumb);
 
+        AddChip($"🔍 {_window.Zoom:0.#}× · {FormatMinutesShort(_window.Min)} – {FormatMinutesShort(_window.Max)}"
+              + " · dvojklik = celý profil",
+            PadLeft + 4, PadTop + plotH - 20, Muted);
+    }
+
+    private void AddChip(string text, double left, double top, Brush foreground)
+    {
         var chip = new Border
         {
             Background = TryFindResource("SurfaceBrush") as Brush ?? Brushes.Black,
@@ -343,21 +568,33 @@ public partial class ProfileEditorChart : UserControl
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(6, 1, 6, 1),
             Opacity = 0.92,
-            Child = new TextBlock
-            {
-                Text = $"🔍 {_window.Zoom:0.#}× · {FormatMinutesShort(_window.Min)} – {FormatMinutesShort(_window.Max)}"
-                     + " · dvojklik = celý profil",
-                Foreground = Muted,
-                FontSize = 10,
-            },
+            IsHitTestVisible = false,
+            Child = new TextBlock { Text = text, Foreground = foreground, FontSize = 10 },
         };
-        chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(chip, Math.Max(PadLeft, PadLeft + plotW - chip.DesiredSize.Width - 2));
-        Canvas.SetTop(chip, PadTop + 2);
+        Canvas.SetLeft(chip, left);
+        Canvas.SetTop(chip, top);
         PlotCanvas.Children.Add(chip);
     }
 
     // ===== Zoom / posun časovej osi =====
+
+    private void ZoomIn_Click(object sender, RoutedEventArgs e) => ZoomAroundCentre(ButtonZoomStep);
+
+    private void ZoomOut_Click(object sender, RoutedEventArgs e) => ZoomAroundCentre(1 / ButtonZoomStep);
+
+    private void ZoomReset_Click(object sender, RoutedEventArgs e) => ResetZoom();
+
+    /// <summary>Zoom from the buttons keeps the middle of the current window in place.</summary>
+    private void ZoomAroundCentre(double factor)
+    {
+        if (_totalMin <= 0 || !_viewport.Zoom(factor, 0.5, 0, _totalMin))
+        {
+            return;
+        }
+
+        ClearHoverOverlay();
+        Redraw();
+    }
 
     private void PlotCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -367,9 +604,27 @@ public partial class ProfileEditorChart : UserControl
             return;
         }
 
+        double notches = Math.Clamp(e.Delta / 120d, -3, 3);
+
+        // Shift + wheel scrolls along the profile instead of zooming – the usual gesture
+        // once a long profile is zoomed in and only a slice is visible.
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            if (!_window.IsZoomed ||
+                !_viewport.MoveTo(_window.Min - (notches * _window.Span * 0.25), 0, _totalMin))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            ClearHoverOverlay();
+            Redraw();
+            return;
+        }
+
         // Scale by how far the wheel actually turned: one notch is 120, a trackpad
         // sends much smaller deltas and would otherwise jump a full step each time.
-        double factor = Math.Pow(ZoomStep, Math.Clamp(e.Delta / 120d, -3, 3));
+        double factor = Math.Pow(ZoomStep, notches);
 
         // Zoom around the cursor, so it grabs the spot the operator is pointing at.
         double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
@@ -402,12 +657,43 @@ public partial class ProfileEditorChart : UserControl
             return;
         }
 
+        Point pos = e.GetPosition(PlotCanvas);
+        if (IsOnTrack(pos))
+        {
+            _isScrubbing = true;
+            ScrubTo(pos.X);
+            PlotCanvas.CaptureMouse();
+            ClearHoverOverlay();
+            e.Handled = true;
+            return;
+        }
+
         _isPanning = true;
-        _panStartMouse = e.GetPosition(PlotCanvas);
+        _panStartMouse = pos;
         _panStartViewStart = _window.Min;
         PlotCanvas.CaptureMouse();
         ClearHoverOverlay();
         e.Handled = true;
+    }
+
+    /// <summary>True while the cursor is over the mini-map strip under the plot.</summary>
+    private bool IsOnTrack(Point pos) =>
+        _window.IsZoomed && pos.Y >= _trackTop - 6 && pos.Y <= _trackTop + 12 &&
+        pos.X >= PadLeft && pos.X <= PadLeft + _plotW;
+
+    /// <summary>Centres the visible window on the point of the mini-map that was clicked.</summary>
+    private void ScrubTo(double x)
+    {
+        if (_plotW <= 0 || _totalMin <= 0)
+        {
+            return;
+        }
+
+        double fraction = Math.Clamp((x - PadLeft) / _plotW, 0, 1);
+        if (_viewport.MoveTo((fraction * _totalMin) - (_window.Span / 2), 0, _totalMin))
+        {
+            Redraw();
+        }
     }
 
     private void ResetZoom()
@@ -446,6 +732,12 @@ public partial class ProfileEditorChart : UserControl
 
     private void PlotCanvas_MouseMove(object sender, MouseEventArgs e)
     {
+        if (_isScrubbing)
+        {
+            ScrubTo(e.GetPosition(PlotCanvas).X);
+            return;
+        }
+
         if (_isPanning)
         {
             if (_pxPerMinute > 0)
@@ -502,6 +794,13 @@ public partial class ProfileEditorChart : UserControl
 
     private void PlotCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (_isScrubbing)
+        {
+            _isScrubbing = false;
+            PlotCanvas.ReleaseMouseCapture();
+            return;
+        }
+
         if (_isPanning)
         {
             _isPanning = false;
@@ -516,9 +815,19 @@ public partial class ProfileEditorChart : UserControl
         }
     }
 
-    private void AddText(string text, double left, double top, Brush brush, double size)
+    private void AddText(
+        string text, double left, double top, Brush brush, double size,
+        double? width = null, TextAlignment align = TextAlignment.Left)
     {
-        var tb = new TextBlock { Text = text, Foreground = brush, FontSize = size };
+        var tb = new TextBlock
+        {
+            Text = text, Foreground = brush, FontSize = size, TextAlignment = align, IsHitTestVisible = false,
+        };
+        if (width is { } w)
+        {
+            tb.Width = w;
+        }
+
         Canvas.SetLeft(tb, left);
         Canvas.SetTop(tb, top);
         PlotCanvas.Children.Add(tb);
@@ -552,9 +861,10 @@ public partial class ProfileEditorChart : UserControl
             X1 = mx, Y1 = PadTop, X2 = mx, Y2 = PadTop + _plotH,
             Stroke = accent, StrokeThickness = 1, Opacity = 0.6,
             StrokeDashArray = new DoubleCollection { 3, 3 },
+            IsHitTestVisible = false,
         });
 
-        var dot = new Ellipse { Width = 8, Height = 8, Fill = accent, Stroke = Brushes.White, StrokeThickness = 1 };
+        var dot = new Ellipse { Width = 8, Height = 8, Fill = accent, Stroke = Brushes.White, StrokeThickness = 1, IsHitTestVisible = false };
         Canvas.SetLeft(dot, mx - 4);
         Canvas.SetTop(dot, py - 4);
         AddHoverOverlay(dot);
@@ -564,6 +874,7 @@ public partial class ProfileEditorChart : UserControl
             Background = accent,
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(6, 2, 6, 2),
+            IsHitTestVisible = false,
             Child = new TextBlock
             {
                 Text = $"{temperature:0.0} °C  ·  {FormatMinutesShort(minutes)}",

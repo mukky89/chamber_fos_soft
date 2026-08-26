@@ -24,9 +24,12 @@ public partial class ChartView : UserControl
     private const double PadLeft = 46;
     private const double PadRight = 12;
     private const double PadTop = 10;
-    private const double PadBottom = 22;
+    /// <summary>Room under the plot for the time labels and the draggable mini-map strip.</summary>
+    private const double PadBottom = 30;
     /// <summary>Zoom per full wheel notch (120 units); partial deltas scale smoothly.</summary>
     private const double ZoomStep = 1.4;
+    /// <summary>One press of ＋ / －.</summary>
+    private const double ButtonZoomStep = 1.8;
 
     // Plot transform captured on the last Redraw, so mouse handlers can map a
     // cursor position back to a data point (hover read-out).
@@ -44,6 +47,11 @@ public partial class ChartView : UserControl
     private bool _isPanning;
     private Point _panStartMouse;
     private double _panStartMin;
+
+    // Mini-map strip under the plot: clicking or dragging it jumps straight to that part
+    // of the recording, instead of panning across the whole range.
+    private double _trackTop;
+    private bool _isScrubbing;
 
     public ChartView()
     {
@@ -71,6 +79,34 @@ public partial class ChartView : UserControl
     private void OnZoomClick(object sender, RoutedEventArgs e)
     {
         if (AllowZoom) ChartZoomWindow.Show(this, ChartTitle);
+    }
+
+    private void OnZoomInClick(object sender, RoutedEventArgs e) => ZoomAroundCentre(ButtonZoomStep);
+
+    private void OnZoomOutClick(object sender, RoutedEventArgs e) => ZoomAroundCentre(1 / ButtonZoomStep);
+
+    private void OnZoomResetClick(object sender, RoutedEventArgs e)
+    {
+        if (!_viewport.IsZoomed)
+        {
+            return;
+        }
+
+        _viewport.Reset();
+        ClearOverlay();
+        Redraw();
+    }
+
+    /// <summary>Zoom from the buttons keeps the middle of the current window in place.</summary>
+    private void ZoomAroundCentre(double factor)
+    {
+        if (!_hasPlot || !_viewport.Zoom(factor, 0.5, _fullMinX, _fullMaxX))
+        {
+            return;
+        }
+
+        ClearOverlay();
+        Redraw();
     }
 
     public static readonly DependencyProperty SeriesProperty = DependencyProperty.Register(
@@ -246,25 +282,47 @@ public partial class ChartView : UserControl
         _hoverSeries = series.FirstOrDefault(s => !s.Dashed) ?? series[0];
         _hasPlot = true;
 
-        // Cycled-region band (behind the series): shows what repeats and how many times.
+        // Cycled region (behind the series). The series already contains every repetition,
+        // so the band is split into CycleCount equal slices with a divider and a "2/4"
+        // caption on each – one flat band across the lot made the repeats impossible to
+        // tell apart, which is exactly what a cycled profile needs to show.
         if (CycleCount > 1 && !double.IsNaN(CycleStartX) && !double.IsNaN(CycleEndX) && CycleEndX > CycleStartX)
         {
-            double bx1 = ToPx(Math.Clamp(CycleStartX, minX, maxX));
-            double bx2 = ToPx(Math.Clamp(CycleEndX, minX, maxX));
-            var band = new System.Windows.Shapes.Rectangle
+            double sliceSpan = (CycleEndX - CycleStartX) / CycleCount;
+            for (int c = 0; c < CycleCount; c++)
             {
-                Width = Math.Max(0, bx2 - bx1), Height = plotH, Fill = AccentBrush, Opacity = 0.14,
-            };
-            Canvas.SetLeft(band, bx1);
-            Canvas.SetTop(band, PadTop);
-            PlotCanvas.Children.Add(band);
+                double from = Math.Clamp(CycleStartX + (c * sliceSpan), minX, maxX);
+                double to = Math.Clamp(CycleStartX + ((c + 1) * sliceSpan), minX, maxX);
+                double sx1 = ToPx(from);
+                double sx2 = ToPx(to);
+                if (sx2 - sx1 <= 0)
+                {
+                    continue;
+                }
 
-            foreach (double bx in new[] { bx1, bx2 })
-            {
-                AddLine(bx, PadTop, bx, PadTop + plotH, AccentBrush, 1.5, dashed: true);
+                var band = new System.Windows.Shapes.Rectangle
+                {
+                    Width = sx2 - sx1,
+                    Height = plotH,
+                    // Alternating tint keeps the repetitions countable even when each is
+                    // only a few pixels wide.
+                    Fill = AccentBrush,
+                    Opacity = c % 2 == 0 ? 0.16 : 0.08,
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(band, sx1);
+                Canvas.SetTop(band, PadTop);
+                PlotCanvas.Children.Add(band);
+
+                AddLine(sx1, PadTop, sx1, PadTop + plotH, AccentBrush, 1.5, dashed: true);
+                if (sx2 - sx1 >= 44)
+                {
+                    AddText($"⟲ {c + 1}/{CycleCount}", sx1 + 4, PadTop + 2, AccentBrush, 11);
+                }
             }
 
-            AddText($"⟲ cyklus ×{CycleCount}", bx1 + 4, PadTop + 2, AccentBrush, 11);
+            AddLine(ToPx(Math.Clamp(CycleEndX, minX, maxX)), PadTop,
+                ToPx(Math.Clamp(CycleEndX, minX, maxX)), PadTop + plotH, AccentBrush, 1.5, dashed: true);
         }
 
         // Horizontal gridlines + Y labels.
@@ -278,8 +336,9 @@ public partial class ChartView : UserControl
         }
 
         // X axis labels (min / max) with an hours/days read-out for longer spans.
-        AddText(FormatMinutes(minX), PadLeft, PadTop + plotH + 4, MutedBrush, 10);
-        AddText(FormatMinutes(maxX), PadLeft + plotW - 150, PadTop + plotH + 4, MutedBrush, 10, 150, TextAlignment.Right);
+        _trackTop = PadTop + plotH + 17;
+        AddText(FormatMinutes(minX), PadLeft, PadTop + plotH + 3, MutedBrush, 10);
+        AddText(FormatMinutes(maxX), PadLeft + plotW - 150, PadTop + plotH + 3, MutedBrush, 10, 150, TextAlignment.Right);
 
         // Hold ("výdrž") bands – shaded time columns under every flat sub-segment
         // of the profile, so ramps (sloped, un-shaded) and holds read apart at a
@@ -418,24 +477,25 @@ public partial class ChartView : UserControl
             return;
         }
 
-        double trackY = PadTop + plotH + 5;
         var track = new Rectangle
         {
-            Width = plotW, Height = 5, RadiusX = 2.5, RadiusY = 2.5,
-            Fill = GridBrush, Opacity = 0.7, IsHitTestVisible = false,
+            Width = plotW, Height = 6, RadiusX = 3, RadiusY = 3,
+            Fill = GridBrush, Opacity = 0.7,
+            Cursor = Cursors.Hand,
+            ToolTip = "Klikni alebo ťahaj – posunieš výrez po celom rozsahu",
         };
         Canvas.SetLeft(track, PadLeft);
-        Canvas.SetTop(track, trackY);
+        Canvas.SetTop(track, _trackTop);
         PlotCanvas.Children.Add(track);
 
         var thumb = new Rectangle
         {
             Width = Math.Max(8, _window.Span / full * plotW),
-            Height = 5, RadiusX = 2.5, RadiusY = 2.5,
+            Height = 6, RadiusX = 3, RadiusY = 3,
             Fill = AccentBrush, IsHitTestVisible = false,
         };
         Canvas.SetLeft(thumb, PadLeft + (_window.Min - _fullMinX) / full * plotW);
-        Canvas.SetTop(thumb, trackY);
+        Canvas.SetTop(thumb, _trackTop);
         PlotCanvas.Children.Add(thumb);
 
         var chip = new Border
@@ -455,7 +515,7 @@ public partial class ChartView : UserControl
             },
         };
         chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(chip, Math.Max(PadLeft, PadLeft + plotW - chip.DesiredSize.Width - 2));
+        Canvas.SetLeft(chip, PadLeft + 2);
         Canvas.SetTop(chip, PadTop + plotH - chip.DesiredSize.Height - 2);
         PlotCanvas.Children.Add(chip);
     }
@@ -473,6 +533,23 @@ public partial class ChartView : UserControl
         // Scale by how far the wheel actually turned: one notch is 120, a trackpad
         // sends much smaller deltas and would otherwise jump a full step each time.
         double notches = Math.Clamp(e.Delta / 120d, -3, 3);
+
+        // Shift + wheel scrolls along the time axis instead of zooming – the usual gesture
+        // once only a slice of a long recording is visible.
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            if (!_window.IsZoomed ||
+                !_viewport.MoveTo(_window.Min - (notches * _window.Span * 0.25), _fullMinX, _fullMaxX))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            ClearOverlay();
+            Redraw();
+            return;
+        }
+
         double factor = Math.Pow(ZoomStep, notches);
 
         double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
@@ -508,16 +585,55 @@ public partial class ChartView : UserControl
             return;
         }
 
+        Point pos = e.GetPosition(PlotCanvas);
+        if (IsOnTrack(pos))
+        {
+            _isScrubbing = true;
+            ScrubTo(pos.X);
+            PlotCanvas.CaptureMouse();
+            ClearOverlay();
+            e.Handled = true;
+            return;
+        }
+
         _isPanning = true;
-        _panStartMouse = e.GetPosition(PlotCanvas);
+        _panStartMouse = pos;
         _panStartMin = _window.Min;
         PlotCanvas.CaptureMouse();
         ClearOverlay();
         e.Handled = true;
     }
 
+    /// <summary>True while the cursor is over the mini-map strip under the plot.</summary>
+    private bool IsOnTrack(Point pos) =>
+        _window.IsZoomed && pos.Y >= _trackTop - 6 && pos.Y <= _trackTop + 12 &&
+        pos.X >= PadLeft && pos.X <= PadLeft + _plotW;
+
+    /// <summary>Centres the visible window on the point of the mini-map that was clicked.</summary>
+    private void ScrubTo(double x)
+    {
+        if (_plotW <= 0 || _fullMaxX <= _fullMinX)
+        {
+            return;
+        }
+
+        double fraction = Math.Clamp((x - PadLeft) / _plotW, 0, 1);
+        double centre = _fullMinX + (fraction * (_fullMaxX - _fullMinX));
+        if (_viewport.MoveTo(centre - (_window.Span / 2), _fullMinX, _fullMaxX))
+        {
+            Redraw();
+        }
+    }
+
     private void OnPlotMouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (_isScrubbing)
+        {
+            _isScrubbing = false;
+            PlotCanvas.ReleaseMouseCapture();
+            return;
+        }
+
         if (!_isPanning)
         {
             return;
@@ -577,6 +693,12 @@ public partial class ChartView : UserControl
 
     private void OnPlotMouseMove(object sender, MouseEventArgs e)
     {
+        if (_isScrubbing)
+        {
+            ScrubTo(e.GetPosition(PlotCanvas).X);
+            return;
+        }
+
         if (_isPanning)
         {
             if (_plotW > 0 && _window.Span > 0)

@@ -79,6 +79,42 @@ public static class NiceAxis
         return nice * magnitude;
     }
 
+    /// <summary>
+    /// Steps a time axis is comfortably read in: whole minutes, quarters, halves, hours,
+    /// then multiples of an hour up to whole days and weeks. A purely decimal step
+    /// (<see cref="NiceStep"/>) puts gridlines at 1000 or 2000 minutes, which nobody
+    /// converts to hours in their head.
+    /// </summary>
+    private static readonly double[] TimeSteps =
+    {
+        1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 360, 480, 720, 1440, 2880, 4320, 10080,
+    };
+
+    /// <summary>
+    /// Gridline step (minutes) for a time axis spanning <paramref name="spanMinutes"/>,
+    /// aiming for roughly <paramref name="targetTicks"/> labels.
+    /// </summary>
+    public static double NiceTimeStep(double spanMinutes, int targetTicks = 6)
+    {
+        if (!double.IsFinite(spanMinutes) || spanMinutes <= 0)
+        {
+            return 1;
+        }
+
+        double raw = spanMinutes / Math.Max(1, targetTicks);
+        foreach (double step in TimeSteps)
+        {
+            if (step >= raw)
+            {
+                return step;
+            }
+        }
+
+        // Longer than a few weeks per gridline – fall back to the decimal ladder, rounded
+        // to whole days so the labels stay on day boundaries.
+        return Math.Max(1440, Math.Round(NiceStep(raw) / 1440) * 1440);
+    }
+
     /// <summary>The next coarser step in the same series.</summary>
     public static double NextNiceStep(double step)
     {

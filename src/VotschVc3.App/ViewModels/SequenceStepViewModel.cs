@@ -29,4 +29,34 @@ public sealed class SequenceStepViewModel : ObservableObject
         get => _plateauMinutes;
         set => SetProperty(ref _plateauMinutes, Math.Max(0, value));
     }
+
+    private int _number = 1;
+    /// <summary>
+    /// The point's 1-based position in the sequence, kept up to date by
+    /// <see cref="QuickProfileViewModel"/> whenever points are added, removed or
+    /// reordered. Bound instead of <c>ItemsControl.AlternationIndex</c>, which WPF does
+    /// not recompute after a <see cref="System.Collections.ObjectModel.ObservableCollection{T}.Move"/> –
+    /// the numbers then stayed put and the reorder buttons looked as if they did nothing.
+    /// </summary>
+    public int Number
+    {
+        get => _number;
+        internal set => SetProperty(ref _number, value);
+    }
+
+    private bool _canMoveUp;
+    /// <summary>False for the first point, so its "hore" button is disabled instead of silently doing nothing.</summary>
+    public bool CanMoveUp
+    {
+        get => _canMoveUp;
+        internal set => SetProperty(ref _canMoveUp, value);
+    }
+
+    private bool _canMoveDown;
+    /// <summary>False for the last point (see <see cref="CanMoveUp"/>).</summary>
+    public bool CanMoveDown
+    {
+        get => _canMoveDown;
+        internal set => SetProperty(ref _canMoveDown, value);
+    }
 }
