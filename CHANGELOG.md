@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.57.0] – 2026-08-26
+
+### Pridané
+- **Priblíženie grafu kolieskom myši.** V náhľade profilu (rýchly profil, knižnica
+  profilov aj detail komory) koliesko myši približuje časovú os okolo kurzora –
+  dlhé profily už nie sú stlačené do pár pixelov na segment. Keď je graf
+  priblížený, **ťahaním prázdnej plochy** sa posúvaš po profile a **dvojklik**
+  vráti celý profil. Aktuálny výrez ukazuje mini-mapa pod grafom a štítok
+  „🔍 2,4× · 12 min – 45 min".
+- Ťahanie bodov (teplota/trvanie) aj odčítanie hodnôt pod kurzorom fungujú
+  rovnako aj v priblíženom pohľade. Keď už nie je čo približovať, koliesko
+  normálne roluje stránku pod grafom.
+
 ## [1.56.1] – 2026-08-26
 
 ### Opravené

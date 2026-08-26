@@ -377,11 +377,14 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                    <WrapPanel Grid.Row="0">
                         <TextBlock Text="Náhľad profilu — ťahaj body myšou (zvisle = teplota, vodorovne = trvanie)" Style="{StaticResource Heading}" />
                         <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}"
                                    VerticalAlignment="Center" Margin="12,0,0,0" />
-                    </StackPanel>
+                        <TextBlock Text="· koliesko myši = priblíženie · ťahanie = posun · dvojklik = celý profil"
+                                   Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   ToolTip="Koliesko myši približuje časovú os okolo kurzora. Keď je graf priblížený, ťahaním prázdnej plochy sa posúvaš po profile a dvojklik vráti celý profil." />
+                    </WrapPanel>
 
                     <views:ProfileEditorChart Grid.Row="1" Segments="{Binding Segments}" MinHeight="240" Margin="0,8,0,8"
                                      CycleStart="{Binding CycleBandStart}" CycleEnd="{Binding CycleBandEnd}"

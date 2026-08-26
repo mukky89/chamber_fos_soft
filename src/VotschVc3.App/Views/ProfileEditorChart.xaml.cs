@@ -14,6 +14,11 @@ namespace VotschVc3.App.Views;
 /// lets the user drag the handle of each segment: vertically to change its
 /// target temperature, horizontally to resize its duration (stretch/shrink the
 /// ramp or plateau). Both are editable in the grid too.
+///
+/// The time (X) axis can be zoomed with the mouse wheel around the cursor;
+/// while zoomed in, dragging the empty plot area pans and a double-click resets
+/// the view. Long profiles (many hours) are otherwise squeezed into a few pixels
+/// per segment, which makes both reading and handle dragging impossible.
 /// </summary>
 public partial class ProfileEditorChart : UserControl
 {
@@ -22,6 +27,11 @@ public partial class ProfileEditorChart : UserControl
     private const double PadTop = 12;
     private const double PadBottom = 22;
 
+    /// <summary>Never zoom past a window this short – below it the handles overlap.</summary>
+    private const double MinVisibleMinutes = 1;
+    private const double MaxZoomFactor = 200;
+    private const double ZoomStep = 1.25;
+
     private double _minY;
     private double _maxY;
     private double _pxPerMinute = 1;
@@ -29,6 +39,16 @@ public partial class ProfileEditorChart : UserControl
     private Point _dragStartMouse;
     private double _dragStartDuration;
     private double _dragPxPerMinute = 1;
+
+    // Time-axis viewport: 1 = whole profile, higher = zoomed in on the window that
+    // starts at _viewStartMin. Both are clamped in Redraw against the real total.
+    private double _zoom = 1;
+    private double _viewStartMin;
+    private double _totalMin = 1;
+    private double _visibleMin = 1;
+    private bool _isPanning;
+    private Point _panStartMouse;
+    private double _panStartViewStart;
 
     // Plot transform + curve captured on the last Redraw, so the hover read-out can
     // map a cursor position back to a temperature/time without recomputing the chart.
@@ -99,6 +119,9 @@ public partial class ProfileEditorChart : UserControl
             newCol.CollectionChanged += chart.OnCollectionChanged;
         }
 
+        // A different profile is a different time axis – start from the full view.
+        chart._zoom = 1;
+        chart._viewStartMin = 0;
         chart.HookItems();
         chart.Redraw();
     }
@@ -178,9 +201,15 @@ public partial class ProfileEditorChart : UserControl
 
         double plotW = w - PadLeft - PadRight;
         double plotH = h - PadTop - PadBottom;
-        _pxPerMinute = plotW / totalMin;
+
+        _totalMin = totalMin;
+        _zoom = Math.Clamp(_zoom, 1, MaxZoomFor(totalMin));
+        _visibleMin = totalMin / _zoom;
+        _viewStartMin = Math.Clamp(_viewStartMin, 0, Math.Max(0, totalMin - _visibleMin));
+        _pxPerMinute = plotW / _visibleMin;
         _plotW = plotW;
         _plotH = plotH;
+        PlotCanvas.Cursor = _zoom > 1.0001 ? Cursors.SizeWE : Cursors.Arrow;
 
         // Gridlines + Y labels.
         for (int i = 0; i <= 4; i++)
@@ -193,7 +222,7 @@ public partial class ProfileEditorChart : UserControl
         }
 
         // Build the profile polyline + handle positions (one per segment end).
-        double Xpx(double min) => PadLeft + min / totalMin * plotW;
+        double Xpx(double min) => PadLeft + (min - _viewStartMin) / _visibleMin * plotW;
         double Ypx(double t) => PadTop + (1 - (t - _minY) / (_maxY - _minY)) * plotH;
 
         // Cycled-region band (drawn behind the profile line): shows which segments repeat
@@ -278,6 +307,131 @@ public partial class ProfileEditorChart : UserControl
             dot.MouseLeftButtonDown += Handle_MouseDown;
             PlotCanvas.Children.Add(dot);
         }
+
+        DrawZoomIndicator(plotW, plotH);
+    }
+
+    private static double MaxZoomFor(double totalMinutes) =>
+        Math.Clamp(totalMinutes / MinVisibleMinutes, 1, MaxZoomFactor);
+
+    /// <summary>Mini-map strip + chip telling which slice of the profile is shown.
+    /// Nothing is drawn at 1x – the chart then shows the whole profile as before.</summary>
+    private void DrawZoomIndicator(double plotW, double plotH)
+    {
+        if (_zoom <= 1.0001 || plotW <= 0 || _totalMin <= 0)
+        {
+            return;
+        }
+
+        double trackY = PadTop + plotH + 6;
+        var track = new Rectangle
+        {
+            Width = plotW, Height = 3, RadiusX = 1.5, RadiusY = 1.5, Fill = Line, Opacity = 0.7,
+        };
+        Canvas.SetLeft(track, PadLeft);
+        Canvas.SetTop(track, trackY);
+        PlotCanvas.Children.Add(track);
+
+        var thumb = new Rectangle
+        {
+            Width = Math.Max(6, _visibleMin / _totalMin * plotW),
+            Height = 3, RadiusX = 1.5, RadiusY = 1.5, Fill = Accent,
+        };
+        Canvas.SetLeft(thumb, PadLeft + _viewStartMin / _totalMin * plotW);
+        Canvas.SetTop(thumb, trackY);
+        PlotCanvas.Children.Add(thumb);
+
+        var chip = new Border
+        {
+            Background = TryFindResource("SurfaceBrush") as Brush ?? Brushes.Black,
+            BorderBrush = Line,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(6, 1, 6, 1),
+            Opacity = 0.92,
+            Child = new TextBlock
+            {
+                Text = $"🔍 {_zoom:0.#}× · {FormatMinutesShort(_viewStartMin)} – {FormatMinutesShort(_viewStartMin + _visibleMin)}"
+                     + " · dvojklik = celý profil",
+                Foreground = Muted,
+                FontSize = 10,
+            },
+        };
+        chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(chip, Math.Max(PadLeft, PadLeft + plotW - chip.DesiredSize.Width - 2));
+        Canvas.SetTop(chip, PadTop + 2);
+        PlotCanvas.Children.Add(chip);
+    }
+
+    // ===== Zoom / posun časovej osi =====
+
+    private void PlotCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        double plotW = PlotCanvas.ActualWidth - PadLeft - PadRight;
+        if (plotW <= 0 || _totalMin <= 0 || _pxPerMinute <= 0)
+        {
+            return;
+        }
+
+        double newZoom = Math.Clamp(
+            _zoom * (e.Delta > 0 ? ZoomStep : 1 / ZoomStep), 1, MaxZoomFor(_totalMin));
+        if (Math.Abs(newZoom - _zoom) < 0.0001)
+        {
+            // Nothing left to zoom (already at full view / at the limit) – let the
+            // wheel bubble so the page underneath scrolls as usual.
+            return;
+        }
+
+        // A wheel that both zooms and scrolls the surrounding page is unusable.
+        e.Handled = true;
+
+        // Keep the minute under the cursor in place, so zooming feels like it grabs
+        // the spot the operator is pointing at.
+        double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
+        double anchorMinutes = _viewStartMin + (cursorX - PadLeft) / _pxPerMinute;
+        double newVisible = _totalMin / newZoom;
+
+        _zoom = newZoom;
+        _viewStartMin = anchorMinutes - (cursorX - PadLeft) / plotW * newVisible;
+        ClearHoverOverlay();
+        Redraw();
+    }
+
+    private void PlotCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // Handles have their own MouseLeftButtonDown and mark the event handled,
+        // so panning only ever starts on the empty plot area.
+        if (e.ClickCount == 2)
+        {
+            ResetZoom();
+            e.Handled = true;
+            return;
+        }
+
+        if (_zoom <= 1.0001 || _dragIndex >= 0)
+        {
+            return;
+        }
+
+        _isPanning = true;
+        _panStartMouse = e.GetPosition(PlotCanvas);
+        _panStartViewStart = _viewStartMin;
+        PlotCanvas.CaptureMouse();
+        ClearHoverOverlay();
+        e.Handled = true;
+    }
+
+    private void ResetZoom()
+    {
+        if (_zoom <= 1.0001 && _viewStartMin == 0)
+        {
+            return;
+        }
+
+        _zoom = 1;
+        _viewStartMin = 0;
+        ClearHoverOverlay();
+        Redraw();
     }
 
     private void Handle_MouseDown(object sender, MouseButtonEventArgs e)
@@ -304,6 +458,18 @@ public partial class ProfileEditorChart : UserControl
 
     private void PlotCanvas_MouseMove(object sender, MouseEventArgs e)
     {
+        if (_isPanning)
+        {
+            if (_pxPerMinute > 0)
+            {
+                _viewStartMin = _panStartViewStart
+                    - (e.GetPosition(PlotCanvas).X - _panStartMouse.X) / _pxPerMinute;
+                Redraw();
+            }
+
+            return;
+        }
+
         if (_dragIndex < 0)
         {
             UpdateHover(e.GetPosition(PlotCanvas));
@@ -345,6 +511,13 @@ public partial class ProfileEditorChart : UserControl
 
     private void PlotCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (_isPanning)
+        {
+            _isPanning = false;
+            PlotCanvas.ReleaseMouseCapture();
+            return;
+        }
+
         if (_dragIndex >= 0)
         {
             _dragIndex = -1;
@@ -379,7 +552,7 @@ public partial class ProfileEditorChart : UserControl
             return;
         }
 
-        double minutes = (mx - left) / _pxPerMinute;
+        double minutes = _viewStartMin + (mx - left) / _pxPerMinute;
         double temperature = _maxY - (py - PadTop) / _plotH * (_maxY - _minY);
 
         Brush accent = Accent;

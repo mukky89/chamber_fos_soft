@@ -4,6 +4,7 @@
     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="6">
         <Canvas x:Name="PlotCanvas" ClipToBounds="True" Background="Transparent"
                 MouseMove="PlotCanvas_MouseMove" MouseLeftButtonUp="PlotCanvas_MouseUp"
+                MouseLeftButtonDown="PlotCanvas_MouseDown" MouseWheel="PlotCanvas_MouseWheel"
                 MouseLeave="PlotCanvas_MouseLeave" />
     </Border>
 </UserControl>
