@@ -103,7 +103,19 @@ public sealed class CalibrationSensorMapping
     public string Channel { get; set; } = string.Empty;
     public int? Core1 { get; set; }
     public int? Core2 { get; set; }
+
+    /// <summary>
+    /// Production FBG sensor serial number entered/scanned by the operator. PeakLogger
+    /// does not provide this value; the legacy Auto_calibrator pairs it to channel/peaks.
+    /// </summary>
     public string SerialNumber { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Serial number from PeakLogger response <c>device.deviceSN</c> (for example a
+    /// Hyperion interrogator SN). This identifies the API source, not the FBG product.
+    /// </summary>
+    public string PeakLoggerDeviceSerialNumber { get; set; } = string.Empty;
+
     public string PeakId { get; set; } = string.Empty;
     public int PeakIndex { get; set; }
     public double? NominalWavelengthNm { get; set; }
@@ -115,8 +127,18 @@ public sealed class CalibrationSensorMapping
     public string Order { get; set; } = string.Empty;
     public TimeSpan? StabilizationTimeoutOverride { get; set; }
 
+    /// <summary>Production identity used in results and history.</summary>
     [JsonIgnore]
     public string Identity => $"{SerialNumber}|{Channel}|{PeakId}";
+
+    /// <summary>PeakLogger-side identity used to find the live measurement.</summary>
+    [JsonIgnore]
+    public string SourceDeviceSerialNumber => string.IsNullOrWhiteSpace(PeakLoggerDeviceSerialNumber)
+        ? SerialNumber
+        : PeakLoggerDeviceSerialNumber;
+
+    [JsonIgnore]
+    public string SourceIdentity => $"{SourceDeviceSerialNumber}|{Channel}|{PeakId}";
 }
 
 public sealed class CalibrationSetup
@@ -126,6 +148,10 @@ public sealed class CalibrationSetup
     public CalibrationProfileSettings Settings { get; set; } = new();
 }
 
+/// <summary>
+/// One peak exposed by PeakLogger. <see cref="PeakLoggerSensor.SerialNumber"/> is the
+/// PeakLogger device/interrogator serial number, not the production FBG sensor SN.
+/// </summary>
 public sealed record PeakLoggerPeak(
     string PeakId,
     int PeakIndex,
@@ -137,6 +163,10 @@ public sealed record PeakLoggerSensor(
     string Channel,
     IReadOnlyList<PeakLoggerPeak> Peaks);
 
+/// <summary>
+/// Live PeakLogger measurement. <see cref="SerialNumber"/> is device.deviceSN from the
+/// API and is mapped to a production FBG SN by <see cref="CalibrationSensorMapping"/>.
+/// </summary>
 public sealed record PeakLoggerMeasurement(
     DateTimeOffset Timestamp,
     string SerialNumber,
@@ -156,6 +186,7 @@ public sealed class CalibrationRawSample
     public double? ReferenceTemperatureC { get; set; }
     public DateTimeOffset Timestamp { get; set; }
     public string SerialNumber { get; set; } = string.Empty;
+    public string PeakLoggerDeviceSerialNumber { get; set; } = string.Empty;
     public string Channel { get; set; } = string.Empty;
     public string PeakId { get; set; } = string.Empty;
     public int PeakIndex { get; set; }
@@ -166,6 +197,7 @@ public sealed class CalibrationRawSample
 public sealed class CalibrationMeasurementResult
 {
     public string SerialNumber { get; set; } = string.Empty;
+    public string PeakLoggerDeviceSerialNumber { get; set; } = string.Empty;
     public string Channel { get; set; } = string.Empty;
     public string PeakId { get; set; } = string.Empty;
     public int PeakIndex { get; set; }
