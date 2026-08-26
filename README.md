@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.56.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.56.1** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
@@ -120,6 +120,15 @@ Alebo otvor `VotschVc3.sln` vo Visual Studio 2022 a spusti projekt
 
 > Jadro (`VotschVc3.Core`) a testy sa dajú zostaviť aj na Linuxe/macOS; samotná
 > WPF aplikácia `VotschVc3.App` sa zostaví a spustí len na Windowse.
+
+> **Bežiaci Bridge Agent a build.** `VotschVc3.Agent.exe` beží na pozadí ako
+> samostatný proces, takže si drží zamknutý vlastný `.exe`/`.dll` a build by inak
+> skončil chybou *„The process cannot access the file … because it is being used
+> by another process"*. Build preto pred prepísaním výstupu sám ukončí agenta —
+> ale **iba tú inštanciu, ktorá beží presne z daného build výstupu**
+> (`build/Stop-BridgeAgent.ps1`). Agenta nainštalovaného inde (produkčná
+> inštalácia, naplánovaná úloha z iného priečinka) nechá bežať. Po builde ho
+> znova spustíš tlačidlom **Spustiť Bridge** v aplikácii.
 
 ---
 

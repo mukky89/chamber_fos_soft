@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.56.1] – 2026-08-26
+
+### Opravené
+- **Build už nezlyháva na zamknutom `VotschVc3.Agent.exe`.** Bridge Agent beží ako
+  samostatný proces na pozadí, takže si držal zamknutý vlastný `.exe`/`.dll`
+  a `dotnet build` / F5 končil chybou *„The process cannot access the file …
+  because it is being used by another process"* pri kopírovaní do
+  `bin\…\LabBridge`. Oba projekty (`VotschVc3.App` aj `VotschVc3.Agent`) teraz
+  pred prepísaním výstupu ukončia bežiaceho agenta cez
+  `build/Stop-BridgeAgent.ps1`.
+- Skript zámerne ukončí **iba proces spustený presne z daného build výstupu** –
+  agenta nainštalovaného inde (produkčná inštalácia, naplánovaná úloha z iného
+  priečinka) nechá bežať. Ak sa proces ukončiť nedá, iba to ohlási a build
+  pokračuje ďalej.
+
 ## [1.56.0] – 2026-08-25
 
 ### Opravené

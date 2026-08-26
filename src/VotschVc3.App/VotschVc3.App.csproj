@@ -17,7 +17,7 @@
          UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
          to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.56.0</Version>
+    <Version>1.56.1</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -35,6 +35,15 @@
     <!-- F5/build of the desktop app must also produce the separate Bridge Agent. -->
     <ProjectReference Include="..\VotschVc3.Agent\VotschVc3.Agent.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- Bridge Agent beží ako samostatný proces na pozadí, takže si drží zamknutý
+       vlastný EXE/DLL v LabBridge. Pred kopírovaním ukonči iba tú inštanciu, ktorá
+       beží presne z tohto build výstupu; agenta nainštalovaného inde nechaj bežať. -->
+  <Target Name="StopRunningBridgeAgent" BeforeTargets="CopyBridgeAgent"
+          Condition="'$(OS)' == 'Windows_NT' AND Exists('$(OutDir)LabBridge\VotschVc3.Agent.exe')">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\build\Stop-BridgeAgent.ps1&quot; -Path &quot;$(OutDir)LabBridge\VotschVc3.Agent.exe&quot;"
+          ContinueOnError="true" StandardOutputImportance="high" />
+  </Target>
 
   <!-- ProjectReference makes sure the Agent is built. Copy its complete output
        (DLL, host EXE, runtimeconfig, deps and package files) into an isolated

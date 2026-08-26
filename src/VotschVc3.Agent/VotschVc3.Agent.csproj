@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>1.56.0</Version>
+    <Version>1.56.1</Version>
     <Product>Lab Control Bridge</Product>
     <!-- The desktop app references this project (build-only) and publishes itself
          framework-dependent. A RID passed on the publish command line flows into this
@@ -22,4 +22,12 @@
   <ItemGroup>
     <None Update="bridge.example.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!-- Ten istý dôvod ako v aplikácii: bežiaci agent zamyká vlastný build výstup.
+       Ukonči iba proces spustený presne z $(OutDir), nič iné. -->
+  <Target Name="StopRunningBridgeAgent" BeforeTargets="PrepareForBuild"
+          Condition="'$(OS)' == 'Windows_NT' AND Exists('$(OutDir)$(AssemblyName).exe')">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\build\Stop-BridgeAgent.ps1&quot; -Path &quot;$(OutDir)$(AssemblyName).exe&quot;"
+          ContinueOnError="true" StandardOutputImportance="high" />
+  </Target>
 </Project>
