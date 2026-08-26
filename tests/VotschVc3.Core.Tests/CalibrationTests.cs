@@ -155,7 +155,7 @@ public sealed class CalibrationTests
                 Assert.Equal("P1", p.PeakId);
                 Assert.Equal(1, p.PeakIndex);
                 Assert.Equal(1512.9482421875, p.WavelengthNm, 10);
-                Assert.Equal(-24.5599994659424, p.Intensity);
+                Assert.Equal(-24.5599994659424, p.Intensity!.Value, 10);
             },
             p =>
             {
@@ -212,6 +212,37 @@ public sealed class CalibrationTests
     }
 
     [Fact]
+    public async Task Preflight_SeparatesProductionFbgSnFromPeakLoggerDeviceSn()
+    {
+        await using var peakLogger = new FakePeakLoggerClient();
+        await peakLogger.ConnectAsync(new PeakLoggerSettings());
+        var orchestrator = new CalibrationOrchestrator(peakLogger);
+        var setup = new CalibrationSetup
+        {
+            Mappings =
+            {
+                new CalibrationSensorMapping
+                {
+                    SerialNumber = "FBG/PRODUCTION/0001",
+                    PeakLoggerDeviceSerialNumber = "242805A000004",
+                    Channel = "3.2",
+                    PeakId = "P4",
+                    Selected = true,
+                },
+            },
+        };
+
+        await orchestrator.PreflightAsync(setup);
+
+        CalibrationSensorMapping mapping = Assert.Single(setup.Mappings);
+        Assert.Equal("FBG/PRODUCTION/0001", mapping.SerialNumber);
+        Assert.Equal("242805A000004", mapping.PeakLoggerDeviceSerialNumber);
+        Assert.Equal("242805A000004|3.2|P4", mapping.SourceIdentity);
+        Assert.Equal("FBG/PRODUCTION/0001|3.2|P4", mapping.Identity);
+        Assert.Equal(4, mapping.PeakIndex);
+    }
+
+    [Fact]
     public void TemperatureResponseValidation_PassesResponsivePeak()
     {
         var orchestrator = new CalibrationOrchestrator(new FakePeakLoggerClient());
@@ -262,12 +293,22 @@ public sealed class CalibrationTests
                 ProfileId = profileId,
                 Mappings =
                 {
-                    new CalibrationSensorMapping { SerialNumber = "SN1", Channel = "1.1", PeakId = "P2", PeakIndex = 2, Selected = true },
+                    new CalibrationSensorMapping
+                    {
+                        SerialNumber = "SN1",
+                        PeakLoggerDeviceSerialNumber = "HIAER3",
+                        Channel = "1.1",
+                        PeakId = "P2",
+                        PeakIndex = 2,
+                        Selected = true,
+                    },
                 },
             };
             store.SaveSetup(setup);
             CalibrationSetup loaded = Assert.IsType<CalibrationSetup>(store.LoadSetup(profileId));
-            Assert.Equal("P2", Assert.Single(loaded.Mappings).PeakId);
+            CalibrationSensorMapping loadedMapping = Assert.Single(loaded.Mappings);
+            Assert.Equal("P2", loadedMapping.PeakId);
+            Assert.Equal("HIAER3", loadedMapping.PeakLoggerDeviceSerialNumber);
 
             var run = new CalibrationRunRecord { ProfileId = profileId, ChamberId = chamberId, ProfileName = "T CAL", State = CalibrationRunState.Completed };
             run.Plateaus.Add(Plateau(0, 20, 1550));
