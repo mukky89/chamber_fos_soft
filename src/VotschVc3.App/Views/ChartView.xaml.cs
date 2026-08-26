@@ -25,7 +25,8 @@ public partial class ChartView : UserControl
     private const double PadRight = 12;
     private const double PadTop = 10;
     private const double PadBottom = 22;
-    private const double ZoomStep = 1.25;
+    /// <summary>Zoom per full wheel notch (120 units); partial deltas scale smoothly.</summary>
+    private const double ZoomStep = 1.4;
 
     // Plot transform captured on the last Redraw, so mouse handlers can map a
     // cursor position back to a data point (hover read-out).
@@ -173,6 +174,8 @@ public partial class ChartView : UserControl
 
     private Brush GridBrush => TryFindResource("BorderBrush") as Brush ?? Brushes.DimGray;
 
+    private Brush HighlightBrush => TryFindResource("DangerBrush") as Brush ?? Brushes.IndianRed;
+
     private void Redraw()
     {
         if (!IsVisible)
@@ -210,17 +213,22 @@ public partial class ChartView : UserControl
         // Auto-scaled Y follows the visible window, so zooming into a plateau shows
         // its real ripple instead of a flat line across the full range.
         (double visibleMinY, double visibleMaxY) = VisibleYRange(series, minX, maxX);
-        double minY = double.IsNaN(YMin) ? visibleMinY : YMin;
-        double maxY = double.IsNaN(YMax) ? visibleMaxY : YMax;
+        double minY;
+        double maxY;
+        if (double.IsNaN(YMin) && double.IsNaN(YMax))
+        {
+            // Rounded bounds keep the labels readable and – more importantly – hold
+            // the axis still while a zoomed window is panned across the data.
+            (minY, maxY) = NiceAxis.Round(visibleMinY, visibleMaxY, intervals: 4);
+        }
+        else
+        {
+            minY = double.IsNaN(YMin) ? visibleMinY : YMin;
+            maxY = double.IsNaN(YMax) ? visibleMaxY : YMax;
+        }
 
         if (maxX <= minX) maxX = minX + 1;
         if (maxY <= minY) { maxY = minY + 1; minY -= 1; }
-        else if (double.IsNaN(YMin) && double.IsNaN(YMax))
-        {
-            double pad = (maxY - minY) * 0.08;
-            minY -= pad;
-            maxY += pad;
-        }
 
         double plotW = width - PadLeft - PadRight;
         double plotH = height - PadTop - PadBottom;
@@ -234,6 +242,7 @@ public partial class ChartView : UserControl
 
         // Remember the transform so the hover read-out can map cursor -> data.
         _minX = minX; _maxX = maxX; _minY = minY; _maxY = maxY; _plotW = plotW; _plotH = plotH;
+        PlotCanvas.Cursor = _window.IsZoomed ? Cursors.SizeWE : Cursors.Arrow;
         _hoverSeries = series.FirstOrDefault(s => !s.Dashed) ?? series[0];
         _hasPlot = true;
 
@@ -409,10 +418,10 @@ public partial class ChartView : UserControl
             return;
         }
 
-        double trackY = PadTop + plotH + 6;
+        double trackY = PadTop + plotH + 5;
         var track = new Rectangle
         {
-            Width = plotW, Height = 3, RadiusX = 1.5, RadiusY = 1.5,
+            Width = plotW, Height = 5, RadiusX = 2.5, RadiusY = 2.5,
             Fill = GridBrush, Opacity = 0.7, IsHitTestVisible = false,
         };
         Canvas.SetLeft(track, PadLeft);
@@ -421,8 +430,8 @@ public partial class ChartView : UserControl
 
         var thumb = new Rectangle
         {
-            Width = Math.Max(6, _window.Span / full * plotW),
-            Height = 3, RadiusX = 1.5, RadiusY = 1.5,
+            Width = Math.Max(8, _window.Span / full * plotW),
+            Height = 5, RadiusX = 2.5, RadiusY = 2.5,
             Fill = AccentBrush, IsHitTestVisible = false,
         };
         Canvas.SetLeft(thumb, PadLeft + (_window.Min - _fullMinX) / full * plotW);
@@ -461,8 +470,13 @@ public partial class ChartView : UserControl
             return;
         }
 
+        // Scale by how far the wheel actually turned: one notch is 120, a trackpad
+        // sends much smaller deltas and would otherwise jump a full step each time.
+        double notches = Math.Clamp(e.Delta / 120d, -3, 3);
+        double factor = Math.Pow(ZoomStep, notches);
+
         double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
-        if (!_viewport.Zoom(e.Delta > 0 ? ZoomStep : 1 / ZoomStep, (cursorX - PadLeft) / plotW, _fullMinX, _fullMaxX))
+        if (!_viewport.Zoom(factor, (cursorX - PadLeft) / plotW, _fullMinX, _fullMaxX))
         {
             // Nothing left to zoom – let the wheel bubble so the page scrolls as usual.
             return;
@@ -593,11 +607,59 @@ public partial class ChartView : UserControl
             return;
         }
 
-        double px = left + (dataX - _minX) / (_maxX - _minX) * _plotW;
-        double py = PadTop + (1 - (yv - _minY) / (_maxY - _minY)) * _plotH;
+        double PxOf(double x) => left + (x - _minX) / (_maxX - _minX) * _plotW;
+        double PyOf(double y) => PadTop + (1 - (y - _minY) / (_maxY - _minY)) * _plotH;
+
+        double px = PxOf(dataX);
+        double py = PyOf(yv);
 
         ClearOverlay();
         Brush accent = TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue;
+
+        // Highlight the whole step (ramp or hold) the cursor is inside, so it is
+        // obvious which segment the read-out belongs to.
+        (Point A, Point B)? piece = ShowStages ? PieceAt(_hoverSeries.Points, dataX) : null;
+        if (piece is { } step)
+        {
+            double sx1 = PxOf(step.A.X);
+            double sx2 = PxOf(step.B.X);
+            double bandLeft = Math.Max(left, sx1);
+            double bandRight = Math.Min(left + _plotW, sx2);
+            var band = new Rectangle
+            {
+                Width = Math.Max(1, bandRight - bandLeft),
+                Height = _plotH,
+                Fill = HighlightBrush,
+                Opacity = 0.18,
+                IsHitTestVisible = false,
+            };
+            Canvas.SetLeft(band, bandLeft);
+            Canvas.SetTop(band, PadTop);
+            AddOverlay(band);
+
+            // Edges of the step – skipped when they fall outside the zoomed window.
+            foreach (double edge in new[] { sx1, sx2 })
+            {
+                if (edge < left || edge > left + _plotW)
+                {
+                    continue;
+                }
+
+                AddOverlay(new Line
+                {
+                    X1 = edge, Y1 = PadTop, X2 = edge, Y2 = PadTop + _plotH,
+                    Stroke = HighlightBrush, StrokeThickness = 1.5, Opacity = 0.85,
+                    IsHitTestVisible = false,
+                });
+            }
+
+            // The step's own stretch of the curve, redrawn on top in the same colour.
+            AddOverlay(new Line
+            {
+                X1 = sx1, Y1 = PyOf(step.A.Y), X2 = sx2, Y2 = PyOf(step.B.Y),
+                Stroke = HighlightBrush, StrokeThickness = 3, IsHitTestVisible = false,
+            });
+        }
 
         AddOverlay(new Line
         {
@@ -619,14 +681,14 @@ public partial class ChartView : UserControl
             FontSize = 11,
             FontFamily = new FontFamily("Segoe UI Semibold"),
         });
-        if (ShowStages && StageAt(_hoverSeries.Points, dataX) is { } stage)
+        if (piece is { } hovered)
         {
             chipContent.Children.Add(new TextBlock
             {
-                Text = StageLabel(stage),
+                Text = $"{StageLabel(StageOf(hovered))} · dĺžka {FormatMinutesShort(hovered.B.X - hovered.A.X)}",
                 Foreground = Brushes.White,
                 FontSize = 10,
-                Opacity = 0.85,
+                Opacity = 0.9,
             });
         }
 
@@ -653,7 +715,8 @@ public partial class ChartView : UserControl
     /// <summary>Ramp direction / hold at data-space X on the profile curve.</summary>
     private enum Stage { Rising, Falling, Hold }
 
-    private static Stage? StageAt(IReadOnlyList<Point> pts, double x)
+    /// <summary>The stretch of the curve (one ramp or one hold) containing data-space X.</summary>
+    private static (Point A, Point B)? PieceAt(IReadOnlyList<Point> pts, double x)
     {
         for (int i = 1; i < pts.Count; i++)
         {
@@ -665,13 +728,32 @@ public partial class ChartView : UserControl
 
             if (x >= a.X && x <= b.X)
             {
-                double dy = b.Y - a.Y;
-                if (Math.Abs(dy) < 0.05) return Stage.Hold;
-                return dy > 0 ? Stage.Rising : Stage.Falling;
+                return (a, b);
             }
         }
 
         return null;
+    }
+
+    private static Stage StageOf((Point A, Point B) piece)
+    {
+        double dy = piece.B.Y - piece.A.Y;
+        if (Math.Abs(dy) < 0.05) return Stage.Hold;
+        return dy > 0 ? Stage.Rising : Stage.Falling;
+    }
+
+    /// <summary>Compact length of a step: <c>45 min</c> / <c>2 h 15 min</c> / <c>1 d 3 h</c>.</summary>
+    private static string FormatMinutesShort(double minutes)
+    {
+        if (minutes < 60)
+        {
+            return $"{minutes:0.#} min";
+        }
+
+        var ts = TimeSpan.FromMinutes(minutes);
+        return ts.TotalDays >= 1
+            ? $"{(int)ts.TotalDays} d {ts.Hours} h"
+            : $"{(int)ts.TotalHours} h {ts.Minutes} min";
     }
 
     private static string StageLabel(Stage s) => s switch

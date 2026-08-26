@@ -717,7 +717,8 @@
                                                 <DockPanel LastChildFill="False" Margin="4,2,0,4">
                                                     <TextBlock Text="Graf profilu · koliesko = priblíženie" Style="{StaticResource Caption}"
                                                                DockPanel.Dock="Left" VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" />
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode, či ide o rampu (nábeh) alebo výdrž (plato) a ako dlho ten krok trvá; celý krok sa v grafe zvýrazní.&#10;Koliesko myši = priblíženie časovej osi okolo kurzora, ťahanie = posun, dvojklik = celý rozsah.&#10;Podfarbené stĺpce = výdrž, zvýraznená plocha = cyklovaná časť profilu." />
                                                     <Button DockPanel.Dock="Right" Content="⛶ Zväčšiť" Style="{StaticResource GhostButton}"
                                                             Padding="9,3" FontSize="13" Click="MaximizeChart_Click"
                                                             ToolTip="Zväčšiť graf profilu na celú obrazovku (zavrieš ✕ alebo klávesom Esc)." />
@@ -726,8 +727,7 @@
                                                                  ShowStages="True"
                                                                  CycleStartX="{Binding PreviewCycleStartX}"
                                                                  CycleEndX="{Binding PreviewCycleEndX}"
-                                                                 CycleCount="{Binding PreviewCycleCount}"
-                                                                 ToolTip="Prejdi myšou po krivke – ukáže teplotu a čas v danom bode aj to, či ide o rampu (nábeh) alebo výdrž (plato). Podfarbené stĺpce = výdrž, zvýraznená plocha = cyklovaná časť profilu.&#10;Koliesko myši = priblíženie časovej osi okolo kurzora, ťahanie = posun, dvojklik = celý rozsah." />
+                                                                 CycleCount="{Binding PreviewCycleCount}" />
                                                 <StackPanel Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" Margin="0,8,0,0">
                                                     <Grid>
                                                         <ProgressBar Style="{StaticResource ProfileProgressBar}"

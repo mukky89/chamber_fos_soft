@@ -30,7 +30,8 @@ public partial class ProfileEditorChart : UserControl
 
     /// <summary>Never zoom past a window this short – below it the handles overlap.</summary>
     private const double MinVisibleMinutes = 1;
-    private const double ZoomStep = 1.25;
+    /// <summary>Zoom per full wheel notch (120 units); partial deltas scale smoothly.</summary>
+    private const double ZoomStep = 1.4;
 
     private double _minY;
     private double _maxY;
@@ -366,9 +367,13 @@ public partial class ProfileEditorChart : UserControl
             return;
         }
 
+        // Scale by how far the wheel actually turned: one notch is 120, a trackpad
+        // sends much smaller deltas and would otherwise jump a full step each time.
+        double factor = Math.Pow(ZoomStep, Math.Clamp(e.Delta / 120d, -3, 3));
+
         // Zoom around the cursor, so it grabs the spot the operator is pointing at.
         double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
-        if (!_viewport.Zoom(e.Delta > 0 ? ZoomStep : 1 / ZoomStep, (cursorX - PadLeft) / plotW, 0, _totalMin))
+        if (!_viewport.Zoom(factor, (cursorX - PadLeft) / plotW, 0, _totalMin))
         {
             // Nothing left to zoom (already at full view / at the limit) – let the
             // wheel bubble so the page underneath scrolls as usual.

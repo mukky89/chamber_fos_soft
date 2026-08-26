@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.60.0] – 2026-08-26
+
+### Pridané
+- **Zvýraznenie kroku pod kurzorom v grafe profilu.** Keď prejdeš myšou po krivke,
+  celý segment (rampa alebo plato) sa podfarbí červeným pásmom cez celú výšku
+  grafu a ohraničí sa – je jasné, ku ktorému kroku odčítaná hodnota patrí.
+- Bublina pri kurzore okrem teploty a času ukazuje aj **typ kroku a jeho
+  naprogramovanú dĺžku**: „→ Výdrž (plato) · dĺžka 45 min".
+
+### Zmenené
+- **Doladené priblíženie grafov.** Koliesko reaguje podľa toho, o koľko sa naozaj
+  otočilo (jedna zarážka = 1,4×, touchpad plynulo namiesto skokov), pri
+  priblížení sa ukazuje kurzor posunu a mini-mapa výrezu je hrubšia a čitateľnejšia.
+- **Os hodnôt sa zaokrúhľuje na „pekné" hodnoty** (`Core/Charting/NiceAxis`):
+  namiesto popisov 68 / 75,3 / 82,7 / 90 / 97,3 °C sú to 60 / 70 / 80 / 90 / 100 °C
+  a os pri posúvaní priblíženého grafu neposkakuje. Pri úzkom výreze (napr. plato
+  s kolísaním 0,5 °C) si zachová rozlíšenie.
+
+### Opravené
+- Veľký tooltip nad grafom profilu na hlavnej stránke prekrýval krivku aj
+  odčítanie pod kurzorom – presunutý na popis „Graf profilu" nad grafom.
+
 ## [1.59.0] – 2026-08-26
 
 ### Pridané
