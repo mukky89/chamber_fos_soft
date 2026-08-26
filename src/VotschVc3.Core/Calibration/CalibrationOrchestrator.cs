@@ -83,7 +83,6 @@ public sealed class CalibrationOrchestrator
         var plateauClock = Stopwatch.StartNew();
         run.State = CalibrationRunState.WaitingForChamberStability;
 
-        // Phase 1: chamber must be stably inside the configured band for the requested duration.
         var temperatureDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
@@ -138,7 +137,6 @@ public sealed class CalibrationOrchestrator
             await Task.Delay(PollDelay(setup), cancellationToken).ConfigureAwait(false);
         }
 
-        // Phase 2: all selected wavelengths are processed from every PeakLogger batch in parallel.
         run.State = CalibrationRunState.StabilizingSensors;
         var trackers = selected.ToDictionary(
             m => m.Identity,
@@ -224,10 +222,9 @@ public sealed class CalibrationOrchestrator
                     continue;
                 }
 
-                if (now - measurement.Timestamp > setup.Settings.DefaultSensorStabilizationTimeout &&
-                    now - measurement.Timestamp > TimeSpan.FromSeconds(10))
+                if (now - measurement.Timestamp > TimeSpan.FromSeconds(10))
                 {
-                    tracker.State = CalibrationTargetState.Disconnected;
+                    tracker.Fail(CalibrationTargetState.Disconnected, "PeakLogger poskytol zastarané dáta pre vybraný peak.");
                     continue;
                 }
 
@@ -271,6 +268,7 @@ public sealed class CalibrationOrchestrator
             }
 
             int stable = trackers.Values.Count(t => t.State is CalibrationTargetState.Stable or CalibrationTargetState.Overridden);
+            int resolved = trackers.Values.Count(t => t.IsTerminal);
             progress?.Invoke(new CalibrationProgressSnapshot(
                 CalibrationRunState.StabilizingSensors,
                 plateauIndex,
@@ -282,9 +280,9 @@ public sealed class CalibrationOrchestrator
                 selected.Count,
                 plateauClock.Elapsed,
                 trackers.Values.Select(t => t.ToProgress(settings.RequiredStableSamples)).ToArray(),
-                stable == selected.Count
-                    ? "Všetky wavelengthy sú stabilné."
-                    : $"Čaká sa na {selected.Count - stable} wavelength."));
+                resolved == selected.Count
+                    ? "Všetky wavelengthy sú vyriešené."
+                    : $"Čaká sa na {selected.Count - resolved} wavelength."));
 
             if (trackers.Values.Any(t => !t.IsTerminal))
             {
@@ -371,8 +369,7 @@ public sealed class CalibrationOrchestrator
 
     private static TimeSpan PollDelay(CalibrationSetup setup)
     {
-        TimeSpan delay = TimeSpan.FromSeconds(1);
-        return delay;
+        return TimeSpan.FromSeconds(1);
     }
 
     private static IReadOnlyList<CalibrationTargetProgress> BuildWaitingTargets(
@@ -462,7 +459,15 @@ public sealed class CalibrationOrchestrator
         public PeakLoggerMeasurement? LastMeasurement { get; private set; }
         public CalibrationMeasurementResult? Result { get; private set; }
         public TimeSpan MissingFor => _missingSince is { } since ? DateTimeOffset.UtcNow - since : TimeSpan.Zero;
-        public bool IsTerminal => State is CalibrationTargetState.Stable or CalibrationTargetState.TimedOut or CalibrationTargetState.PeakLost or CalibrationTargetState.Disconnected or CalibrationTargetState.Overridden or CalibrationTargetState.Failed;
+
+        // PeakLost is intentionally not terminal while the grace period is running.
+        // It becomes terminal only when Fail(...) stores a result after the grace period.
+        public bool IsTerminal => Result is not null ||
+            State is CalibrationTargetState.Stable or
+                     CalibrationTargetState.TimedOut or
+                     CalibrationTargetState.Disconnected or
+                     CalibrationTargetState.Overridden or
+                     CalibrationTargetState.Failed;
 
         public void MarkMeasurement(PeakLoggerMeasurement measurement)
         {
