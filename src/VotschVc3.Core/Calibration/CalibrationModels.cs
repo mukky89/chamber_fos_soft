@@ -55,7 +55,7 @@ public enum ExpectedResponseDirection
 public sealed class PeakLoggerSettings
 {
     public string Host { get; set; } = "localhost";
-    public int Port { get; set; }
+    public int Port { get; set; } = PeakLoggerApiClient.DefaultPort;
     public string? AuthenticationToken { get; set; }
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromSeconds(1);
