@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.58.0] – 2026-08-26
+
+### Pridané
+- **Priblíženie kolieskom myši aj v grafe profilu na hlavnej stránke** a vo
+  všetkých ostatných grafoch (`ChartView`): živá teplota/vlhkosť, prehliadač
+  záznamov, teplomery. Zoom ide okolo kurzora, **ťahanie** posúva časovú os,
+  **dvojklik** vráti celý rozsah; aktuálny výrez ukazuje mini-mapa a štítok.
+- Pri priblížení sa **os hodnôt preškáluje na viditeľný výrez**, takže na plate
+  vidno aj malé kolísanie namiesto rovnej čiary uprostred celého rozsahu.
+- Výrez je uložený v jednotkách dát (minúty), takže **živý graf sa pri pribúdaní
+  meraní neposúva** pod rukami – zostane tam, kam si sa priblížil.
+
+### Zmenené
+- Logika výrezu časovej osi je v `Core` (`Charting/TimeAxisViewport`) a je pokrytá
+  testami; editor profilu aj `ChartView` používajú tú istú implementáciu.
+
 ## [1.57.0] – 2026-08-26
 
 ### Pridané

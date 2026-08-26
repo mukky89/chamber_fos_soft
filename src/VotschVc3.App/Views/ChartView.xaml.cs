@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using VotschVc3.App.Charting;
+using VotschVc3.Core.Charting;
 
 namespace VotschVc3.App.Views;
 
@@ -12,6 +13,11 @@ namespace VotschVc3.App.Views;
 /// <see cref="ChartSeries"/> onto a canvas with auto-scaled axes, gridlines and
 /// a small legend. Redraws on resize and whenever the series collection is
 /// replaced.
+///
+/// The time (X) axis zooms with the mouse wheel around the cursor; while zoomed
+/// in, dragging pans and a double-click goes back to the whole range. The window
+/// is kept in data units, so a live chart that keeps appending points does not
+/// drag the operator's view along with it.
 /// </summary>
 public partial class ChartView : UserControl
 {
@@ -19,6 +25,7 @@ public partial class ChartView : UserControl
     private const double PadRight = 12;
     private const double PadTop = 10;
     private const double PadBottom = 22;
+    private const double ZoomStep = 1.25;
 
     // Plot transform captured on the last Redraw, so mouse handlers can map a
     // cursor position back to a data point (hover read-out).
@@ -26,6 +33,16 @@ public partial class ChartView : UserControl
     private double _minX, _maxX, _minY, _maxY, _plotW, _plotH;
     private ChartSeries? _hoverSeries;
     private readonly List<UIElement> _overlay = new();
+
+    // Zoom/pan of the X axis (shared, tested logic in Core) + the full data range and
+    // the window resolved on the last Redraw.
+    private readonly TimeAxisViewport _viewport = new(minimumSpan: 1);
+    private AxisWindow _window = new(0, 1, 1);
+    private double _fullMinX;
+    private double _fullMaxX = 1;
+    private bool _isPanning;
+    private Point _panStartMouse;
+    private double _panStartMin;
 
     public ChartView()
     {
@@ -37,6 +54,9 @@ public partial class ChartView : UserControl
         IsVisibleChanged += (_, _) => Redraw();
         PlotCanvas.MouseMove += OnPlotMouseMove;
         PlotCanvas.MouseLeave += (_, _) => ClearOverlay();
+        PlotCanvas.MouseWheel += OnPlotMouseWheel;
+        PlotCanvas.MouseLeftButtonDown += OnPlotMouseDown;
+        PlotCanvas.MouseLeftButtonUp += OnPlotMouseUp;
     }
 
     public static readonly DependencyProperty AllowZoomProperty = DependencyProperty.Register(
@@ -179,10 +199,19 @@ public partial class ChartView : UserControl
             return;
         }
 
-        double minX = series.Min(s => s.Points.Min(p => p.X));
-        double maxX = series.Max(s => s.Points.Max(p => p.X));
-        double minY = double.IsNaN(YMin) ? series.Min(s => s.Points.Min(p => p.Y)) : YMin;
-        double maxY = double.IsNaN(YMax) ? series.Max(s => s.Points.Max(p => p.Y)) : YMax;
+        _fullMinX = series.Min(s => s.Points.Min(p => p.X));
+        _fullMaxX = series.Max(s => s.Points.Max(p => p.X));
+        if (_fullMaxX <= _fullMinX) _fullMaxX = _fullMinX + 1;
+
+        _window = _viewport.Resolve(_fullMinX, _fullMaxX);
+        double minX = _window.Min;
+        double maxX = _window.Max;
+
+        // Auto-scaled Y follows the visible window, so zooming into a plateau shows
+        // its real ripple instead of a flat line across the full range.
+        (double visibleMinY, double visibleMaxY) = VisibleYRange(series, minX, maxX);
+        double minY = double.IsNaN(YMin) ? visibleMinY : YMin;
+        double maxY = double.IsNaN(YMax) ? visibleMaxY : YMax;
 
         if (maxX <= minX) maxX = minX + 1;
         if (maxY <= minY) { maxY = minY + 1; minY -= 1; }
@@ -311,6 +340,8 @@ public partial class ChartView : UserControl
             }
         }
 
+        DrawZoomIndicator(plotW, plotH);
+
         // Legend (top-right).
         double legendY = PadTop + 2;
         foreach (ChartSeries s in series)
@@ -322,6 +353,164 @@ public partial class ChartView : UserControl
             AddText(s.Name, 0, legendY, MutedBrush, 10, 52, TextAlignment.Right, right: PadRight);
             legendY += 15;
         }
+    }
+
+    /// <summary>Y bounds of everything drawn inside the visible X window, including the
+    /// values interpolated at its edges; falls back to the whole series when empty.</summary>
+    private static (double Min, double Max) VisibleYRange(List<ChartSeries> series, double minX, double maxX)
+    {
+        double lo = double.PositiveInfinity;
+        double hi = double.NegativeInfinity;
+        foreach (ChartSeries s in series)
+        {
+            foreach (Point p in s.Points)
+            {
+                if (p.X < minX || p.X > maxX)
+                {
+                    continue;
+                }
+
+                lo = Math.Min(lo, p.Y);
+                hi = Math.Max(hi, p.Y);
+            }
+
+            // A window between two far-apart points contains no point at all – scale
+            // it by the curve crossing its edges instead.
+            foreach (double edge in new[] { minX, maxX })
+            {
+                if (edge < s.Points[0].X || edge > s.Points[^1].X)
+                {
+                    continue;
+                }
+
+                if (InterpolateY(s.Points, edge) is { } y)
+                {
+                    lo = Math.Min(lo, y);
+                    hi = Math.Max(hi, y);
+                }
+            }
+        }
+
+        if (double.IsInfinity(lo) || double.IsInfinity(hi))
+        {
+            return (series.Min(s => s.Points.Min(p => p.Y)), series.Max(s => s.Points.Max(p => p.Y)));
+        }
+
+        return (lo, hi);
+    }
+
+    /// <summary>Mini-map strip + chip telling which slice of the data is shown.
+    /// Nothing is drawn while the whole range is visible.</summary>
+    private void DrawZoomIndicator(double plotW, double plotH)
+    {
+        double full = _fullMaxX - _fullMinX;
+        if (!_window.IsZoomed || plotW <= 0 || full <= 0)
+        {
+            return;
+        }
+
+        double trackY = PadTop + plotH + 6;
+        var track = new Rectangle
+        {
+            Width = plotW, Height = 3, RadiusX = 1.5, RadiusY = 1.5,
+            Fill = GridBrush, Opacity = 0.7, IsHitTestVisible = false,
+        };
+        Canvas.SetLeft(track, PadLeft);
+        Canvas.SetTop(track, trackY);
+        PlotCanvas.Children.Add(track);
+
+        var thumb = new Rectangle
+        {
+            Width = Math.Max(6, _window.Span / full * plotW),
+            Height = 3, RadiusX = 1.5, RadiusY = 1.5,
+            Fill = AccentBrush, IsHitTestVisible = false,
+        };
+        Canvas.SetLeft(thumb, PadLeft + (_window.Min - _fullMinX) / full * plotW);
+        Canvas.SetTop(thumb, trackY);
+        PlotCanvas.Children.Add(thumb);
+
+        var chip = new Border
+        {
+            Background = TryFindResource("SurfaceBrush") as Brush ?? Brushes.Black,
+            BorderBrush = GridBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(6, 1, 6, 1),
+            Opacity = 0.92,
+            IsHitTestVisible = false,
+            Child = new TextBlock
+            {
+                Text = $"🔍 {_window.Zoom:0.#}× · dvojklik = celý rozsah",
+                Foreground = MutedBrush,
+                FontSize = 10,
+            },
+        };
+        chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(chip, Math.Max(PadLeft, PadLeft + plotW - chip.DesiredSize.Width - 2));
+        Canvas.SetTop(chip, PadTop + plotH - chip.DesiredSize.Height - 2);
+        PlotCanvas.Children.Add(chip);
+    }
+
+    // ===== Zoom / posun časovej osi =====
+
+    private void OnPlotMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        double plotW = PlotCanvas.ActualWidth - PadLeft - PadRight;
+        if (!_hasPlot || plotW <= 0)
+        {
+            return;
+        }
+
+        double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
+        if (!_viewport.Zoom(e.Delta > 0 ? ZoomStep : 1 / ZoomStep, (cursorX - PadLeft) / plotW, _fullMinX, _fullMaxX))
+        {
+            // Nothing left to zoom – let the wheel bubble so the page scrolls as usual.
+            return;
+        }
+
+        // A wheel that both zooms and scrolls the surrounding page is unusable.
+        e.Handled = true;
+        ClearOverlay();
+        Redraw();
+    }
+
+    private void OnPlotMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            if (_viewport.IsZoomed)
+            {
+                _viewport.Reset();
+                ClearOverlay();
+                Redraw();
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (!_window.IsZoomed)
+        {
+            return;
+        }
+
+        _isPanning = true;
+        _panStartMouse = e.GetPosition(PlotCanvas);
+        _panStartMin = _window.Min;
+        PlotCanvas.CaptureMouse();
+        ClearOverlay();
+        e.Handled = true;
+    }
+
+    private void OnPlotMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isPanning)
+        {
+            return;
+        }
+
+        _isPanning = false;
+        PlotCanvas.ReleaseMouseCapture();
     }
 
     private void AddLine(double x1, double y1, double x2, double y2, Brush brush, double thickness, bool dashed)
@@ -374,6 +563,21 @@ public partial class ChartView : UserControl
 
     private void OnPlotMouseMove(object sender, MouseEventArgs e)
     {
+        if (_isPanning)
+        {
+            if (_plotW > 0 && _window.Span > 0)
+            {
+                double perPixel = _window.Span / _plotW;
+                double shiftedMin = _panStartMin - (e.GetPosition(PlotCanvas).X - _panStartMouse.X) * perPixel;
+                if (_viewport.MoveTo(shiftedMin, _fullMinX, _fullMaxX))
+                {
+                    Redraw();
+                }
+            }
+
+            return;
+        }
+
         if (!_hasPlot || _hoverSeries is null || _hoverSeries.Points.Count == 0 || _plotW <= 0)
         {
             ClearOverlay();

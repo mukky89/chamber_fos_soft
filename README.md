@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.57.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.58.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
@@ -306,12 +306,15 @@ setpoint a zapíše ho príkazom `$ddE` so zapnutým štart kanálom. Tým je ne
 od programovej pamäte komory a funguje rovnako na ľubovoľnom kuse. Možno ho
 opakovať v cykloch.
 
-**Náhľad profilu** (rýchly profil, knižnica profilov aj detail komory) sa dá
-**približovať kolieskom myši** – zoom ide okolo kurzora, takže dlhý profil sa dá
-rozobrať segment po segmente. V priblíženom pohľade sa **ťahaním prázdnej plochy**
-posúvaš po časovej osi, **dvojklik** vráti celý profil a mini-mapa pod grafom
-ukazuje, ktorý výrez práve vidíš. Ťahanie bodov (zvisle = teplota, vodorovne =
-trvanie) funguje aj po priblížení.
+**Priblíženie grafov kolieskom myši** funguje vo **všetkých** grafoch – v náhľade
+profilu na hlavnej stránke, v editore profilu (rýchly profil, knižnica, detail
+komory), v živých grafoch teploty/vlhkosti aj v prehliadači záznamov. Zoom ide
+okolo kurzora, takže dlhý profil sa dá rozobrať segment po segmente. V priblíženom
+pohľade sa **ťahaním** posúvaš po časovej osi, **dvojklik** vráti celý rozsah
+a mini-mapa pod grafom ukazuje, ktorý výrez práve vidíš. Os teploty sa pri
+priblížení preškáluje na to, čo je vidieť, takže je vidno aj malé kolísanie na
+plate. Ťahanie bodov v editore profilu (zvisle = teplota, vodorovne = trvanie)
+funguje aj po priblížení; pri živom grafe sa výrez pri pribúdaní meraní neposúva.
 
 ---
 
