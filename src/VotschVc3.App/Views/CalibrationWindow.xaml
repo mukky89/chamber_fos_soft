@@ -1,0 +1,215 @@
+<Window x:Class="VotschVc3.App.Views.CalibrationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FBG teplotná kalibrácia · PeakLogger"
+        Height="900" Width="1500" MinHeight="720" MinWidth="1180"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundBrush}">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="6,4,6,10">
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock Text="FBG teplotná kalibrácia" FontSize="24" FontFamily="Segoe UI Semibold" />
+                <TextBlock Text="Komora + PeakLogger + automatické vyhodnotenie stability wavelength" Style="{StaticResource Caption}" />
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Uložiť zapojenie" Style="{StaticResource GhostButton}" Command="{Binding SaveSetupCommand}" Margin="0,0,8,0" />
+                <Button Content="▶ Spustiť kalibráciu" Style="{StaticResource AccentButton}" Command="{Binding StartCalibrationCommand}" Margin="0,0,8,0" />
+                <Button Content="⏸ Pauza / pokračovať" Style="{StaticResource GhostButton}" Command="{Binding PauseResumeCommand}" Margin="0,0,8,0" />
+                <Button Content="⏹ Stop" Style="{StaticResource DangerButton}" Command="{Binding StopCalibrationCommand}" />
+            </StackPanel>
+        </DockPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="6,0,6,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="3*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Kalibračný profil" Style="{StaticResource Label}" />
+                    <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                              DisplayMemberPath="Name" MinHeight="32" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Komora" Style="{StaticResource Label}" />
+                    <ComboBox ItemsSource="{Binding Chambers}" SelectedItem="{Binding SelectedChamber}"
+                              DisplayMemberPath="DisplayName" MinHeight="32" />
+                </StackPanel>
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="PeakLogger" Style="{StaticResource Label}" />
+                    <WrapPanel>
+                        <CheckBox Content="Simulátor" IsChecked="{Binding UseSimulator}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <ComboBox ItemsSource="{Binding SimulatorScenarios}" SelectedItem="{Binding SimulatorScenario}"
+                                  Width="190" MinHeight="30" Margin="0,0,8,0" />
+                        <TextBox Text="{Binding PeakLoggerHost, UpdateSourceTrigger=PropertyChanged}" Width="140" Margin="0,0,8,0" />
+                        <TextBox Text="{Binding PeakLoggerPort, UpdateSourceTrigger=LostFocus}" Width="70" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding PeakLoggerStatus}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button Content="Pripojiť PeakLogger" Style="{StaticResource AccentButton}" Command="{Binding ConnectPeakLoggerCommand}" Margin="0,0,8,0" />
+                    <Button Content="↻" Style="{StaticResource GhostButton}" Command="{Binding RefreshSensorsCommand}" ToolTip="Znovu načítať SN a peaky" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="2" Margin="6,0,6,8">
+            <TabItem Header="Zapojenie">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock DockPanel.Dock="Left" Text="Vyber konkrétny peak/wavelength pre každý SN. Identita je SN + kanál + PeakId, nie aktuálna hodnota wavelength." Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                        <Button DockPanel.Dock="Right" Content="Navrhnúť 1 peak / SN" Style="{StaticResource GhostButton}" Command="{Binding SelectSuggestedPeaksCommand}" />
+                    </DockPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Peaks}" AutoGenerateColumns="False" CanUserAddRows="False"
+                              IsReadOnly="False" HeadersVisibility="Column" EnableRowVirtualization="True"
+                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="Kalibrovať" Binding="{Binding Selected, Mode=TwoWay}" Width="90" />
+                            <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" IsReadOnly="True" Width="70" />
+                            <DataGridTextColumn Header="Žila 1" Binding="{Binding Core1, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
+                            <DataGridTextColumn Header="Žila 2" Binding="{Binding Core2, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
+                            <DataGridTextColumn Header="Sériové číslo" Binding="{Binding SerialNumber}" IsReadOnly="True" Width="150" />
+                            <DataGridTextColumn Header="Peak" Binding="{Binding PeakId}" IsReadOnly="True" Width="70" />
+                            <DataGridTextColumn Header="Pozícia" Binding="{Binding PeakIndex}" IsReadOnly="True" Width="65" />
+                            <DataGridTextColumn Header="Aktuálna λ [nm]" Binding="{Binding CurrentWavelengthNm, StringFormat=F6}" IsReadOnly="True" Width="115" />
+                            <DataGridTextColumn Header="Timeout [min]" Binding="{Binding TimeoutMinutes, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="95" />
+                            <DataGridTextColumn Header="Poznámky" Binding="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="160" />
+                            <DataGridTextColumn Header="Popis produktu" Binding="{Binding ProductDescription, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="180" />
+                            <DataGridTextColumn Header="Zákazník" Binding="{Binding Customer, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="150" />
+                            <DataGridTextColumn Header="Zákazka" Binding="{Binding Order, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="100" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Kalibračné plata">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Text="Iba označené hold segmenty sa použijú ako kalibračné body. Rampy sa nikdy nevyhodnocujú ako finálne kalibračné body." Style="{StaticResource Caption}" />
+                        <Button DockPanel.Dock="Right" Content="Označiť všetky plata" Style="{StaticResource GhostButton}" Command="{Binding MarkAllPlateausCommand}" />
+                    </DockPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding CalibrationPoints}" AutoGenerateColumns="False" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="Kalibračný bod" Binding="{Binding Selected, Mode=TwoWay}" Width="130" />
+                            <DataGridTextColumn Header="Segment" Binding="{Binding SegmentIndex}" IsReadOnly="True" Width="80" />
+                            <DataGridTextColumn Header="Názov" Binding="{Binding Name}" IsReadOnly="True" Width="*" />
+                            <DataGridTextColumn Header="Teplota [°C]" Binding="{Binding TemperatureC, StringFormat=F2}" IsReadOnly="True" Width="120" />
+                            <DataGridTextColumn Header="Min. čas plata" Binding="{Binding Duration}" IsReadOnly="True" Width="150" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Live monitor">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <WrapPanel Grid.Row="0" Margin="0,0,0,10">
+                        <Border Style="{StaticResource Card}" MinWidth="220"><StackPanel><TextBlock Text="Stav" Style="{StaticResource Label}"/><TextBlock Text="{Binding RunState}" Style="{StaticResource Heading}"/></StackPanel></Border>
+                        <Border Style="{StaticResource Card}" MinWidth="220"><StackPanel><TextBlock Text="Plato" Style="{StaticResource Label}"/><TextBlock Text="{Binding PlateauLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
+                        <Border Style="{StaticResource Card}" MinWidth="260"><StackPanel><TextBlock Text="Teplota" Style="{StaticResource Label}"/><TextBlock Text="{Binding TemperatureLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
+                        <Border Style="{StaticResource Card}" MinWidth="220"><StackPanel><TextBlock Text="Stabilné wavelengthy" Style="{StaticResource Label}"/><TextBlock Text="{Binding StableLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding TargetProgress}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="SN" Binding="{Binding SerialNumber}" Width="150" />
+                            <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" Width="70" />
+                            <DataGridTextColumn Header="Peak" Binding="{Binding PeakId}" Width="70" />
+                            <DataGridTextColumn Header="Current λ [nm]" Binding="{Binding CurrentWavelengthNm, StringFormat=F6}" Width="120" />
+                            <DataGridTextColumn Header="Samples" Binding="{Binding SamplesLabel}" Width="85" />
+                            <DataGridTextColumn Header="StdDev [pm]" Binding="{Binding StandardDeviationPm, StringFormat=F3}" Width="100" />
+                            <DataGridTextColumn Header="Drift [pm/min]" Binding="{Binding DriftPmPerMinute, StringFormat=F3}" Width="110" />
+                            <DataGridTextColumn Header="Čas" Binding="{Binding Elapsed}" Width="100" />
+                            <DataGridTextColumn Header="Timeout" Binding="{Binding Timeout}" Width="100" />
+                            <DataGridTextColumn Header="Stav" Binding="{Binding State}" Width="130" />
+                            <DataGridTextColumn Header="Detail" Binding="{Binding Detail}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Nastavenia stability">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Stabilita wavelength" Style="{StaticResource Heading}" Margin="0,0,0,8" />
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Počet stabilných samples" Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding RequiredStableSamples, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Max range [pm] · 0 = vyp." Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding MaxRangePm, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Max StdDev [pm] · 0 = vyp." Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding MaxStdDevPm, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Max drift [pm/min] · 0 = vyp." Style="{StaticResource Label}"/><TextBox Width="160" Text="{Binding MaxDriftPmPerMinute, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                        </WrapPanel>
+
+                        <TextBlock Text="Stabilita komory" Style="{StaticResource Heading}" Margin="0,10,0,8" />
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Tolerance [°C]" Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding ChamberToleranceC, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Stabilný čas [min]" Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding ChamberStableMinutes, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Default sensor timeout [min]" Style="{StaticResource Label}"/><TextBox Width="180" Text="{Binding SensorTimeoutMinutes, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                        </WrapPanel>
+
+                        <TextBlock Text="Kontrola odozvy na teplotu" Style="{StaticResource Heading}" Margin="0,10,0,8" />
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Min ΔT [°C]" Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding ValidationMinimumDeltaTemperatureC, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Min Δλ [pm]" Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding ValidationMinimumResponsePm, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                        </WrapPanel>
+                        <CheckBox Content="Povoliť override pri zlyhaní temperature-response validácie" IsChecked="{Binding AllowValidationOverride}" Margin="0,6,0,6" />
+                        <TextBlock Text="Dôvod override" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding ValidationOverrideReason, UpdateSourceTrigger=PropertyChanged}" Width="650" MinHeight="54" TextWrapping="Wrap" AcceptsReturn="True" />
+                        <TextBlock Text="Override používaj iba po vedomom overení správneho SN/peaku. Dôvod sa uloží do warningu kalibračného runu." Style="{StaticResource Caption}" Margin="0,6,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="História">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <Button Content="↻ Obnoviť" Style="{StaticResource GhostButton}" Command="{Binding RefreshHistoryCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Export summary CSV" Style="{StaticResource AccentButton}" Command="{Binding ExportSelectedRunCommand}" />
+                    </DockPanel>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryRun}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Začiatok" Binding="{Binding StartedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
+                            <DataGridTextColumn Header="RunId" Binding="{Binding RunId}" Width="220" />
+                            <DataGridTextColumn Header="Profil" Binding="{Binding ProfileName}" Width="*" />
+                            <DataGridTextColumn Header="Komora" Binding="{Binding ChamberName}" Width="180" />
+                            <DataGridTextColumn Header="Stav" Binding="{Binding State}" Width="160" />
+                            <DataGridTextColumn Header="Plata" Binding="{Binding Plateaus.Count}" Width="70" />
+                            <DataGridTextColumn Header="Warnings" Binding="{Binding Warnings.Count}" Width="80" />
+                            <DataGridTextColumn Header="Operátor" Binding="{Binding Operator}" Width="130" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="3" Style="{StaticResource Card}" Margin="6,0,6,4" Padding="12,8">
+            <StackPanel>
+                <TextBlock Text="{Binding WarningText}" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" FontFamily="Segoe UI Semibold" />
+                <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
