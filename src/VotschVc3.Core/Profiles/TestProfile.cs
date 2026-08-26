@@ -21,6 +21,9 @@ public sealed class TestProfile
     /// <summary>Which chamber type the profile was authored for.</summary>
     public ChamberKind Kind { get; set; } = ChamberKind.TemperatureHumidity;
 
+    /// <summary>Normal test or PeakLogger-backed FBG temperature calibration.</summary>
+    public ProfileExecutionMode ExecutionMode { get; set; } = ProfileExecutionMode.Normal;
+
     /// <summary>When the profile was created / last saved.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
 
@@ -162,6 +165,7 @@ public sealed class TestProfile
         Name = Name,
         OriginalName = OriginalName,
         Kind = Kind,
+        ExecutionMode = ExecutionMode,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt,
         Cycles = Cycles,
@@ -178,6 +182,7 @@ public sealed class TestProfile
             TargetHumidity = s.TargetHumidity,
             Duration = s.Duration,
             IsRamp = s.IsRamp,
+            IsCalibrationPoint = s.IsCalibrationPoint,
             GuaranteedSoak = s.GuaranteedSoak,
             SoakTolerance = s.SoakTolerance,
         }).ToList(),
