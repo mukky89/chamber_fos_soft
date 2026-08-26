@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using VotschVc3.App.Mvvm;
-using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
@@ -1291,7 +1290,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private void LogEmailDiagnostics()
     {
         string description = _notifier.Describe();
-        AppLog.Info(EmailNotifier.LogSource, $"Diagnostika nastavení: {description}");
+
+        // Fully qualified: this view model has its own AppLog property (the log *viewer*),
+        // which otherwise hides the static logger of the same name.
+        VotschVc3.Core.Diagnostics.AppLog.Info(EmailNotifier.LogSource, $"Diagnostika nastavení: {description}");
         OnPropertyChanged(nameof(EmailReadinessText));
         EmailStatus = $"Zapísané do App logu · {description}";
     }
