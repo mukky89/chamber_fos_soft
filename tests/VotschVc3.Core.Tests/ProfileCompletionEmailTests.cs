@@ -13,9 +13,12 @@ public sealed class ProfileCompletionEmailTests
         Assert.Equal("smtp-relay.brevo.com", settings.SmtpHost);
         Assert.Equal(587, settings.SmtpPort);
         Assert.Equal(EmailMethod.BrevoApi, settings.Method);
-        Assert.Equal("no-reply@sylex.sk", settings.From);
         Assert.Equal("https://api.brevo.com/v3/smtp/email", settings.HttpEndpoint);
         Assert.Equal(3, EmailAddressParser.Parse(settings.Recipient).Count);
+
+        // Odosielateľ nemá predvoľbu naprieč inštaláciami: musí sedieť s adresou overenou
+        // v Brevo, takže sa berie z premennej EMAIL_SENDER alebo sa vyplní v administrácii.
+        Assert.Equal(string.Empty, settings.From);
     }
 
     [Fact]

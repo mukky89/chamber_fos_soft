@@ -191,4 +191,28 @@ public class EmailSettingsTests
             (EmailEnvironment.Sender, null),
             (EmailEnvironment.ApiKey, null));
     }
+
+    [Fact]
+    public void LoadingSettingsDoesNotStampASenderOverAnEmptyField()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"email-{Guid.NewGuid():N}.json");
+        try
+        {
+            var store = new EmailSettingsStore(path);
+            store.Save(new EmailSettings { From = string.Empty, Recipient = "test@sylex.sk" });
+
+            EmailSettings loaded = store.Load();
+
+            // Prázdny odosielateľ musí zostať prázdny, inak sa premenná EMAIL_SENDER
+            // nikdy nedostane k slovu.
+            Assert.Equal(string.Empty, loaded.From);
+            WithEnvironment(
+                () => Assert.Equal("no-reply@mmucka.xyz", loaded.ResolveFrom()),
+                (EmailEnvironment.Sender, "no-reply@mmucka.xyz"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

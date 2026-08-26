@@ -44,10 +44,11 @@ public sealed class EmailSettingsStore
                 {
                     settings.SmtpHost = "smtp-relay.brevo.com";
                 }
-                if (string.IsNullOrWhiteSpace(settings.From))
-                {
-                    settings.From = "no-reply@sylex.sk";
-                }
+
+                // The sender is deliberately NOT backfilled. It has to match an address
+                // verified in Brevo, and stamping a fixed one over an empty field meant the
+                // EMAIL_SENDER environment variable could never take effect – the field was
+                // never empty by the time anything read it.
                 if (string.IsNullOrWhiteSpace(settings.HttpEndpoint))
                 {
                     settings.HttpEndpoint = "https://api.brevo.com/v3/smtp/email";
