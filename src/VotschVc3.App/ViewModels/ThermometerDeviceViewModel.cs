@@ -49,9 +49,27 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     public string? SerialNumber => Info.SerialNumber;
 
     public IReadOnlyList<int> BaudRates { get; } = F100Protocol.BaudRates;
+    public IReadOnlyList<string> ProbeChannels { get; } = F100Protocol.ProbeChannels;
 
     private int _baudRate = F100Protocol.DefaultBaudRate;
     public int BaudRate { get => _baudRate; set => SetProperty(ref _baudRate, value); }
+
+    private string _selectedChannel = "A";
+    /// <summary>Physical F100 probe input used for readings (A or B).</summary>
+    public string SelectedChannel
+    {
+        get => _selectedChannel;
+        set
+        {
+            string normalized = F100Protocol.NormalizeChannel(value);
+            if (normalized == "A-B") normalized = "A";
+            if (SetProperty(ref _selectedChannel, normalized))
+            {
+                OnPropertyChanged(nameof(ConnectionState));
+                StatusMessage = $"Kanál sondy nastavený na {normalized}. Ďalšie čítanie použije tento vstup.";
+            }
+        }
+    }
 
     private string _readCommand = F100Protocol.DefaultReadCommand;
     public string ReadCommand { get => _readCommand; set => SetProperty(ref _readCommand, value); }
@@ -90,7 +108,9 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
     }
 
-    public string ConnectionState => IsConnected ? $"Pripojené · {PortName} @ {BaudRate} bd" : "Odpojené";
+    public string ConnectionState => IsConnected
+        ? $"Pripojené · {PortName} · kanál {SelectedChannel} @ {BaudRate} bd"
+        : "Odpojené";
 
     private double? _temperature;
     public double? Temperature { get => _temperature; private set => SetProperty(ref _temperature, value); }
@@ -144,6 +164,17 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
             // Identification is best-effort; some firmware may not answer *IDN?.
         }
 
+        // SYSTEM:REMOTE is a command, not a query. It must not wait for a response.
+        try
+        {
+            await _client.SendAsync(F100Protocol.RemoteCommand);
+            AppLog.Info($"F100 {PortName}", "USB remote mode enabled.");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"F100 {PortName}", $"SYSTEM:REMOTE zlyhal: {ex.Message}");
+        }
+
         if (PollingEnabled)
         {
             StartPolling();
@@ -155,6 +186,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         StopPolling();
         if (_client is not null)
         {
+            try { await _client.SendAsync(F100Protocol.LocalCommand); } catch { }
             await _client.DisposeAsync();
             _client = null;
         }
@@ -186,10 +218,35 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
             return;
         }
 
-        ThermometerReading reading = await _client.ReadAsync(ReadCommand);
-        LogTerminal(ReadCommand, reading.Raw);
+        ThermometerReading reading = await _client.ReadChannelAsync(SelectedChannel, ReadCommand);
+        LogTerminal(F100Protocol.BuildMeasureChannelCommand(SelectedChannel), reading.Raw);
         ApplyReading(reading);
+        if (reading.Temperature is null)
+        {
+            throw new InvalidOperationException($"F100 {PortName}, kanál {SelectedChannel}: zariadenie nevrátilo platnú teplotu. RAW: {reading.Raw}");
+        }
     }
+
+    /// <summary>
+    /// Used by the calibration workspace: connect if necessary, read the selected A/B input,
+    /// update the live chart and return the reference temperature.
+    /// </summary>
+    public async Task<double?> ReadReferenceTemperatureAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsConnected)
+        {
+            await ConnectAsync();
+        }
+
+        if (_client is null) return null;
+        ThermometerReading reading = await _client.ReadChannelAsync(SelectedChannel, ReadCommand, cancellationToken);
+        ApplyReading(reading);
+        return reading.Temperature;
+    }
+
+    /// <summary>One operator "Kontrola" action: connect when needed and acquire one fresh value.</summary>
+    public Task<double?> CheckAsync(CancellationToken cancellationToken = default) =>
+        ReadReferenceTemperatureAsync(cancellationToken);
 
     private void StartPolling()
     {
@@ -211,7 +268,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         {
             try
             {
-                ThermometerReading reading = await _client.ReadAsync(ReadCommand, token);
+                ThermometerReading reading = await _client.ReadChannelAsync(SelectedChannel, ReadCommand, token);
                 ApplyReading(reading);
             }
             catch (OperationCanceledException)
@@ -282,7 +339,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         var points = _live
             .Select(s => new Point((s.time - t0).TotalMinutes, s.value))
             .ToList();
-        LiveSeries = new[] { new ChartSeries("Teplota", TempBrush, points) };
+        LiveSeries = new[] { new ChartSeries($"F100 · {SelectedChannel}", TempBrush, points) };
     }
 
     private async Task SendTerminalAsync()
@@ -293,8 +350,16 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
 
         string command = TerminalInput;
-        string response = await _client.SendReceiveAsync(command);
-        LogTerminal(command, response);
+        if (command.TrimEnd().EndsWith('?', StringComparison.Ordinal))
+        {
+            string response = await _client.SendReceiveAsync(command);
+            LogTerminal(command, response);
+        }
+        else
+        {
+            await _client.SendAsync(command);
+            LogTerminal(command, "(bez odpovede — command)");
+        }
     }
 
     private void LogTerminal(string tx, string rx)
@@ -396,6 +461,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         StopRecording();
         if (_client is not null)
         {
+            try { await _client.SendAsync(F100Protocol.LocalCommand); } catch { }
             await _client.DisposeAsync();
             _client = null;
         }
