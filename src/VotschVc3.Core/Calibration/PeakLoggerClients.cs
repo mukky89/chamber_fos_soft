@@ -1,3 +1,7 @@
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace VotschVc3.Core.Calibration;
 
 public interface IPeakLoggerClient : IAsyncDisposable
@@ -161,42 +165,277 @@ public sealed class FakePeakLoggerClient : IPeakLoggerClient, IPeakLoggerSimulat
 }
 
 /// <summary>
-/// Production adapter seam. The concrete PeakLogger REST/streaming contract was not
-/// present in this repository, therefore no endpoint names or response schema are
-/// guessed here. Fill this adapter once the vendor API documentation is supplied.
+/// Production adapter for the local PeakLogger REST API used by the existing
+/// Auto_calibrator_Pali application. The established contract is:
+/// <c>GET /swagger/index.html</c> for a lightweight availability check and
+/// <c>GET /peaks?</c> for all currently detected peaks. PeakLogger normally listens
+/// on localhost:43122. A peak response contains index, channel, wavelength,
+/// intensity and device.deviceSN/deviceType/connector.
 /// </summary>
 public sealed class PeakLoggerApiClient : IPeakLoggerClient
 {
-    private PeakLoggerSettings? _settings;
+    public const int DefaultPort = 43122;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    private readonly HttpClient _httpClient;
+    private readonly bool _ownsHttpClient;
+    private PeakLoggerSettings _settings = new();
+    private Uri? _baseUri;
+
+    public PeakLoggerApiClient(HttpClient? httpClient = null)
+    {
+        _httpClient = httpClient ?? new HttpClient();
+        _ownsHttpClient = httpClient is null;
+    }
 
     public bool IsConnected { get; private set; }
     public DateTimeOffset? LastDataTimestamp { get; private set; }
 
-    public Task ConnectAsync(PeakLoggerSettings settings, CancellationToken cancellationToken = default)
+    public async Task ConnectAsync(PeakLoggerSettings settings, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
-        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        throw MissingContract();
+
+        _settings = settings;
+        _baseUri = BuildBaseUri(settings);
+        IsConnected = false;
+        LastDataTimestamp = null;
+
+        // This is the same availability check used by Auto_calibrator_Pali.
+        using HttpResponseMessage response = await SendGetAsync("swagger/index.html", cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"PeakLogger API nie je dostupné na {_baseUri} (HTTP {(int)response.StatusCode} {response.ReasonPhrase}).",
+                null,
+                response.StatusCode);
+        }
+
+        IsConnected = true;
     }
 
     public Task DisconnectAsync()
     {
         IsConnected = false;
+        LastDataTimestamp = null;
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<PeakLoggerSensor>> DiscoverSensorsAsync(CancellationToken cancellationToken = default) =>
-        throw MissingContract();
+    public async Task<IReadOnlyList<PeakLoggerSensor>> DiscoverSensorsAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureConnected();
+        IReadOnlyList<PeakLoggerApiPeakDto> peaks = await FetchPeaksAsync(cancellationToken).ConfigureAwait(false);
 
-    public Task<IReadOnlyList<PeakLoggerMeasurement>> ReadMeasurementsAsync(CancellationToken cancellationToken = default) =>
-        throw MissingContract();
+        return peaks
+            .Where(IsUsablePeak)
+            .GroupBy(p => new { Serial = GetDeviceSerial(p), p.Channel })
+            .OrderBy(g => g.Key.Serial, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(g => g.Key.Channel, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new PeakLoggerSensor(
+                g.Key.Serial,
+                g.Key.Channel,
+                g.OrderBy(p => p.Index)
+                    .Select(p => new PeakLoggerPeak(
+                        PeakId(p.Index),
+                        p.Index,
+                        p.Wavelength,
+                        p.Intensity))
+                    .ToArray()))
+            .ToArray();
+    }
 
-    private static NotSupportedException MissingContract() => new(
-        "PeakLogger API kontrakt nie je v repozitári. Doplň vendor dokumentáciu: host/port, autentifikáciu, " +
-        "sensor discovery response, measurement response a stabilné polia SerialNumber/Channel/PeakId/Wavelength/Intensity.");
+    public async Task<IReadOnlyList<PeakLoggerMeasurement>> ReadMeasurementsAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureConnected();
+        IReadOnlyList<PeakLoggerApiPeakDto> peaks = await FetchPeaksAsync(cancellationToken).ConfigureAwait(false);
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
+
+        PeakLoggerMeasurement[] measurements = peaks
+            .Where(IsUsablePeak)
+            .OrderBy(p => GetDeviceSerial(p), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.Channel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.Index)
+            .Select(p => new PeakLoggerMeasurement(
+                timestamp,
+                GetDeviceSerial(p),
+                p.Channel,
+                PeakId(p.Index),
+                p.Index,
+                p.Wavelength,
+                p.Intensity))
+            .ToArray();
+
+        LastDataTimestamp = timestamp;
+        return measurements;
+    }
+
+    private async Task<IReadOnlyList<PeakLoggerApiPeakDto>> FetchPeaksAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using HttpResponseMessage response = await SendGetAsync("peaks?", cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                // Matches the existing Python integration: 404 means no usable peak data.
+                return Array.Empty<PeakLoggerApiPeakDto>();
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException(
+                    $"PeakLogger /peaks zlyhal (HTTP {(int)response.StatusCode} {response.ReasonPhrase}).",
+                    null,
+                    response.StatusCode);
+            }
+
+            string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            List<PeakLoggerApiPeakDto>? result = JsonSerializer.Deserialize<List<PeakLoggerApiPeakDto>>(json, JsonOptions);
+            return result ?? Array.Empty<PeakLoggerApiPeakDto>();
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            IsConnected = false;
+            throw new TimeoutException($"PeakLogger API neodpovedalo do {_settings.RequestTimeout}.");
+        }
+        catch (HttpRequestException)
+        {
+            IsConnected = false;
+            throw;
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("PeakLogger /peaks vrátil neplatný JSON.", ex);
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendGetAsync(string relativePath, CancellationToken cancellationToken)
+    {
+        if (_baseUri is null)
+        {
+            throw new InvalidOperationException("PeakLogger klient ešte nemá nastavenú adresu.");
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (_settings.RequestTimeout > TimeSpan.Zero && _settings.RequestTimeout != Timeout.InfiniteTimeSpan)
+        {
+            timeoutCts.CancelAfter(_settings.RequestTimeout);
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_baseUri, relativePath));
+        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token).ConfigureAwait(false);
+    }
+
+    private static Uri BuildBaseUri(PeakLoggerSettings settings)
+    {
+        string host = string.IsNullOrWhiteSpace(settings.Host) ? "localhost" : settings.Host.Trim();
+        int port = settings.Port > 0 ? settings.Port : DefaultPort;
+
+        if (Uri.TryCreate(host, UriKind.Absolute, out Uri? absolute) &&
+            (absolute.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+             absolute.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            var builder = new UriBuilder(absolute);
+            if (settings.Port > 0)
+            {
+                builder.Port = port;
+            }
+            else if (builder.IsDefaultPort)
+            {
+                builder.Port = DefaultPort;
+            }
+            builder.Path = "/";
+            builder.Query = string.Empty;
+            return builder.Uri;
+        }
+
+        return new UriBuilder(Uri.UriSchemeHttp, host, port, "/").Uri;
+    }
+
+    private static bool IsUsablePeak(PeakLoggerApiPeakDto peak) =>
+        peak.Index >= 0 && !string.IsNullOrWhiteSpace(peak.Channel) && double.IsFinite(peak.Wavelength);
+
+    private static string PeakId(int index) => $"P{index}";
+
+    private static string GetDeviceSerial(PeakLoggerApiPeakDto peak)
+    {
+        if (!string.IsNullOrWhiteSpace(peak.Device?.DeviceSN))
+        {
+            return peak.Device.DeviceSN.Trim();
+        }
+
+        // deviceSN is present in the documented fixture. Keep a deterministic fallback
+        // so malformed/older PeakLogger responses remain visible instead of merging with
+        // an empty identity.
+        string type = string.IsNullOrWhiteSpace(peak.Device?.DeviceType) ? "PeakLogger" : peak.Device.DeviceType.Trim();
+        return $"{type}@{peak.Channel}";
+    }
+
+    private void EnsureConnected()
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("PeakLogger nie je pripojený.");
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
         await DisconnectAsync().ConfigureAwait(false);
+        if (_ownsHttpClient)
+        {
+            _httpClient.Dispose();
+        }
+    }
+
+    private sealed class PeakLoggerApiPeakDto
+    {
+        [JsonPropertyName("index")]
+        public int Index { get; set; }
+
+        [JsonPropertyName("channel")]
+        public string Channel { get; set; } = string.Empty;
+
+        [JsonPropertyName("wavelength")]
+        public double Wavelength { get; set; }
+
+        [JsonPropertyName("cog")]
+        public double? Cog { get; set; }
+
+        [JsonPropertyName("intensity")]
+        public double? Intensity { get; set; }
+
+        [JsonPropertyName("returnLoss")]
+        public double? ReturnLoss { get; set; }
+
+        [JsonPropertyName("slsr")]
+        public double? Slsr { get; set; }
+
+        [JsonPropertyName("width")]
+        public double? Width { get; set; }
+
+        [JsonPropertyName("asymmetry")]
+        public double? Asymmetry { get; set; }
+
+        [JsonPropertyName("device")]
+        public PeakLoggerApiDeviceDto? Device { get; set; }
+
+        [JsonPropertyName("fos4x")]
+        public JsonElement? Fos4x { get; set; }
+    }
+
+    private sealed class PeakLoggerApiDeviceDto
+    {
+        [JsonPropertyName("deviceType")]
+        public string DeviceType { get; set; } = string.Empty;
+
+        [JsonPropertyName("deviceSN")]
+        public string DeviceSN { get; set; } = string.Empty;
+
+        [JsonPropertyName("connector")]
+        public int? Connector { get; set; }
     }
 }
