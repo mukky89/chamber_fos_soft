@@ -229,7 +229,8 @@ public sealed class CalibrationProfileRunner
     private async Task<double> ReadTemperatureAsync(CancellationToken cancellationToken)
     {
         ChamberReading reading = await _chamber.ReadAsync(cancellationToken).ConfigureAwait(false);
-        return reading.Temperature;
+        return reading.Temperature
+            ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu počas kalibrácie.");
     }
 
     private Task WriteSetpointAsync(double temperature, double? humidity, CancellationToken cancellationToken)
