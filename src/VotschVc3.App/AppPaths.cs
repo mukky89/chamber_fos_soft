@@ -5,18 +5,7 @@ namespace VotschVc3.App;
 
 /// <summary>
 /// Central filesystem layout for the application, all under the user's Documents
-/// folder in <c>Documents\Lab Control</c>:
-/// <list type="bullet">
-///   <item><see cref="ProfilesDir"/> – profile library (profiles.json + seeded defaults),</item>
-///   <item><see cref="AppLogDir"/> – application diagnostic log,</item>
-///   <item><see cref="ProfileLogDir"/> – per-run temperature logs of running profiles,</item>
-///   <item><see cref="RecordingDir"/> – continuous per-connection temperature recordings,</item>
-///   <item><see cref="SettingsDir"/> – other settings (chambers, users, e-mail, audit, UI, markers).</item>
-/// </list>
-/// On first run the folders are created; data from the previous
-/// <c>Documents\VotschVc3</c> layout is migrated once so an existing profile
-/// library / settings are not lost. Everything is best-effort – a filesystem
-/// error never blocks startup.
+/// folder in <c>Documents\Lab Control</c>.
 /// </summary>
 public static class AppPaths
 {
@@ -41,6 +30,9 @@ public static class AppPaths
     /// </summary>
     public static string RecordingDir { get; } = Path.Combine(Root, "Recordings");
 
+    /// <summary>PeakLogger-backed FBG calibration setups, runs, raw samples and checkpoints.</summary>
+    public static string CalibrationDir { get; } = Path.Combine(Root, "Calibration");
+
     /// <summary>Settings folder (chambers, users, e-mail, audit, UI, seed markers).</summary>
     public static string SettingsDir => Root;
 
@@ -57,8 +49,7 @@ public static class AppPaths
 
     /// <summary>
     /// Creates the folder layout and, on first run, migrates data from the old
-    /// <c>Documents\VotschVc3</c> location. Idempotent – safe to call repeatedly;
-    /// the actual work runs once per process.
+    /// <c>Documents\VotschVc3</c> location. Idempotent – safe to call repeatedly.
     /// </summary>
     public static void Initialize()
     {
@@ -71,7 +62,7 @@ public static class AppPaths
 
             _initialised = true;
 
-            foreach (string dir in new[] { Root, ProfilesDir, AppLogDir, ProfileLogDir, RecordingDir, ProfileRecoveryDir })
+            foreach (string dir in new[] { Root, ProfilesDir, AppLogDir, ProfileLogDir, RecordingDir, ProfileRecoveryDir, CalibrationDir })
             {
                 TryCreate(dir);
             }
@@ -93,12 +84,6 @@ public static class AppPaths
         }
     }
 
-    /// <summary>
-    /// One-time copy of the previous <c>Documents\VotschVc3</c> layout into the new
-    /// one, so an upgrading install keeps its profile library, settings and logs.
-    /// Files are copied (not moved) so the old folder stays as a backup, and never
-    /// overwrite an already-present file in the new layout.
-    /// </summary>
     private static void TryMigrateFromLegacy()
     {
         try
@@ -109,8 +94,6 @@ public static class AppPaths
                 return;
             }
 
-            // Top-level files: profiles.json → Profiles, everything else (settings
-            // JSONs, audit.csv, seed/reset markers) → settings root.
             foreach (string file in Directory.GetFiles(LegacyRoot))
             {
                 string name = Path.GetFileName(file);
@@ -120,11 +103,6 @@ public static class AppPaths
                 CopyIfMissing(file, dest);
             }
 
-            // The old monolithic app.log is intentionally NOT migrated – it grew
-            // unbounded (hundreds of MB) and is exactly what the new daily-rotated
-            // layout replaces. It stays in the legacy folder as a backup.
-
-            // Per-profile temperature logs (old folder name: "profil-logy").
             string legacyProfileLogs = Path.Combine(LegacyRoot, "profil-logy");
             if (Directory.Exists(legacyProfileLogs))
             {
@@ -138,8 +116,7 @@ public static class AppPaths
         }
         catch
         {
-            // Never block startup on a migration problem – the app still works with
-            // a fresh (empty) layout, and the old folder remains untouched.
+            // Never block startup on a migration problem.
         }
     }
 
