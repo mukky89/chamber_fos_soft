@@ -205,7 +205,6 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
         IsConnected = false;
         LastDataTimestamp = null;
 
-        // This is the same availability check used by Auto_calibrator_Pali.
         using HttpResponseMessage response = await SendGetAsync("swagger/index.html", cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
@@ -280,7 +279,6 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
             using HttpResponseMessage response = await SendGetAsync("peaks?", cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                // Matches the existing Python integration: 404 means no usable peak data.
                 return Array.Empty<PeakLoggerApiPeakDto>();
             }
 
@@ -294,7 +292,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
             string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             List<PeakLoggerApiPeakDto>? result = JsonSerializer.Deserialize<List<PeakLoggerApiPeakDto>>(json, JsonOptions);
-            return result ?? Array.Empty<PeakLoggerApiPeakDto>();
+            return result is null ? Array.Empty<PeakLoggerApiPeakDto>() : result;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -325,7 +323,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
             timeoutCts.CancelAfter(_settings.RequestTimeout);
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_baseUri, relativePath));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_baseUri, relativePath));
         return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token).ConfigureAwait(false);
     }
 
@@ -343,7 +341,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
             {
                 builder.Port = port;
             }
-            else if (builder.IsDefaultPort)
+            else if (absolute.IsDefaultPort)
             {
                 builder.Port = DefaultPort;
             }
@@ -367,9 +365,6 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
             return peak.Device.DeviceSN.Trim();
         }
 
-        // deviceSN is present in the documented fixture. Keep a deterministic fallback
-        // so malformed/older PeakLogger responses remain visible instead of merging with
-        // an empty identity.
         string type = string.IsNullOrWhiteSpace(peak.Device?.DeviceType) ? "PeakLogger" : peak.Device.DeviceType.Trim();
         return $"{type}@{peak.Channel}";
     }
