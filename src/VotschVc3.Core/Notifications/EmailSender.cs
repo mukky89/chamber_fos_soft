@@ -31,29 +31,40 @@ public sealed class SmtpEmailSender : IEmailSender
 
     public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_settings.SmtpHost))
+        // Fields left empty fall back to the environment variables (see EmailEnvironment),
+        // so the SMTP key never has to live in the settings file.
+        string host = _settings.ResolveSmtpHost();
+        int port = _settings.ResolveSmtpPort();
+        string user = _settings.ResolveSmtpUser();
+        string password = _settings.ResolveSmtpPassword();
+
+        if (string.IsNullOrWhiteSpace(host))
         {
-            throw new InvalidOperationException("SMTP host nie je nastavený.");
+            throw new InvalidOperationException(
+                $"SMTP host nie je nastavený (ani v premennej {EmailEnvironment.SmtpHost}).");
         }
 
-        using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+        using var client = new SmtpClient(host, port > 0 ? port : 587)
         {
             EnableSsl = _settings.SmtpUseSsl,
         };
 
-        if (!string.IsNullOrEmpty(_settings.SmtpUser))
+        if (!string.IsNullOrEmpty(user))
         {
-            client.Credentials = new NetworkCredential(_settings.SmtpUser, _settings.SmtpPassword);
+            client.Credentials = new NetworkCredential(user, password);
         }
 
-        string from = !string.IsNullOrWhiteSpace(_settings.From) ? _settings.From : _settings.SmtpUser;
+        string from = !string.IsNullOrWhiteSpace(_settings.ResolveFrom()) ? _settings.ResolveFrom() : user;
         if (string.IsNullOrWhiteSpace(from))
         {
-            throw new InvalidOperationException("Chýba adresa odosielateľa. Vyplň pole Odosielateľ (from).");
+            throw new InvalidOperationException(
+                $"Chýba adresa odosielateľa. Vyplň pole Odosielateľ (from) alebo premennú {EmailEnvironment.Sender}.");
         }
-        if (string.IsNullOrWhiteSpace(_settings.SmtpUser) || string.IsNullOrWhiteSpace(_settings.SmtpPassword))
+        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
         {
-            throw new InvalidOperationException("Chýba SMTP používateľ alebo heslo. Pre Brevo použi SMTP login a SMTP key, alebo zvoľ BrevoApi.");
+            throw new InvalidOperationException(
+                "Chýba SMTP používateľ alebo heslo. Pre Brevo použi SMTP login a SMTP key " +
+                $"(alebo premenné {EmailEnvironment.SmtpUser} a {EmailEnvironment.SmtpPassword}), prípadne zvoľ BrevoApi.");
         }
         using var mail = new MailMessage { From = new MailAddress(from, "Lab Control"), Subject = message.Subject, Body = message.Body };
         foreach (string recipient in EmailAddressParser.Parse(message.To))
@@ -105,9 +116,12 @@ public sealed class BrevoEmailSender : IEmailSender
 
     public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_settings.From))
+        string from = _settings.ResolveFrom();
+        if (string.IsNullOrWhiteSpace(from))
         {
-            throw new InvalidOperationException("Chýba overená Brevo adresa odosielateľa.");
+            throw new InvalidOperationException(
+                "Chýba overená Brevo adresa odosielateľa. Vyplň pole Odosielateľ (from) alebo " +
+                $"premennú {EmailEnvironment.Sender}.");
         }
         string apiKey = _settings.ResolveApiKey();
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -122,7 +136,7 @@ public sealed class BrevoEmailSender : IEmailSender
             : _settings.HttpEndpoint;
         var payload = new
         {
-            sender = new { name = "Lab Control", email = _settings.From.Trim() },
+            sender = new { name = "Lab Control", email = from },
             to = EmailAddressParser.Parse(message.To).Select(email => new { email }).ToArray(),
             subject = message.Subject,
             textContent = message.Body,
@@ -177,7 +191,7 @@ public sealed class HttpEmailSender : IEmailSender
         var payload = new
         {
             to = message.To,
-            from = _settings.From,
+            from = _settings.ResolveFrom(),
             subject = message.Subject,
             text = message.Body,
             html = message.HtmlBody,

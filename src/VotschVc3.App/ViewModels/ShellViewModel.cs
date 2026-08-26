@@ -1264,16 +1264,21 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
                 return $"⚠ Chýba: {missing}. Bez toho sa notifikácie neodošlú.";
             }
 
-            return Email.Enabled
+            // Say which values are coming from the environment – otherwise an empty box on
+            // the panel reads as "not configured" even though sending works.
+            string environment = Email.DescribeEnvironmentSources();
+            string source = environment.Length > 0 ? $" · z premenných prostredia: {environment}" : string.Empty;
+            return (Email.Enabled
                 ? "✔ Nastavené – notifikácie sa odošlú po dokončení profilu."
-                : "✔ Nastavené, ale prepínač notifikácií je vypnutý.";
+                : "✔ Nastavené, ale prepínač notifikácií je vypnutý.") + source;
         }
     }
 
-    /// <summary>Where the API key may come from, so it never has to live in the repository.</summary>
+    /// <summary>Where the values may come from, so no secret has to live in the settings file.</summary>
     public string EmailApiKeyHint =>
-        $"Kľúč sa dá nechať prázdny a nastaviť do systémovej premennej {EmailSettings.ApiKeyEnvironmentVariable} " +
-        "(Windows → Premenné prostredia). Aplikácia ho odtiaľ prevezme.";
+        "Ktorékoľvek pole sa dá nechať prázdne a nastaviť do systémovej premennej " +
+        $"({string.Join(", ", EmailEnvironment.All)}). Premenné prežijú preinštalovanie aj nový build " +
+        "a zdieľajú sa s FOS Dashboardom; vyplnené pole má vždy prednosť. Po zmene premennej treba appku reštartovať.";
 
     public RelayCommand SaveEmailSettingsCommand { get; }
     public AsyncRelayCommand TestEmailCommand { get; }

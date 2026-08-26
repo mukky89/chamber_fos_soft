@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.65.0] – 2026-08-26
+
+### Pridané
+- **Nastavenia e-mailu sa dajú dať do premenných prostredia** – a tie prežijú nový
+  build aj preinštalovanie appky. Prázdne pole si hodnotu vezme z premennej,
+  vyplnené pole má prednosť:
+  `BREVO_API_KEY`, `EMAIL_SENDER`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+  `EMAIL_PASSWORD`. Sú to tie isté názvy, aké používa FOS Dashboard, takže sa
+  nastavujú raz pre obe aplikácie a žiadny kľúč ani heslo nemusí ísť do nastavení
+  aplikácie (ani do repozitára).
+- Panel v administrácii píše, **ktoré hodnoty prišli z premenných prostredia**, aby
+  prázdne políčko nevyzeralo ako nenastavené.
+- Nový návod [`docs/EMAIL_NOTIFIKACIE.md`](docs/EMAIL_NOTIFIKACIE.md): čo je povinné
+  pre ktorý spôsob odosielania, príkazy `setx`, a najčastejšia príčina neodoslaného
+  e-mailu (neoverený odosielateľ v Brevo).
+
+### Zmenené
+- **Odosielateľ (from) už nemá napevno predvolené `no-reply@sylex.sk`.** Musí sedieť
+  s adresou overenou v Brevo, inak Brevo odmietne odoslanie aj so správnym kľúčom –
+  zlá predvoľba to len maskovala. Nová inštalácia si adresu vezme z `EMAIL_SENDER`.
+- Chybové hlášky pri odosielaní hovoria aj to, ktorá premenná prostredia
+  by problém vyriešila.
+
 ## [1.64.0] – 2026-08-26
 
 ### Opravené

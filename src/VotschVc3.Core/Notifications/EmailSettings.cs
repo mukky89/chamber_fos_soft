@@ -1,5 +1,35 @@
 namespace VotschVc3.Core.Notifications;
 
+/// <summary>
+/// Environment variables the e-mail settings fall back to when a field is left empty. The
+/// names match the ones the FOS Dashboard already uses, so one set of variables on the lab
+/// PC configures both – and no key or password ever has to be typed into the application
+/// (or committed).
+/// </summary>
+public static class EmailEnvironment
+{
+    /// <summary>Brevo transactional API key.</summary>
+    public const string ApiKey = "BREVO_API_KEY";
+
+    /// <summary>Sender ("from") address – must be a sender verified in Brevo.</summary>
+    public const string Sender = "EMAIL_SENDER";
+
+    /// <summary>SMTP relay host.</summary>
+    public const string SmtpHost = "SMTP_HOST";
+
+    /// <summary>SMTP relay port.</summary>
+    public const string SmtpPort = "SMTP_PORT";
+
+    /// <summary>SMTP login.</summary>
+    public const string SmtpUser = "SMTP_USER";
+
+    /// <summary>SMTP password / Brevo SMTP key.</summary>
+    public const string SmtpPassword = "EMAIL_PASSWORD";
+
+    /// <summary>Every variable, for the administration hint.</summary>
+    public static readonly string[] All = { ApiKey, Sender, SmtpHost, SmtpPort, SmtpUser, SmtpPassword };
+}
+
 /// <summary>How notification e-mails are delivered.</summary>
 public enum EmailMethod
 {
@@ -30,8 +60,12 @@ public sealed class EmailSettings
     /// <summary>Recipient address that receives the notifications.</summary>
     public string Recipient { get; set; } = DefaultRecipients;
 
-    /// <summary>Sender ("from") address.</summary>
-    public string From { get; set; } = "no-reply@sylex.sk";
+    /// <summary>
+    /// Sender ("from") address. Empty by default so a fresh installation picks it up from
+    /// <see cref="EmailEnvironment.Sender"/> – it has to match a sender verified in Brevo,
+    /// and a wrong hard-coded default is rejected even with a valid API key.
+    /// </summary>
+    public string From { get; set; } = string.Empty;
 
     // --- SMTP ---
     public string SmtpHost { get; set; } = "smtp-relay.brevo.com";
@@ -47,20 +81,74 @@ public sealed class EmailSettings
     /// <summary>Optional bearer API key sent as the Authorization header.</summary>
     public string HttpApiKey { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Environment variable read when <see cref="HttpApiKey"/> is empty, so the key can live
-    /// outside the settings file (and outside the repository) on a shared lab PC.
-    /// </summary>
-    public const string ApiKeyEnvironmentVariable = "BREVO_API_KEY";
+    /// <summary>Kept for callers written against the older single-variable API.</summary>
+    public const string ApiKeyEnvironmentVariable = EmailEnvironment.ApiKey;
+
+    /// <summary>The API key actually used to send (see <see cref="EmailEnvironment"/>).</summary>
+    public string ResolveApiKey() => Resolve(HttpApiKey, EmailEnvironment.ApiKey);
+
+    /// <summary>The sender address actually used (see <see cref="EmailEnvironment"/>).</summary>
+    public string ResolveFrom() => Resolve(From, EmailEnvironment.Sender);
+
+    /// <summary>The SMTP server actually used (see <see cref="EmailEnvironment"/>).</summary>
+    public string ResolveSmtpHost() => Resolve(SmtpHost, EmailEnvironment.SmtpHost);
+
+    /// <summary>The SMTP login actually used (see <see cref="EmailEnvironment"/>).</summary>
+    public string ResolveSmtpUser() => Resolve(SmtpUser, EmailEnvironment.SmtpUser);
+
+    /// <summary>The SMTP password actually used (see <see cref="EmailEnvironment"/>).</summary>
+    public string ResolveSmtpPassword() => Resolve(SmtpPassword, EmailEnvironment.SmtpPassword);
+
+    /// <summary>The SMTP port actually used; a non-numeric environment value is ignored.</summary>
+    public int ResolveSmtpPort()
+    {
+        if (SmtpPort > 0)
+        {
+            return SmtpPort;
+        }
+
+        return int.TryParse(Resolve(string.Empty, EmailEnvironment.SmtpPort), out int port) && port > 0
+            ? port
+            : 0;
+    }
+
+    /// <summary>An explicitly entered value always wins; an empty field falls back to the
+    /// environment variable, so a secret never has to be typed into the application.</summary>
+    private static string Resolve(string? entered, string variable) =>
+        !string.IsNullOrWhiteSpace(entered)
+            ? entered.Trim()
+            : Environment.GetEnvironmentVariable(variable)?.Trim() ?? string.Empty;
 
     /// <summary>
-    /// The API key actually used to send: the one entered in the administration, or – when
-    /// that is empty – the <see cref="ApiKeyEnvironmentVariable"/> environment variable.
+    /// Which values are currently coming from the environment rather than from the fields,
+    /// so an empty box on the panel does not read as "not configured".
     /// </summary>
-    public string ResolveApiKey() =>
-        !string.IsNullOrWhiteSpace(HttpApiKey)
-            ? HttpApiKey.Trim()
-            : Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariable)?.Trim() ?? string.Empty;
+    public string DescribeEnvironmentSources()
+    {
+        var fromEnvironment = new List<string>();
+        void Check(string? entered, string variable, string label)
+        {
+            if (string.IsNullOrWhiteSpace(entered) &&
+                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variable)))
+            {
+                fromEnvironment.Add(label);
+            }
+        }
+
+        Check(From, EmailEnvironment.Sender, "odosielateľ");
+        if (Method is EmailMethod.BrevoApi or EmailMethod.Http)
+        {
+            Check(HttpApiKey, EmailEnvironment.ApiKey, "API kľúč");
+        }
+        else
+        {
+            Check(SmtpHost, EmailEnvironment.SmtpHost, "SMTP host");
+            Check(SmtpUser, EmailEnvironment.SmtpUser, "SMTP používateľ");
+            Check(SmtpPassword, EmailEnvironment.SmtpPassword, "SMTP heslo");
+        }
+
+        return fromEnvironment.Count == 0 ? string.Empty : string.Join(", ", fromEnvironment);
+    }
 
     /// <summary>
     /// What still has to be filled in before a notification can be sent, or an empty string
@@ -72,7 +160,7 @@ public sealed class EmailSettings
     {
         var missing = new List<string>();
         if (string.IsNullOrWhiteSpace(Recipient)) missing.Add("adresát");
-        if (string.IsNullOrWhiteSpace(From)) missing.Add("odosielateľ (from)");
+        if (string.IsNullOrWhiteSpace(ResolveFrom())) missing.Add("odosielateľ (from)");
 
         switch (Method)
         {
@@ -82,8 +170,10 @@ public sealed class EmailSettings
                 if (string.IsNullOrWhiteSpace(ResolveApiKey())) missing.Add("API kľúč");
                 break;
             default:
-                if (string.IsNullOrWhiteSpace(SmtpHost)) missing.Add("SMTP host");
-                if (SmtpPort <= 0) missing.Add("SMTP port");
+                if (string.IsNullOrWhiteSpace(ResolveSmtpHost())) missing.Add("SMTP host");
+                if (ResolveSmtpPort() <= 0) missing.Add("SMTP port");
+                if (string.IsNullOrWhiteSpace(ResolveSmtpUser())) missing.Add("SMTP používateľ");
+                if (string.IsNullOrWhiteSpace(ResolveSmtpPassword())) missing.Add("SMTP heslo");
                 break;
         }
 
