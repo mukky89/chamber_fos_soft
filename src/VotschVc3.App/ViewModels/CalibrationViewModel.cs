@@ -10,6 +10,7 @@ using VotschVc3.Core.Communication.PolEko;
 using VotschVc3.Core.Communication.Sika;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
+using VotschVc3.Core.Thermometers;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -19,14 +20,19 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;
     private readonly EmailNotifier _email = new();
+    private readonly ThermometersViewModel _referenceThermometers;
     private PeakLoggerSettings _peakLoggerSettings = new();
     private IPeakLoggerClient? _peakLogger;
     private IChamberDevice? _chamber;
     private CalibrationProfileRunner? _runner;
     private CancellationTokenSource? _runCts;
+    private CancellationTokenSource? _peakMonitorCts;
     private CalibrationRunRecord? _activeRun;
+    private CalibrationRunWriter? _activeWriter;
     private CalibrationSetup _setup = new();
     private bool _stopRequested;
+    private double? _lastChamberTemperatureC;
+    private double? _lastReferenceTemperatureC;
 
     public CalibrationViewModel()
     {
@@ -35,6 +41,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _chamberStore = new ChamberConfigStore(Path.Combine(AppPaths.SettingsDir, "chambers.json"));
         _calibrationStore = new CalibrationStore(AppPaths.CalibrationDir);
         _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();
+        _referenceThermometers = new ThermometersViewModel();
 
         Profiles = new ObservableCollection<TestProfile>(_profileStore.LoadAll());
         Chambers = new ObservableCollection<CalibrationChamberOption>(
@@ -55,8 +62,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
 
+        RefreshF100PortsCommand = new RelayCommand(RefreshF100Ports, () => !IsRunning);
+        CheckF100Command = new AsyncRelayCommand(CheckF100Async, () => SelectedF100 is not null, ReportError);
+        ToggleF100ChartCommand = new RelayCommand(() => ShowF100Chart = !ShowF100Chart);
+
         if (Profiles.Count > 0) SelectedProfile = Profiles[0];
         if (Chambers.Count > 0) SelectedChamber = Chambers[0];
+        SelectedF100 = F100Devices.FirstOrDefault();
     }
 
     public ObservableCollection<TestProfile> Profiles { get; }
@@ -65,6 +77,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public ObservableCollection<CalibrationPointRowViewModel> CalibrationPoints { get; }
     public ObservableCollection<CalibrationTargetProgressViewModel> TargetProgress { get; }
     public ObservableCollection<CalibrationRunRecord> History { get; }
+
+    public ObservableCollection<ThermometerDeviceViewModel> F100Devices => _referenceThermometers.Devices;
+    public IReadOnlyList<string> F100Channels => F100Protocol.ProbeChannels;
 
     public AsyncRelayCommand ConnectPeakLoggerCommand { get; }
     public AsyncRelayCommand RefreshSensorsCommand { get; }
@@ -76,6 +91,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand StopCalibrationCommand { get; }
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ExportSelectedRunCommand { get; }
+    public RelayCommand RefreshF100PortsCommand { get; }
+    public AsyncRelayCommand CheckF100Command { get; }
+    public RelayCommand ToggleF100ChartCommand { get; }
 
     private TestProfile? _selectedProfile;
     public TestProfile? SelectedProfile
@@ -106,6 +124,57 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             if (SetProperty(ref _selectedHistoryRun, value)) ExportSelectedRunCommand.RaiseCanExecuteChanged();
         }
     }
+
+    private ThermometerDeviceViewModel? _selectedF100;
+    public ThermometerDeviceViewModel? SelectedF100
+    {
+        get => _selectedF100;
+        set
+        {
+            if (SetProperty(ref _selectedF100, value))
+            {
+                if (value is not null) value.SelectedChannel = SelectedF100Channel;
+                CheckF100Command.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(F100TemperatureLabel));
+                OnPropertyChanged(nameof(F100ConnectionLabel));
+            }
+        }
+    }
+
+    private string _selectedF100Channel = "A";
+    public string SelectedF100Channel
+    {
+        get => _selectedF100Channel;
+        set
+        {
+            string normalized = F100Protocol.NormalizeChannel(value);
+            if (normalized == "A-B") normalized = "A";
+            if (SetProperty(ref _selectedF100Channel, normalized) && SelectedF100 is not null)
+            {
+                SelectedF100.SelectedChannel = normalized;
+                OnPropertyChanged(nameof(F100ConnectionLabel));
+            }
+        }
+    }
+
+    private bool _showF100Chart;
+    public bool ShowF100Chart
+    {
+        get => _showF100Chart;
+        set
+        {
+            if (SetProperty(ref _showF100Chart, value))
+            {
+                OnPropertyChanged(nameof(F100ChartButtonText));
+            }
+        }
+    }
+
+    public string F100ChartButtonText => ShowF100Chart ? "Skryť graf" : "Zobraziť graf";
+    public string F100TemperatureLabel => SelectedF100?.Temperature is { } t ? $"{t:F3} {SelectedF100.Unit}" : "—";
+    public string F100ConnectionLabel => SelectedF100 is null
+        ? "Žiadny ASL F100"
+        : $"{SelectedF100.PortName} · kanál {SelectedF100Channel} · {SelectedF100.ConnectionState}";
 
     private bool _useSimulator = true;
     public bool UseSimulator
@@ -163,6 +232,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private string _temperatureLabel = "—";
     public string TemperatureLabel { get => _temperatureLabel; private set => SetProperty(ref _temperatureLabel, value); }
+
+    private string _referenceTemperatureLabel = "—";
+    public string ReferenceTemperatureLabel { get => _referenceTemperatureLabel; private set => SetProperty(ref _referenceTemperatureLabel, value); }
 
     private string _stableLabel = "0 / 0";
     public string StableLabel { get => _stableLabel; private set => SetProperty(ref _stableLabel, value); }
@@ -271,12 +343,14 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private async Task ConnectPeakLoggerAsync()
     {
+        StopPeakMonitor();
         if (_peakLogger is not null) await _peakLogger.DisposeAsync();
         _peakLoggerSettings = new PeakLoggerSettings
         {
             Host = PeakLoggerHost.Trim(),
             Port = PeakLoggerPort,
             UseSimulator = UseSimulator,
+            PollingInterval = TimeSpan.FromMilliseconds(500),
         };
         _peakLogger = UseSimulator
             ? new FakePeakLoggerClient(SimulatorScenario)
@@ -287,6 +361,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         PeakLoggerConnected = true;
         PeakLoggerStatus = UseSimulator ? $"Pripojený · simulátor ({SimulatorScenario})" : "Pripojený";
         await DiscoverSensorsAsync();
+        StartPeakMonitor();
     }
 
     private async Task DiscoverSensorsAsync()
@@ -328,6 +403,117 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshCommands();
     }
 
+    private void StartPeakMonitor()
+    {
+        StopPeakMonitor();
+        if (_peakLogger is null) return;
+        _peakMonitorCts = new CancellationTokenSource();
+        _ = MonitorPeakLoggerAsync(_peakMonitorCts.Token);
+    }
+
+    private void StopPeakMonitor()
+    {
+        _peakMonitorCts?.Cancel();
+        _peakMonitorCts?.Dispose();
+        _peakMonitorCts = null;
+    }
+
+    /// <summary>
+    /// Keeps the wavelength column live before and during a real calibration and writes a
+    /// whole-run trace for every selected FBG index. The simulator is not double-polled
+    /// while a calibration runs, because its scenarios advance on each read; runner progress
+    /// still updates the selected wavelengths in that case.
+    /// </summary>
+    private async Task MonitorPeakLoggerAsync(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested && _peakLogger is not null)
+        {
+            try
+            {
+                if (!(UseSimulator && IsRunning))
+                {
+                    IReadOnlyList<PeakLoggerMeasurement> measurements = await _peakLogger.ReadMeasurementsAsync(token);
+                    await Application.Current.Dispatcher.InvokeAsync(() => ApplyLivePeakMeasurements(measurements));
+
+                    CalibrationRunWriter? writer = _activeWriter;
+                    CalibrationRunRecord? run = _activeRun;
+                    if (writer is not null && run is not null && IsRunning)
+                    {
+                        List<CalibrationWavelengthTraceSample> trace = BuildTraceSamples(run, measurements);
+                        if (trace.Count > 0)
+                        {
+                            await writer.AppendWavelengthTraceAsync(trace, token);
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                PeakLoggerStatus = $"Live monitor: {ex.Message}";
+            }
+
+            try
+            {
+                await Task.Delay(_peakLoggerSettings.PollingInterval, token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
+    private void ApplyLivePeakMeasurements(IReadOnlyList<PeakLoggerMeasurement> measurements)
+    {
+        Dictionary<string, PeakLoggerMeasurement> bySource = measurements
+            .GroupBy(m => $"{m.SerialNumber}|{m.Channel}|{m.PeakId}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
+        foreach (CalibrationPeakRowViewModel row in Peaks)
+        {
+            string key = $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}|{row.PeakId}";
+            if (bySource.TryGetValue(key, out PeakLoggerMeasurement? measurement))
+            {
+                row.UpdateLive(measurement.WavelengthNm, measurement.Intensity, measurement.Timestamp);
+            }
+        }
+    }
+
+    private List<CalibrationWavelengthTraceSample> BuildTraceSamples(
+        CalibrationRunRecord run,
+        IReadOnlyList<PeakLoggerMeasurement> measurements)
+    {
+        Dictionary<string, CalibrationPeakRowViewModel> selected = Peaks
+            .Where(p => p.Selected)
+            .GroupBy(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}|{p.PeakId}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<CalibrationWavelengthTraceSample>();
+        foreach (PeakLoggerMeasurement measurement in measurements)
+        {
+            string key = $"{measurement.SerialNumber}|{measurement.Channel}|{measurement.PeakId}";
+            if (!selected.TryGetValue(key, out CalibrationPeakRowViewModel? row)) continue;
+            result.Add(new CalibrationWavelengthTraceSample
+            {
+                RunId = run.RunId,
+                Timestamp = measurement.Timestamp,
+                SerialNumber = row.SerialNumber,
+                PeakLoggerDeviceSerialNumber = row.PeakLoggerDeviceSerialNumber,
+                Channel = row.Channel,
+                PeakId = row.PeakId,
+                PeakIndex = row.PeakIndex,
+                WavelengthNm = measurement.WavelengthNm,
+                Intensity = measurement.Intensity,
+                ChamberTemperatureC = _lastChamberTemperatureC,
+                ReferenceTemperatureC = _lastReferenceTemperatureC,
+            });
+        }
+        return result;
+    }
+
     private void SelectSuggestedPeaks()
     {
         foreach (IGrouping<string, CalibrationPeakRowViewModel> group in Peaks.GroupBy(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}"))
@@ -345,6 +531,47 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         foreach (CalibrationPointRowViewModel point in CalibrationPoints) point.Selected = true;
         StatusMessage = "Všetky hold segmenty boli označené ako kalibračné plata.";
         StartCalibrationCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshF100Ports()
+    {
+        string? previousPort = SelectedF100?.PortName;
+        _referenceThermometers.RefreshCommand.Execute(null);
+        SelectedF100 = F100Devices.FirstOrDefault(d => string.Equals(d.PortName, previousPort, StringComparison.OrdinalIgnoreCase))
+            ?? F100Devices.FirstOrDefault();
+        StatusMessage = F100Devices.Count == 0
+            ? "ASL F100: nenašiel sa žiadny USB/COM port."
+            : $"ASL F100: načítaných {F100Devices.Count} sériových portov.";
+    }
+
+    private async Task CheckF100Async()
+    {
+        if (SelectedF100 is null) return;
+        SelectedF100.SelectedChannel = SelectedF100Channel;
+        StatusMessage = $"Kontrola ASL F100 · {SelectedF100.PortName} · kanál {SelectedF100Channel}…";
+        double? value = await SelectedF100.CheckAsync();
+        _lastReferenceTemperatureC = value;
+        ReferenceTemperatureLabel = value is { } t ? $"{t:F3} °C" : "—";
+        OnPropertyChanged(nameof(F100TemperatureLabel));
+        OnPropertyChanged(nameof(F100ConnectionLabel));
+        StatusMessage = value is { } temperature
+            ? $"ASL F100 OK · {SelectedF100.PortName} · kanál {SelectedF100Channel} · {temperature:F3} °C"
+            : "ASL F100 nevrátil platnú teplotu.";
+    }
+
+    private async Task<double?> ReadReferenceTemperatureAsync(CancellationToken token)
+    {
+        if (SelectedF100 is null) return null;
+        SelectedF100.SelectedChannel = SelectedF100Channel;
+        double? value = await SelectedF100.ReadReferenceTemperatureAsync(token);
+        _lastReferenceTemperatureC = value;
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            ReferenceTemperatureLabel = value is { } t ? $"{t:F3} °C" : "—";
+            OnPropertyChanged(nameof(F100TemperatureLabel));
+            OnPropertyChanged(nameof(F100ConnectionLabel));
+        });
+        return value;
     }
 
     private void SaveSetup()
@@ -385,6 +612,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _runCts = new CancellationTokenSource();
         _stopRequested = false;
         IsRunning = true;
+        _lastChamberTemperatureC = null;
+        _lastReferenceTemperatureC = SelectedF100?.Temperature;
 
         try
         {
@@ -395,6 +624,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             var initialReading = await _chamber.ReadAsync(_runCts.Token);
             double startTemperature = initialReading.Temperature
                 ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu pred začiatkom kalibrácie.");
+            _lastChamberTemperatureC = startTemperature;
 
             _activeRun = new CalibrationRunRecord
             {
@@ -404,9 +634,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 ChamberName = SelectedChamber.Config.Name,
                 Operator = Environment.UserName,
                 State = CalibrationRunState.Preflight,
+                ReferenceThermometerPort = SelectedF100?.PortName ?? string.Empty,
+                ReferenceThermometerSerialNumber = SelectedF100?.SerialNumber ?? string.Empty,
+                ReferenceThermometerChannel = SelectedF100 is null ? string.Empty : SelectedF100Channel,
             };
 
             await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun);
+            _activeWriter = writer;
             var orchestrator = new CalibrationOrchestrator(_peakLogger);
             orchestrator.WarningRaised += warning =>
             {
@@ -416,7 +650,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
             _runner.Progress += snapshot => _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
 
-            StatusMessage = "Kalibrácia spustená. Najskôr prebehne preflight a kontrola PeakLoggera.";
+            StatusMessage = SelectedF100 is null
+                ? "Kalibrácia spustená bez externého F100. Najskôr prebehne preflight a kontrola PeakLoggera."
+                : $"Kalibrácia spustená · referencia F100 {SelectedF100.PortName}/{SelectedF100Channel}. Najskôr prebehne preflight.";
             await _runner.RunAsync(
                 SelectedProfile,
                 _setup,
@@ -424,7 +660,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 writer,
                 startTemperature,
                 null,
-                null,
+                SelectedF100 is null ? null : ReadReferenceTemperatureAsync,
                 _runCts.Token);
 
             RunState = _activeRun.State.ToString();
@@ -446,6 +682,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
         finally
         {
+            _activeWriter = null;
             IsRunning = false;
             _runner = null;
             if (_chamber is not null)
@@ -472,6 +709,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         TemperatureLabel = snapshot.ActualTemperatureC is { } actual
             ? $"{actual:F2} °C  →  {snapshot.TargetTemperatureC:F2} °C"
             : $"→ {snapshot.TargetTemperatureC:F2} °C";
+        _lastChamberTemperatureC = snapshot.ActualTemperatureC;
+        _lastReferenceTemperatureC = snapshot.ReferenceTemperatureC ?? _lastReferenceTemperatureC;
+        ReferenceTemperatureLabel = snapshot.ReferenceTemperatureC is { } reference ? $"{reference:F3} °C" : ReferenceTemperatureLabel;
         StableLabel = $"{snapshot.StableTargets} / {snapshot.TotalTargets}";
         StatusMessage = snapshot.Message;
 
@@ -487,6 +727,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             else
             {
                 row.Update(target);
+            }
+
+            CalibrationPeakRowViewModel? sourceRow = Peaks.FirstOrDefault(p =>
+                string.Equals(p.SerialNumber, target.SerialNumber, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(p.Channel, target.Channel, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(p.PeakId, target.PeakId, StringComparison.OrdinalIgnoreCase));
+            if (sourceRow is not null && target.CurrentWavelengthNm is { } wavelength)
+            {
+                sourceRow.UpdateLive(wavelength, sourceRow.Intensity, DateTimeOffset.Now);
             }
         }
     }
@@ -546,7 +795,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         await _email.SendAsync(
             $"Kalibrácia FBG – {run.State} – {run.ProfileName}",
-            $"Run: {run.RunId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nStav: {run.State}\nPlata: {run.Plateaus.Count}\nWarnings: {run.Warnings.Count}");
+            $"Run: {run.RunId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nStav: {run.State}\nF100: {run.ReferenceThermometerPort} / {run.ReferenceThermometerChannel}\nPlata: {run.Plateaus.Count}\nWarnings: {run.Warnings.Count}");
     }
 
     private static IChamberDevice CreateChamberClient(ChamberConfig config) => config.Protocol switch
@@ -597,10 +846,14 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SaveSetupCommand.RaiseCanExecuteChanged();
         SelectSuggestedPeaksCommand.RaiseCanExecuteChanged();
         MarkAllPlateausCommand.RaiseCanExecuteChanged();
+        RefreshF100PortsCommand.RaiseCanExecuteChanged();
+        CheckF100Command.RaiseCanExecuteChanged();
     }
 
     public async ValueTask DisposeAsync()
     {
+        StopPeakMonitor();
+        _activeWriter = null;
         _stopRequested = IsRunning;
         _runCts?.Cancel();
         if (_chamber is not null)
@@ -612,6 +865,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             await _chamber.DisposeAsync();
         }
         if (_peakLogger is not null) await _peakLogger.DisposeAsync();
+        await _referenceThermometers.DisposeAsync();
         _runCts?.Dispose();
     }
 }
@@ -630,6 +884,9 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     private string _customer;
     private string _order;
     private double _timeoutMinutes;
+    private double _currentWavelengthNm;
+    private double? _intensity;
+    private DateTimeOffset? _lastWavelengthUpdate;
 
     public CalibrationPeakRowViewModel(PeakLoggerSensor sensor, PeakLoggerPeak peak, CalibrationSensorMapping? saved)
     {
@@ -638,8 +895,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         Channel = sensor.Channel;
         PeakId = peak.PeakId;
         PeakIndex = peak.PeakIndex;
-        CurrentWavelengthNm = peak.WavelengthNm;
-        Intensity = peak.Intensity;
+        _currentWavelengthNm = peak.WavelengthNm;
+        _intensity = peak.Intensity;
         _selected = saved?.Selected ?? false;
         WasSavedSelected = _selected;
         Core1 = saved?.Core1;
@@ -660,8 +917,9 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     public string Channel { get; }
     public string PeakId { get; }
     public int PeakIndex { get; }
-    public double CurrentWavelengthNm { get; }
-    public double? Intensity { get; }
+    public double CurrentWavelengthNm { get => _currentWavelengthNm; private set => SetProperty(ref _currentWavelengthNm, value); }
+    public double? Intensity { get => _intensity; private set => SetProperty(ref _intensity, value); }
+    public DateTimeOffset? LastWavelengthUpdate { get => _lastWavelengthUpdate; private set => SetProperty(ref _lastWavelengthUpdate, value); }
     public bool WasSavedSelected { get; }
     public int? Core1 { get; set; }
     public int? Core2 { get; set; }
@@ -671,6 +929,13 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     public string Customer { get => _customer; set => SetProperty(ref _customer, value); }
     public string Order { get => _order; set => SetProperty(ref _order, value); }
     public double TimeoutMinutes { get => _timeoutMinutes; set => SetProperty(ref _timeoutMinutes, Math.Max(0, value)); }
+
+    public void UpdateLive(double wavelengthNm, double? intensity, DateTimeOffset timestamp)
+    {
+        CurrentWavelengthNm = wavelengthNm;
+        Intensity = intensity;
+        LastWavelengthUpdate = timestamp;
+    }
 
     public CalibrationSensorMapping ToMapping() => new()
     {

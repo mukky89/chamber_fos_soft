@@ -194,6 +194,26 @@ public sealed class CalibrationRawSample
     public double? Intensity { get; set; }
 }
 
+/// <summary>
+/// Continuous live PeakLogger trace for every peak selected for calibration. Unlike
+/// <see cref="CalibrationRawSample"/>, this runs for the whole calibration, including ramps,
+/// so the wavelength response can later be audited against the complete temperature profile.
+/// </summary>
+public sealed class CalibrationWavelengthTraceSample
+{
+    public Guid RunId { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
+    public string SerialNumber { get; set; } = string.Empty;
+    public string PeakLoggerDeviceSerialNumber { get; set; } = string.Empty;
+    public string Channel { get; set; } = string.Empty;
+    public string PeakId { get; set; } = string.Empty;
+    public int PeakIndex { get; set; }
+    public double WavelengthNm { get; set; }
+    public double? Intensity { get; set; }
+    public double? ChamberTemperatureC { get; set; }
+    public double? ReferenceTemperatureC { get; set; }
+}
+
 public sealed class CalibrationMeasurementResult
 {
     public string SerialNumber { get; set; } = string.Empty;
@@ -252,6 +272,16 @@ public sealed class CalibrationRunRecord
     public DateTimeOffset StartedAt { get; set; } = DateTimeOffset.Now;
     public DateTimeOffset? CompletedAt { get; set; }
     public CalibrationRunState State { get; set; } = CalibrationRunState.Idle;
+
+    /// <summary>ASL F100 USB COM port selected as calibration reference, if any.</summary>
+    public string ReferenceThermometerPort { get; set; } = string.Empty;
+
+    /// <summary>USB serial number exposed by Windows for the selected F100, if available.</summary>
+    public string ReferenceThermometerSerialNumber { get; set; } = string.Empty;
+
+    /// <summary>Physical F100 input used by the calibration (A or B).</summary>
+    public string ReferenceThermometerChannel { get; set; } = string.Empty;
+
     public List<CalibrationPlateauResult> Plateaus { get; set; } = new();
     public List<CalibrationWarning> Warnings { get; set; } = new();
 }

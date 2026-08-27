@@ -34,4 +34,32 @@ public class F100ProtocolTests
         Assert.Equal("READ?\r", F100Protocol.Frame("READ?"));
         Assert.Equal("READ?\r", F100Protocol.Frame("READ?\r"));
     }
+
+    [Theory]
+    [InlineData("A", "A")]
+    [InlineData("a", "A")]
+    [InlineData(" B ", "B")]
+    [InlineData("A-B", "A-B")]
+    public void NormalizeChannel_accepts_supported_inputs(string input, string expected)
+    {
+        Assert.Equal(expected, F100Protocol.NormalizeChannel(input));
+    }
+
+    [Fact]
+    public void Channel_commands_make_probe_explicit()
+    {
+        Assert.Equal("MEASURE:CHANNEL? B", F100Protocol.BuildMeasureChannelCommand("B"));
+        Assert.Equal("CONFIGURE:CHANNEL A", F100Protocol.BuildConfigureChannelCommand("A"));
+        Assert.Equal(new[] { "A", "B" }, F100Protocol.ProbeChannels);
+    }
+
+    [Theory]
+    [InlineData("E4")]
+    [InlineData("E5 invalid command")]
+    [InlineData("-200")]
+    public void ParseReading_does_not_treat_instrument_error_as_temperature(string raw)
+    {
+        Assert.True(F100Protocol.IsErrorResponse(raw));
+        Assert.Null(F100Protocol.ParseReading(raw).Temperature);
+    }
 }

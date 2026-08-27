@@ -42,7 +42,22 @@ public sealed class F100Client : IAsyncDisposable
         }
     });
 
-    /// <summary>Sends a command (terminator added if missing) and returns the response line.</summary>
+    /// <summary>Sends a non-query command. No read is attempted, so commands such as SYSTEM:REMOTE do not time out.</summary>
+    public async Task SendAsync(string command, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await Task.Run(() => WriteWithDelay(F100Protocol.Frame(command)), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>Sends a query (terminator added if missing) and returns the response line.</summary>
     public async Task<string> SendReceiveAsync(string command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -61,11 +76,38 @@ public sealed class F100Client : IAsyncDisposable
         }
     }
 
-    /// <summary>Sends the read command and decodes the reading.</summary>
+    /// <summary>Sends the configured read command and decodes the reading.</summary>
     public async Task<ThermometerReading> ReadAsync(string readCommand, CancellationToken cancellationToken = default)
     {
         string response = await SendReceiveAsync(readCommand, cancellationToken).ConfigureAwait(false);
         return F100Protocol.ParseReading(response);
+    }
+
+    /// <summary>
+    /// Reads one explicitly selected F100 probe input. The ASL SCPI family supports
+    /// MEASURE:CHANNEL?; if an older F100 firmware rejects that form, the method falls
+    /// back to CONFIGURE:CHANNEL + READ?. The fallback waits for a fresh conversion after
+    /// changing channels so a value from the previous input is not accidentally logged.
+    /// </summary>
+    public async Task<ThermometerReading> ReadChannelAsync(
+        string channel,
+        string fallbackReadCommand = F100Protocol.DefaultReadCommand,
+        CancellationToken cancellationToken = default)
+    {
+        string normalized = F100Protocol.NormalizeChannel(channel);
+        string directCommand = F100Protocol.BuildMeasureChannelCommand(normalized);
+        string response = await SendReceiveAsync(directCommand, cancellationToken).ConfigureAwait(false);
+        ThermometerReading direct = F100Protocol.ParseReading(response);
+        if (!F100Protocol.IsErrorResponse(response) && direct.Temperature is not null)
+        {
+            return direct;
+        }
+
+        await SendAsync(F100Protocol.BuildConfigureChannelCommand(normalized), cancellationToken).ConfigureAwait(false);
+        // Community integrations of the F100 report that the first conversion after an A/B
+        // change can take several seconds; use five seconds to avoid returning the old channel.
+        await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        return await ReadAsync(fallbackReadCommand, cancellationToken).ConfigureAwait(false);
     }
 
     private void WriteWithDelay(string text)
