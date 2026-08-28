@@ -4251,9 +4251,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         for (Exception? e = ex; e is not null; e = e.InnerException)
         {
+            // Fully qualified: the generated WPF temp project does not carry the
+            // implicit System.Net.Http / System.IO usings this file otherwise relies on.
             if (e is TimeoutException
                 or System.Net.Sockets.SocketException
-                or HttpRequestException
+                or System.Net.Http.HttpRequestException
                 or System.IO.IOException
                 or OperationCanceledException)
             {
