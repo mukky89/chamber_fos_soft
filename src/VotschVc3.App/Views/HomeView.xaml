@@ -10,6 +10,40 @@
             <Setter Property="Padding" Value="12,10" />
             <Setter Property="Margin" Value="0,0,0,10" />
         </Style>
+        <!-- Lock glyph: closed padlock in red while the controls are blocked, open padlock in
+             green while they are free. Drawn as a vector (not the 🔒 emoji, which renders in
+             its own colour font and ignores Foreground) and with a heavier stroke, so the
+             state is readable across the room. -->
+        <Style x:Key="LockGlyphPath" TargetType="Path" BasedOn="{StaticResource IconPath}">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="StrokeThickness" Value="2.1" />
+            <Setter Property="Data" Value="{StaticResource Icon.Unlock}" />
+            <Setter Property="Stroke" Value="{StaticResource OkBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsLocked}" Value="True">
+                    <Setter Property="Data" Value="{StaticResource Icon.Lock}" />
+                    <Setter Property="Stroke" Value="{StaticResource DangerBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="LockGlyphSmall" TargetType="Path" BasedOn="{StaticResource LockGlyphPath}">
+            <Setter Property="Width" Value="13" />
+            <Setter Property="Height" Value="13" />
+            <Setter Property="StrokeThickness" Value="2" />
+        </Style>
+        <Style x:Key="LockBadgeText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsLocked}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <!-- Small pill badge (kind / state). -->
         <Style x:Key="Badge" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
@@ -278,19 +312,26 @@
                                             Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}"
                                             ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
-                                    <Button DockPanel.Dock="Right" Content="◈  FBG Kalibrácia" Style="{StaticResource GhostButton}"
-                                            Margin="0,0,5,0" Padding="8,8" FontSize="12.5"
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource AccentOutlineButton}"
+                                            Margin="0,0,6,0" Padding="10,7" FontSize="12.5"
                                             Click="Calibration_Click"
-                                            ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným." />
+                                            ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným.">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Style="{StaticResource IconPath}" Width="15" Height="15"
+                                                  Data="{StaticResource Icon.Signal}" />
+                                            <TextBlock Text="FBG Kalibrácia" Style="{StaticResource IconLabel}" Margin="7,0,0,0" />
+                                        </StackPanel>
+                                    </Button>
                                     <Button DockPanel.Dock="Right" Content="🌐" Style="{StaticResource GhostButton}"
                                             Margin="0,0,5,0" Padding="9,8" FontSize="14"
                                             Command="{Binding OpenDeviceWebCommand}"
                                             ToolTip="Otvoriť webové rozhranie zariadenia v predvolenom prehliadači." />
                                     <!-- Lock toggle: always enabled so a locked device can be unlocked. -->
-                                    <Button DockPanel.Dock="Right" Margin="0,0,5,0" Padding="9,8" FontSize="14"
+                                    <Button DockPanel.Dock="Right" Margin="0,0,5,0" Padding="9,8"
                                             Style="{StaticResource GhostButton}" Command="{Binding ToggleLockCommand}"
-                                            Content="{Binding LockGlyph, Mode=OneWay}"
-                                            ToolTip="{Binding LockButtonText, Mode=OneWay}" />
+                                            ToolTip="{Binding LockButtonText, Mode=OneWay}">
+                                        <Path Style="{StaticResource LockGlyphPath}" />
+                                    </Button>
                                 </DockPanel>
 
                                 <!-- Locked badge + inline unlock prompt (kept outside the disabled body). -->
@@ -342,16 +383,18 @@
                                     </Grid>
 
                                     <StackPanel Grid.Column="1" Margin="14,0,0,0">
-                                        <!-- Read-only name (editing + removal live in device settings). -->
-                                        <!-- The name wraps instead of being cut: on the narrower card a full
-                                             name ("Komora 2 — Vötsch VC3 7034 (teplota + vlhkosť)") does not fit
-                                             on one line, and an operator must be able to read which device this is. -->
-                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="15"
-                                                   TextWrapping="Wrap" TextTrimming="None" VerticalAlignment="Top"
-                                                   ToolTip="{Binding Name}" />
+                                        <!-- Read-only name (editing + removal live in device settings), in its
+                                             own box like every other block on the card. It keeps to a single line
+                                             so all the cards line up: a long name is cut with an ellipsis and the
+                                             full text stays in the tooltip. -->
+                                        <Border Style="{StaticResource Section}" Margin="0,0,0,10" Padding="11,8">
+                                            <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="15"
+                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" ToolTip="{Binding Name}" />
+                                        </Border>
 
-                                        <!-- Badges: kind, state, alarm -->
-                                        <WrapPanel Margin="0,10,0,0">
+                                        <!-- Badges: kind, state, lock, control mode, alarm -->
+                                        <WrapPanel Margin="0,0,0,0">
                                             <Border Style="{StaticResource Badge}">
                                                 <TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}" />
                                             </Border>
@@ -361,6 +404,16 @@
                                                              Fill="{Binding IsActive, Converter={StaticResource BoolToBrush}}" />
                                                     <TextBlock Text="{Binding StateLabel}" Margin="6,0,0,0" FontFamily="Segoe UI Semibold" FontSize="12"
                                                                Foreground="{Binding IsActive, Converter={StaticResource BoolToBrush}}" />
+                                                </StackPanel>
+                                            </Border>
+                                            <!-- Lock state, always visible in both states: an operator has to see
+                                                 that the controls are free, not only be warned when they are not. -->
+                                            <Border Style="{StaticResource Badge}"
+                                                    ToolTip="{Binding LockButtonText, Mode=OneWay}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Path Style="{StaticResource LockGlyphSmall}" />
+                                                    <TextBlock Text="{Binding LockBadgeText, Mode=OneWay}"
+                                                               Style="{StaticResource LockBadgeText}" />
                                                 </StackPanel>
                                             </Border>
                                             <!-- Prominent control-mode badge: PROFIL vs MANUÁL. -->
@@ -425,46 +478,6 @@
                                           </StackPanel>
                                         </Border>
 
-                                        <!-- ===== ② Live values + range =====
-                                             Sits inside the header column next to the chamber graphic (which is
-                                             172 px tall and left the text column half empty), but in its own
-                                             boxed section, right under the boxed status block – stacked as
-                                             loose lines the numbers ran into the status text and the whole
-                                             header read as one dense block. -->
-                                        <Border Style="{StaticResource Section}" Margin="0,10,0,0" Padding="11,8">
-                                            <StackPanel>
-                                                <WrapPanel>
-                                                    <StackPanel Margin="0,0,24,0">
-                                                        <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Style="{StaticResource MetricSmall}"
-                                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                    <StackPanel Margin="0,0,24,0">
-                                                        <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                                                       Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                    <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
-                                                        <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Style="{StaticResource MetricSmall}"
-                                                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                                            <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </WrapPanel>
-                                                <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap">
-                                                    <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
-                                                    <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
-                                                </TextBlock>
-                                            </StackPanel>
-                                        </Border>
 
                                         <!-- Completion (day + time + countdown) right under the profile name. -->
                                         <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
@@ -482,6 +495,45 @@
                                         </Grid>
                                     </StackPanel>
                                 </Grid>
+
+                                <!-- ===== ② Live values + range =====
+                                     Full card width, under the graphic and the header column both: kept
+                                     inside the text column it started level with the device name and left
+                                     an empty block of card beside the chamber picture. -->
+                                <Border Style="{StaticResource Section}" Margin="0,0,0,10" Padding="11,8">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <StackPanel Margin="0,0,24,0">
+                                                <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource MetricSmall}"
+                                                               Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
+                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,24,0">
+                                                <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
+                                                               Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
+                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource MetricSmall}"
+                                                               Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
+                                                    <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </WrapPanel>
+                                        <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap">
+                                            <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
+                                            <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
 
                                 <!-- Control panels: disabled (greyed) while the device is locked, so a running
                                      profile / temperature can't be changed by an accidental press. Readouts above

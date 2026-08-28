@@ -306,6 +306,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 OnPropertyChanged(nameof(LockGlyph));
                 OnPropertyChanged(nameof(LockButtonText));
                 OnPropertyChanged(nameof(LockStateLabel));
+                OnPropertyChanged(nameof(LockBadgeText));
                 RefreshCommands();
                 AppLog.Info(Name, value ? "Zariadenie zamknuté (ovládanie zablokované)." : "Zariadenie odomknuté.");
             }
@@ -400,6 +401,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Short badge text shown while the device is locked.</summary>
     public string LockStateLabel => HasLockPassword ? "🔒 Zamknuté (heslo)" : "🔒 Zamknuté";
+
+    /// <summary>
+    /// Lock state as a badge caption. Shown in both states on purpose: an operator has to be
+    /// able to tell "controls are open" from "controls are blocked" at a glance, not only
+    /// notice a warning when it happens to be locked.
+    /// </summary>
+    public string LockBadgeText => IsLocked
+        ? (HasLockPassword ? "Zamknuté (heslo)" : "Zamknuté")
+        : "Odomknuté";
 
     /// <summary>Toggles the lock: locks immediately, or starts the unlock (password prompt if set).</summary>
     public RelayCommand ToggleLockCommand { get; }

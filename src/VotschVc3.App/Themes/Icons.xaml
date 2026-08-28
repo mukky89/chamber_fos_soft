@@ -81,6 +81,10 @@
     <Geometry x:Key="Icon.Calibration">M10 2.5v7.2M14 9.7V2.5M8.5 2.5h7M14 9.7a6.5 6.5 0 1 1-4 0M5.8 16.5h12.4</Geometry>
     <Geometry x:Key="Icon.Lock">M5 10.5h14a1.5 1.5 0 0 1 1.5 1.5v7.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5V12A1.5 1.5 0 0 1 5 10.5zM7.5 10.5V7a4.5 4.5 0 1 1 9 0v3.5M12 15v2.5</Geometry>
 
+    <Geometry x:Key="Icon.Unlock">M5 10.5h14a1.5 1.5 0 0 1 1.5 1.5v7.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5V12A1.5 1.5 0 0 1 5 10.5zM7.5 10.5V7a4.5 4.5 0 0 1 8.6-1.8M12 15v2.5</Geometry>
+
+    <Geometry x:Key="Icon.Signal">M2 12h4l3-8 5 16 3-8h5</Geometry>
+
     <!-- ===== Solid transport glyphs ===== -->
 
     <Geometry x:Key="Icon.Play">M8 5v14l11-7z</Geometry>

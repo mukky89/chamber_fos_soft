@@ -26,8 +26,14 @@
                 <Button Content="🌐 Web zariadenia" Margin="8,0,0,0"
                         Command="{Binding OpenDeviceWebCommand}"
                         ToolTip="Otvoriť vstavané webové rozhranie SIKA alebo Vötsch v predvolenom prehliadači." />
-                <Button Content="◈ FBG kalibrácia" Margin="8,0,0,0" Click="Calibration_Click"
-                        ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným." />
+                <Button Style="{StaticResource AccentOutlineButton}" Margin="8,0,0,0" Padding="12,8" Click="Calibration_Click"
+                        ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Width="15" Height="15"
+                              Data="{StaticResource Icon.Signal}" />
+                        <TextBlock Text="FBG kalibrácia" Style="{StaticResource IconLabel}" Margin="7,0,0,0" />
+                    </StackPanel>
+                </Button>
                 <Grid Margin="6,0,10,0">
                     <views:ChamberGraphic Width="34" Height="44" IsRunning="{Binding IsActive}"
                                           Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}" />
@@ -175,12 +181,12 @@
                                         <TextBlock Text="TEPLOTA" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Style="{StaticResource Metric}"
-                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
                                             <TextBlock Text="°C" Margin="6,0,0,8" VerticalAlignment="Bottom" Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>
                                         <TextBlock Style="{StaticResource Caption}">
                                             <Run Text="Setpoint: " />
-                                            <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0, Mode=OneWay}" />
+                                            <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}" />
                                             <Run Text=" °C" />
                                         </TextBlock>
                                     </StackPanel>
@@ -191,12 +197,12 @@
                                         <TextBlock Text="VLHKOSŤ" Style="{StaticResource Caption}" />
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Style="{StaticResource Metric}"
-                                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
                                             <TextBlock Text="%" Margin="6,0,0,8" VerticalAlignment="Bottom" Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>
                                         <TextBlock Style="{StaticResource Caption}">
                                             <Run Text="Setpoint: " />
-                                            <Run Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0, Mode=OneWay}" />
+                                            <Run Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}" />
                                             <Run Text=" %" />
                                         </TextBlock>
                                     </StackPanel>

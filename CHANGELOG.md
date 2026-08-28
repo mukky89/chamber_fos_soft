@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.75.0] – 2026-08-28
+
+### Pridané
+- **Stav zámku je vidieť vždy, aj keď je odomknuté.** Nový odznak na karte
+  zariadenia: **červené „Zamknuté“** alebo **zelené „Odomknuté“**, tučným písmom.
+  Ikona zámku v hlavičke karty má rovnakú farbu — zatvorený červený visiaci zámok,
+  otvorený zelený. Je to vektorová ikona, nie emoji 🔒 (to sa kreslí vlastným
+  farebným fontom a farbu ignoruje).
+
+### Zmenené
+- **Názov zariadenia je v rámčeku a vždy na jednom riadku** — dlhší názov sa oreže
+  s „…“, celý zostáva v tooltipe. Karty tak majú rovnakú výšku hlavičky a stĺpce
+  na nástenke lícujú.
+- **Živé hodnoty zaberajú celú šírku karty** (predtým začínali až za obrázkom
+  komory a vedľa obrázka zostávalo prázdne miesto).
+- **Namerané hodnoty na tri desatinné miesta** — teplota, setpoint aj vlhkosť na
+  karte, v detaile zariadenia aj na Professional karte. Číslo na obrázku komory
+  zostáva na jedno desatinné miesto (viac sa naň nezmestí).
+- **Tlačidlo „FBG Kalibrácia“ je výraznejšie**: akcentný rámik s podfarbením a
+  novou ikonou signálu (priebeh s peakom) namiesto znaku ◈. Nový štýl
+  `AccentOutlineButton` — hlasnejší ako sekundárne tlačidlá, ale stále nekonkuruje
+  jedinej vyplnenej primárnej akcii v riadku.
+
 ## [1.74.0] – 2026-08-28
 
 ### Zmenené

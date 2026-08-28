@@ -324,6 +324,45 @@
         </Setter>
     </Style>
 
+    <!-- Outlined accent button: a secondary action that still has to be found at a glance.
+         Reads louder than a GhostButton (it has a frame and a tinted ground) but quieter
+         than the single filled AccentButton next to it, so the row keeps one clear primary. -->
+    <Style x:Key="AccentOutlineButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+        <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="8" BorderThickness="1.4"
+                            BorderBrush="{StaticResource AccentBrush}"
+                            Background="{StaticResource SurfaceAltBrush}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource AccentHoverBrush}" />
+                            <Setter TargetName="Bd" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="{StaticResource AccentColor}" BlurRadius="12"
+                                                      ShadowDepth="0" Opacity="0.45" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ===== Preset chip (quick-control temperatures in a bordered box) =====
          Boxed, high-contrast target for gloved operators; border turns accent on
          hover, fills accent on press. -->
