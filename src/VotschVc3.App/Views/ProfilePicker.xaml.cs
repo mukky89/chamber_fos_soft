@@ -312,7 +312,7 @@ public partial class ProfilePicker : UserControl
         }
 
         ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile, ViewModels.ChamberViewModel.SikaSettling);
-        PreviewName.Text = profile.Name;
+        PreviewName.Text = profile.CodeAndName;
         PreviewCaption.Text = profile.PickerCaption;
         PreviewKindText.Text = profile.DeviceKindLabel;
         PreviewKindText.Foreground = (profile.DeviceKind switch

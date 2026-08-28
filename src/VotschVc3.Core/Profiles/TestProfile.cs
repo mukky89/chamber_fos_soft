@@ -11,8 +11,25 @@ public sealed class TestProfile
     /// <summary>Stable identity used by the profile history store.</summary>
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>
+    /// Short, human-readable, library-unique identifier ("P-0007"), assigned by
+    /// <see cref="ProfileStore"/> when the profile is first saved. It is what an operator
+    /// quotes in a report or on the phone – <see cref="Id"/> is a GUID nobody can read out –
+    /// and it prefixes the profile's file name, so the folder sorts in the order profiles
+    /// were created. Empty until the profile has been saved.
+    /// </summary>
+    public string Code { get; set; } = string.Empty;
+
     /// <summary>Display name of the profile.</summary>
     public string Name { get; set; } = "New profile";
+
+    /// <summary>Code and name as one line for pickers and headings ("P-0007 · Sweep -40…150").</summary>
+    [JsonIgnore]
+    public string CodeAndName => string.IsNullOrWhiteSpace(Code) ? Name : $"{Code} · {Name}";
+
+    /// <summary><c>true</c> once the profile carries a library code.</summary>
+    [JsonIgnore]
+    public bool HasCode => !string.IsNullOrWhiteSpace(Code);
 
     /// <summary>Original name as it came from the imported file, kept when the app generates
     /// a new standardized <see cref="Name"/>. Empty for profiles authored directly in the app.</summary>
@@ -173,6 +190,7 @@ public sealed class TestProfile
     public TestProfile Clone() => new()
     {
         Id = Id,
+        Code = Code,
         Name = Name,
         OriginalName = OriginalName,
         Kind = Kind,

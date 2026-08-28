@@ -119,7 +119,7 @@
                             <!-- Profile leaf node -->
                             <DataTemplate DataType="{x:Type core:TestProfile}">
                                 <StackPanel ToolTip="Klik zobrazí náhľad profilu vpravo. Upraviť sa dá tlačidlom „✎ Upraviť v rýchlom profile“.">
-                                    <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
                                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0">
                                         <Run Text="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm', Mode=OneWay}" />
                                         <Run Text=" · " />

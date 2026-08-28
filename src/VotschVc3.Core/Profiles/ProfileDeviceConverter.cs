@@ -72,6 +72,7 @@ public static class ProfileDeviceConverter
 
         TestProfile result = source.Clone();
         result.Id = Guid.NewGuid();
+        result.Code = string.Empty; // a new library entry gets its own code on save
         result.Name = string.IsNullOrWhiteSpace(name) ? BuildName(source.Name) : name.Trim();
         result.OriginalName = string.IsNullOrWhiteSpace(source.OriginalName) ? source.Name : source.OriginalName;
         result.DeviceKind = ProfileDeviceKind.Sika;

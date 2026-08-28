@@ -163,6 +163,15 @@
                                         ToolTip="Znovu vygenerovať názov z parametrov sweepu." />
                             </DockPanel>
                             <TextBox Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                            <!-- Library code of the profile being edited: the identifier the
+                                 operator quotes and the prefix of its file name. -->
+                            <TextBlock Style="{StaticResource Caption}" Margin="0,3,0,0"
+                                       Visibility="{Binding HasProfileCode, Converter={StaticResource BoolToVisibility}}"
+                                       ToolTip="Jedinečný kód profilu v knižnici. Prideľuje sa pri prvom uložení, nemení sa pri premenovaní a je aj v názve súboru profilu.">
+                                <Run Text="Kód profilu: " Foreground="{StaticResource MutedBrush}" />
+                                <Run Text="{Binding ProfileCode, Mode=OneWay}" FontFamily="Segoe UI Semibold"
+                                     Foreground="{StaticResource AccentBrush}" />
+                            </TextBlock>
                             <TextBlock Text="{Binding NameModeText}" Style="{StaticResource Caption}"
                                        TextWrapping="Wrap" Margin="0,2,0,0" />
                         </StackPanel>

@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.72.0] – 2026-08-28
+
+### Pridané
+- **Každý profil má jedinečný kód `P-0007`.** Prideľuje sa pri prvom uložení do
+  knižnice, je jedinečný v rámci knižnice a **nemení sa pri premenovaní** profilu –
+  je to identifikátor, ktorý sa dá napísať do protokolu alebo nadiktovať do
+  telefónu (na rozdiel od interného GUID).
+- **Kód je aj v názve súboru profilu**: `P-0007 Sweep -40…150.json`. Priečinok sa
+  tak triedi v poradí, v akom profily vznikli, a z názvu súboru je hneď jasné,
+  o ktorý profil ide.
+- Kód sa zobrazuje vo výbere profilu na karte, v zozname profilov (aj v strome aj
+  v náhľade) a v rýchlom profile pod názvom; export profilu má kód v názve súboru.
+
+### Zmenené
+- Profily uložené pred touto verziou dostanú kód automaticky pri prvom načítaní –
+  číslujú sa od najstaršieho, takže `P-0001` je najstarší profil v knižnici.
+- Duplikát profilu („COPY“) a prevod na SIKA formát vytvárajú nové položky
+  knižnice, takže dostanú vlastný kód; úprava existujúceho profilu si ten svoj
+  ponechá.
+
 ## [1.71.0] – 2026-08-28
 
 ### Zmenené

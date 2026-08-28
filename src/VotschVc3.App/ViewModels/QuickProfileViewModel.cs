@@ -540,6 +540,21 @@ public sealed class QuickProfileViewModel : ObservableObject
         set { if (SetProperty(ref _namePrefix, value)) UpdateAutoName(); }
     }
 
+    private string _profileCode = string.Empty;
+
+    /// <summary>
+    /// Library code of the profile being edited ("P-0007"). Empty for a profile that has not
+    /// been saved yet – the store hands out the code on the first save.
+    /// </summary>
+    public string ProfileCode
+    {
+        get => _profileCode;
+        private set { if (SetProperty(ref _profileCode, value)) OnPropertyChanged(nameof(HasProfileCode)); }
+    }
+
+    /// <summary><c>true</c> once the edited profile has a library code to show.</summary>
+    public bool HasProfileCode => !string.IsNullOrWhiteSpace(ProfileCode);
+
     private string _profileName = string.Empty;
     public string ProfileName
     {
@@ -846,6 +861,10 @@ public sealed class QuickProfileViewModel : ObservableObject
         DisarmDelete();
         _editingProfileId = overwrite ? profile.Id : null;
         _saveAsNewCopy = !overwrite;
+
+        // A copy is a new library entry and gets its own code on save, so only an in-place
+        // edit shows the original's code.
+        ProfileCode = overwrite ? profile.Code : string.Empty;
 
         QuickProfileShape shape = QuickProfileShape.Analyze(profile.Segments);
 
@@ -1591,12 +1610,14 @@ public sealed class QuickProfileViewModel : ObservableObject
         if (existing is not null)
         {
             profile.Id = existing.Id;
+            profile.Code = existing.Code; // an edited profile keeps the code it is known by
         }
 
         // From here on this is the profile being edited, so a second save updates it.
         _editingProfileId = profile.Id;
         _saveAsNewCopy = false;
-        _store.Save(profile);
+        _store.Save(profile); // assigns the library code when the profile has none yet
+        ProfileCode = profile.Code;
         return profile;
     }
 
@@ -1609,8 +1630,8 @@ public sealed class QuickProfileViewModel : ObservableObject
             RefreshLibraryProfiles();
             IsSaveSuccess = true;
             Status = (created
-                    ? $"✔ Profil „{profile.Name}“ uložený do knižnice"
-                    : $"✔ Profil „{profile.Name}“ aktualizovaný v knižnici") +
+                    ? $"✔ Profil „{profile.Name}“ uložený do knižnice ako {profile.Code}"
+                    : $"✔ Profil „{profile.Name}“ ({profile.Code}) aktualizovaný v knižnici") +
                 $" ({profile.Segments.Count} segmentov, {QuickProfileNaming.Duration(profile.SinglePassDuration.TotalMinutes)}). " +
                 "Nájdeš ho v Editore profilov aj v rýchlom spustení na karte komory.";
         }
@@ -1628,6 +1649,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         _editingProfileId = null;
         _loadedSegments = null;
         _saveAsNewCopy = false;
+        ProfileCode = string.Empty;
 
         // Clear the picker too, so the same profile can be picked again afterwards and
         // is loaded rather than silently ignored as "already selected".
@@ -1788,7 +1810,7 @@ public sealed class QuickProfileViewModel : ObservableObject
             Title = "Exportovať profil",
             Filter = "CSV (pre Vötsch/Excel) (*.csv)|*.csv|JSON (*.json)|*.json",
             DefaultExt = ".csv",
-            FileName = Sanitize(ProfileName) + ".csv",
+            FileName = Sanitize(HasProfileCode ? $"{ProfileCode} {ProfileName}" : ProfileName) + ".csv",
         };
 
         if (dialog.ShowDialog() != true)

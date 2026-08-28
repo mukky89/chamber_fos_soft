@@ -2982,6 +2982,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         TestProfile? existing = _store.LoadAll()
             .FirstOrDefault(p => string.Equals(p.Name.Trim(), profile.Name.Trim(), StringComparison.OrdinalIgnoreCase));
         profile.Id = existing?.Id ?? Guid.NewGuid();
+        profile.Code = existing?.Code ?? string.Empty; // an updated profile keeps its code
 
         _store.Save(profile);
         RefreshHistory();

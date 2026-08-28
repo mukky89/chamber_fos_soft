@@ -113,7 +113,7 @@
                                 <DataTemplate DataType="{x:Type core:TestProfile}">
                                     <StackPanel Margin="0,2" MouseEnter="OnProfileMouseEnter"
                                                 ToolTip="Prejdi myšou = náhľad · klik = vybrať profil.">
-                                        <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
                                         <StackPanel Orientation="Horizontal">
                                             <!-- Device family the profile was authored for, so a SIKA profile is
                                                  never mistaken for a Vötsch one in a mixed list. -->

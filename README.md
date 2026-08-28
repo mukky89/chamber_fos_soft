@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.71.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.72.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
@@ -86,7 +86,10 @@ VotschVc3.sln
 **detailom komory** (`ChamberView`). `ChamberGraphic` je škálovateľná vektorová
 grafika s animovaným ventilátorom. Knižnica profilov sa ukladá cez `ProfileStore`
 do `Dokumenty/Lab Control/Profiles/` – **jeden JSON súbor na profil, pomenovaný
-podľa profilu**. Staršia knižnica v jednom `profiles.json` sa pri prvom spustení
+kódom a názvom profilu** (`P-0007 Sweep -40…150.json`). Kód `P-####` je jedinečný
+identifikátor profilu v knižnici: prideľuje sa pri prvom uložení, nemení sa pri
+premenovaní a zobrazuje sa vo výbere profilu, v zozname profilov aj v rýchlom
+profile. Staršia knižnica v jednom `profiles.json` sa pri prvom spustení
 rozdelí na samostatné súbory a pôvodný súbor zostane ako záloha
 `profiles.json.migrated`.
 

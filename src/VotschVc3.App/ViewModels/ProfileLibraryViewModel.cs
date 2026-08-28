@@ -283,7 +283,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Cycles = Math.Max(1, profile.Cycles);
         CycleBandStart = profile.ResolvedCycleStart;
         CycleBandEnd = profile.ResolvedCycleEnd;
-        PreviewName = profile.Name;
+        PreviewName = profile.CodeAndName;
         OriginalName = profile.OriginalName ?? string.Empty;
         PreviewOwner = string.Join(" · ", new[] { profile.Customer, profile.Project }
             .Where(s => !string.IsNullOrWhiteSpace(s)));
@@ -291,7 +291,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         ReplaceAll(PreviewTags, profile.Tags);
 
         string kindText = profile.Kind == ChamberKind.TemperatureHumidity ? "teplota + vlhkosť" : "iba teplota";
-        PreviewMeta = $"{profile.CreatedAt:dd.MM.yyyy HH:mm} · {profile.DeviceKind.Label()} · {kindText} · " +
+        string code = profile.HasCode ? $"Kód {profile.Code} · " : string.Empty;
+        PreviewMeta = $"{code}{profile.CreatedAt:dd.MM.yyyy HH:mm} · {profile.DeviceKind.Label()} · {kindText} · " +
             $"{profile.Segments.Count} {SegmentWord(profile.Segments.Count)}";
 
         CycleRegionText = DescribeCycles(profile);
@@ -548,6 +549,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
         TestProfile copy = source.Clone();
         copy.Id = Guid.NewGuid();
+        copy.Code = string.Empty; // the duplicate is its own library entry, with its own code
         copy.Name = $"{source.Name} COPY";
         copy.CreatedAt = DateTimeOffset.Now;
 

@@ -27,7 +27,10 @@ public class ProfileStoreTests : IDisposable
     private string LegacyFile => Path.Combine(_dir, "profiles.json");
 
     private string[] ProfileFiles() => Directory.Exists(_dir)
-        ? Directory.GetFiles(_dir, "*.json").Select(Path.GetFileName).OrderBy(n => n).ToArray()!
+        ? Directory.GetFiles(_dir, "*.json")
+            .Select(Path.GetFileName)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToArray()!
         : Array.Empty<string>();
 
     [Fact]
@@ -38,7 +41,7 @@ public class ProfileStoreTests : IDisposable
         store.Save(new TestProfile { Name = "Sweep -40…150" });
         store.Save(new TestProfile { Name = "Cyklovanie 25/85" });
 
-        Assert.Equal(new[] { "Cyklovanie 25_85.json", "Sweep -40…150.json" }, ProfileFiles());
+        Assert.Equal(new[] { "P-0001 Sweep -40…150.json", "P-0002 Cyklovanie 25_85.json" }, ProfileFiles());
         Assert.Equal(2, store.LoadAll().Count);
     }
 
@@ -68,7 +71,7 @@ public class ProfileStoreTests : IDisposable
         profile.Name = "Nový názov";
         store.Save(profile);
 
-        Assert.Equal(new[] { "Nový názov.json" }, ProfileFiles());
+        Assert.Equal(new[] { "P-0001 Nový názov.json" }, ProfileFiles());
         Assert.Equal("Nový názov", Assert.Single(store.LoadAll()).Name);
     }
 
@@ -114,7 +117,7 @@ public class ProfileStoreTests : IDisposable
 
         Assert.True(store.Delete(drop.Id));
 
-        Assert.Equal(new[] { "Ostáva.json" }, ProfileFiles());
+        Assert.Equal(new[] { "P-0001 Ostáva.json" }, ProfileFiles());
         Assert.Equal(keep.Id, Assert.Single(store.LoadAll()).Id);
     }
 
@@ -182,7 +185,8 @@ public class ProfileStoreTests : IDisposable
         List<TestProfile> all = store.LoadAll();
 
         Assert.Equal(2, all.Count);
-        Assert.Equal(new[] { "Druhý.json", "Prvý.json" }, ProfileFiles());
+        Assert.Equal(2, ProfileFiles().Length);
+        Assert.All(ProfileFiles(), f => Assert.StartsWith(ProfileStore.CodePrefix, f));
         Assert.Equal(40, all.Single(p => p.Name == "Prvý").Segments[0].TargetTemperature);
     }
 
@@ -239,6 +243,106 @@ public class ProfileStoreTests : IDisposable
         });
 
         Assert.Equal(1, added);
-        Assert.Equal(new[] { "Nový.json", "Už tam je.json" }, ProfileFiles());
+        Assert.Equal(new[] { "P-0001 Už tam je.json", "P-0002 Nový.json" }, ProfileFiles());
+    }
+
+    // ---- library code ---------------------------------------------------------------------
+
+    /// <summary>The GUID identity is not something an operator can quote; the library code is.</summary>
+    [Fact]
+    public void Saving_a_profile_gives_it_the_next_free_library_code()
+    {
+        var store = new ProfileStore(_dir);
+        var first = new TestProfile { Name = "Prvý" };
+        var second = new TestProfile { Name = "Druhý" };
+
+        store.Save(first);
+        store.Save(second);
+
+        Assert.Equal("P-0001", first.Code);
+        Assert.Equal("P-0002", second.Code);
+        Assert.Equal("P-0001", store.LoadAll().Single(p => p.Id == first.Id).Code);
+    }
+
+    [Fact]
+    public void The_code_survives_editing_and_renaming_the_profile()
+    {
+        var store = new ProfileStore(_dir);
+        var profile = new TestProfile { Name = "Pôvodný" };
+        store.Save(profile);
+        string code = profile.Code;
+
+        profile.Name = "Premenovaný";
+        store.Save(profile);
+
+        Assert.Equal(code, profile.Code);
+        Assert.Equal(code, Assert.Single(store.LoadAll()).Code);
+        Assert.Equal(new[] { $"{code} Premenovaný.json" }, ProfileFiles());
+    }
+
+    /// <summary>Numbers must not be handed out twice, even after the newest profile is deleted.</summary>
+    [Fact]
+    public void A_code_is_never_reused_while_a_higher_one_exists()
+    {
+        var store = new ProfileStore(_dir);
+        var first = new TestProfile { Name = "A" };
+        var second = new TestProfile { Name = "B" };
+        store.Save(first);
+        store.Save(second);
+
+        store.Delete(first.Id); // P-0001 freed
+
+        var third = new TestProfile { Name = "C" };
+        store.Save(third);
+
+        Assert.Equal("P-0003", third.Code);
+        Assert.Equal(new[] { "P-0002", "P-0003" }, store.LoadAll().Select(p => p.Code).OrderBy(c => c).ToArray());
+    }
+
+    /// <summary>An imported profile may carry a code from another library that is already
+    /// taken here; it has to get a free one instead of colliding.</summary>
+    [Fact]
+    public void An_imported_code_that_is_already_taken_is_replaced()
+    {
+        var store = new ProfileStore(_dir);
+        var mine = new TestProfile { Name = "Moje" };
+        store.Save(mine);
+
+        store.AddMissing(new[] { new TestProfile { Name = "Cudzie", Code = mine.Code } });
+
+        List<TestProfile> all = store.LoadAll();
+        Assert.Equal(2, all.Count);
+        Assert.Equal(2, all.Select(p => p.Code).Distinct().Count());
+    }
+
+    /// <summary>Profiles stored before codes existed get one on the next read, once.</summary>
+    [Fact]
+    public void Profiles_without_a_code_are_given_one()
+    {
+        WriteLegacyLibrary(
+            new TestProfile { Name = "Starší", CreatedAt = DateTimeOffset.Now.AddDays(-5) },
+            new TestProfile { Name = "Novší", CreatedAt = DateTimeOffset.Now.AddDays(-1) });
+
+        var store = new ProfileStore(LegacyFile);
+        List<TestProfile> all = store.LoadAll();
+
+        Assert.All(all, p => Assert.True(p.HasCode));
+        Assert.Equal("P-0001", all.Single(p => p.Name == "Starší").Code); // oldest first
+        Assert.Equal("P-0002", all.Single(p => p.Name == "Novší").Code);
+
+        // Reading again must not renumber anything.
+        Assert.Equal(
+            all.OrderBy(p => p.Code).Select(p => p.Code),
+            store.LoadAll().OrderBy(p => p.Code).Select(p => p.Code));
+    }
+
+    [Fact]
+    public void CodeNumber_reads_a_code_back_and_ignores_anything_else()
+    {
+        Assert.Equal(7, ProfileStore.CodeNumber("P-0007"));
+        Assert.Equal(1234, ProfileStore.CodeNumber(" P-1234 "));
+        Assert.Equal(0, ProfileStore.CodeNumber("Sweep"));
+        Assert.Equal(0, ProfileStore.CodeNumber(null));
+        Assert.Equal("P-0042", ProfileStore.FormatCode(42));
     }
 }

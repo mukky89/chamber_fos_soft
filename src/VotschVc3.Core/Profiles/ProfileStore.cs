@@ -27,6 +27,9 @@ public sealed class ProfileStore
     /// <summary>Suffix the migrated single-file library keeps, so it is never read again.</summary>
     public const string MigratedSuffix = ".migrated";
 
+    /// <summary>Prefix of the human-readable library code ("P-0007").</summary>
+    public const string CodePrefix = "P-";
+
     private readonly object _sync = new();
 
     // Parsed-folder cache: the dashboard reloads the library for every chamber on each
@@ -81,8 +84,10 @@ public sealed class ProfileStore
         {
             MigrateLegacyNoLock();
             List<TestProfile> all = LoadAllNoLock();
+            List<TestProfile> others = all.Where(p => p.Id != profile.Id).ToList();
+            EnsureCode(profile, others);
             string? previous = FindFileNoLock(profile.Id);
-            string target = WriteOneNoLock(profile, all.Where(p => p.Id != profile.Id));
+            string target = WriteOneNoLock(profile, others);
 
             if (previous is not null && !PathsEqual(previous, target))
             {
@@ -115,6 +120,7 @@ public sealed class ProfileStore
                     continue;
                 }
 
+                EnsureCode(profile, all);
                 WriteOneNoLock(profile, all);
                 all.Add(profile);
                 ids.Add(profile.Id);
@@ -200,6 +206,13 @@ public sealed class ProfileStore
             paths[profile.Id] = file; // also the map Save/Delete look the file up in
         }
 
+        if (BackfillCodesNoLock(parsed, paths))
+        {
+            // Files were renamed while filling the codes in; re-read so the cache and the
+            // id → path map describe what is actually on disk now.
+            return LoadAllNoLock();
+        }
+
         // Newest change first – the order the pickers and the library tree expect.
         parsed = parsed.OrderByDescending(p => p.LastChangedAt).ToList();
 
@@ -257,10 +270,10 @@ public sealed class ProfileStore
     {
         System.IO.Directory.CreateDirectory(Directory);
 
-        string baseName = FileNameFor(profile.Name);
+        string baseName = FileNameFor(profile);
         string path = Path.Combine(Directory, baseName + ".json");
 
-        bool taken = others.Any(p => string.Equals(FileNameFor(p.Name), baseName, StringComparison.OrdinalIgnoreCase));
+        bool taken = others.Any(p => string.Equals(FileNameFor(p), baseName, StringComparison.OrdinalIgnoreCase));
         if (taken)
         {
             path = Path.Combine(Directory, $"{baseName} ({profile.Id.ToString("N")[..8]}).json");
@@ -268,6 +281,98 @@ public sealed class ProfileStore
 
         File.WriteAllText(path, JsonSerializer.Serialize(profile, Options));
         return path;
+    }
+
+    /// <summary>
+    /// File name of a profile: its library code and its name ("P-0007 Sweep -40…150"), so
+    /// the folder sorts in the order profiles were created and every file says at a glance
+    /// which profile it holds. A profile without a code yet is named after the name alone.
+    /// </summary>
+    public static string FileNameFor(TestProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        return profile.HasCode
+            ? FileNameFor($"{profile.Code.Trim()} {profile.Name}")
+            : FileNameFor(profile.Name);
+    }
+
+    /// <summary>Formats a library code from its number ("P-0007").</summary>
+    public static string FormatCode(int number) => CodePrefix + Math.Max(1, number).ToString("D4");
+
+    /// <summary>The number in a library code, or 0 when the text is not one.</summary>
+    public static int CodeNumber(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return 0;
+        }
+
+        string text = code.Trim();
+        return text.StartsWith(CodePrefix, StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(text.AsSpan(CodePrefix.Length), out int number) && number > 0
+            ? number
+            : 0;
+    }
+
+    /// <summary>
+    /// Gives a profile the next free code, unless it already has one no other profile uses.
+    /// Numbers simply count up, so the code also says how old a profile is relative to others.
+    /// </summary>
+    private static void EnsureCode(TestProfile profile, IEnumerable<TestProfile> others)
+    {
+        var used = new HashSet<int>(others.Select(p => CodeNumber(p.Code)).Where(n => n > 0));
+        int mine = CodeNumber(profile.Code);
+        if (mine > 0 && !used.Contains(mine))
+        {
+            profile.Code = FormatCode(mine); // normalise the padding
+            return;
+        }
+
+        int next = used.Count == 0 ? 1 : used.Max() + 1;
+        profile.Code = FormatCode(next);
+    }
+
+    /// <summary>
+    /// Gives a code to every profile stored before codes existed, once, and rewrites those
+    /// files under their new name. Returns <c>true</c> when anything was written, so the
+    /// caller re-reads the folder. Profiles that already have one are left alone.
+    /// </summary>
+    private bool BackfillCodesNoLock(List<TestProfile> parsed, Dictionary<Guid, string> paths)
+    {
+        List<TestProfile> missing = parsed.Where(p => !p.HasCode).OrderBy(p => p.LastChangedAt).ToList();
+        if (missing.Count == 0)
+        {
+            return false;
+        }
+
+        var known = parsed.Where(p => p.HasCode).ToList();
+        bool wrote = false;
+        foreach (TestProfile profile in missing)
+        {
+            EnsureCode(profile, known);
+            try
+            {
+                string target = WriteOneNoLock(profile, known);
+                if (paths.TryGetValue(profile.Id, out string? previous) && !PathsEqual(previous, target))
+                {
+                    TryDelete(previous);
+                }
+
+                known.Add(profile);
+                wrote = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A file we cannot rewrite keeps its old name; the rest still get codes.
+            }
+        }
+
+        if (wrote)
+        {
+            InvalidateNoLock();
+        }
+
+        return wrote;
     }
 
     /// <summary>Turns a profile name into a file name Windows accepts, without losing the name.</summary>
@@ -369,7 +474,10 @@ public sealed class ProfileStore
             System.IO.Directory.CreateDirectory(Directory);
             var written = new List<TestProfile>();
             var seenIds = new HashSet<Guid>();
-            foreach (TestProfile profile in legacy)
+
+            // Oldest first, so the codes handed out count up in the order the profiles were
+            // created – P-0001 is the oldest profile in the library, not a random one.
+            foreach (TestProfile profile in legacy.OrderBy(p => p.LastChangedAt))
             {
                 // The old file was a plain list and could carry the same id twice; keep the
                 // first, which is the newest, and drop the stale duplicate.
@@ -378,6 +486,7 @@ public sealed class ProfileStore
                     continue;
                 }
 
+                EnsureCode(profile, written);
                 WriteOneNoLock(profile, written);
                 written.Add(profile);
             }
