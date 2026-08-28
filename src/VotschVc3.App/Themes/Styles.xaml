@@ -270,10 +270,10 @@
     <Style x:Key="PresetChip" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="FontFamily" Value="Segoe UI Semibold" />
-        <Setter Property="FontSize" Value="13.5" />
-        <Setter Property="MinWidth" Value="68" />
-        <Setter Property="MinHeight" Value="34" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinWidth" Value="58" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="9,5" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">

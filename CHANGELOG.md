@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.67.3] – 2026-08-28
+
+### Zmenené
+- **Rýchle ovládanie je v jednom riadku.** Predvoľby teplôt, vlastná teplota, „Nastaviť“
+  aj „Stop“ sú teraz na jednej linke – predvoľby vypĺňajú ľavú časť, hodnota a obe akcie
+  sú ukotvené vpravo. Predvoľby sú tá pružná časť, takže pri užšej karte sa zalomia ony
+  a akcie zostanú v riadku. „Stop“ zostáva na pravom okraji, ďaleko od „Nastaviť“.
+- **Menšie prvky a medzera pod nadpisom.** Predvoľby 32 px, akcie 34 px, celý riadok je
+  odsadený od nadpisu „Rýchle ovládanie“.
+- **„◈ FBG Kalibrácia“ je opäť plnohodnotné tlačidlo s názvom.** Ikonkové zostali len
+  zámok a odkaz na web zariadenia – ich význam nesie glyf a tooltip, takže sa celý rad
+  do 500 px karty zmestí.
+
 ## [1.67.2] – 2026-08-28
 
 ### Opravené

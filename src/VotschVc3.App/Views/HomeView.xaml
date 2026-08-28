@@ -263,18 +263,19 @@
                                                 Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding}" />
                                     </StackPanel>
-                                    <!-- The card is a fixed 500 px. Four labelled buttons do not fit in that
-                                         row, so only the primary action keeps its label; the three secondary
-                                         ones are icon-only with a tooltip (same as the Professional card). -->
+                                    <!-- The card is a fixed 500 px. Only the lock and the web link are
+                                         icon-only (their glyph says it all and the tooltip carries the rest);
+                                         the two actions an operator looks for by name keep their label and the
+                                         row still fits: 42 + 42 + ~130 + ~178 px. -->
                                     <Button DockPanel.Dock="Right" Content="⚙  Nastaviť / ovládať  →" Style="{StaticResource AccentButton}"
                                             Padding="14,8" FontSize="13"
                                             Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}"
                                             ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
-                                    <Button DockPanel.Dock="Right" Content="◈" Style="{StaticResource GhostButton}"
-                                            Margin="0,0,6,0" Padding="11,8" FontSize="14"
+                                    <Button DockPanel.Dock="Right" Content="◈  FBG Kalibrácia" Style="{StaticResource GhostButton}"
+                                            Margin="0,0,6,0" Padding="11,8" FontSize="12.5"
                                             Click="Calibration_Click"
-                                            ToolTip="FBG teplotná kalibrácia s týmto zariadením predvoleným." />
+                                            ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným." />
                                     <Button DockPanel.Dock="Right" Content="🌐" Style="{StaticResource GhostButton}"
                                             Margin="0,0,6,0" Padding="11,8" FontSize="14"
                                             Command="{Binding OpenDeviceWebCommand}"
@@ -496,59 +497,55 @@
                                             <TextBlock Text="Teploty oddeľ čiarkou (1–8 hodnôt). Uloží sa po opustení poľa." Style="{StaticResource Caption}" Margin="0,3,0,0" />
                                         </StackPanel>
 
-                                        <!-- Preset temperature chips (primary one-tap actions) -->
-                                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}">
-                                        <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,8,0,0">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Style="{StaticResource PresetChip}" Margin="0,0,8,8"
-                                                            Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
-                                                            ToolTip="Klikni = nastav túto teplotu a zapni komoru"
-                                                            Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                            CommandParameter="{Binding}" />
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-
-                                        <!-- Custom set point. The destructive action is deliberately pushed to
-                                             the far right with a wide gap – "Nastaviť" and "Stop" must never sit
-                                             shoulder to shoulder where a gloved hand can hit the wrong one. -->
-                                        <!-- Custom set point. The caption sits above the row so the value and
-                                             both actions fit on one line inside the 500 px card; Stop is pushed
-                                             to the far right so a gloved hand cannot hit it instead of Nastaviť. -->
-                                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="10" Padding="11,9" Margin="0,4,0,0">
-                                            <StackPanel>
-                                                <TextBlock Text="Vlastná teplota" Style="{StaticResource Caption}" Margin="0,0,0,5" />
-                                                <DockPanel LastChildFill="False">
-                                                    <views:NumericStepper DockPanel.Dock="Left" Width="92" VerticalAlignment="Center"
-                                                                          Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
-                                                                          ToolTip="Teplota v °C – šípkami ▲▼ meníš po 1 °C." />
-                                                    <TextBlock DockPanel.Dock="Left" Text="°C" VerticalAlignment="Center"
-                                                               Margin="6,0,14,0" Foreground="{StaticResource MutedBrush}" />
-                                                    <Button DockPanel.Dock="Left" Style="{StaticResource AccentButton}" Margin="0"
-                                                            Height="36" MinWidth="108" Padding="10,0"
-                                                            VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
-                                                            ToolTip="Zapíše zadanú teplotu do komory a zapne reguláciu.">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Thermometer}" />
-                                                            <TextBlock Text="Nastaviť" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
-                                                        </StackPanel>
-                                                    </Button>
+                                        <!-- Presets and the custom set point share one row: the chips fill the
+                                             left, the value and the two actions are docked right. The chips are the
+                                             flexible part, so on a narrower card they wrap instead of pushing the
+                                             actions off the row. Stop stays hard right, away from Nastaviť. -->
+                                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,10,0,0">
+                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="10" Padding="10,8">
+                                                <DockPanel LastChildFill="True">
                                                     <Button DockPanel.Dock="Right" Style="{StaticResource DangerButton}" Margin="0"
-                                                            Height="36" MinWidth="100" Padding="10,0"
+                                                            Height="34" Padding="9,0" FontSize="12.5"
                                                             VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
                                                             ToolTip="Vypnúť komoru (zastaví reguláciu).">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Power}" />
-                                                            <TextBlock Text="Stop" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                                                            <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                                                                  Data="{StaticResource Icon.Power}" />
+                                                            <TextBlock Text="Stop" Style="{StaticResource IconLabel}" Margin="6,0,0,0" />
                                                         </StackPanel>
                                                     </Button>
+                                                    <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Margin="0,0,10,0"
+                                                            Height="34" Padding="9,0" FontSize="12.5"
+                                                            VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
+                                                            ToolTip="Zapíše zadanú vlastnú teplotu do komory a zapne reguláciu.">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                                                                  Data="{StaticResource Icon.Thermometer}" />
+                                                            <TextBlock Text="Nastaviť" Style="{StaticResource IconLabel}" Margin="6,0,0,0" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <TextBlock DockPanel.Dock="Right" Text="°C" VerticalAlignment="Center"
+                                                               Margin="4,0,10,0" Foreground="{StaticResource MutedBrush}" />
+                                                    <views:NumericStepper DockPanel.Dock="Right" Width="66" VerticalAlignment="Center"
+                                                                          Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
+                                                                          ToolTip="Vlastná teplota v °C – šípkami ▲▼ meníš po 1 °C, potom stlač Nastaviť." />
+                                                    <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,0,10,0"
+                                                                  VerticalAlignment="Center">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,6,0"
+                                                                        Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
+                                                                        ToolTip="Klikni = nastav túto teplotu a zapni komoru"
+                                                                        Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                        CommandParameter="{Binding}" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
                                                 </DockPanel>
-                                            </StackPanel>
-                                        </Border>
+                                            </Border>
                                         </StackPanel>
 
                                         <!-- Action feedback banner: pops up after an action so the operator
