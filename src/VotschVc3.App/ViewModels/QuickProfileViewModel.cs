@@ -227,6 +227,51 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// </summary>
     private bool _saveAsNewCopy;
 
+    private ProfileDeviceKind _deviceKind = ProfileDeviceKind.Votsch;
+
+    /// <summary>
+    /// Which device the profile is being built for. A Vötsch chamber is driven with an
+    /// explicit ramp between two setpoints, while a SIKA bath settles on a new set point
+    /// by itself – its profile is therefore just "temperature + dwell time" and carries
+    /// no ramp segments at all. The choice is saved with the profile
+    /// (<see cref="TestProfile.DeviceKind"/>) so device cards only offer their own kind.
+    /// </summary>
+    public ProfileDeviceKind DeviceKind
+    {
+        get => _deviceKind;
+        set
+        {
+            if (SetProperty(ref _deviceKind, value))
+            {
+                OnPropertyChanged(nameof(IsVotschProfile));
+                OnPropertyChanged(nameof(IsSikaProfile));
+                OnPropertyChanged(nameof(UsesRamps));
+                OnPropertyChanged(nameof(HasLeadIn));
+                OnPropertyChanged(nameof(DeviceKindHint));
+                Recalculate();
+            }
+        }
+    }
+
+    public bool IsVotschProfile
+    {
+        get => DeviceKind != ProfileDeviceKind.Sika;
+        set { if (value) DeviceKind = ProfileDeviceKind.Votsch; }
+    }
+
+    public bool IsSikaProfile
+    {
+        get => DeviceKind == ProfileDeviceKind.Sika;
+        set { if (value) DeviceKind = ProfileDeviceKind.Sika; }
+    }
+
+    /// <summary><c>false</c> for SIKA: no ramp segments are generated, only setpoints with a dwell.</summary>
+    public bool UsesRamps => DeviceKind != ProfileDeviceKind.Sika;
+
+    public string DeviceKindHint => UsesRamps
+        ? "Vötsch / Weiss: medzi teplotami sa generuje nábeh (rampa) a potom plato."
+        : "SIKA TP: kúpeľ si na setpoint nabehne sám – generujú sa iba teploty s dobou výdrže (dwell), žiadne rampy.";
+
     private QuickProfileMode _mode = QuickProfileMode.Parametric;
     /// <summary>Which builder is active: the symmetric sweep, or a typed temperature sequence.</summary>
     public QuickProfileMode Mode
@@ -549,8 +594,16 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
     }
 
-    /// <summary>True when an initial lead-in ramp is actually added (enabled, non-zero, and not already at the first setpoint).</summary>
-    public bool HasLeadIn => StartFromCurrent && StartRampMinutes > 0 && Math.Abs(StartTemperature - FirstTargetTemperature) > 0.05;
+    /// <summary>True when an initial lead-in ramp is actually added (enabled, non-zero, and not already
+    /// at the first setpoint). Always false for a SIKA profile – it has no ramp segments.</summary>
+    public bool HasLeadIn => UsesRamps && StartFromCurrent && StartRampMinutes > 0 &&
+                             Math.Abs(StartTemperature - FirstTargetTemperature) > 0.05;
+
+    /// <summary>Ramp length actually used by the generators (0 for SIKA, which has no ramps).</summary>
+    private double EffectiveRampMinutes => UsesRamps ? RampMinutes : 0;
+
+    /// <summary>Segments the closing safety hold contributes: ramp + hold, or just the hold on SIKA.</summary>
+    private int EndHoldSegmentCount => EndAtSafeTemperature ? (UsesRamps ? 2 : 1) : 0;
 
     private double _peakDipCelsius = 10;
     /// <summary>How much lower (°C) the notch between the two peaks is (parametric mode only).</summary>
@@ -686,6 +739,12 @@ public sealed class QuickProfileViewModel : ObservableObject
         _suspendRecalculate = true;
         try
         {
+            // Set the device family first: it decides whether the shape below is
+            // interpreted as ramps + plateaus or as plain setpoints with a dwell.
+            DeviceKind = profile.DeviceKind == ProfileDeviceKind.Sika
+                ? ProfileDeviceKind.Sika
+                : ProfileDeviceKind.Votsch;
+
             ApplyShape(shape);
 
             Cycles = Math.Max(1, profile.Cycles);
@@ -853,8 +912,8 @@ public sealed class QuickProfileViewModel : ObservableObject
     private double TotalMinutes(double plateauMinutes)
     {
         double leadIn = HasLeadIn ? StartRampMinutes : 0;
-        double endHold = EndAtSafeTemperature ? RampMinutes + Math.Max(60, EndHoldMinutes) : 0;
-        double sweep = RampCount() * RampMinutes + PlateauCount() * plateauMinutes;
+        double endHold = EndAtSafeTemperature ? EffectiveRampMinutes + Math.Max(60, EndHoldMinutes) : 0;
+        double sweep = RampCount() * EffectiveRampMinutes + PlateauCount() * plateauMinutes;
 
         int cyc = Math.Max(1, Cycles);
         if (cyc <= 1)
@@ -934,14 +993,14 @@ public sealed class QuickProfileViewModel : ObservableObject
         // so the run ramps up over StartRampMinutes instead of jumping straight to it.
         if (HasLeadIn)
         {
-            segs.Add(Ramp(up[0], StartRampMinutes));
+            AddRamp(segs, up[0], StartRampMinutes);
         }
 
         segs.Add(Plateau(up[0], plateau));
 
         for (int i = 1; i < up.Count; i++)
         {
-            segs.Add(Ramp(up[i], RampMinutes));
+            AddRamp(segs, up[i], RampMinutes);
             segs.Add(Plateau(up[i], plateau));
         }
 
@@ -950,9 +1009,9 @@ public sealed class QuickProfileViewModel : ObservableObject
         if (DoublePeak)
         {
             double dip = HighTemperature - PeakDipCelsius;
-            segs.Add(Ramp(dip, RampMinutes));
+            AddRamp(segs, dip, RampMinutes);
             segs.Add(Plateau(dip, plateau));
-            segs.Add(Ramp(HighTemperature, RampMinutes));
+            AddRamp(segs, HighTemperature, RampMinutes);
             segs.Add(Plateau(HighTemperature, plateau));
         }
 
@@ -960,7 +1019,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         {
             for (int i = up.Count - 2; i >= 0; i--)
             {
-                segs.Add(Ramp(up[i], RampMinutes));
+                AddRamp(segs, up[i], RampMinutes);
                 segs.Add(Plateau(up[i], plateau));
             }
         }
@@ -971,7 +1030,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         // is fixed length – the time-shortening optimisation never touches it.
         if (EndAtSafeTemperature)
         {
-            segs.Add(Ramp(EndTemperature, RampMinutes));
+            AddRamp(segs, EndTemperature, RampMinutes);
             segs.Add(Plateau(EndTemperature, Math.Max(60, EndHoldMinutes)));
         }
 
@@ -994,19 +1053,19 @@ public sealed class QuickProfileViewModel : ObservableObject
 
         if (HasLeadIn)
         {
-            segs.Add(Ramp(SequenceSteps[0].Temperature, StartRampMinutes));
+            AddRamp(segs, SequenceSteps[0].Temperature, StartRampMinutes);
         }
 
         segs.Add(Plateau(SequenceSteps[0].Temperature, SequenceSteps[0].PlateauMinutes));
         for (int i = 1; i < SequenceSteps.Count; i++)
         {
-            segs.Add(Ramp(SequenceSteps[i].Temperature, RampMinutes));
+            AddRamp(segs, SequenceSteps[i].Temperature, RampMinutes);
             segs.Add(Plateau(SequenceSteps[i].Temperature, SequenceSteps[i].PlateauMinutes));
         }
 
         if (EndAtSafeTemperature)
         {
-            segs.Add(Ramp(EndTemperature, RampMinutes));
+            AddRamp(segs, EndTemperature, RampMinutes);
             segs.Add(Plateau(EndTemperature, Math.Max(60, EndHoldMinutes)));
         }
 
@@ -1060,6 +1119,19 @@ public sealed class QuickProfileViewModel : ObservableObject
         double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
         double.TryParse(token.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
 
+    /// <summary>
+    /// Emits the transition to <paramref name="target"/>. A Vötsch chamber is ramped there
+    /// over <paramref name="minutes"/>; a SIKA bath drives to the set point on its own, so
+    /// nothing is emitted and the following plateau simply starts at the new temperature.
+    /// </summary>
+    private void AddRamp(List<ProfileSegment> segs, double target, double minutes)
+    {
+        if (UsesRamps && minutes > 0)
+        {
+            segs.Add(Ramp(target, minutes));
+        }
+    }
+
     private static ProfileSegment Ramp(double target, double minutes) => new()
     {
         Name = $"Nábeh {target:0.#} °C",
@@ -1094,6 +1166,7 @@ public sealed class QuickProfileViewModel : ObservableObject
             Id = Guid.NewGuid(),
             Name = string.IsNullOrWhiteSpace(ProfileName) ? "Rýchly profil" : ProfileName.Trim(),
             Kind = ChamberKind.TemperatureOnly,
+            DeviceKind = DeviceKind,
             Cycles = cyc,
             CycleStartIndex = start,
             CycleEndIndex = end,
@@ -1117,7 +1190,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         if (Math.Max(1, Cycles) > 1 && CycleBodyOnly)
         {
             start = HasLeadIn ? 1 : 0;
-            end = segmentCount - 1 - (EndAtSafeTemperature ? 2 : 0);
+            end = segmentCount - 1 - EndHoldSegmentCount;
             if (end < start)
             {
                 start = 0;
@@ -1203,7 +1276,7 @@ public sealed class QuickProfileViewModel : ObservableObject
             IsSequence = sequence,
             Temperatures = temperatures,
             PlateauMinutes = plateaus,
-            RampMinutes = RampMinutes,
+            RampMinutes = EffectiveRampMinutes,
             LowTemperature = LowTemperature,
             HighTemperature = HighTemperature,
             TemperatureStep = temperatures.Count > 1
@@ -1265,9 +1338,11 @@ public sealed class QuickProfileViewModel : ObservableObject
         SegmentCount = Segments.Count;
 
         double delta = up.Count > 1 ? (HighTemperature - LowTemperature) / (up.Count - 1) : 0;
-        RampRateText = RampMinutes > 0
-            ? $"{Math.Abs(delta) / RampMinutes:0.##} °C/min  ({Math.Abs(delta):0.#} °C / krok)"
-            : "skok (0 min)";
+        RampRateText = !UsesRamps
+            ? "bez rampy (SIKA · skok na setpoint)"
+            : RampMinutes > 0
+                ? $"{Math.Abs(delta) / RampMinutes:0.##} °C/min  ({Math.Abs(delta):0.#} °C / krok)"
+                : "skok (0 min)";
 
         Summary = QuickProfileNaming.Description(DescribeParameters());
     }
@@ -1289,7 +1364,9 @@ public sealed class QuickProfileViewModel : ObservableObject
         OptimizedTotalText = BaseTotalText;
         double avgPlateau = SequenceSteps.Count > 0 ? SequenceSteps.Average(s => s.PlateauMinutes) : 0;
         EffectivePlateauText = $"{avgPlateau:0.#} min / plato (priemer)";
-        RampRateText = RampMinutes > 0 ? $"{RampMinutes:0.#} min / rampa" : "skok (0 min)";
+        RampRateText = !UsesRamps
+            ? "bez rampy (SIKA · skok na setpoint)"
+            : RampMinutes > 0 ? $"{RampMinutes:0.#} min / rampa" : "skok (0 min)";
         Summary = QuickProfileNaming.Description(DescribeParameters());
     }
 
@@ -1404,6 +1481,7 @@ public sealed class QuickProfileViewModel : ObservableObject
             _syncingSelection = false;
         }
 
+        DeviceKind = ProfileDeviceKind.Votsch;
         Mode = QuickProfileMode.Parametric;
         NamePrefix = string.Empty;
         LowTemperature = -20;

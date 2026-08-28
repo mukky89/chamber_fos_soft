@@ -45,6 +45,10 @@
                         Command="{Binding Shell.OpenChamberCommand, ElementName=Root}"
                         CommandParameter="{Binding}"
                         ToolTip="Otvoriť plné nastavenia a ovládanie (pripojenie, profily, graf, alarmy, záznam, admin)." />
+                <Button DockPanel.Dock="Right" Content="◈" Style="{StaticResource GhostButton}"
+                        Padding="8,3" FontSize="12" Margin="0,0,6,0"
+                        Click="Calibration_Click"
+                        ToolTip="FBG teplotná kalibrácia s týmto zariadením predvoleným." />
                 <Button DockPanel.Dock="Right" Content="🌐" Style="{StaticResource GhostButton}"
                         Padding="8,3" FontSize="12" Margin="0,0,6,0"
                         Command="{Binding OpenDeviceWebCommand}"
@@ -85,9 +89,39 @@
                 <Run Text="● OFFLINE — " Foreground="{StaticResource DangerBrush}" FontFamily="Segoe UI Semibold" />
                 <Run Text="posledná hodnota nižšie, komunikácia sa skúša obnoviť automaticky." />
             </TextBlock>
-            <TextBlock Text="{Binding SikaRemoteControlStatus}" Foreground="{StaticResource WarnBrush}"
-                       FontFamily="Segoe UI Semibold" FontSize="11.5" Margin="0,5,0,0" TextWrapping="Wrap"
-                       Visibility="{Binding IsSikaRemoteControlBlocked, Converter={StaticResource BoolToVisibility}}" />
+            <!-- SIKA Remote Control: shown for every SIKA device (green = writes accepted). -->
+            <StackPanel Margin="0,5,0,0" Orientation="Horizontal"
+                        Visibility="{Binding ShowSikaRemoteControl, Converter={StaticResource BoolToVisibility}}">
+                <Ellipse Width="8" Height="8" VerticalAlignment="Center">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
+                                    <Setter Property="Fill" Value="{StaticResource WarnBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+                <TextBlock Text="{Binding SikaRemoteControlStatus}" Margin="6,0,0,0"
+                           FontFamily="Segoe UI Semibold" FontSize="11.5" TextWrapping="Wrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
+                                    <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <Button Content="⇅" Style="{StaticResource GhostButton}" Margin="6,0,0,0" Padding="7,1" FontSize="11"
+                        Command="{Binding ForceSikaRemoteControlCommand}"
+                        Visibility="{Binding IsSikaRemoteControlOn, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
+                        ToolTip="Skúsi zapnúť Remote Control cez sieť (Com_ExternWriteFlag = 1)." />
+            </StackPanel>
 
             <!-- Locked banner + inline unlock (compact version of the Classic prompt). -->
             <Border CornerRadius="8" Padding="9,6" Margin="0,7,0,0"
@@ -191,7 +225,9 @@
             <!-- ===== Quick control: presets, custom setpoint, Stop, profile launch — disabled while locked ===== -->
             <StackPanel IsEnabled="{Binding IsUnlocked}">
                 <Border Style="{StaticResource ProSection}">
-                    <StackPanel>
+                    <!-- Manual control is off while a profile runs (and the profile picker below
+                         is hidden then), so the two never fight over the set point. -->
+                    <StackPanel IsEnabled="{Binding IsManualControlEnabled}">
                         <ItemsControl ItemsSource="{Binding QuickPresets}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
@@ -232,7 +268,7 @@
 
                 <!-- Profile picker + start, only when the device isn't already running one. -->
                 <Border Style="{StaticResource ProSection}" Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
-                    <StackPanel>
+                    <StackPanel IsEnabled="{Binding IsProfileControlEnabled}">
                         <TextBlock Text="Testovací profil" Style="{StaticResource Label}" Margin="0,0,0,5" />
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -242,7 +278,7 @@
                             <views:ProfilePicker Grid.Column="0" VerticalAlignment="Center"
                                                  ItemsSource="{Binding History}"
                                                  SelectedProfile="{Binding SelectedHistoryProfile, Mode=TwoWay}"
-                                                 ToolTip="Vyber uložený profil, potom spusti ▶. Rad profilov, oneskorený štart a knižnica sú v Detail →." />
+                                                 ToolTip="Vyber uložený profil, potom spusti ▶. V zozname sú len profily pre tento typ zariadenia (Vötsch / SIKA). Rad profilov, oneskorený štart a knižnica sú v Detail →." />
                             <Button Grid.Column="1" Content="▶" Style="{StaticResource IconActionButton}" Width="36" Height="32" Margin="8,0,0,0"
                                     Foreground="{StaticResource OkBrush}" Click="StartProfile_Click"
                                     ToolTip="Spustiť vybraný profil" />

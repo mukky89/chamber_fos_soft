@@ -35,6 +35,10 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private readonly ProfileRunCheckpointStore? _checkpointStore;
     private CancellationTokenSource? _pollingCts;
     private CancellationTokenSource? _profileCts;
+
+    /// <summary>Set by the cancellation path so the run's <c>finally</c> clears the
+    /// timers and the live graph once the runner has fully unwound.</summary>
+    private bool _resetReadoutsAfterRun;
     private bool _powerOffOnProfileCancel;
     private CsvRecorder? _recorder;
     private ProfileTemperatureLog? _profileTempLog;
@@ -80,9 +84,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsOperable, ReportError);
         QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsOperable, ReportError);
         ToggleEditPresetsCommand = new RelayCommand(() => IsEditingPresets = !IsEditingPresets, () => IsManageAllowed);
-        ToggleEditQuickProfilesCommand = new RelayCommand(() => IsEditingQuickProfiles = !IsEditingQuickProfiles, () => IsManageAllowed);
-        AddQuickProfileCommand = new RelayCommand(AddQuickProfile, () => IsManageAllowed && ProfileToPin is not null);
-        RemoveQuickProfileCommand = new RelayCommand<string>(RemoveQuickProfile, n => IsManageAllowed && !string.IsNullOrEmpty(n));
         ToggleEditNameCommand = new RelayCommand(() => IsEditingName = !IsEditingName);
         ToggleLockCommand = new RelayCommand(ToggleLock);
         CancelUnlockCommand = new RelayCommand(() => IsUnlockPromptOpen = false);
@@ -90,8 +91,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         StartProfileCommand = new AsyncRelayCommand(StartProfileAsync, () => IsConnected && IsOperable && !IsProfileRunning && Segments.Count > 0, ReportError);
         StartSelectedProfileCommand = new AsyncRelayCommand(StartSelectedProfileAsync, CanStartSelectedProfile, ReportError);
-        QuickStartProfileCommand = new AsyncRelayCommand<TestProfile?>(QuickStartProfileAsync,
-            p => p is not null && IsConnected && IsOperable && !IsProfileRunning, ReportError);
         PauseResumeProfileCommand = new RelayCommand(PauseResumeProfile, () => IsProfileRunning && IsUnlocked);
         SkipHoldCommand = new RelayCommand(SkipHold, () => IsProfileRunning && IsUnlocked && IsOnHoldSegment);
         StopProfileCommand = new RelayCommand(StopProfile, () => IsProfileRunning && IsUnlocked);
@@ -149,6 +148,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ModbusScanCommand = new AsyncRelayCommand(ModbusScanAsync, () => IsConnected && IsPolEko, ReportError);
         SikaInfoReportCommand = new AsyncRelayCommand(SikaInfoReportAsync, () => IsConnected && IsSika, ReportError);
         SikaCalibrationStatusCommand = new AsyncRelayCommand(SikaCalibrationStatusAsync, () => IsConnected && IsSika, ReportError);
+        ForceSikaRemoteControlCommand = new AsyncRelayCommand(ForceSikaRemoteControlAsync,
+            () => IsConnected && IsSika && IsControlAllowed && IsUnlocked, ReportError);
         RefreshSikaLogsCommand = new AsyncRelayCommand(RefreshSikaLogsAsync, () => IsConnected && IsSika, ReportError);
         ExportSelectedSikaLogCommand = new AsyncRelayCommand(ExportSelectedSikaLogAsync,
             () => IsConnected && IsSika && SelectedSikaLog is not null, ReportError);
@@ -300,6 +301,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             {
                 OnPropertyChanged(nameof(IsUnlocked));
                 OnPropertyChanged(nameof(IsOperable));
+                OnPropertyChanged(nameof(IsManualControlEnabled));
+                OnPropertyChanged(nameof(IsProfileControlEnabled));
                 OnPropertyChanged(nameof(LockGlyph));
                 OnPropertyChanged(nameof(LockButtonText));
                 OnPropertyChanged(nameof(LockStateLabel));
@@ -326,6 +329,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 OnPropertyChanged(nameof(IsOperable));
                 OnPropertyChanged(nameof(SikaRemoteControlStatus));
                 OnPropertyChanged(nameof(IsSikaRemoteControlBlocked));
+                OnPropertyChanged(nameof(IsSikaRemoteControlOn));
                 RefreshCommands();
             }
         }
@@ -333,12 +337,35 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public bool IsSikaRemoteControlBlocked => IsSika && SikaRemoteControlEnabled != true;
 
+    /// <summary>True for every SIKA device – the Remote Control state is shown whether it is
+    /// on (green) or off (orange), so the operator always knows whether writes will land.</summary>
+    public bool ShowSikaRemoteControl => IsSika;
+
+    /// <summary>True when SIKA remote control is confirmed on (drives the green/orange colour).</summary>
+    public bool IsSikaRemoteControlOn => IsSika && SikaRemoteControlEnabled == true;
+
     public string SikaRemoteControlStatus => SikaRemoteControlEnabled switch
     {
         true => "Remote Control zapnutý · ovládanie povolené",
         false => "Remote Control vypnutý na zariadení · iba monitoring",
         _ => "Remote Control sa nepodarilo overiť · iba monitoring",
     };
+
+    /// <summary>
+    /// <c>true</c> while the device is being conditioned by hand (a set point was applied
+    /// outside a profile). Manual and profile control are mutually exclusive on the card.
+    /// </summary>
+    public bool IsManualActive => !IsProfileRunning && (_readRunning ?? _manualStarted);
+
+    /// <summary>Manual (quick) control is available only while no profile is running.</summary>
+    public bool IsManualControlEnabled => IsUnlocked && !IsProfileRunning;
+
+    /// <summary>
+    /// The profile controls are available only while the device is not being driven
+    /// manually – stop the manual run first ("Stop" stays enabled). While a profile runs
+    /// they stay enabled so it can be paused, skipped and stopped.
+    /// </summary>
+    public bool IsProfileControlEnabled => IsUnlocked && (IsProfileRunning || !IsManualActive);
 
     private string? _lockPasswordHash;
     /// <summary>SHA-256 hash of the optional unlock password (persisted); empty = no password.</summary>
@@ -468,13 +495,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 if (!value)
                 {
                     IsEditingPresets = false;
-                    IsEditingQuickProfiles = false;
                 }
 
                 ToggleEditPresetsCommand.RaiseCanExecuteChanged();
-                ToggleEditQuickProfilesCommand.RaiseCanExecuteChanged();
-                AddQuickProfileCommand.RaiseCanExecuteChanged();
-                RemoveQuickProfileCommand.RaiseCanExecuteChanged();
                 ClearLockPasswordCommand.RaiseCanExecuteChanged();
             }
         }
@@ -1261,6 +1284,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                     IsProfilePaused = false;
                 }
 
+                OnPropertyChanged(nameof(IsManualActive));
+                OnPropertyChanged(nameof(IsManualControlEnabled));
+                OnPropertyChanged(nameof(IsProfileControlEnabled));
                 RefreshCommands();
                 RaiseActivity();
                 OnPropertyChanged(nameof(HasProfilePreview));
@@ -1382,6 +1408,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ActivityLabel));
         OnPropertyChanged(nameof(ControlModeBadge));
         OnPropertyChanged(nameof(HasControlMode));
+        OnPropertyChanged(nameof(IsManualActive));
+        OnPropertyChanged(nameof(IsManualControlEnabled));
+        OnPropertyChanged(nameof(IsProfileControlEnabled));
     }
 
     private string _profileStatus = "Nečinné.";
@@ -1523,6 +1552,31 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _stepEndsAt = null;
         _stepDuration = TimeSpan.Zero;
         ProfileStepText = string.Empty;
+    }
+
+    /// <summary>
+    /// Wipes everything the finished run left on screen: the elapsed/remaining clocks,
+    /// the progress bar, the step read-out, the "now" marker on the profile preview and
+    /// the live temperature/humidity chart. Called when a profile is stopped so the card
+    /// starts the next run from zero instead of showing the previous run's timeline.
+    /// </summary>
+    private void ResetRunReadouts()
+    {
+        ProfileProgress = 0;
+        _profileNowFraction = 0;
+        _profileActualStart = null;
+        _profileEstimatedEnd = null;
+        _stepIsSoaking = false;
+        StopCountdown();
+        ProfileScheduleText = string.Empty;
+
+        // Live graph: drop the recorded samples so the time axis restarts at 0.
+        _live.Clear();
+        BuildLiveCharts();
+
+        RaiseGanttTimes();
+        BuildProfilePreview();
+        RecalculateTiming();
     }
 
     private void UpdateCountdown()
@@ -1690,9 +1744,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Starts the profile selected in the history list (▶ on the dashboard card).</summary>
     public AsyncRelayCommand StartSelectedProfileCommand { get; }
-
-    /// <summary>One-click launch of a specific saved profile (quick profile buttons on the card).</summary>
-    public AsyncRelayCommand<TestProfile?> QuickStartProfileCommand { get; }
 
     /// <summary>Pauses or resumes the running profile (⏸ / ▶ on the dashboard card).</summary>
     public RelayCommand PauseResumeProfileCommand { get; }
@@ -1946,21 +1997,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ApplyProfile(profile);
         }
 
-        return StartProfileAsync();
-    }
-
-    /// <summary>
-    /// Quick profile button: loads the given saved profile into the editor and starts
-    /// it in one click, without picking it from the dropdown first.
-    /// </summary>
-    private Task QuickStartProfileAsync(TestProfile? profile)
-    {
-        if (profile is null)
-        {
-            return Task.CompletedTask;
-        }
-
-        ApplyProfile(profile);
         return StartProfileAsync();
     }
 
@@ -2322,6 +2358,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             // interruption (crash, power loss) never reaches this catch – the process is
             // simply gone – so the checkpoint from the last write survives for recovery.
             completedNormally = true;
+            _resetReadoutsAfterRun = true;
             ProfileStatus = "Profil zrušený.";
             _audit.Log(Name, "Profil zrušený", string.Empty);
             AppLog.Warn(Name, "Profil zrušený používateľom.");
@@ -2362,6 +2399,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileCts?.Dispose();
             _profileCts = null;
             RecalculateTiming();
+
+            // Stopping a profile resets the card: time and graph start from zero again.
+            if (_resetReadoutsAfterRun)
+            {
+                _resetReadoutsAfterRun = false;
+                string status = ProfileStatus;
+                ResetRunReadouts();
+                ProfileStatus = status;
+            }
         }
     }
 
@@ -2797,88 +2843,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>True when there is at least one saved profile.</summary>
     public bool HasProfiles => History.Count > 0;
 
-    // ---- Quick-launch profile buttons (curated favourites) ----
-
-    private List<string> _pinnedQuickProfiles = new();
-
-    /// <summary>
-    /// Saved profiles shown as one-click quick-launch buttons on the card. Only the
-    /// profiles the admin explicitly pinned (in pinned order) are shown – nothing is
-    /// shown until at least one is selected, so the card stays uncluttered.
-    /// </summary>
-    public IReadOnlyList<TestProfile> QuickProfiles =>
-        _pinnedQuickProfiles
-            .Select(n => History.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)))
-            .Where(p => p is not null)
-            .Select(p => p!)
-            .ToList();
-
-    /// <summary>True when no quick-launch profile is pinned yet (drives the "configure" hint).</summary>
-    public bool HasNoQuickProfiles => QuickProfiles.Count == 0;
-
-    /// <summary>True when at least one quick-launch profile button is shown.</summary>
-    public bool HasQuickProfiles => QuickProfiles.Count > 0;
-
-    /// <summary>The pinned profile names (admin editor list, with remove buttons).</summary>
-    public IReadOnlyList<string> PinnedProfileNames => _pinnedQuickProfiles;
-
-    /// <summary>True when the admin has pinned at least one profile (vs. the show-all default).</summary>
-    public bool HasPinnedProfiles => _pinnedQuickProfiles.Count > 0;
-
-    private bool _isEditingQuickProfiles;
-    /// <summary>True while the admin quick-profile editor row is visible on the card.</summary>
-    public bool IsEditingQuickProfiles { get => _isEditingQuickProfiles; set => SetProperty(ref _isEditingQuickProfiles, value); }
-
-    private TestProfile? _profileToPin;
-    /// <summary>Profile selected in the editor combo, ready to be pinned as a quick button.</summary>
-    public TestProfile? ProfileToPin
-    {
-        get => _profileToPin;
-        set { if (SetProperty(ref _profileToPin, value)) AddQuickProfileCommand.RaiseCanExecuteChanged(); }
-    }
-
-    public RelayCommand ToggleEditQuickProfilesCommand { get; }
-    public RelayCommand AddQuickProfileCommand { get; }
-    public RelayCommand<string> RemoveQuickProfileCommand { get; }
-
-    private void AddQuickProfile()
-    {
-        if (ProfileToPin is not { } profile)
-        {
-            return;
-        }
-
-        if (!_pinnedQuickProfiles.Any(n => string.Equals(n, profile.Name, StringComparison.OrdinalIgnoreCase)))
-        {
-            _pinnedQuickProfiles.Add(profile.Name);
-            RaiseQuickProfilesChanged();
-            StatusMessage = $"Profil \"{profile.Name}\" pridaný medzi rýchle spustenie.";
-        }
-    }
-
-    private void RemoveQuickProfile(string? name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
-            return;
-        }
-
-        if (_pinnedQuickProfiles.RemoveAll(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase)) > 0)
-        {
-            RaiseQuickProfilesChanged();
-        }
-    }
-
-    /// <summary>Notifies the quick-profile bindings and triggers a config save (via QuickProfiles).</summary>
-    private void RaiseQuickProfilesChanged()
-    {
-        OnPropertyChanged(nameof(QuickProfiles));
-        OnPropertyChanged(nameof(HasQuickProfiles));
-        OnPropertyChanged(nameof(HasNoQuickProfiles));
-        OnPropertyChanged(nameof(PinnedProfileNames));
-        OnPropertyChanged(nameof(HasPinnedProfiles));
-    }
-
     private TestProfile? _selectedHistoryProfile;
     public TestProfile? SelectedHistoryProfile
     {
@@ -2926,17 +2890,22 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         // A humidity chamber can also run temperature-only profiles (e.g. those made
         // by the quick builder), so include those; hide humidity profiles on a
         // temperature-only chamber since it cannot honour the humidity channel.
+        //
+        // The device family filters too: a SIKA bath settles on a set point by itself and
+        // its profiles are setpoint + dwell, while a Vötsch profile ramps between the
+        // plateaus. Mixing the two on one device produces a run that does not do what the
+        // profile says, so each device only offers its own family (plus the universal
+        // profiles saved before the distinction existed).
+        ProfileDeviceKind deviceKind = Protocol.ToDeviceKind();
         foreach (TestProfile profile in _store.LoadAll()
-                     .Where(p => p.Kind == Kind || p.Kind == ChamberKind.TemperatureOnly))
+                     .Where(p => p.Kind == Kind || p.Kind == ChamberKind.TemperatureOnly)
+                     .Where(p => p.DeviceKind.CanRunOn(deviceKind)))
         {
             History.Add(profile);
         }
 
         OnPropertyChanged(nameof(HasProfiles));
-        OnPropertyChanged(nameof(QuickProfiles));
-        OnPropertyChanged(nameof(HasQuickProfiles));
         StartSelectedProfileCommand.RaiseCanExecuteChanged();
-        QuickStartProfileCommand.RaiseCanExecuteChanged();
     }
 
     private void SaveToHistory()
@@ -3315,6 +3284,39 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand ModbusScanCommand { get; }
     public AsyncRelayCommand SikaInfoReportCommand { get; }
     public AsyncRelayCommand SikaCalibrationStatusCommand { get; }
+
+    /// <summary>Tries to switch the bath's "Remote Control" on over the network, so the
+    /// operator does not have to walk to the device's front panel.</summary>
+    public AsyncRelayCommand ForceSikaRemoteControlCommand { get; }
+
+    /// <summary>
+    /// Writes <c>Com_ExternWriteFlag = 1</c> on the SIKA bath and re-reads the flag. Some
+    /// firmware only accepts the switch from the front panel; the read-back is what
+    /// decides, so a refusal is reported instead of silently looking successful.
+    /// </summary>
+    private async Task ForceSikaRemoteControlAsync()
+    {
+        if (_client is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
+        {
+            StatusMessage = "Remote Control cez sieť je len pre SIKA REST-API.";
+            return;
+        }
+
+        StatusMessage = "Zapínam Remote Control na SIKA cez sieť…";
+        bool enabled = await sika.TryEnableRemoteControlAsync();
+        SikaRemoteControlEnabled = enabled;
+        if (enabled)
+        {
+            ShowActionInfo("✔ Remote Control zapnutý cez sieť – ovládanie povolené.");
+            _audit.Log(Name, "Remote Control", "Zapnutý cez sieť (Com_ExternWriteFlag = 1).");
+            AppLog.Info(Name, "[SIKA] Remote Control zapnutý cez sieť.");
+        }
+        else
+        {
+            ShowActionInfo("⚠ Remote Control sa nepodarilo zapnúť cez sieť – zapni ho na displeji zariadenia.");
+            AppLog.Warn(Name, "[SIKA] Zápis Com_ExternWriteFlag=1 zariadenie neprijalo.");
+        }
+    }
 
     /// <summary>
     /// Dumps a block of POL-EKO MODBUS registers so an undocumented value (e.g. the
@@ -4159,9 +4161,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(QuickPresets));
         OnPropertyChanged(nameof(QuickPresetsText));
 
-        _pinnedQuickProfiles = c.QuickProfiles is { Count: > 0 } ? new List<string>(c.QuickProfiles) : new List<string>();
-        RaiseQuickProfilesChanged();
-
         _nameplate = c.Nameplate?.Clone() ?? new ChamberNameplate();
         RaiseNameplate();
 
@@ -4192,7 +4191,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AutoReconnect = AutoReconnect,
         AutoRecoverProfile = AutoRecoverProfile,
         QuickPresets = new List<double>(_quickPresets),
-        QuickProfiles = new List<string>(_pinnedQuickProfiles),
         Nameplate = _nameplate.Clone(),
         IsLocked = IsLocked,
         LockPasswordHash = LockPasswordHash,
@@ -4212,7 +4210,6 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         QuickSetTemperatureCommand.RaiseCanExecuteChanged();
         StartProfileCommand.RaiseCanExecuteChanged();
         StartSelectedProfileCommand.RaiseCanExecuteChanged();
-        QuickStartProfileCommand.RaiseCanExecuteChanged();
         PauseResumeProfileCommand.RaiseCanExecuteChanged();
         StopProfileCommand.RaiseCanExecuteChanged();
         SkipHoldCommand.RaiseCanExecuteChanged();
@@ -4225,6 +4222,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         RunSetpointDiagnosticCommand.RaiseCanExecuteChanged();
         ReadDigitalCommand.RaiseCanExecuteChanged();
         RefreshSikaLogsCommand.RaiseCanExecuteChanged();
+        ForceSikaRemoteControlCommand.RaiseCanExecuteChanged();
         ExportSelectedSikaLogCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsConnected));
     }
@@ -4233,7 +4231,39 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         StatusMessage = $"Chyba: {ex.Message}";
         AppLog.Error(Name, ex);
-        DesktopNotifier.Notify($"Chyba · {Name}", ex.Message, DesktopNotificationKind.Warning);
+
+        // A device that is off or unplugged is not something to pop a Windows toast
+        // about: the automatic reconnect keeps retrying, so one unreachable chamber
+        // would raise the same notification over and over. The state is already on the
+        // card (red connection dot + status line) and in the app log.
+        if (!IsConnectivityError(ex))
+        {
+            DesktopNotifier.Notify($"Chyba · {Name}", ex.Message, DesktopNotificationKind.Warning);
+        }
+    }
+
+    /// <summary>
+    /// <c>true</c> for a connection / communication failure – a connect timeout, an
+    /// unreachable host, a dropped socket or an HTTP failure against a device's embedded
+    /// web server – including one wrapped in a friendlier exception by a transport.
+    /// </summary>
+    private static bool IsConnectivityError(Exception ex)
+    {
+        for (Exception? e = ex; e is not null; e = e.InnerException)
+        {
+            // Fully qualified: the generated WPF temp project does not carry the
+            // implicit System.Net.Http / System.IO usings this file otherwise relies on.
+            if (e is TimeoutException
+                or System.Net.Sockets.SocketException
+                or System.Net.Http.HttpRequestException
+                or System.IO.IOException
+                or OperationCanceledException)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void RunOnUi(Action action)

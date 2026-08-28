@@ -76,6 +76,15 @@ public partial class ChamberView : UserControl
         }
     }
 
+    /// <summary>"◈ FBG kalibrácia" in the header: opens the calibration workspace for this device.</summary>
+    private void Calibration_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is { } vm)
+        {
+            CalibrationWindow.OpenFor(Window.GetWindow(this), vm.Id);
+        }
+    }
+
     private void ToggleMaximize_Click(object sender, RoutedEventArgs e)
     {
         Window? window = Window.GetWindow(this);

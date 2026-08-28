@@ -1,5 +1,60 @@
 # Changelog
 
+## [1.66.0] – 2026-08-28
+
+### Pridané
+- **Profily majú typ zariadenia – Vötsch alebo SIKA.** Rýchly vytvárač profilov sa
+  na začiatku pýta, pre aké zariadenie profil vzniká. Pri SIKA sa negenerujú žiadne
+  rampy: kúpeľ si na setpoint nabehne sám, takže profil je len zoznam **teplôt
+  s dobou výdrže (dwell)**. Pri Vötschi zostáva pôvodné správanie (nábeh + plato).
+- **Profily sa filtrujú podľa zariadenia.** Karta komory aj okno FBG kalibrácie
+  ponúkajú len profily svojho typu, takže sa dva rôzne druhy profilov nemiešajú.
+  V knižnici profilov pribudol filter aj políčko „Zariadenie“. Profily uložené
+  predtým zostávajú *univerzálne* a ponúkajú sa všade – nič zo starej knižnice
+  nezmizne.
+- **Tlačidlo „FBG kalibrácia“ je pri každom zariadení** (karta na hlavnej obrazovke,
+  Professional karta aj obrazovka „Nastaviť / ovládať“) a otvorí kalibračné okno
+  rovno s tým zariadením. Plávajúce tlačidlo v rohu hlavnej obrazovky sa zrušilo.
+- **SIKA: „Zapnúť cez sieť“.** Remote Control sa dá skúsiť zapnúť priamo zo softvéru
+  (`Com_ExternWriteFlag = 1`) namiesto chodenia k displeju prístroja. Výsledok sa
+  overí spätným čítaním registra – firmvér, ktorý to dovolí len z panela, je
+  ohlásený a nič sa netvári ako úspech.
+
+### Zmenené
+- **SIKA Remote Control je vidieť vždy**, nielen keď je vypnutý: zelený stav =
+  zápisy prejdú, oranžový = iba monitoring.
+- **Manuál a profil sa navzájom vypínajú.** Kým beží profil, manuálne ovládanie je
+  neaktívne; kým je zariadenie riadené manuálne, sú neaktívne ovládače profilu.
+  V oboch prípadoch je na karte napísané, čo treba zastaviť.
+- **Zastavenie profilu vynuluje čas aj graf** – progres, odpočet, krok, značka
+  „teraz“ aj živý graf začínajú od nuly, nezostáva na karte časová os predošlého behu.
+- **Výber profilu na karte je cez celú šírku** okna, takže je vidieť podstatne viac
+  z názvu profilu; ovládacie tlačidlá sa presunuli pod neho.
+- **Väčšie a krajšie tlačidlá behu** (▶ ⏸ ⏭ ⏹) – vektorové ikony namiesto znakov,
+  výraznejšie farebné odlíšenie a hover.
+- **Rýchle spustenie profilu sa zrušilo.** Profil sa spúšťa výberom v zozname a
+  tlačidlom ▶; „✕ Zrušiť profil“ zostáva pri ovládacích tlačidlách.
+- **Ľavý panel rýchleho vytvárača je širší a dá sa potiahnuť** na požadovanú šírku.
+
+### Opravené
+- **Rozbalovacie zoznamy ukazovali názov triedy namiesto hodnoty** (napr.
+  `VotschVc3.Core.Profiles.TestProfile`). Tmavá šablóna `ComboBox` neprepájala
+  `ItemTemplateSelector`, ktorým WPF implementuje `DisplayMemberPath`, takže
+  zavretý zoznam padal na `ToString()`. Týkalo sa to všetkých zoznamov v appke,
+  najviac bolo vidno v okne FBG kalibrácie.
+- **FBG kalibrácia hlásila chybu bindingu na `PortName`.** `Run.Text` je v WPF
+  štandardne obojsmerný binding, takže sa viazal na read-only property.
+- **Zatvorenie okna FBG kalibrácie padalo** s `Cannot set Visibility to Visible or
+  call Show, ShowDialog, Close … while a Window is closing`. Skutočné zatvorenie sa
+  teraz odloží cez dispatcher a chyba pri uvoľňovaní zariadení okno nezablokuje.
+- **„Prehľad plat“ v náhľade profilu nemal scrollbar** – dlhý profil pretekal mimo
+  okna.
+- **Nedostupné zariadenie už nevyskakuje ako Windows notifikácia.** Časový limit
+  pri pripájaní, nedostupná IP alebo spadnutý socket sa zapíšu do stavového riadka
+  karty a do app logu, ale netlačia sa na plochu – automatické znovupripájanie to
+  skúša ďalej, takže jedna vypnutá komora predtým vypisovala tú istú hlášku dokola.
+  Skutočná strata spojenia počas behu zostáva alarmom.
+
 ## [1.65.0] – 2026-08-26
 
 ### Pridané

@@ -21,6 +21,13 @@ public sealed class TestProfile
     /// <summary>Which chamber type the profile was authored for.</summary>
     public ChamberKind Kind { get; set; } = ChamberKind.TemperatureHumidity;
 
+    /// <summary>
+    /// Which device family the profile was built for (Vötsch ramps+plateaus vs. SIKA
+    /// setpoint+dwell). <see cref="ProfileDeviceKind.Any"/> – the default – keeps every
+    /// previously saved profile visible on every device.
+    /// </summary>
+    public ProfileDeviceKind DeviceKind { get; set; } = ProfileDeviceKind.Any;
+
     /// <summary>Normal test or PeakLogger-backed FBG temperature calibration.</summary>
     public ProfileExecutionMode ExecutionMode { get; set; } = ProfileExecutionMode.Normal;
 
@@ -165,6 +172,7 @@ public sealed class TestProfile
         Name = Name,
         OriginalName = OriginalName,
         Kind = Kind,
+        DeviceKind = DeviceKind,
         ExecutionMode = ExecutionMode,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt,

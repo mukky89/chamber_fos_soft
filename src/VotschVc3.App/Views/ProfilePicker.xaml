@@ -173,19 +173,24 @@
                             <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,8">
                                 <StackPanel>
                                     <TextBlock Text="Prehľad plat" Style="{StaticResource Label}" Margin="0,0,0,5" />
-                                    <ItemsControl x:Name="PlateauList">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <DockPanel Margin="0,2">
-                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding TemperatureText}"
-                                                               FontFamily="Segoe UI Semibold" MinWidth="82" />
-                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding DurationText}" Margin="10,0,0,0" />
-                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding RepeatText}"
-                                                               Foreground="{StaticResource AccentBrush}" FontFamily="Segoe UI Semibold" />
-                                                </DockPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <!-- A long profile has dozens of plateaus – without its own
+                                         scroller the list simply ran past the bottom of the popup. -->
+                                    <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+                                        <ItemsControl x:Name="PlateauList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <DockPanel Margin="0,2">
+                                                        <TextBlock DockPanel.Dock="Left" Text="{Binding TemperatureText}"
+                                                                   FontFamily="Segoe UI Semibold" MinWidth="82" />
+                                                        <TextBlock DockPanel.Dock="Left" Text="{Binding DurationText}" Margin="10,0,0,0" />
+                                                        <TextBlock DockPanel.Dock="Right" Text="{Binding RepeatText}"
+                                                                   Foreground="{StaticResource AccentBrush}" FontFamily="Segoe UI Semibold" />
+                                                    </DockPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
                                     <TextBlock x:Name="NoPlateausText" Text="Profil neobsahuje žiadne plato (iba rampy)."
                                                Style="{StaticResource Caption}" Visibility="Collapsed" />
                                 </StackPanel>

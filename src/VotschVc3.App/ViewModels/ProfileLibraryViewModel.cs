@@ -48,7 +48,12 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         DeleteAllProfilesCommand = new RelayCommand(DeleteAllProfiles, () => IsAdmin && History.Count > 0);
         ExpandAllCommand = new RelayCommand(() => SetAllExpanded(true));
         CollapseAllCommand = new RelayCommand(() => SetAllExpanded(false));
-        ClearFilterCommand = new RelayCommand(() => { FilterText = string.Empty; SelectedTag = AllTagsOption; });
+        ClearFilterCommand = new RelayCommand(() =>
+        {
+            FilterText = string.Empty;
+            SelectedTag = AllTagsOption;
+            DeviceKindFilter = ProfileDeviceKind.Any;
+        });
 
         SeedDefaultProfile();
         RefreshHistory();
@@ -56,6 +61,38 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     }
 
     public Array ChamberKinds { get; } = Enum.GetValues(typeof(ChamberKind));
+
+    /// <summary>The device families a profile can be authored for (editor + tree filter),
+    /// with the Slovak label the combo boxes show.</summary>
+    public IReadOnlyList<DeviceKindOption> DeviceKinds { get; } = new List<DeviceKindOption>
+    {
+        new(ProfileDeviceKind.Any, "Univerzálny (všetky zariadenia)"),
+        new(ProfileDeviceKind.Votsch, "Vötsch / Weiss (rampy a plata)"),
+        new(ProfileDeviceKind.Sika, "SIKA TP (teplota + výdrž)"),
+    };
+
+    private ProfileDeviceKind _deviceKind = ProfileDeviceKind.Any;
+
+    /// <summary>
+    /// Which device family the edited profile belongs to. Vötsch profiles ramp between the
+    /// plateaus, SIKA profiles are setpoints with a dwell time;
+    /// <see cref="ProfileDeviceKind.Any"/> stays offered on every device.
+    /// </summary>
+    public ProfileDeviceKind DeviceKind
+    {
+        get => _deviceKind;
+        set => SetProperty(ref _deviceKind, value);
+    }
+
+    private ProfileDeviceKind _deviceKindFilter = ProfileDeviceKind.Any;
+
+    /// <summary>Tree filter: <see cref="ProfileDeviceKind.Any"/> shows everything, otherwise
+    /// only the profiles of that family (plus the universal ones).</summary>
+    public ProfileDeviceKind DeviceKindFilter
+    {
+        get => _deviceKindFilter;
+        set { if (SetProperty(ref _deviceKindFilter, value)) RebuildTree(); }
+    }
 
     private ChamberKind _kind = ChamberKind.TemperatureHumidity;
     public ChamberKind Kind
@@ -326,6 +363,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         Name = ProfileName,
         OriginalName = OriginalName,
         Kind = Kind,
+        DeviceKind = DeviceKind,
         Cycles = Cycles,
         CycleStartIndex = CycleBandStart,
         CycleEndIndex = CycleBandEnd,
@@ -349,6 +387,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     private void ApplyProfile(TestProfile profile)
     {
         Kind = profile.Kind;
+        DeviceKind = profile.DeviceKind;
         ProfileName = profile.Name;
         OriginalName = profile.OriginalName ?? string.Empty;
         Customer = profile.Customer ?? string.Empty;
@@ -636,7 +675,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         string needle = FilterText?.Trim() ?? string.Empty;
         bool tagFilter = SelectedTag != AllTagsOption;
 
-        IEnumerable<TestProfile> matches = History.Where(p => Matches(p, needle, tagFilter ? SelectedTag : null));
+        IEnumerable<TestProfile> matches = History
+            .Where(p => p.DeviceKind.CanRunOn(DeviceKindFilter))
+            .Where(p => Matches(p, needle, tagFilter ? SelectedTag : null));
 
         // Expand each profile into (sensor, profile) pairs so multi-sensor profiles
         // land in every matching group.
@@ -666,9 +707,12 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             ProfileTree.Add(vm);
         }
 
+        string kindNote = DeviceKindFilter == ProfileDeviceKind.Any
+            ? string.Empty
+            : $" · filter: {DeviceKindFilter.Label()}";
         TreeSummary = groups.Count == 0
-            ? "Žiadny profil nevyhovuje filtru."
-            : $"{distinctProfiles} {ProfileWord(distinctProfiles)} · {groups.Count} {SensorWord(groups.Count)}";
+            ? "Žiadny profil nevyhovuje filtru." + kindNote
+            : $"{distinctProfiles} {ProfileWord(distinctProfiles)} · {groups.Count} {SensorWord(groups.Count)}{kindNote}";
     }
 
     private static bool Matches(TestProfile p, string needle, string? tag)
@@ -986,3 +1030,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         return brush;
     }
 }
+
+/// <summary>One entry of the "device family" pickers in the profile library.</summary>
+/// <param name="Value">The stored <see cref="ProfileDeviceKind"/>.</param>
+/// <param name="Label">The Slovak text shown in the combo box.</param>
+public sealed record DeviceKindOption(ProfileDeviceKind Value, string Label);

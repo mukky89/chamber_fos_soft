@@ -28,6 +28,15 @@ public partial class ProfessionalDeviceCard : UserControl
         set => SetValue(ShellProperty, value);
     }
 
+    /// <summary>◈ on the card: opens the FBG calibration workspace for this device.</summary>
+    private void Calibration_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ChamberViewModel chamber)
+        {
+            CalibrationWindow.OpenFor(Window.GetWindow(this), chamber.Id);
+        }
+    }
+
     private void Stop_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not ChamberViewModel chamber)
