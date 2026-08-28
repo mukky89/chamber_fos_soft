@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.67.0] – 2026-08-28
+
+### Pridané
+- **Prevod Vötsch profilu do SIKA formátu.** V knižnici profilov pribudlo tlačidlo
+  „⇄ Previesť na SIKA profil“: teploty a doby výdrže zostanú, rampy medzi nimi sa
+  vynechajú (kúpeľ si na setpoint nabehne sám). Susedné platá na rovnakej teplote sa
+  zlúčia do jedného, cyklovaná oblasť sa prepočíta na kratší zoznam a vlhkosť sa
+  zahodí. Ukladá sa ako **nový** profil – pôvodný zostáva nezmenený.
+- **Vo výbere profilu je vidieť, pre aké zariadenie profil je** (Vötsch / SIKA /
+  univerzálny) – ako štítok pri každom profile v zozname aj v náhľade.
+- **Tlačidlo „✎ Upraviť v rýchlom profile“** priamo v náhľade výberu profilu – otvorí
+  vybraný profil v rýchlom vytvárači, takže sa nemusí znovu hľadať v knižnici.
+- **Prepočet minút na hodiny** pri všetkých časových poliach rýchleho vytvárača a ako
+  stĺpec „≈ hodiny“ v tabuľke segmentov. Je to **iba vizuálna pomôcka** – ukladá sa
+  naďalej hodnota v minútach.
+- **Predvoľby typov snímačov.** Pole „Snímače“ v rýchlom vytvárači aj v knižnici ponúka
+  katalóg SYLEX snímačov (DTP-01, TP-01, SAT-0x, SWA-0x, STS-xx, DSS-0x, …). Príslušenstvo
+  rady S-line (Scan, Switch, Splitter, Comp, Battery Pack) v zozname zámerne nie je –
+  profil sa preň nerobí. Typy, ktoré už používajú uložené profily, sa do zoznamu pridajú
+  automaticky, takže nový typ netreba čakať na novú verziu.
+
+### Zmenené
+- **Časová os (timeline) je predvolene skrytá** a zobrazí sa tlačidlom v jej hlavičke;
+  voľba sa pamätá. Existujúcim inštaláciám sa nastavenie raz zresetuje, ďalšia voľba
+  operátora už platí.
+- **Teplota komory, setpoint a rozsah sú vyššie na karte** – presunuli sa k názvu
+  zariadenia vedľa obrázka komory, kde bolo prázdne miesto, takže karta ušetrí celú
+  jednu sekciu.
+- **Ľavý panel rýchleho vytvárača je rozdelený do kategórií** (Zariadenie, Profil,
+  Zaradenie profilu, Režim a parametre, Časy krokov, Nábeh a koniec, Cyklovanie,
+  Optimalizácia) – každá vo vlastnom rámiku namiesto jedného dlhého zoznamu polí.
+
+### Opravené
+- **„Dĺžka plata“ v postupnosti teplôt sa neprejavila na bodoch.** Pole sa správalo len
+  ako predvoľba pre novo pridaný bod, takže po nastavení 70 min zostali všetky body na
+  30 min. Teraz zmena tejto hodnoty prepíše dĺžku plata **všetkým bodom** postupnosti;
+  jednotlivý bod sa dá potom stále upraviť zvlášť.
+
 ## [1.66.0] – 2026-08-28
 
 ### Pridané

@@ -467,6 +467,27 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand OpenRecordingViewerCommand { get; }
     public RelayCommand OpenProfileLibraryCommand { get; }
     public RelayCommand OpenQuickProfileCommand { get; }
+
+    /// <summary>
+    /// Opens the quick profile builder with an existing profile already loaded, so a
+    /// profile picked in a dropdown can be edited straight away instead of being looked
+    /// up again in the library. Used by the "✎ Upraviť" button in
+    /// <see cref="Views.ProfilePicker"/>.
+    /// </summary>
+    public void OpenQuickProfileFor(TestProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        QuickProfile.RefreshLibraryProfiles();
+        CurrentView = QuickProfile;
+
+        // LoadProfile asks (modal) whether saving should overwrite the original. Let the
+        // navigation render first so the dialog does not come up over the old screen.
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+            new Action(() => QuickProfile.LoadProfile(profile)),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
+
     public RelayCommand OpenAuditCommand { get; }
     public RelayCommand OpenAppLogCommand { get; }
     public RelayCommand OpenChangelogCommand { get; }

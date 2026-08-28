@@ -157,11 +157,10 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         List<TestProfile> all = _store.LoadAll();
 
+        // The SYLEX sensor catalogue is always offered, with whatever the saved profiles
+        // actually use merged in – a fresh library would otherwise have an empty picker.
         KnownSensors.Clear();
-        foreach (string s in all.SelectMany(p => p.Sensors ?? new List<string>())
-                     .Where(s => !string.IsNullOrWhiteSpace(s))
-                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                     .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase))
+        foreach (string s in SensorCatalog.Merge(all.SelectMany(p => p.Sensors ?? new List<string>())))
         {
             KnownSensors.Add(s);
         }
@@ -542,9 +541,56 @@ public sealed class QuickProfileViewModel : ObservableObject
     public double TemperatureStep { get => _temperatureStep; set { if (SetProperty(ref _temperatureStep, Math.Max(0.1, value))) Recalculate(); } }
 
     private double _plateauMinutes = 30;
-    /// <summary>Base plateau (soak) length at each temperature, before optimisation (parametric mode)
-    /// or the shared hold length applied to every step (sequence mode).</summary>
-    public double PlateauMinutes { get => _plateauMinutes; set { if (SetProperty(ref _plateauMinutes, Math.Max(0, value))) Recalculate(); } }
+
+    /// <summary>
+    /// Base plateau (soak) length at each temperature, before optimisation (parametric mode)
+    /// or the shared hold length of every point (sequence mode).
+    /// <para>
+    /// In "Postupnosť teplôt" this is the master field: changing it writes the new length
+    /// into <em>every</em> point, which is what setting "the" plateau length is expected to
+    /// do. A point edited afterwards still overrides just itself, so per-step lengths stay
+    /// possible – they are simply re-levelled the next time this field is changed.
+    /// </para>
+    /// </summary>
+    public double PlateauMinutes
+    {
+        get => _plateauMinutes;
+        set
+        {
+            if (!SetProperty(ref _plateauMinutes, Math.Max(0, value)))
+            {
+                return;
+            }
+
+            if (Mode == QuickProfileMode.Sequence && !_suspendRecalculate)
+            {
+                ApplyPlateauToAllSteps(_plateauMinutes);
+            }
+
+            Recalculate();
+        }
+    }
+
+    /// <summary>
+    /// Writes one hold length into every point of the sequence. Done in a suspended block
+    /// so the preview is rebuilt once at the end instead of once per point.
+    /// </summary>
+    private void ApplyPlateauToAllSteps(double minutes)
+    {
+        bool wasSuspended = _suspendRecalculate;
+        _suspendRecalculate = true;
+        try
+        {
+            foreach (SequenceStepViewModel step in SequenceSteps)
+            {
+                step.PlateauMinutes = minutes;
+            }
+        }
+        finally
+        {
+            _suspendRecalculate = wasSuspended;
+        }
+    }
 
     private double _rampMinutes = 20;
     /// <summary>Ramp length between two consecutive temperatures.</summary>

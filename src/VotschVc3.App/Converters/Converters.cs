@@ -214,3 +214,51 @@ public sealed class DeltaConverter : IMultiValueConverter
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
+
+/// <summary>
+/// Turns a duration given in minutes into a read-only "how long is that really" hint
+/// (e.g. 125 → "≈ 2 h 5 min", 30 → "≈ 0,5 h", 1560 → "≈ 1 d 2 h"). Purely a visual aid
+/// next to a minutes input – the stored value stays in minutes and this never converts
+/// back. An empty string is returned for a missing or zero value so the hint simply does
+/// not show up.
+/// </summary>
+public sealed class MinutesToHoursConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        double minutes = value switch
+        {
+            double d => d,
+            int i => i,
+            TimeSpan t => t.TotalMinutes,
+            _ => double.NaN,
+        };
+
+        if (double.IsNaN(minutes) || minutes <= 0)
+        {
+            return string.Empty;
+        }
+
+        // Under an hour the interesting number is the fraction of an hour ("0,5 h"),
+        // above it the hour/minute split reads better ("2 h 5 min").
+        if (minutes < 60)
+        {
+            return $"≈ {(minutes / 60d).ToString("0.##", culture)} h";
+        }
+
+        int totalMinutes = (int)Math.Round(minutes);
+        int days = totalMinutes / (24 * 60);
+        int hours = totalMinutes / 60 % 24;
+        int rest = totalMinutes % 60;
+
+        if (days > 0)
+        {
+            return rest > 0 ? $"≈ {days} d {hours} h {rest} min" : $"≈ {days} d {hours} h";
+        }
+
+        return rest > 0 ? $"≈ {hours} h {rest} min" : $"≈ {hours} h";
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Binding.DoNothing;
+}

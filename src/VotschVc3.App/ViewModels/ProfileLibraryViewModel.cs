@@ -38,6 +38,8 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         LoadFromHistoryCommand = new RelayCommand(LoadFromHistory, () => SelectedHistoryProfile is not null);
         DeleteFromHistoryCommand = new RelayCommand(DeleteFromHistory, () => SelectedHistoryProfile is not null);
         DuplicateProfileCommand = new RelayCommand(DuplicateProfile, () => SelectedHistoryProfile is not null);
+        ConvertToSikaCommand = new RelayCommand(ConvertToSika,
+            () => SelectedHistoryProfile is { DeviceKind: not ProfileDeviceKind.Sika });
         RefreshHistoryCommand = new RelayCommand(RefreshFromStore);
         ImportProfileCommand = new RelayCommand(ImportProfile);
         ImportLibraryCommand = new RelayCommand(ImportLibrary);
@@ -273,6 +275,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
                 LoadFromHistoryCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
                 DuplicateProfileCommand.RaiseCanExecuteChanged();
+                ConvertToSikaCommand.RaiseCanExecuteChanged();
 
                 // Single click = load into the editor (standard list behaviour), unless the
                 // selection was set programmatically (e.g. during a refresh).
@@ -302,6 +305,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
     /// <summary>Duplicates the selected saved profile (name suffixed with " COPY").</summary>
     public RelayCommand DuplicateProfileCommand { get; }
+
+    /// <summary>Saves a SIKA version of the selected profile (holds only, no ramps).</summary>
+    public RelayCommand ConvertToSikaCommand { get; }
 
     /// <summary>Reloads the saved-profile list from disk (also used on entering the editor).</summary>
     public RelayCommand RefreshHistoryCommand { get; }
@@ -635,12 +641,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             .OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
-        List<string> sensors = History
-            .SelectMany(p => p.Sensors ?? new List<string>())
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
+        // The SYLEX sensor catalogue is always offered, with whatever the saved profiles
+        // actually use merged in – a fresh library would otherwise have an empty picker.
+        List<string> sensors = SensorCatalog.Merge(History.SelectMany(p => p.Sensors ?? new List<string>()));
 
         string previous = SelectedTag;
         AvailableTags.Clear();
@@ -782,6 +785,44 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         RefreshHistory();
         SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == copy.Id); // loads the copy into the editor
         StatusMessage = $"Profil \"{source.Name}\" duplikovaný ako \"{copy.Name}\".";
+    }
+
+    /// <summary>
+    /// Converts the selected Vötsch profile into the SIKA format – the setpoints and their
+    /// dwell times are kept, the ramps between them are dropped because the bath drives to
+    /// a set point on its own. Saved as a new profile so the original stays untouched.
+    /// </summary>
+    private void ConvertToSika()
+    {
+        if (SelectedHistoryProfile is not { } source)
+        {
+            return;
+        }
+
+        TestProfile converted = ProfileDeviceConverter.ToSika(source);
+        int droppedRamps = source.Segments.Count(s => s.IsRamp);
+
+        if (!Views.ConfirmDialog.Ask(
+                $"Previesť profil „{source.Name}“ do SIKA formátu?\n\n" +
+                $"Vynechá sa {droppedRamps} rámp – SIKA kúpeľ si na setpoint nabehne sám. " +
+                $"Zostane {converted.Segments.Count} teplôt s dobou výdrže " +
+                $"({QuickProfileNaming.Duration(converted.SinglePassDuration.TotalMinutes)} namiesto " +
+                $"{QuickProfileNaming.Duration(source.SinglePassDuration.TotalMinutes)}).\n\n" +
+                $"Uloží sa ako nový profil „{converted.Name}“; pôvodný zostane nezmenený.",
+                "Previesť na SIKA profil",
+                confirmText: "Previesť",
+                danger: false))
+        {
+            StatusMessage = "Prevod zrušený.";
+            return;
+        }
+
+        _store.Save(converted);
+        RefreshHistory();
+        SelectedHistoryProfile = History.FirstOrDefault(p => p.Id == converted.Id); // loads it into the editor
+        StatusMessage =
+            $"Profil \"{source.Name}\" prevedený na SIKA formát ako \"{converted.Name}\" " +
+            $"({converted.Segments.Count} teplôt, {droppedRamps} rámp vynechaných).";
     }
 
     private void ImportProfile()

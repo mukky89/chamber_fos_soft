@@ -114,7 +114,17 @@
                                     <StackPanel Margin="0,2" MouseEnter="OnProfileMouseEnter"
                                                 ToolTip="Prejdi myšou = náhľad · klik = vybrať profil.">
                                         <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding PickerCaption}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- Device family the profile was authored for, so a SIKA profile is
+                                                 never mistaken for a Vötsch one in a mixed list. -->
+                                            <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="5"
+                                                    Padding="6,1" Margin="0,1,7,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding DeviceKindLabel}" FontSize="10.5"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                            <TextBlock Text="{Binding PickerCaption}" Style="{StaticResource Caption}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
                                     </StackPanel>
                                 </DataTemplate>
                             </TreeView.Resources>
@@ -134,10 +144,24 @@
                         </StackPanel>
 
                         <StackPanel x:Name="PreviewContent" Visibility="Collapsed">
-                            <TextBlock x:Name="PreviewName" FontFamily="Segoe UI Semibold" FontSize="17"
-                                       TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="PreviewCaption" Style="{StaticResource Caption}"
-                                       Margin="0,2,0,8" TextTrimming="CharacterEllipsis" />
+                            <DockPanel LastChildFill="True">
+                                <Button x:Name="EditButton" DockPanel.Dock="Right" Content="✎ Upraviť v rýchlom profile"
+                                        Style="{StaticResource GhostButton}" Padding="10,4" FontSize="12"
+                                        Margin="10,0,0,0" VerticalAlignment="Top" Click="OnEditProfileClick"
+                                        ToolTip="Otvorí tento profil v rýchlom vytvárači profilov, kde sa dá hneď upraviť a uložiť." />
+                                <TextBlock x:Name="PreviewName" FontFamily="Segoe UI Semibold" FontSize="17"
+                                           TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                <!-- Which device this profile is meant for: a Vötsch profile ramps between
+                                     the plateaus, a SIKA one only holds setpoints. -->
+                                <Border x:Name="PreviewKindBadge" Background="{StaticResource SurfaceAltBrush}"
+                                        CornerRadius="6" Padding="8,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="PreviewKindText" FontSize="11.5" FontFamily="Segoe UI Semibold" />
+                                </Border>
+                                <TextBlock x:Name="PreviewCaption" Style="{StaticResource Caption}"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                            </StackPanel>
 
                             <views:ChartView x:Name="PreviewChart" Height="245" Unit=" °C"
                                              EmptyText="Profil nemá segmenty" ShowStages="True"
@@ -196,8 +220,8 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="Hover v grafe: teplota, čas a typ kroku · klik na profil potvrdí výber"
-                                       Style="{StaticResource Caption}" Margin="0,7,0,0" />
+                            <TextBlock Text="Hover v grafe: teplota, čas a typ kroku · klik na profil potvrdí výber · „✎ Upraviť“ otvorí profil v rýchlom vytvárači"
+                                       Style="{StaticResource Caption}" Margin="0,7,0,0" TextWrapping="Wrap" />
                         </StackPanel>
                     </Grid>
                 </Grid>

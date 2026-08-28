@@ -21,6 +21,7 @@
             <conv:EnumToBooleanConverter x:Key="EnumToBoolean" />
             <conv:DeltaConverter x:Key="Delta" />
             <conv:OneBasedIndexConverter x:Key="OneBasedIndex" />
+            <conv:MinutesToHoursConverter x:Key="MinutesToHours" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

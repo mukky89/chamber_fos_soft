@@ -344,6 +344,8 @@
                                         <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" x:Name="HumidityColumn" Header="Cieľ %" Width="90"
                                                             Binding="{Binding TargetHumidity, StringFormat=0.0, TargetNullValue=''}" />
                                         <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Trvanie (min)" Width="110" Binding="{Binding DurationMinutes, StringFormat=0.##}" />
+                                        <DataGridTextColumn Header="≈ hodiny" Width="110" IsReadOnly="True"
+                                                            Binding="{Binding DurationMinutes, Converter={StaticResource MinutesToHours}}" />
                                         <DataGridCheckBoxColumn Header="Rampa" Width="58" Binding="{Binding IsRamp, UpdateSourceTrigger=PropertyChanged}" />
                                         <DataGridCheckBoxColumn Header="Soak" Width="52" Binding="{Binding GuaranteedSoak, UpdateSourceTrigger=PropertyChanged}" />
                                         <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditTextBox}" Header="Tol °C" Width="64" Binding="{Binding SoakTolerance, StringFormat=0.0}" />

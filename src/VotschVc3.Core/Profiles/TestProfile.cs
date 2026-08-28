@@ -28,6 +28,10 @@ public sealed class TestProfile
     /// </summary>
     public ProfileDeviceKind DeviceKind { get; set; } = ProfileDeviceKind.Any;
 
+    /// <summary>Short label of <see cref="DeviceKind"/> for pickers and badges ("Vötsch", "SIKA", "Univerzálny").</summary>
+    [JsonIgnore]
+    public string DeviceKindLabel => DeviceKind.Label();
+
     /// <summary>Normal test or PeakLogger-backed FBG temperature calibration.</summary>
     public ProfileExecutionMode ExecutionMode { get; set; } = ProfileExecutionMode.Normal;
 

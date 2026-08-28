@@ -275,6 +275,24 @@ public partial class ProfilePicker : UserControl
         ToggleBtn.IsChecked = false;
     }
 
+    /// <summary>
+    /// "✎ Upraviť v rýchlom profile": closes the popup and hands the previewed profile to
+    /// the quick builder, so it can be edited without hunting for it in the library again.
+    /// </summary>
+    private void OnEditProfileClick(object sender, RoutedEventArgs e)
+    {
+        if (_previewProfile is not { } profile)
+        {
+            return;
+        }
+
+        ToggleBtn.IsChecked = false;
+        if (Window.GetWindow(this)?.DataContext is ShellViewModel shell)
+        {
+            shell.OpenQuickProfileFor(profile);
+        }
+    }
+
     private void UpdatePreview(TestProfile? profile)
     {
         _previewProfile = profile;
@@ -296,6 +314,19 @@ public partial class ProfilePicker : UserControl
         ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile);
         PreviewName.Text = profile.Name;
         PreviewCaption.Text = profile.PickerCaption;
+        PreviewKindText.Text = profile.DeviceKindLabel;
+        PreviewKindText.Foreground = (profile.DeviceKind switch
+        {
+            ProfileDeviceKind.Sika => TryFindResource("OkBrush"),
+            ProfileDeviceKind.Votsch => TryFindResource("AccentBrush"),
+            _ => TryFindResource("MutedBrush"),
+        }) as Brush ?? Brushes.Gray;
+        PreviewKindBadge.ToolTip = profile.DeviceKind switch
+        {
+            ProfileDeviceKind.Sika => "SIKA TP: profil je zoznam teplôt s dobou výdrže, bez rámp.",
+            ProfileDeviceKind.Votsch => "Vötsch / Weiss: profil má nábehy (rampy) medzi platami.",
+            _ => "Univerzálny profil – ponúka sa na každom zariadení.",
+        };
         MinTemperatureText.Text = summary.MinTemperature is { } min ? $"{min:0.#} °C" : "—";
         MaxTemperatureText.Text = summary.MaxTemperature is { } max ? $"{max:0.#} °C" : "—";
         TotalDurationText.Text = FormatDuration(summary.TotalDuration);

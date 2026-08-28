@@ -22,9 +22,20 @@ public sealed class UiSettings
 
     /// <summary>
     /// When <c>true</c> the fleet timeline (Gantt) is shown at the top of the
-    /// dashboard. On by default; can be hidden to save vertical space.
+    /// dashboard. Off by default – it takes a lot of vertical space and the device
+    /// cards are what an operator watches; the button in the timeline's header
+    /// shows it, and the choice is remembered.
     /// </summary>
-    public bool ShowTimeline { get; set; } = true;
+    public bool ShowTimeline { get; set; }
+
+    /// <summary>
+    /// Set once <see cref="ShowTimeline"/>'s new "hidden by default" behaviour has been
+    /// applied to a settings file written before it existed. Such a file still carries the
+    /// old <c>ShowTimeline = true</c>, so the new default would never reach an existing
+    /// installation; <see cref="UiSettingsStore.Load"/> resets it exactly once and records
+    /// it here, leaving every later explicit choice of the operator alone.
+    /// </summary>
+    public bool TimelineDefaultApplied { get; set; }
 
     /// <summary>
     /// How often, in seconds, a row is written to the per-profile temperature log
