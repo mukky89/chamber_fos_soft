@@ -72,7 +72,7 @@ public sealed class CsvRecorder : IDisposable
         }
     }
 
-    private static string Format(double? value, string format = "0.0") => CsvFormat.Fmt(value, format);
+    private static string Format(double? value, string format = CsvFormat.MeasuredValue) => CsvFormat.Fmt(value, format);
 
     private static string Escape(string raw)
     {

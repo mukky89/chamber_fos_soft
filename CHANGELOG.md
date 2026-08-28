@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.75.1] – 2026-08-28
+
+### Zmenené
+- **Teplota a vlhkosť sa zobrazujú na štyri desatinné miesta**, rovnako ako
+  v pôvodnom SIMPATI (napr. `40,0213 °C`). Regulátor S!MPAC toľko desatinných
+  miest naozaj posiela a parser ich vždy uchoval — orezávalo ich až zobrazenie.
+  Referenčný ASL F100 zostáva na troch desatinných miestach podľa svojej
+  špecifikácie.
+
+### Opravené
+- **Záznam teplôt do CSV už neorezáva namerané hodnoty na 0,1 °C.** Teplota,
+  setpoint a vlhkosť sa do `Recordings` aj do `Profilelog` zapisujú v takom
+  rozlíšení, v akom ich zariadenie hlási (koncové nuly sa nedopisujú, takže
+  regulátor s jedným desatinným miestom naďalej zapíše `40,0`). Doteraz sa
+  presnosť, ktorú prístroj odmeral, zahadzovala pri zápise do súboru.
+
 ## [1.75.0] – 2026-08-28
 
 ### Pridané

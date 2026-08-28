@@ -170,14 +170,14 @@
                         <TextBlock Text="Teplota" Style="{StaticResource Caption}" />
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource MetricSmall}"
-                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
+                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0000}" />
                             <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="2,0,0,3" Foreground="{StaticResource MutedBrush}" />
                         </StackPanel>
                     </StackPanel>
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="Setpoint" Style="{StaticResource Caption}" />
                         <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                   Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
+                                   Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0000}" />
                     </StackPanel>
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="Odchýlka" Style="{StaticResource Caption}" />
@@ -194,9 +194,9 @@
                         <TextBlock Text="Vlhkosť RH" Style="{StaticResource Caption}" />
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource MetricSmall}"
-                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}" />
+                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0000}" />
                             <TextBlock Text="%" VerticalAlignment="Bottom" Margin="2,0,6,3" Foreground="{StaticResource MutedBrush}" />
-                            <TextBlock Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000}"
+                            <TextBlock Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0000}"
                                        Foreground="{StaticResource WarnBrush}" FontFamily="Segoe UI Semibold" FontSize="14" VerticalAlignment="Bottom"
                                        ToolTip="Setpoint vlhkosti" />
                         </StackPanel>

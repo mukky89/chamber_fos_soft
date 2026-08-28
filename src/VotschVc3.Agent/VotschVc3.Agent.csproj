@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>1.75.0</Version>
+    <Version>1.75.1</Version>
     <Product>Lab Control Bridge</Product>
     <!-- The desktop app references this project (build-only) and publishes itself
          framework-dependent. A RID passed on the publish command line flows into this
