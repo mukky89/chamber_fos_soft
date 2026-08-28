@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.73.0] – 2026-08-28
+
+### Zmenené
+- **Nové ikony — tenký obrysový set.** Všetkých 21 ikon v aplikácii je prekreslených
+  ako obrysy (ťah 1,5, zaoblené konce a spoje) namiesto plných siluet, takže sú na
+  tmavej téme svetlejšie a čitateľnejšie. Farbu naďalej preberajú z tlačidla, takže
+  reagujú na hover aj na neaktívny stav rovnako ako text vedľa nich.
+- **Prehrávacie ikony (spustiť, pauza, stop, ďalší krok) zostávajú plné** – ovládanie
+  behu musí byť čitateľné ako jeden tvar aj z odstupu.
+- Nový `assets/icons.svg` – prehľad celého setu s názvami, generovaný z tých istých
+  path dát, ktoré používa aplikácia.
+
 ## [1.72.0] – 2026-08-28
 
 ### Pridané

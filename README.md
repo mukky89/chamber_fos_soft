@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.72.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.73.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
@@ -63,7 +63,8 @@ Samostatný vektorový obrázok komory je aj v [`assets/chamber.svg`](assets/cha
 VotschVc3.sln
 ├─ assets/
 │  ├─ chamber.svg               ← samostatná SVG grafika komory (rotujúci ventilátor)
-│  └─ sika_thermal_bath.svg     ← samostatná SVG grafika SIKA TP kalibrátora
+│  ├─ sika_thermal_bath.svg     ← samostatná SVG grafika SIKA TP kalibrátora
+│  └─ icons.svg                 ← prehľad ikon aplikácie (generovaný z Themes/Icons.xaml)
 ├─ src/
 │  ├─ VotschVc3.Core/           ← jadro, platform-nezávislé (net8.0), testovateľné
 │  │  ├─ Protocol/              Ascii2Protocol, ChamberReading, DigitalChannels
