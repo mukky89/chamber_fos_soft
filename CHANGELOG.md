@@ -49,6 +49,11 @@
   teraz odloží cez dispatcher a chyba pri uvoľňovaní zariadení okno nezablokuje.
 - **„Prehľad plat“ v náhľade profilu nemal scrollbar** – dlhý profil pretekal mimo
   okna.
+- **Nedostupné zariadenie už nevyskakuje ako Windows notifikácia.** Časový limit
+  pri pripájaní, nedostupná IP alebo spadnutý socket sa zapíšu do stavového riadka
+  karty a do app logu, ale netlačia sa na plochu – automatické znovupripájanie to
+  skúša ďalej, takže jedna vypnutá komora predtým vypisovala tú istú hlášku dokola.
+  Skutočná strata spojenia počas behu zostáva alarmom.
 
 ## [1.65.0] – 2026-08-26
 

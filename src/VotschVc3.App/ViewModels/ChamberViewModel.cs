@@ -4231,7 +4231,37 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         StatusMessage = $"Chyba: {ex.Message}";
         AppLog.Error(Name, ex);
-        DesktopNotifier.Notify($"Chyba · {Name}", ex.Message, DesktopNotificationKind.Warning);
+
+        // A device that is off or unplugged is not something to pop a Windows toast
+        // about: the automatic reconnect keeps retrying, so one unreachable chamber
+        // would raise the same notification over and over. The state is already on the
+        // card (red connection dot + status line) and in the app log.
+        if (!IsConnectivityError(ex))
+        {
+            DesktopNotifier.Notify($"Chyba · {Name}", ex.Message, DesktopNotificationKind.Warning);
+        }
+    }
+
+    /// <summary>
+    /// <c>true</c> for a connection / communication failure – a connect timeout, an
+    /// unreachable host, a dropped socket or an HTTP failure against a device's embedded
+    /// web server – including one wrapped in a friendlier exception by a transport.
+    /// </summary>
+    private static bool IsConnectivityError(Exception ex)
+    {
+        for (Exception? e = ex; e is not null; e = e.InnerException)
+        {
+            if (e is TimeoutException
+                or System.Net.Sockets.SocketException
+                or HttpRequestException
+                or System.IO.IOException
+                or OperationCanceledException)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void RunOnUi(Action action)
