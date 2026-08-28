@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using VotschVc3.App.Mvvm;
 using VotschVc3.Core.Profiles;
 
@@ -43,6 +44,12 @@ public sealed class QuickProfileViewModel : ObservableObject
         RemoveSequenceStepCommand = new RelayCommand<SequenceStepViewModel>(RemoveSequenceStep);
         MoveSequenceStepUpCommand = new RelayCommand<SequenceStepViewModel>(s => MoveSequenceStep(s, -1));
         MoveSequenceStepDownCommand = new RelayCommand<SequenceStepViewModel>(s => MoveSequenceStep(s, +1));
+        ImportProfileCommand = new RelayCommand(ImportProfile);
+        ImportLibraryCommand = new RelayCommand(ImportLibrary);
+        BulkImportCommand = new RelayCommand(BulkImport);
+        ExportProfileCommand = new RelayCommand(ExportProfile, () => Segments.Count > 0);
+        ExportLibraryCommand = new RelayCommand(ExportLibrary);
+        Segments.CollectionChanged += (_, _) => ExportProfileCommand.RaiseCanExecuteChanged();
         RefreshLibraryProfiles(); // also loads known sensors/tags/customers/projects
         ReplaceSequenceSteps(DefaultSequenceSteps());
         Recalculate(); // also generates the initial automatic name
@@ -245,6 +252,8 @@ public sealed class QuickProfileViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsVotschProfile));
                 OnPropertyChanged(nameof(IsSikaProfile));
                 OnPropertyChanged(nameof(UsesRamps));
+                OnPropertyChanged(nameof(SupportsHumidity));
+                OnPropertyChanged(nameof(ControlHumidity));
                 OnPropertyChanged(nameof(HasLeadIn));
                 OnPropertyChanged(nameof(DeviceKindHint));
                 Recalculate();
@@ -266,6 +275,40 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     /// <summary><c>false</c> for SIKA: no ramp segments are generated, only setpoints with a dwell.</summary>
     public bool UsesRamps => DeviceKind != ProfileDeviceKind.Sika;
+
+    private bool _controlHumidity;
+
+    /// <summary>
+    /// Build the profile for a temperature + humidity chamber (VC3). Every generated
+    /// segment then carries <see cref="HumidityPercent"/> and the profile is saved as
+    /// <see cref="ChamberKind.TemperatureHumidity"/>, so a temperature-only chamber no
+    /// longer offers it. Only meaningful for a Vötsch chamber – a SIKA bath has no
+    /// humidity channel at all.
+    /// </summary>
+    public bool ControlHumidity
+    {
+        get => _controlHumidity && UsesRamps;
+        set
+        {
+            if (SetProperty(ref _controlHumidity, value))
+            {
+                OnPropertyChanged(nameof(SupportsHumidity));
+                Recalculate();
+            }
+        }
+    }
+
+    /// <summary>True when the humidity fields are offered at all (never for a SIKA bath).</summary>
+    public bool SupportsHumidity => UsesRamps;
+
+    private double _humidityPercent = 50;
+
+    /// <summary>Relative humidity (%) held for the whole profile when <see cref="ControlHumidity"/> is on.</summary>
+    public double HumidityPercent
+    {
+        get => _humidityPercent;
+        set { if (SetProperty(ref _humidityPercent, Math.Clamp(value, 0, 100))) Recalculate(); }
+    }
 
     public string DeviceKindHint => UsesRamps
         ? "Vötsch / Weiss: medzi teplotami sa generuje nábeh (rampa) a potom plato."
@@ -761,7 +804,6 @@ public sealed class QuickProfileViewModel : ObservableObject
     public void LoadProfile(TestProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
-        DisarmDelete();
 
         // Saving after a load overwrites the profile that was loaded, which is not always
         // what the operator wants – ask once, here, instead of letting them find out after
@@ -774,6 +816,18 @@ public sealed class QuickProfileViewModel : ObservableObject
             danger: false,
             cancelText: "Vytvoriť nový");
 
+        LoadProfileCore(profile, overwrite);
+    }
+
+    /// <summary>
+    /// Loads a profile that does not exist in the library yet (an imported file), so there
+    /// is nothing to overwrite and nothing to ask about – saving always creates a new entry.
+    /// </summary>
+    private void LoadImportedProfile(TestProfile profile) => LoadProfileCore(profile, overwrite: false);
+
+    private void LoadProfileCore(TestProfile profile, bool overwrite)
+    {
+        DisarmDelete();
         _editingProfileId = overwrite ? profile.Id : null;
         _saveAsNewCopy = !overwrite;
 
@@ -795,6 +849,12 @@ public sealed class QuickProfileViewModel : ObservableObject
 
             Cycles = Math.Max(1, profile.Cycles);
             CycleBodyOnly = profile.HasCycleRegion;
+
+            // Humidity is stored per segment; the builder holds one value for the whole
+            // profile, so take the first segment that actually controls it.
+            double? humidity = profile.Segments.FirstOrDefault(x => x.TargetHumidity is not null)?.TargetHumidity;
+            ControlHumidity = humidity is not null;
+            if (humidity is { } rh) HumidityPercent = rh;
 
             Customer = profile.Customer ?? string.Empty;
             Project = profile.Project ?? string.Empty;
@@ -1178,18 +1238,20 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
     }
 
-    private static ProfileSegment Ramp(double target, double minutes) => new()
+    private ProfileSegment Ramp(double target, double minutes) => new()
     {
         Name = $"Nábeh {target:0.#} °C",
         TargetTemperature = target,
+        TargetHumidity = ControlHumidity ? HumidityPercent : null,
         Duration = TimeSpan.FromMinutes(minutes),
         IsRamp = true,
     };
 
-    private static ProfileSegment Plateau(double target, double minutes) => new()
+    private ProfileSegment Plateau(double target, double minutes) => new()
     {
         Name = $"Plato {target:0.#} °C",
         TargetTemperature = target,
+        TargetHumidity = ControlHumidity ? HumidityPercent : null,
         Duration = TimeSpan.FromMinutes(minutes),
         IsRamp = false,
     };
@@ -1211,7 +1273,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         {
             Id = Guid.NewGuid(),
             Name = string.IsNullOrWhiteSpace(ProfileName) ? "Rýchly profil" : ProfileName.Trim(),
-            Kind = ChamberKind.TemperatureOnly,
+            Kind = ControlHumidity ? ChamberKind.TemperatureHumidity : ChamberKind.TemperatureOnly,
             DeviceKind = DeviceKind,
             Cycles = cyc,
             CycleStartIndex = start,
@@ -1528,6 +1590,8 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
 
         DeviceKind = ProfileDeviceKind.Votsch;
+        ControlHumidity = false;
+        HumidityPercent = 50;
         Mode = QuickProfileMode.Parametric;
         NamePrefix = string.Empty;
         LowTemperature = -20;
@@ -1559,6 +1623,146 @@ public sealed class QuickProfileViewModel : ObservableObject
         Status = "Nový rýchly profil – parametre vynulované na predvolené.";
         Recalculate(); // make sure the graph reflects the reset state even if every
                         // individual setter above happened to be a no-op change
+    }
+
+    /// <summary>Loads a Vötsch / SIMPATI / CSV profile file into the builder.</summary>
+    public RelayCommand ImportProfileCommand { get; }
+
+    /// <summary>Adds every profile from an exported JSON library to the shared library.</summary>
+    public RelayCommand ImportLibraryCommand { get; }
+
+    /// <summary>Opens the bulk importer (several files at once, standardised names).</summary>
+    public RelayCommand BulkImportCommand { get; }
+
+    /// <summary>Writes the profile currently in the builder to a CSV/JSON file.</summary>
+    public RelayCommand ExportProfileCommand { get; }
+
+    /// <summary>Opens the bulk exporter (pick profiles, save them as one JSON library).</summary>
+    public RelayCommand ExportLibraryCommand { get; }
+
+    private void ImportProfile()
+    {
+        DisarmDelete();
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Importovať Vötsch / SIMPATI profil",
+            Filter = "Profily (*.csv;*.txt;*.dat;*.prg;*.json;*.b??)|*.csv;*.txt;*.dat;*.prg;*.json;*.b?;*.b??|Všetky súbory (*.*)|*.*",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            ProfileImportResult result = ProfileImporter.ImportFile(
+                dialog.FileName,
+                ControlHumidity ? ChamberKind.TemperatureHumidity : ChamberKind.TemperatureOnly);
+
+            // Keep the source name as the "old name" and generate a standardized one.
+            result.Profile.OriginalName = result.Profile.Name;
+            result.Profile.Name = ProfileNaming.StandardName(result.Profile);
+            LoadImportedProfile(result.Profile);
+            IsSaveSuccess = false;
+            Status = $"Importované ({result.FormatDescription}), {result.Profile.Segments.Count} segmentov. " +
+                "Profil zatiaľ nie je v knižnici – ulož ho tlačidlom „Uložiť do knižnice“.";
+        }
+        catch (Exception ex)
+        {
+            IsSaveSuccess = false;
+            Status = $"Import zlyhal: {ex.Message}";
+        }
+    }
+
+    private void ImportLibrary()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Importovať knižnicu profilov (JSON)",
+            Filter = "Profily (*.json)|*.json|Všetky súbory (*.*)|*.*",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            List<TestProfile> incoming = ProfileFile.Read(dialog.FileName);
+            if (incoming.Count == 0)
+            {
+                Status = "Súbor neobsahuje žiadne profily.";
+                return;
+            }
+
+            int added = _store.AddMissing(incoming);
+            RefreshLibraryProfiles();
+            IsSaveSuccess = added > 0;
+            Status = $"Naimportovaných {added} z {incoming.Count} profilov " +
+                $"({incoming.Count - added} už v knižnici existovalo).";
+        }
+        catch (Exception ex)
+        {
+            IsSaveSuccess = false;
+            Status = $"Import knižnice zlyhal: {ex.Message}";
+        }
+    }
+
+    private void BulkImport()
+    {
+        if (Views.BulkImportWindow.Show(_store))
+        {
+            RefreshLibraryProfiles();
+            IsSaveSuccess = true;
+            Status = "Hromadný import dokončený – knižnica obnovená.";
+        }
+    }
+
+    private void ExportLibrary()
+    {
+        if (Views.BulkExportWindow.Show(_store))
+        {
+            IsSaveSuccess = true;
+            Status = "Hromadný export dokončený.";
+        }
+    }
+
+    private void ExportProfile()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Exportovať profil",
+            Filter = "CSV (pre Vötsch/Excel) (*.csv)|*.csv|JSON (*.json)|*.json",
+            DefaultExt = ".csv",
+            FileName = Sanitize(ProfileName) + ".csv",
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            ProfileExporter.ExportFile(BuildProfile(), dialog.FileName);
+            IsSaveSuccess = true;
+            Status = $"Profil exportovaný do {dialog.FileName}.";
+        }
+        catch (Exception ex)
+        {
+            IsSaveSuccess = false;
+            Status = $"Export zlyhal: {ex.Message}";
+        }
+    }
+
+    /// <summary>Strips characters a file name cannot contain, for the export dialog.</summary>
+    private static string Sanitize(string name)
+    {
+        string cleaned = string.Join("_", (name ?? string.Empty)
+            .Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Trim();
+        return cleaned.Length == 0 ? "profil" : cleaned;
     }
 
     private System.Threading.CancellationTokenSource? _deleteArmCts;

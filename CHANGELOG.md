@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.69.0] – 2026-08-28
+
+### Pridané
+- **Nastavenie vlhkosti v rýchlom profile.** Nový chlievik „Vlhkosť“ – zaškrtnutím
+  „Riadiť vlhkosť“ dostane každý krok profilu nastavenú relatívnu vlhkosť (0–100 %,
+  krok 5 %) a profil sa uloží ako „Teplota + vlhkosť“, takže ho čisto teplotná komora
+  (VT3) neponúkne. Pri načítaní profilu sa vlhkosť prečíta z jeho segmentov. Pre SIKA
+  je celý chlievik skrytý – kúpeľ nemá kanál vlhkosti.
+- **Import a export sú v rýchlom profile**: „Nový“, „Import…“, „Hromadný import…“,
+  „Import knižnice…“, „Export…“ a „Hromadný export…“ sú v hlavičke obrazovky a každé
+  tlačidlo má nápovedu, čo presne robí.
+
+### Zmenené
+- **„Editor profilov“ je nahradený obrazovkou „Zoznam profilov“.** Je to už len prehľad:
+  vľavo knižnica s filtrami (text, tag, zariadenie), vpravo náhľad vybraného profilu –
+  ten istý graf ako v rýchlom profile (len na pozeranie, body sa neťahajú), trvanie,
+  cyklovanie, zákazník/projekt, snímače a tagy. Upravuje sa tlačidlom
+  „✎ Upraviť v rýchlom profile“, ktoré profil otvorí v rýchlom vytvárači.
+- **Profily sa vytvárajú a upravujú na jednom mieste** – v rýchlom profile. Zoznam
+  profilov ponecháva len prácu s knižnicou: duplikovanie, prevod na SIKA formát,
+  mazanie a (pre admina) vymazanie celej knižnice.
+
 ## [1.68.0] – 2026-08-28
 
 ### Zmenené

@@ -137,6 +137,16 @@ public partial class ProfileEditorChart : UserControl
     /// <summary>How many times the region repeats; every repetition is drawn on the time axis.</summary>
     public int CycleCount { get => (int)GetValue(CycleCountProperty); set => SetValue(CycleCountProperty, value); }
 
+    public static readonly DependencyProperty IsReadOnlyProperty = DependencyProperty.Register(
+        nameof(IsReadOnly), typeof(bool), typeof(ProfileEditorChart),
+        new PropertyMetadata(false, (d, _) => ((ProfileEditorChart)d).Redraw()));
+
+    /// <summary>
+    /// Preview mode: the curve, bands and zooming stay, but the drag handles are not drawn –
+    /// the profile list only shows what a profile looks like, editing happens in the quick builder.
+    /// </summary>
+    public bool IsReadOnly { get => (bool)GetValue(IsReadOnlyProperty); set => SetValue(IsReadOnlyProperty, value); }
+
     private void OnCycleCountChanged()
     {
         // A different repeat count is a different time axis – a window resolved against
@@ -511,6 +521,11 @@ public partial class ProfileEditorChart : UserControl
     /// </summary>
     private void DrawHandles(List<(int Index, double X, double Y)> handles, double plotW, double plotH)
     {
+        if (IsReadOnly)
+        {
+            return; // preview only – nothing to grab
+        }
+
         double lastX = double.NegativeInfinity;
         int hidden = 0;
         foreach ((int index, double x, double y) in handles)

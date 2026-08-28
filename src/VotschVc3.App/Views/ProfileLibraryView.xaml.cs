@@ -10,26 +10,14 @@ public partial class ProfileLibraryView : UserControl
     public ProfileLibraryView() => InitializeComponent();
 
     /// <summary>
-    /// Selecting a profile leaf in the tree loads it into the editor (the view model's
-    /// <c>SelectedHistoryProfile</c> setter auto-applies it, matching the old list).
-    /// Selecting a sensor group node is ignored.
+    /// Selecting a profile leaf in the tree shows its preview on the right; selecting a
+    /// sensor group node is ignored (the group has nothing to preview).
     /// </summary>
     private void ProfileTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
         if (e.NewValue is TestProfile profile && DataContext is ProfileLibraryViewModel vm)
         {
             vm.SelectedHistoryProfile = profile;
-        }
-    }
-
-    private void ToggleMaximize_Click(object sender, RoutedEventArgs e)
-    {
-        Window? window = Window.GetWindow(this);
-        if (window is not null)
-        {
-            window.WindowState = window.WindowState == WindowState.Maximized
-                ? WindowState.Normal
-                : WindowState.Maximized;
         }
     }
 }

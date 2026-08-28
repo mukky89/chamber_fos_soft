@@ -112,10 +112,11 @@
 
                 <!-- Navigation -->
                 <StackPanel VerticalAlignment="Top">
-                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenProfileLibraryCommand}">
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenProfileLibraryCommand}"
+                            ToolTip="Prehľad uložených profilov s náhľadom priebehu. Upraviť sa dajú tlačidlom v náhľade (otvorí sa rýchly profil).">
                         <StackPanel Orientation="Horizontal">
-                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
-                            <TextBlock Text="Editor profilov" Style="{StaticResource IconLabel}" />
+                            <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.List}" />
+                            <TextBlock Text="Zoznam profilov" Style="{StaticResource IconLabel}" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource NavButton}" Command="{Binding OpenQuickProfileCommand}">

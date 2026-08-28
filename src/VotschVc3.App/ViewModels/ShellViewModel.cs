@@ -72,7 +72,6 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         Thermometers = new ThermometersViewModel();
         Admin = new AdminViewModel(this);
         QuickProfile = new QuickProfileViewModel(_store);
-        // "Editovať profil" in the quick builder saves the profile and jumps to the editor.
         Chambers = new ObservableCollection<ChamberViewModel>();
 
         // Commands must exist before chambers are built (AddChamberInternal uses them).
@@ -86,10 +85,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         });
         OpenProfileLibraryCommand = new RelayCommand(() =>
         {
-            // Always show the latest saved profiles when entering the editor.
+            // Always show the latest saved profiles when entering the list.
             ProfileLibrary.RefreshFromStore();
             CurrentView = ProfileLibrary;
         });
+
         OpenQuickProfileCommand = new RelayCommand(() =>
         {
             // Always show the latest saved profiles when entering the panel.
@@ -101,6 +101,10 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             QuickProfile.StartNewProfile();
             CurrentView = QuickProfile;
         });
+        // The profile list only previews profiles – creating and editing happens in the
+        // quick builder, so both of its buttons hand over to that screen.
+        ProfileLibrary.OpenInQuickProfile = OpenQuickProfileFor;
+        ProfileLibrary.NewInQuickProfile = () => OpenQuickProfileCommand.Execute(null);
         OpenAuditCommand = new RelayCommand(() => CurrentView = Audit);
         OpenAppLogCommand = new RelayCommand(() => CurrentView = AppLog);
         OpenChangelogCommand = new RelayCommand(() => CurrentView = Changelog);

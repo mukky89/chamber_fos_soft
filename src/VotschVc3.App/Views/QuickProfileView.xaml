@@ -25,12 +25,59 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="6,2,6,8">
-            <Button Content="← Domov"
+        <!-- Import / export lives here now: the profile editor screen it used to sit on is
+             gone, and this is where a profile is actually built, saved and taken in or out
+             of the library. Every button says in its tooltip what it does. -->
+        <DockPanel Grid.Row="0" Margin="6,2,6,8" LastChildFill="False">
+            <Button DockPanel.Dock="Left" Content="← Domov" VerticalAlignment="Center"
                     Command="{Binding DataContext.GoHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-            <TextBlock Text="Rýchly vytvárač profilov" FontSize="17" FontFamily="Segoe UI Semibold"
-                       VerticalAlignment="Center" Margin="10,0,0,0" />
-        </StackPanel>
+            <TextBlock DockPanel.Dock="Left" Text="Rýchly vytvárač profilov" FontSize="17" FontFamily="Segoe UI Semibold"
+                       VerticalAlignment="Center" Margin="10,0,14,0" />
+            <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                <Button Command="{Binding NewCommand}" Margin="0,0,6,4" Padding="10,6"
+                        ToolTip="Vyprázdni vytvárač a začne nový profil od predvolených parametrov. Rozrobené neuložené úpravy sa zahodia.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Add}" />
+                        <TextBlock Text="Nový" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ImportProfileCommand}" Margin="0,0,6,4" Padding="10,6"
+                        ToolTip="Načíta JEDEN profil zo súboru (Vötsch/SIMPATI .dat/.prg/.b??, CSV, TXT alebo JSON) do vytvárača. Profil sa uloží do knižnice až tlačidlom „Uložiť do knižnice“.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Import}" />
+                        <TextBlock Text="Import…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding BulkImportCommand}" Margin="0,0,6,4" Padding="10,6"
+                        ToolTip="Naimportuje VIAC súborov naraz. V okne vidíš každý profil, môžeš ho premenovať a zjednotiť podľa štandardu (nábeh na prvú teplotu + koniec na izbovú) a uložiť všetky naraz do knižnice.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.List}" />
+                        <TextBlock Text="Hromadný import…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ImportLibraryCommand}" Margin="0,0,6,4" Padding="10,6"
+                        ToolTip="Pridá do knižnice všetky profily z jedného JSON súboru vytvoreného tlačidlom „Hromadný export“. Profily, ktoré už v knižnici sú, sa preskočia.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Folder}" />
+                        <TextBlock Text="Import knižnice…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ExportProfileCommand}" Margin="0,0,6,4" Padding="10,6"
+                        ToolTip="Uloží profil práve otvorený vo vytvárači do súboru – CSV (otvoriteľné v Exceli / pre Vötsch) alebo JSON.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Export}" />
+                        <TextBlock Text="Export…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ExportLibraryCommand}" Margin="0,0,0,4" Padding="10,6"
+                        ToolTip="Vyber viac profilov z knižnice a ulož ich do jedného JSON súboru – záloha alebo prenos na iný počítač (naspäť cez „Import knižnice“).">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
+                        <TextBlock Text="Hromadný export…" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+            </WrapPanel>
+        </DockPanel>
 
         <!-- The parameter column starts wider and can be dragged: profile names, tags and
              the sequence rows never fit in a fixed 360 px, and how much room they need
@@ -64,6 +111,24 @@
                             <TextBlock Text="{Binding DeviceKindHint}" Style="{StaticResource Caption}"
                                        TextWrapping="Wrap" Margin="0,4,0,0" />
                         </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Humidity only exists on a Vötsch VC3 (temperature + humidity); a SIKA
+                         bath has no humidity channel, so the whole group is hidden for it. -->
+                    <Border Style="{StaticResource QpGroup}"
+                            Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock Text="Vlhkosť" Style="{StaticResource Heading}" />
+                            <CheckBox Content="Riadiť vlhkosť (komora s vlhkosťou)" IsChecked="{Binding ControlHumidity}"
+                                      ToolTip="Zapni pre komoru typu VC3. Každý krok profilu potom dostane nastavenú vlhkosť a profil sa uloží ako „Teplota + vlhkosť“, takže ho teplotná komora neponúkne." />
+                            <StackPanel Style="{StaticResource QpField}" Margin="0,8,0,0"
+                                        Visibility="{Binding ControlHumidity, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Relatívna vlhkosť (% r.v.)" Style="{StaticResource Label}" />
+                                <views:NumericStepper Value="{Binding HumidityPercent, Mode=TwoWay}" Step="5" Minimum="0" Maximum="100" />
+                                <TextBlock Text="Platí pre celý profil – rovnaká vlhkosť pri každej teplote."
+                                           Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
