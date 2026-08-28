@@ -270,10 +270,10 @@
     <Style x:Key="PresetChip" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="FontFamily" Value="Segoe UI Semibold" />
-        <Setter Property="FontSize" Value="14.5" />
-        <Setter Property="MinWidth" Value="76" />
-        <Setter Property="MinHeight" Value="40" />
-        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="MinWidth" Value="68" />
+        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="Padding" Value="12,6" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -391,9 +391,9 @@
          icon keeps its own colour instead of turning white, so a Path content stays
          readable (a Path does not follow TextElement.Foreground the way a glyph does). -->
     <Style x:Key="TransportButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Width" Value="62" />
-        <Setter Property="Height" Value="54" />
-        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="Width" Value="52" />
+        <Setter Property="Height" Value="44" />
+        <Setter Property="Margin" Value="0,0,7,0" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
         <Setter Property="Template">
@@ -423,8 +423,8 @@
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
                                     <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1.1" Duration="0:0:0.12" />
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1.1" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1.06" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1.06" Duration="0:0:0.12" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>

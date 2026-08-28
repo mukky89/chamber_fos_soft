@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.67.2] – 2026-08-28
+
+### Opravené
+- **Karta zariadenia sa už nezalamuje a neprelieva.** Predchádzajúca verzia dala do
+  hlavičky štyri tlačidlá s popiskami, čo sa do pevných 500 px karty nezmestilo –
+  „Nastaviť / ovládať“ spadlo na druhý riadok a „Stop“ pod „Nastaviť“. Sekundárne akcie
+  (zámok, web, FBG kalibrácia) sú teraz ikonkové s tooltipom, popisok si necháva len
+  primárna akcia, a rad sa zmestí na jeden riadok.
+- **„Nastaviť“ a „Stop“ sú opäť v jednom riadku** – popisok „Vlastná teplota“ sa presunul
+  nad riadok, takže sa hodnota aj obe akcie zmestia vedľa seba. Stop zostáva odtlačený
+  na pravý okraj, aby sa netrafil omylom.
+
+### Zmenené
+- **Menšie ovládacie prvky.** Predvoľby teplôt 34 px (namiesto 40), tlačidlá behu
+  ▶ ⏸ ⏭ ⏹ 52×44 px (namiesto 62×54) s 21 px ikonkami, jemnejšie zväčšenie pri prejdení
+  myšou (1,06× namiesto 1,1×), aby sa susedné tlačidlá nedotýkali. Klikacie ciele
+  zostávajú nad 28 px podľa ergonomických pravidiel.
+
 ## [1.67.1] – 2026-08-28
 
 ### Zmenené
