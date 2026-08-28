@@ -53,7 +53,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // if App.OnStartup already ran it).
         AppPaths.Initialize();
         string dir = AppPaths.SettingsDir;
-        _store = new ProfileStore(System.IO.Path.Combine(AppPaths.ProfilesDir, "profiles.json"));
+        // One JSON file per profile in this folder; an older single profiles.json is
+        // split into them on first use (see ProfileStore).
+        _store = new ProfileStore(AppPaths.ProfilesDir);
         _emailStore = new EmailSettingsStore(System.IO.Path.Combine(dir, "email.json"));
         _configStore = new ChamberConfigStore(System.IO.Path.Combine(dir, "chambers.json"));
         _checkpointStore = new ProfileRunCheckpointStore(AppPaths.ProfileRecoveryDir);

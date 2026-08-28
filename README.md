@@ -11,7 +11,7 @@ Windows agent pre reálne zariadenia, USB a bezpečne povolené lokálne/sieťov
 priečinky. Inštalácia a bezpečnostný model sú v
 [`docs/DASHBOARD_BRIDGE.md`](docs/DASHBOARD_BRIDGE.md).
 
-**Verzia: 1.70.1** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
+**Verzia: 1.71.0** — história zmien je v [CHANGELOG.md](CHANGELOG.md). Verzia sa
 zobrazuje aj v aplikácii (home page a titulok okna).
 
 Prihlásenie (predvolené): **admin / admin** (plný prístup), **operator / operator**
@@ -84,8 +84,11 @@ VotschVc3.sln
 `ShellViewModel` hostí dve `ChamberViewModel` inštancie (každá s vlastným
 `ChamberClient` a spojením) a navigáciu medzi **home page** (`HomeView`) a
 **detailom komory** (`ChamberView`). `ChamberGraphic` je škálovateľná vektorová
-grafika s animovaným ventilátorom. História profilov sa ukladá cez `ProfileStore`
-do `Dokumenty/VotschVc3/profiles.json`.
+grafika s animovaným ventilátorom. Knižnica profilov sa ukladá cez `ProfileStore`
+do `Dokumenty/Lab Control/Profiles/` – **jeden JSON súbor na profil, pomenovaný
+podľa profilu**. Staršia knižnica v jednom `profiles.json` sa pri prvom spustení
+rozdelí na samostatné súbory a pôvodný súbor zostane ako záloha
+`profiles.json.migrated`.
 
 Logika protokolu je oddelená od UI – `VotschVc3.Core` nemá žiadne závislosti na
 WPF, dá sa použiť aj z konzolovej appky, služby alebo testov. Aplikácia nemá

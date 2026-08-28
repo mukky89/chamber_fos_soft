@@ -37,7 +37,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public CalibrationViewModel()
     {
         AppPaths.Initialize();
-        _profileStore = new ProfileStore(Path.Combine(AppPaths.ProfilesDir, "profiles.json"));
+        _profileStore = new ProfileStore(AppPaths.ProfilesDir);
         _chamberStore = new ChamberConfigStore(Path.Combine(AppPaths.SettingsDir, "chambers.json"));
         _calibrationStore = new CalibrationStore(AppPaths.CalibrationDir);
         _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();

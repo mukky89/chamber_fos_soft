@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.71.0] – 2026-08-28
+
+### Zmenené
+- **Každý profil je samostatný súbor.** Knižnica v `Dokumenty/Lab Control/Profiles/`
+  je odteraz priečinok s jedným JSON súborom na profil, pomenovaným podľa profilu
+  („Sweep -40…150.json“). Doteraz bolo všetko v jednom `profiles.json` (1,2 MB),
+  z ktorého sa nedal jeden profil ani pozrieť, ani skopírovať či poslať bez
+  exportu, a každé uloženie prepisovalo celý súbor.
+- **Existujúca knižnica sa rozdelí automaticky** pri prvom spustení. Pôvodný
+  `profiles.json` sa nemaže – zostane ako záloha `profiles.json.migrated`.
+- Premenovanie profilu premenuje aj jeho súbor (starý sa nenechá ležať), dva
+  profily s rovnakým názvom dostanú samostatné súbory a poškodený súbor už
+  neberie so sebou celú knižnicu – preskočí sa len on.
+
 ## [1.70.1] – 2026-08-28
 
 ### Opravené

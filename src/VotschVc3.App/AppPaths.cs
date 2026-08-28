@@ -15,7 +15,7 @@ public static class AppPaths
     /// <summary>Root of all application data: <c>Documents\Lab Control</c>.</summary>
     public static string Root { get; } = Path.Combine(Documents, "Lab Control");
 
-    /// <summary>Profile library folder (profiles.json and the seeded defaults).</summary>
+    /// <summary>Profile library folder – one JSON file per profile, named after it.</summary>
     public static string ProfilesDir { get; } = Path.Combine(Root, "Profiles");
 
     /// <summary>Application diagnostic-log folder.</summary>
