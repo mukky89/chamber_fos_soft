@@ -234,7 +234,7 @@
                         <!-- Compact mode shrinks the whole card (graphic + text + spacing) via a
                              layout-scale, so more devices fit; toggled by the admin, reverts to the
                              original roomy layout when off. -->
-                        <Border Width="500" Margin="7">
+                        <Border Width="560" Margin="7">
                             <Border.Style>
                                 <Style TargetType="Border" BasedOn="{StaticResource Card}">
                                     <Style.Triggers>
@@ -314,7 +314,7 @@
                                 </Border>
 
                                 <!-- ===== ① Header: graphic + name + badges + state ===== -->
-                                <Grid>
+                                <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="128" />
                                         <ColumnDefinition Width="*" />
@@ -505,31 +505,33 @@
                                             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="10" Padding="10,8">
                                                 <DockPanel LastChildFill="True">
                                                     <Button DockPanel.Dock="Right" Style="{StaticResource DangerButton}" Margin="0"
-                                                            Height="34" Padding="9,0" FontSize="12.5"
+                                                            Height="34" Padding="8,0" FontSize="12.5"
                                                             VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
                                                             ToolTip="Vypnúť komoru (zastaví reguláciu).">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                                                            <Path Style="{StaticResource IconPath}" Width="13" Height="13"
                                                                   Data="{StaticResource Icon.Power}" />
-                                                            <TextBlock Text="Stop" Style="{StaticResource IconLabel}" Margin="6,0,0,0" />
+                                                            <TextBlock Text="Stop" Style="{StaticResource IconLabel}" Margin="5,0,0,0" />
                                                         </StackPanel>
                                                     </Button>
-                                                    <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Margin="0,0,10,0"
-                                                            Height="34" Padding="9,0" FontSize="12.5"
+                                                    <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Margin="0,0,8,0"
+                                                            Height="34" Padding="8,0" FontSize="12.5"
                                                             VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
                                                             ToolTip="Zapíše zadanú vlastnú teplotu do komory a zapne reguláciu.">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <Path Style="{StaticResource IconPath}" Width="14" Height="14"
+                                                            <Path Style="{StaticResource IconPath}" Width="13" Height="13"
                                                                   Data="{StaticResource Icon.Thermometer}" />
-                                                            <TextBlock Text="Nastaviť" Style="{StaticResource IconLabel}" Margin="6,0,0,0" />
+                                                            <TextBlock Text="Nastaviť" Style="{StaticResource IconLabel}" Margin="5,0,0,0" />
                                                         </StackPanel>
                                                     </Button>
                                                     <TextBlock DockPanel.Dock="Right" Text="°C" VerticalAlignment="Center"
-                                                               Margin="4,0,10,0" Foreground="{StaticResource MutedBrush}" />
-                                                    <views:NumericStepper DockPanel.Dock="Right" Width="66" VerticalAlignment="Center"
+                                                               Margin="4,0,8,0" Foreground="{StaticResource MutedBrush}" />
+                                                    <!-- Wide enough for a four-character value ("-100"); at 66 px the
+                                                         text was clipped mid-digit. -->
+                                                    <views:NumericStepper DockPanel.Dock="Right" Width="80" VerticalAlignment="Center"
                                                                           Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
                                                                           ToolTip="Vlastná teplota v °C – šípkami ▲▼ meníš po 1 °C, potom stlač Nastaviť." />
-                                                    <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,0,10,0"
+                                                    <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,0,6,0"
                                                                   VerticalAlignment="Center">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
@@ -537,6 +539,7 @@
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Button Style="{StaticResource PresetChip}" Margin="0,0,6,0"
+                                                                        MinWidth="0" Padding="9,5" FontSize="12"
                                                                         Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
                                                                         ToolTip="Klikni = nastav túto teplotu a zapni komoru"
                                                                         Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -563,7 +566,15 @@
                                 <!-- ===== ④ Test profile: picker + play/pause/stop + preview ===== -->
                                 <Border Style="{StaticResource Section}">
                                     <StackPanel>
-                                        <TextBlock Text="Testovací profil" Style="{StaticResource Label}" />
+                                        <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                            <TextBlock DockPanel.Dock="Left" Text="Testovací profil" Style="{StaticResource Label}"
+                                                       VerticalAlignment="Center" />
+                                            <Button DockPanel.Dock="Right" Content="✕ Zrušiť profil" Style="{StaticResource GhostButton}"
+                                                    VerticalAlignment="Center" Margin="0" Padding="10,3" FontSize="12"
+                                                    Foreground="{StaticResource DangerBrush}"
+                                                    Command="{Binding CancelProfileCommand}"
+                                                    ToolTip="Zastaví spustený profil (ak beží) a odoberie ho z karty, aby nezostal svietiť ako testovací profil." />
+                                        </DockPanel>
 
                                         <!-- Prerušený beh profilu – kompaktná ponuka pokračovania na karte. -->
                                         <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource WarnBrush}"
@@ -632,21 +643,15 @@
                                                         <Path Style="{StaticResource TransportIcon}" Data="{StaticResource Icon.Stop}" />
                                                     </Button>
                                                 </StackPanel>
-                                                <Button DockPanel.Dock="Right" Content="✕ Zrušiť profil" Style="{StaticResource GhostButton}"
-                                                        VerticalAlignment="Center" Margin="0" Padding="10,5" FontSize="12"
-                                                        Foreground="{StaticResource DangerBrush}"
-                                                        Command="{Binding CancelProfileCommand}"
-                                                        ToolTip="Zastaví spustený profil (ak beží) a odoberie ho z karty, aby nezostal svietiť ako testovací profil." />
+                                                <!-- Počet cyklov sits with the run controls it belongs to; the field
+                                                     only ever holds a single digit, so it needs no more room. -->
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="Počet cyklov" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                                                    <views:NumericStepper Value="{Binding Cycles, Mode=TwoWay}" Step="1" Minimum="1" Maximum="9"
+                                                                          Width="64" Margin="8,0,0,0"
+                                                                          ToolTip="Zopakuje iba telo profilu 1–9×. Počiatočný nábeh a koncový dobeh (nábeh/dobeh na krajné teploty) prebehnú len raz. Cyklovaná časť je na grafe nižšie zvýraznená." />
+                                                </StackPanel>
                                             </DockPanel>
-                                        </StackPanel>
-
-                                        <!-- Počet cyklov: zopakuje iba telo profilu (bez nábehu a konca) N-krát -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
-                                                    IsEnabled="{Binding IsProfileControlEnabled}">
-                                            <TextBlock Text="Počet cyklov" Style="{StaticResource Caption}" VerticalAlignment="Center" />
-                                            <views:NumericStepper Value="{Binding Cycles, Mode=TwoWay}" Step="1" Minimum="1"
-                                                                  Width="120" Margin="10,0,0,0"
-                                                                  ToolTip="Zopakuje iba telo profilu N-krát. Počiatočný nábeh a koncový dobeh (nábeh/dobeh na krajné teploty) prebehnú len raz. Cyklovaná časť je na grafe nižšie zvýraznená." />
                                         </StackPanel>
 
                                         <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"

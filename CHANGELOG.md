@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.67.4] – 2026-08-28
+
+### Opravené
+- **Hodnota vlastnej teploty sa orezávala** („2:“ namiesto „25“) – pole bolo úzke 66 px,
+  teraz má 80 px, takže sa doň zmestí aj štvorznaková hodnota (−100).
+- **Chýbala medzera medzi živými hodnotami a sekciou „Rýchle ovládanie“** – rámik
+  s teplotami prepísal spodný okraj štýlu sekcie, hlavička karty má teraz vlastné
+  odsadenie.
+
+### Zmenené
+- **Karta zariadenia má 560 px** (bolo 500). Riadok rýchleho ovládania potrebuje
+  ~470 px a do pôvodnej šírky sa nezmestil – preto sa predvoľby zalamovali a hodnota
+  orezávala. Karty sú v zalamovacom paneli, takže na širokej obrazovke ich vedľa seba
+  je stále rovnako veľa.
+- **„✕ Zrušiť profil“ je hore** pri nadpise „Testovací profil“, nie pod ovládacími
+  tlačidlami.
+- **„Počet cyklov“ je vedľa ovládacích tlačidiel** profilu a jeho pole je menšie
+  (64 px, hodnota 1–9). Profil uložený s vyšším počtom cyklov sa naďalej načíta
+  a zobrazí správne – obmedzenie platí len pre ručné zadanie.
+
 ## [1.67.3] – 2026-08-28
 
 ### Zmenené
