@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.75.3] – 2026-08-28
+
+### Zmenené
+- **Červený pruh „Zamknuté / Ovládanie je uzamknuté“ na karte zmizol.** Že je
+  zariadenie zamknuté, hovorí odznak „Zamknuté“ aj červený visiaci zámok v tom
+  istom riadku – pruh bol tretia kópia tej istej informácie a tlačil celú kartu
+  nadol. Rámik s políčkom na heslo sa zobrazí len vtedy, keď sa zariadenie
+  naozaj odomyká.
+
+### Dokumentácia
+- Overené na VT3 7034: odpoveď na `$00I` je
+  `0025.0 0025.0 0050.0 0000.0 0002.0 01000…`, teda **analógové hodnoty chodia
+  cez ASCII-2 s jedným desatinným miestom**. Presnosť ako v SIMPATI (`24,9981 °C`)
+  sa cez toto spojenie získať nedá – strop je 0,1 °C. Zapísané v
+  `docs/DEVICE_INTEGRATIONS.md`.
+
 ## [1.75.2] – 2026-08-28
 
 ### Opravené

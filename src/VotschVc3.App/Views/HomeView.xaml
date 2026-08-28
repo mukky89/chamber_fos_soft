@@ -336,20 +336,16 @@
                                     </Button>
                                 </DockPanel>
 
-                                <!-- Locked badge + inline unlock prompt (kept outside the disabled body). -->
+                                <!-- Inline unlock prompt (kept outside the disabled body). It only appears
+                                     while the operator is actually unlocking: that the device is locked is
+                                     already said by the lock badge and the red padlock in this very row, so a
+                                     standing "Zamknuté / Ovládanie je uzamknuté" banner was the third copy of
+                                     the same fact and pushed the whole card down. -->
                                 <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,10"
                                         Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource DangerBrush}" BorderThickness="1"
-                                        Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisibility}}">
+                                        Visibility="{Binding IsUnlockPromptOpen, Converter={StaticResource BoolToVisibility}}">
                                     <StackPanel>
-                                        <DockPanel LastChildFill="False">
-                                            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
-                                                       Text="{Binding LockStateLabel}" FontFamily="Segoe UI Semibold" FontSize="13"
-                                                       Foreground="{StaticResource DangerBrush}" />
-                                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Style="{StaticResource Caption}"
-                                                       Text="Ovládanie je uzamknuté" />
-                                        </DockPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
-                                                    Visibility="{Binding IsUnlockPromptOpen, Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Heslo:" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                             <PasswordBox x:Name="UnlockPass" Width="150" Height="32" VerticalContentAlignment="Center"
                                                          Background="{StaticResource SurfaceAltBrush}" Padding="8,0"

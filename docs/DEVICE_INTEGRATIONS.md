@@ -63,6 +63,33 @@ Kontrola je implementovaná v `SikaTpClient`: každý setpoint, START, STOP a
 mutačný príkaz zo surového terminálu číta flag tesne pred zápisom. Stav sa
 zároveň obnovuje počas pollingu a ovládacie príkazy vo WPF sa deaktivujú.
 
+## Rozlíšenie teploty cez ASCII-2 (Vötsch)
+
+Overené na VT3 7034 (`10.88.5.175:2049`, 28. 8. 2026). Odpoveď na `$00I`:
+
+```
+0025.0 0025.0 0050.0 0000.0 0002.0 0100000000000000000000000000000000
+```
+
+**Analógové hodnoty chodia v pevnom formáte `0000.0`, teda s jedným desatinným
+miestom.** To je formát protokolu, nie orezanie v aplikácii – `Ascii2Protocol`
+parsuje celý desatinný token cez `double.TryParse` a nič nezaokrúhľuje.
+
+Preto:
+
+- SIMPATI vie ukázať `24,9981 °C`, ale **cez ASCII-2 sa taká hodnota nedá získať** –
+  na tejto linke je strop 0,1 °C. (Okno SIMPATI, z ktorého tá hodnota pochádzala,
+  bolo navyše „Stav sim“, čiže jeho simulátor.)
+- Zobrazenie aj CSV preto používajú formát `0.0###`: vypíše sa presne toľko
+  desatinných miest, koľko prišlo. Pevný počet desatinných miest by dopisoval nuly
+  a predstieral presnosť, ktorú prenos nemá.
+- Nameranú teplotu na karte má tooltip so surovým rámcom (`ChamberViewModel.LastRaw`),
+  takže sa dá kedykoľvek overiť, čo regulátor naozaj poslal.
+
+⚠️ Význam tretej až piatej hodnoty (`0050.0 0000.0 0002.0`) nie je overený voči
+dokumentácii regulátora. Mapovanie kanálov meň len s overením na zariadení pri
+bezpečných hodnotách.
+
 ## Čas ustálenia SIKA (plánovanie dĺžky profilu)
 
 SIKA profil nemá rampy: runner zapíše setpoint, čaká (`soakAllSegments`), kým sa
