@@ -77,9 +77,8 @@ parsuje celý desatinný token cez `double.TryParse` a nič nezaokrúhľuje.
 
 Preto:
 
-- SIMPATI vie ukázať `24,9981 °C`, ale **cez ASCII-2 sa taká hodnota nedá získať** –
-  na tejto linke je strop 0,1 °C. (Okno SIMPATI, z ktorého tá hodnota pochádzala,
-  bolo navyše „Stav sim“, čiže jeho simulátor.)
+- SIMPATI vie ukázať `40,0213 °C`, ale **cez ASCII-2 sa taká hodnota nedá získať** –
+  na tejto linke je strop 0,1 °C.
 - Zobrazenie aj CSV preto používajú formát `0.0###`: vypíše sa presne toľko
   desatinných miest, koľko prišlo. Pevný počet desatinných miest by dopisoval nuly
   a predstieral presnosť, ktorú prenos nemá.
@@ -89,6 +88,38 @@ Preto:
 ⚠️ Význam tretej až piatej hodnoty (`0050.0 0000.0 0002.0`) nie je overený voči
 dokumentácii regulátora. Mapovanie kanálov meň len s overením na zariadení pri
 bezpečných hodnotách.
+
+## Presné meranie cez SIMSERV (11004)
+
+Rozlíšenie, ktoré ASCII-2 nemá, dáva **SIMSERV GET ACTUAL VALUE**, teda ten istý
+kanál, ktorým meria aj SIMPATI. Hodnota tam ide ako text, nie ako pevné pole:
+
+```
+> 11004¶1¶1          (funkcia ¶ Simpati-ID ¶ riadiaca veličina; 1 = teplota, 2 = vlhkosť)
+< 1¶40.0213          (stav 1 = OK, potom hodnota; záporný stav je chyba, napr. -4)
+```
+
+`ChamberClient.ReadAsync` preto po každom `$ddI` doplní meranú teplotu (a na komore
+s vlhkosťou aj meranú vlhkosť) z `11004`. Nastavenie
+`ChamberConnectionSettings.HighResolutionRead` (predvolene zapnuté) to vie vypnúť.
+
+Poistky, aby sa presnosťou nepokazilo riadenie:
+
+- Prevezme sa len odpoveď so stavom `1`, ktorá nesie číslo.
+- Číslo sa prevezme, len ak sa od hodnoty z ASCII-2 líši najviac o
+  `ChamberClient.HighResolutionTolerance` (1,0). Väčší rozdiel znamená, že
+  riadiaca veličina je namapovaná inde – vtedy platí hodnota z ASCII-2.
+- Regulátor, ktorý `11004` nevie (chybový stav alebo neodpovie), sa už na dané
+  spojenie nepýta znova; kanál, ktorý sa opakovane (3×) nezhoduje, sa tiež
+  prestane pýtať. Komora bez podpory teda stojí jeden rámec navyše, nie viac.
+- Setpoint sa nedopĺňa – ten do komory posiela aplikácia, nemeria sa.
+- Surový rámec `$ddI` sa neprepisuje (`ChamberReading.Raw`); SIMSERV výmena je
+  zvlášť v `ChamberReading.HighResolutionRaw` a je vidieť v tooltipe nameranej
+  hodnoty aj raz za spojenie v app logu.
+
+Ak by komora vracala menej desatinných miest než SIMPATI, treba porovnať, čo vráti
+`11004` priamo – tlačidlo **SIMSERV test** (Nastaviť/ovládať → diagnostika) pošle presne tento rámec
+a vypíše odpoveď.
 
 ## Čas ustálenia SIKA (plánovanie dĺžky profilu)
 

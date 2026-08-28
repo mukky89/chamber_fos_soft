@@ -21,12 +21,14 @@ public sealed class ChamberReading
         DateTimeOffset timestamp,
         string raw,
         IReadOnlyList<double> analogValues,
-        DigitalChannels digitalChannels)
+        DigitalChannels digitalChannels,
+        string? highResolutionRaw = null)
     {
         Timestamp = timestamp;
         Raw = raw;
         AnalogValues = analogValues;
         DigitalChannels = digitalChannels;
+        HighResolutionRaw = highResolutionRaw;
     }
 
     /// <summary>Moment the reading was decoded (local clock of the controlling PC).</summary>
@@ -45,6 +47,24 @@ public sealed class ChamberReading
 
     /// <summary>The decoded 32 digital channels.</summary>
     public DigitalChannels DigitalChannels { get; }
+
+    /// <summary>
+    /// The raw SIMSERV exchange (command and answer) whose values replaced the
+    /// ASCII-2 ones in <see cref="AnalogValues"/>, or <c>null</c> when the reading
+    /// carries only what the ASCII-2 frame reported. The ASCII-2 frame in
+    /// <see cref="Raw"/> is never rewritten, so both sources stay visible.
+    /// </summary>
+    public string? HighResolutionRaw { get; }
+
+    /// <summary><c>true</c> when SIMSERV supplied a value with a finer resolution.</summary>
+    public bool HasHighResolution => !string.IsNullOrEmpty(HighResolutionRaw);
+
+    /// <summary>
+    /// Returns a copy of this reading with the analog values replaced (used when a
+    /// finer-resolution source refines the ASCII-2 numbers).
+    /// </summary>
+    public ChamberReading WithAnalogValues(IReadOnlyList<double> analogValues, string? highResolutionRaw) =>
+        new(Timestamp, Raw, analogValues, DigitalChannels, highResolutionRaw);
 
     /// <summary>Measured temperature (analog channel&#160;1 actual value), if present.</summary>
     public double? Temperature => GetValue(0);

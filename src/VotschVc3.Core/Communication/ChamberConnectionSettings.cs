@@ -37,6 +37,15 @@ public sealed class ChamberConnectionSettings
     /// </summary>
     public int StartChannelIndex { get; set; } = 1;
 
+    /// <summary>
+    /// When <c>true</c> (default) every reading is refined with the SIMSERV
+    /// command GET ACTUAL VALUE (11004), which returns the measured value with the
+    /// controller's own resolution instead of the fixed <c>0000.0</c> field of the
+    /// ASCII-2 read frame. Controllers that do not answer 11004 are detected on the
+    /// first attempt and the extra frame is not sent again for that connection.
+    /// </summary>
+    public bool HighResolutionRead { get; set; } = true;
+
     /// <summary>Timeout for establishing the TCP connection.</summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
@@ -56,6 +65,7 @@ public sealed class ChamberConnectionSettings
         Terminator = Terminator,
         AnalogChannelCount = AnalogChannelCount,
         StartChannelIndex = StartChannelIndex,
+        HighResolutionRead = HighResolutionRead,
         ConnectTimeout = ConnectTimeout,
         ReadTimeout = ReadTimeout,
     };

@@ -63,7 +63,12 @@ public sealed class CsvRecorder : IDisposable
             Format(referenceTemperature, "0.000"),
             Format(deviation, "0.000"),
             reading.DigitalChannels.ToProtocolString(),
-            Escape(reading.Raw));
+            // The raw column has to explain the recorded values: when the measurement
+            // came from SIMSERV (finer resolution than the ASCII-2 0000.0 field), that
+            // exchange belongs next to the ASCII-2 frame it refined.
+            Escape(reading.HasHighResolution
+                ? $"{reading.Raw} | {reading.HighResolutionRaw}"
+                : reading.Raw));
 
         lock (_sync)
         {

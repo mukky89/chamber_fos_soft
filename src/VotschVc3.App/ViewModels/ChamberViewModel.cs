@@ -817,6 +817,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         StopPolling();
         _firstReadLogged = false;
+        _highResolutionLogged = false;
         _pollingCts = new CancellationTokenSource();
         _ = PollLoopAsync(_pollingCts.Token);
         EnsureRecordingStarted();
@@ -902,7 +903,22 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 $"· hodnoty=[{string.Join(", ", reading.AnalogValues.Select(v => v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)))}]");
         }
 
-        LastRaw = reading.Raw;
+        // Log once per connection that the measured value no longer comes from the
+        // ASCII-2 field (0000.0, i.e. 0,1 °C) but from SIMSERV with the controller's
+        // own resolution — the number Simpati shows.
+        if (reading.HasHighResolution && !_highResolutionLogged)
+        {
+            _highResolutionLogged = true;
+            AppLog.Info(Name,
+                $"Presné meranie cez SIMSERV: {reading.HighResolutionRaw} " +
+                $"(ASCII-2 rámec vie len 0,1 °C).");
+        }
+
+        // The tooltip on the measured value shows this, so keep both sources: the ASCII-2
+        // frame with its 0000.0 fields and the SIMSERV answer that refined it.
+        LastRaw = reading.HasHighResolution
+            ? $"{reading.Raw}  ·  {reading.HighResolutionRaw}"
+            : reading.Raw;
         LastUpdate = reading.Timestamp;
         OnPropertyChanged(nameof(ReferenceDeviation));
         RecordLive(reading);
@@ -1329,6 +1345,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     // true/false when the response carried a digital block, null when unknown.
     private bool? _readRunning;
     private bool _firstReadLogged;
+    private bool _highResolutionLogged;
 
     /// <summary><c>true</c> while the chamber is actively conditioning. Prefers the
     /// chamber's own reported state (digital start channel); falls back to what

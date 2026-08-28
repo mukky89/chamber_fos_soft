@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.76.0] – 2026-08-28
+
+### Pridané
+- **Meraná teplota v plnom rozlíšení regulátora (SIMSERV 11004).** ASCII-2 rámec
+  `$ddI` nesie každú analógovú hodnotu v pevnom poli `0000.0`, takže cez neho
+  nikdy nepríde viac ako jedno desatinné miesto – SIMPATI pritom ukazuje
+  `40,0213 °C`. Aplikácia preto po každom čítaní ešte pošle SIMSERV
+  `GET ACTUAL VALUE` (`11004¶ID¶1`), kde hodnota chodí ako text
+  (`1¶40.0213`), a tú použije ako nameranú teplotu. Na komore s vlhkosťou sa
+  rovnako doplní meraná vlhkosť (`11004¶ID¶2`).
+- Presnejšia hodnota ide všade, kde sa doteraz brala z ASCII-2: na kartu, do
+  grafu, do CSV záznamu aj do rozhodovania o ustálení pri behu profilu.
+
+### Bezpečnosť a spoľahlivosť
+- Prevezme sa len odpoveď so stavom `1`, ktorá nesie číslo, a len ak sa od
+  hodnoty z ASCII-2 líši najviac o 1,0 (`ChamberClient.HighResolutionTolerance`).
+  Väčší rozdiel znamená, že riadiaca veličina je namapovaná inde – vtedy zostáva
+  v platnosti hodnota z ASCII-2, takže presnejšie čítanie nemôže podsunúť
+  hodnotu z cudzieho kanála.
+- Regulátor, ktorý `11004` nevie (chybový stav alebo neodpovie), sa už na dané
+  spojenie nepýta znova; kanál, ktorý sa 3× po sebe nezhoduje, sa tiež prestane
+  pýtať. Komora bez podpory teda stojí jeden rámec navyše, nie viac.
+- Setpoint sa nedopĺňa – ten do komory posiela aplikácia, nemeria sa.
+- Surová odpoveď `$ddI` sa neprepisuje. SIMSERV výmena je zvlášť a je vidieť
+  v tooltipe nameranej hodnoty aj raz za spojenie v aplikačnom logu, takže sa dá
+  overiť, odkiaľ číslo na obrazovke pochádza.
+- Vypnúť sa to dá cez `ChamberConnectionSettings.HighResolutionRead`
+  (predvolene zapnuté).
+
+### Dokumentácia
+- `docs/DEVICE_INTEGRATIONS.md`: nová kapitola „Presné meranie cez SIMSERV
+  (11004)“ s rámcom, poistkami a postupom overenia cez tlačidlo SIMSERV test.
+
 ## [1.75.3] – 2026-08-28
 
 ### Zmenené
