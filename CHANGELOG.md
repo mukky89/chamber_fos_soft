@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.67.1] – 2026-08-28
+
+### Zmenené
+- **Krajšie a väčšie tlačidlá rýchleho ovládania.** Predvoľby teplôt sú vyššie
+  (40 px, min. 76 px široké) s farebným prechodom pri prejdení myšou a plnou akcentnou
+  výplňou pri stlačení – je na nich vidieť, že sú to akcie na jedno klepnutie, nie
+  hodnoty. „Nastaviť“ a „Stop“ dostali ikonky (teplomer / vypnutie) a sú vyššie (40 px).
+- **Nastaviť a Stop už nie sú vedľa seba natesno** – deštruktívnu akciu oddeľuje výrazná
+  medzera, aby ju operátor v rukaviciach netrafil omylom.
+- **Karta zariadenia nie je natlačená.** Živé hodnoty (teplota, setpoint, rozsah) sú vo
+  vlastnom rámiku oddelenom od stavových riadkov, nie nalepené hneď pod nimi.
+- **Tlačidlá v hlavičke karty sa zalamujú** namiesto toho, aby sa navzájom stláčali –
+  zámok sa pri užšej karte orezával na „◫ …“.
+
 ## [1.67.0] – 2026-08-28
 
 ### Pridané

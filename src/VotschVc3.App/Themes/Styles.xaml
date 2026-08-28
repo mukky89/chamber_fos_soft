@@ -263,31 +263,48 @@
     <!-- ===== Preset chip (quick-control temperatures in a bordered box) =====
          Boxed, high-contrast target for gloved operators; border turns accent on
          hover, fills accent on press. -->
+    <!-- Quick-set temperature chip. Sized for a gloved operator (40 px tall, 76 px wide
+         minimum) and colour-coded by state rather than by a flat background swap: an
+         accent wash rises under the label on hover and fills on press, so it is obvious
+         the chip is a one-tap action and not a read-out. -->
     <Style x:Key="PresetChip" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="FontFamily" Value="Segoe UI Semibold" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="Padding" Value="14,7" />
+        <Setter Property="FontSize" Value="14.5" />
+        <Setter Property="MinWidth" Value="76" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Padding" Value="14,8" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Bd" Background="{StaticResource SurfaceAltBrush}"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                            CornerRadius="8" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}" />
+                            CornerRadius="10" SnapsToDevicePixels="True">
+                        <Grid>
+                            <Border x:Name="Fill" Background="{StaticResource AccentBrush}"
+                                    CornerRadius="9" Opacity="0" />
+                            <ContentPresenter x:Name="Cp" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource BorderBrush}" />
+                            <Setter TargetName="Fill" Property="Opacity" Value="0.24" />
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            <Setter TargetName="Bd" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.4"
+                                                      Color="{StaticResource AccentColor}" />
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}" />
-                            <Setter Property="Foreground" Value="White" />
+                            <Setter TargetName="Fill" Property="Opacity" Value="1" />
+                            <Setter TargetName="Cp" Property="TextElement.Foreground" Value="White" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

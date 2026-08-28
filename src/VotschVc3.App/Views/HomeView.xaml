@@ -263,27 +263,32 @@
                                                 Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding}" />
                                     </StackPanel>
-                                    <Button DockPanel.Dock="Right" Content="⚙  Nastaviť / ovládať  →" Style="{StaticResource AccentButton}"
-                                            Padding="16,9" FontSize="13"
-                                            Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"
-                                            ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
-                                    <Button DockPanel.Dock="Right" Content="◈ FBG kalibrácia" Style="{StaticResource GhostButton}"
-                                            Margin="0,0,8,0" Padding="12,9" FontSize="13"
-                                            Click="Calibration_Click"
-                                            ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným." />
-                                    <Button DockPanel.Dock="Right" Content="🌐 Web" Style="{StaticResource GhostButton}"
-                                            Margin="0,0,8,0" Padding="12,9" FontSize="13"
-                                            Command="{Binding OpenDeviceWebCommand}"
-                                            ToolTip="Otvoriť webové rozhranie zariadenia v predvolenom prehliadači." />
-                                    <!-- Lock toggle: always enabled so a locked device can be unlocked. -->
-                                    <Button DockPanel.Dock="Right" Margin="0,0,8,0" Padding="12,9" FontSize="13"
-                                            Style="{StaticResource GhostButton}" Command="{Binding ToggleLockCommand}"
-                                            ToolTip="Zamkne/odomkne zariadenie – v zamknutom stave sú všetky ovládacie tlačidlá neaktívne (ochrana pred neúmyselným stlačením počas behu).">
-                                        <TextBlock>
-                                            <Run Text="{Binding LockGlyph, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding LockButtonText, Mode=OneWay}" />
-                                        </TextBlock>
-                                    </Button>
+                                    <!-- A WrapPanel, not a row of docked buttons: on a narrower card the
+                                         four actions used to squeeze each other until the lock button was
+                                         clipped to "◫ …". Now they wrap onto a second line instead. -->
+                                    <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                        <!-- Lock toggle: always enabled so a locked device can be unlocked. -->
+                                        <Button Margin="0,0,8,6" Padding="12,9" FontSize="13"
+                                                Style="{StaticResource GhostButton}" Command="{Binding ToggleLockCommand}"
+                                                ToolTip="Zamkne/odomkne zariadenie – v zamknutom stave sú všetky ovládacie tlačidlá neaktívne (ochrana pred neúmyselným stlačením počas behu).">
+                                            <TextBlock TextTrimming="None">
+                                                <Run Text="{Binding LockGlyph, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding LockButtonText, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </Button>
+                                        <Button Content="🌐 Web" Style="{StaticResource GhostButton}"
+                                                Margin="0,0,8,6" Padding="12,9" FontSize="13"
+                                                Command="{Binding OpenDeviceWebCommand}"
+                                                ToolTip="Otvoriť webové rozhranie zariadenia v predvolenom prehliadači." />
+                                        <Button Content="◈ FBG kalibrácia" Style="{StaticResource GhostButton}"
+                                                Margin="0,0,8,6" Padding="12,9" FontSize="13"
+                                                Click="Calibration_Click"
+                                                ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným." />
+                                        <Button Content="⚙  Nastaviť / ovládať  →" Style="{StaticResource AccentButton}"
+                                                Margin="0,0,0,6" Padding="16,9" FontSize="13"
+                                                Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
+                                    </WrapPanel>
                                 </DockPanel>
 
                                 <!-- Locked badge + inline unlock prompt (kept outside the disabled body). -->
@@ -409,40 +414,44 @@
                                                     ToolTip="Skúsi zapnúť Remote Control priamo cez sieť (Com_ExternWriteFlag = 1). Niektoré firmvéry to dovolia len z displeja prístroja – výsledok sa overí spätným čítaním." />
                                         </StackPanel>
                                         <!-- ===== ② Live values + range =====
-                                             Sits inside the header column, next to the chamber graphic: the
-                                             graphic is 172 px tall and the name/badges/state above never filled
-                                             that height, so the read-outs used to start below an empty gap in
-                                             their own full-width section. -->
-                                        <WrapPanel Margin="0,10,0,0">
-                                            <StackPanel Margin="0,0,22,0">
-                                                <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
-                                                </StackPanel>
+                                             Sits inside the header column next to the chamber graphic (which is
+                                             172 px tall and left the text column half empty), but in its own
+                                             boxed section – stacked straight under the status lines the numbers
+                                             ran into them and the header read as one dense block. -->
+                                        <Border Style="{StaticResource Section}" Margin="0,12,0,0" Padding="12,10">
+                                            <StackPanel>
+                                                <WrapPanel>
+                                                    <StackPanel Margin="0,0,24,0">
+                                                        <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Style="{StaticResource MetricSmall}"
+                                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <StackPanel Margin="0,0,24,0">
+                                                        <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
+                                                                       Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Style="{StaticResource MetricSmall}"
+                                                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
+                                                            <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </WrapPanel>
+                                                <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap">
+                                                    <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
+                                                    <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                                                </TextBlock>
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,22,0">
-                                                <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                                               Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
-                                                </StackPanel>
-                                            </StackPanel>
-                                            <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0}" />
-                                                    <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </WrapPanel>
-                                        <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" TextWrapping="Wrap">
-                                            <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
-                                            <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
-                                        </TextBlock>
+                                        </Border>
 
                                         <!-- Completion (day + time + countdown) right under the profile name. -->
                                         <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
@@ -477,10 +486,10 @@
                                                    Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,7"
                                                    Foreground="{StaticResource WarnBrush}"
                                                    Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" />
-                                        <DockPanel LastChildFill="False">
+                                        <DockPanel LastChildFill="False" Margin="0,0,0,4">
                                             <TextBlock Text="Rýchle ovládanie" Style="{StaticResource Label}" DockPanel.Dock="Left" VerticalAlignment="Center" />
                                             <Button DockPanel.Dock="Right" Content="✎ Upraviť predvoľby" Style="{StaticResource GhostButton}"
-                                                    Padding="6,1" FontSize="12" Command="{Binding ToggleEditPresetsCommand}"
+                                                    Padding="10,4" FontSize="12" Margin="0" Command="{Binding ToggleEditPresetsCommand}"
                                                     Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
                                                     ToolTip="Admin: uprav teploty rýchleho ovládania pre toto zariadenie." />
                                         </DockPanel>
@@ -500,7 +509,7 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Button Style="{StaticResource PresetChip}" Margin="0,0,7,7"
+                                                    <Button Style="{StaticResource PresetChip}" Margin="0,0,9,9"
                                                             Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
                                                             ToolTip="Klikni = nastav túto teplotu a zapni komoru"
                                                             Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -509,22 +518,35 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
 
-                                        <!-- Custom temperature entry: set on the left, Stop separated on the right -->
-                                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="10,9" Margin="0,2,0,0">
-                                            <DockPanel LastChildFill="False">
-                                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
-                                                    <TextBlock Text="Vlastná teplota" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                                    <views:NumericStepper Width="92" VerticalAlignment="Center"
-                                                                          Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
-                                                                          ToolTip="Teplota v °C – šípkami ▲▼ meníš po 1 °C." />
-                                                    <TextBlock Text="°C" VerticalAlignment="Center" Margin="5,0,10,0" Foreground="{StaticResource MutedBrush}" />
-                                                    <Button Content="Nastaviť" Style="{StaticResource AccentButton}" Margin="0" Height="36" MinWidth="96"
-                                                            VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}" />
-                                                </StackPanel>
-                                                <Button Content="Stop" Style="{StaticResource DangerButton}" DockPanel.Dock="Right" Margin="0" Height="36" MinWidth="96"
+                                        <!-- Custom set point. The destructive action is deliberately pushed to
+                                             the far right with a wide gap – "Nastaviť" and "Stop" must never sit
+                                             shoulder to shoulder where a gloved hand can hit the wrong one. -->
+                                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="10" Padding="12,11" Margin="0,4,0,0">
+                                            <WrapPanel>
+                                                <TextBlock Text="Vlastná teplota" Style="{StaticResource Caption}"
+                                                           VerticalAlignment="Center" Margin="0,0,10,6" />
+                                                <views:NumericStepper Width="96" VerticalAlignment="Center" Margin="0,0,6,6"
+                                                                      Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
+                                                                      ToolTip="Teplota v °C – šípkami ▲▼ meníš po 1 °C." />
+                                                <TextBlock Text="°C" VerticalAlignment="Center" Margin="0,0,14,6"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                                <Button Style="{StaticResource AccentButton}" Margin="0,0,28,6" Height="40" MinWidth="118"
+                                                        VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
+                                                        ToolTip="Zapíše zadanú teplotu do komory a zapne reguláciu.">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Thermometer}" />
+                                                        <TextBlock Text="Nastaviť" Style="{StaticResource IconLabel}" />
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource DangerButton}" Margin="0,0,0,6" Height="40" MinWidth="118"
                                                         VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
-                                                        ToolTip="Vypnúť komoru (zastaví reguláciu)." />
-                                            </DockPanel>
+                                                        ToolTip="Vypnúť komoru (zastaví reguláciu).">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Power}" />
+                                                        <TextBlock Text="Stop" Style="{StaticResource IconLabel}" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </WrapPanel>
                                         </Border>
                                         </StackPanel>
 
