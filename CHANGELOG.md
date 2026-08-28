@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.67.5] – 2026-08-28
+
+### Zmenené
+- **Celé rýchle ovládanie je v jednom riadku a už sa nemá ako zalomiť.** Riadok má tri
+  pevné stĺpce: štyri rovnaké miesta na predvolené teploty, potom nastavenie vlastnej
+  teploty a napokon tlačidlá „Nastaviť“ a „Stop“. Predtým boli predvoľby tá pružná časť
+  a pri nedostatku miesta padali na druhý riadok.
+- **Predvolených teplôt sú najviac štyri** (predtým až osem) – karta má pre ne presne
+  štyri miesta. Zariadenie, ktoré ich malo uložených viac, si ponechá prvé štyri;
+  predvolené sady pre SIKA a POL-EKO sú skrátené na štyri hodnoty.
+- **Karta zariadenia má 600 px** – celý pás rýchleho ovládania potrebuje ~490 px, aby
+  boli popisky tlačidiel aj hodnoty predvolieb čitateľné bez orezania.
+
 ## [1.67.4] – 2026-08-28
 
 ### Opravené

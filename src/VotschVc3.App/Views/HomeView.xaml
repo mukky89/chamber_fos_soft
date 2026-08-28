@@ -234,7 +234,7 @@
                         <!-- Compact mode shrinks the whole card (graphic + text + spacing) via a
                              layout-scale, so more devices fit; toggled by the admin, reverts to the
                              original roomy layout when off. -->
-                        <Border Width="560" Margin="7">
+                        <Border Width="600" Margin="7">
                             <Border.Style>
                                 <Style TargetType="Border" BasedOn="{StaticResource Card}">
                                     <Style.Triggers>
@@ -493,53 +493,39 @@
                                         <!-- Admin preset editor -->
                                         <StackPanel Margin="0,6,0,0" Visibility="{Binding IsEditingPresets, Converter={StaticResource BoolToVisibility}}">
                                             <TextBox Text="{Binding QuickPresetsText, UpdateSourceTrigger=LostFocus}"
-                                                     ToolTip="Teploty oddelené čiarkou, napr. 60, 105, 150, 250" />
-                                            <TextBlock Text="Teploty oddeľ čiarkou (1–8 hodnôt). Uloží sa po opustení poľa." Style="{StaticResource Caption}" Margin="0,3,0,0" />
+                                                     ToolTip="Teploty oddelené čiarkou, najviac štyri – napr. 60, 105, 150, 250" />
+                                            <TextBlock Text="Teploty oddeľ čiarkou (1–4 hodnoty). Uloží sa po opustení poľa." Style="{StaticResource Caption}" Margin="0,3,0,0" />
                                         </StackPanel>
 
-                                        <!-- Presets and the custom set point share one row: the chips fill the
-                                             left, the value and the two actions are docked right. The chips are the
-                                             flexible part, so on a narrower card they wrap instead of pushing the
-                                             actions off the row. Stop stays hard right, away from Nastaviť. -->
+                                        <!-- The whole quick-control strip on one line. A Grid, not a DockPanel
+                                             with a wrapping panel: the presets used to be the flexible part and
+                                             wrapped to a second row whenever the fixed controls took more than
+                                             their share. Now the row has three deterministic columns – four
+                                             equal preset slots (the card never shows more, see
+                                             ChamberViewModel.MaxQuickPresets), the custom set point, and the two
+                                             actions – so nothing can wrap or clip. -->
                                         <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,10,0,0">
                                             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="10" Padding="10,8">
-                                                <DockPanel LastChildFill="True">
-                                                    <Button DockPanel.Dock="Right" Style="{StaticResource DangerButton}" Margin="0"
-                                                            Height="34" Padding="8,0" FontSize="12.5"
-                                                            VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
-                                                            ToolTip="Vypnúť komoru (zastaví reguláciu).">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <Path Style="{StaticResource IconPath}" Width="13" Height="13"
-                                                                  Data="{StaticResource Icon.Power}" />
-                                                            <TextBlock Text="Stop" Style="{StaticResource IconLabel}" Margin="5,0,0,0" />
-                                                        </StackPanel>
-                                                    </Button>
-                                                    <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Margin="0,0,8,0"
-                                                            Height="34" Padding="8,0" FontSize="12.5"
-                                                            VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
-                                                            ToolTip="Zapíše zadanú vlastnú teplotu do komory a zapne reguláciu.">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <Path Style="{StaticResource IconPath}" Width="13" Height="13"
-                                                                  Data="{StaticResource Icon.Thermometer}" />
-                                                            <TextBlock Text="Nastaviť" Style="{StaticResource IconLabel}" Margin="5,0,0,0" />
-                                                        </StackPanel>
-                                                    </Button>
-                                                    <TextBlock DockPanel.Dock="Right" Text="°C" VerticalAlignment="Center"
-                                                               Margin="4,0,8,0" Foreground="{StaticResource MutedBrush}" />
-                                                    <!-- Wide enough for a four-character value ("-100"); at 66 px the
-                                                         text was clipped mid-digit. -->
-                                                    <views:NumericStepper DockPanel.Dock="Right" Width="80" VerticalAlignment="Center"
-                                                                          Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
-                                                                          ToolTip="Vlastná teplota v °C – šípkami ▲▼ meníš po 1 °C, potom stlač Nastaviť." />
-                                                    <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,0,6,0"
-                                                                  VerticalAlignment="Center">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <ItemsControl Grid.Column="0" ItemsSource="{Binding QuickPresets}"
+                                                                  Margin="0,0,10,0" VerticalAlignment="Center">
                                                         <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                            <ItemsPanelTemplate>
+                                                                <!-- Exactly four equal slots: a fifth preset can never
+                                                                     push the row onto a second line. -->
+                                                                <UniformGrid Rows="1" Columns="4" />
+                                                            </ItemsPanelTemplate>
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,6,0"
-                                                                        MinWidth="0" Padding="9,5" FontSize="12"
+                                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,5,0"
+                                                                        MinWidth="0" Padding="6,5" FontSize="12"
                                                                         Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
                                                                         ToolTip="Klikni = nastav túto teplotu a zapni komoru"
                                                                         Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -547,7 +533,39 @@
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
-                                                </DockPanel>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <!-- Wide enough for a four-character value ("-100"). -->
+                                                        <views:NumericStepper Width="80" VerticalAlignment="Center"
+                                                                              Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
+                                                                              ToolTip="Vlastná teplota v °C – šípkami ▲▼ meníš po 1 °C, potom stlač Nastaviť." />
+                                                        <TextBlock Text="°C" VerticalAlignment="Center" Margin="4,0,10,0"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Style="{StaticResource AccentButton}" Margin="0,0,8,0"
+                                                                Height="34" Padding="8,0" FontSize="12.5"
+                                                                VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
+                                                                ToolTip="Zapíše zadanú vlastnú teplotu do komory a zapne reguláciu.">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Path Style="{StaticResource IconPath}" Width="13" Height="13"
+                                                                      Data="{StaticResource Icon.Thermometer}" />
+                                                                <TextBlock Text="Nastaviť" Style="{StaticResource IconLabel}" Margin="5,0,0,0" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                        <Button Style="{StaticResource DangerButton}" Margin="0"
+                                                                Height="34" Padding="8,0" FontSize="12.5"
+                                                                VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
+                                                                ToolTip="Vypnúť komoru (zastaví reguláciu).">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Path Style="{StaticResource IconPath}" Width="13" Height="13"
+                                                                      Data="{StaticResource Icon.Power}" />
+                                                                <TextBlock Text="Stop" Style="{StaticResource IconLabel}" Margin="5,0,0,0" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
                                             </Border>
                                         </StackPanel>
 

@@ -1090,9 +1090,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand ToggleEditPresetsCommand { get; }
 
     private List<double> DefaultQuickPresets() => IsPolEko
-        ? new List<double> { 0, 25, 50, 60, 80, 120, 150, 250 }
+        ? new List<double> { 25, 60, 150, 250 }
         : IsSika
-            ? new List<double> { 0, 25, 60, 100, 150 }
+            ? new List<double> { 0, 25, 60, 150 }
             : new List<double> { -20, 0, 25, 60 };
 
     /// <summary>
@@ -1101,7 +1101,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private static readonly List<double> LegacyPolEkoPresets = new() { 60, 105, 150, 250 };
 
-    /// <summary>Parses "60, 105.5, 150" → presets; invalid tokens are skipped, 1–8 values.</summary>
+    /// <summary>
+    /// Largest number of quick-set presets a card shows. The dashboard row allocates
+    /// exactly this many equal slots next to the custom set point and the actions, so the
+    /// whole quick-control strip stays on one line.
+    /// </summary>
+    public const int MaxQuickPresets = 4;
+
+    /// <summary>Parses "60, 105.5, 150" → presets; invalid tokens are skipped, 1–4 values.</summary>
     private static List<double> ParsePresets(string? text)
     {
         var result = new List<double>();
@@ -1111,7 +1118,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 && v is >= -100 and <= 350 && !result.Contains(v))
             {
                 result.Add(v);
-                if (result.Count == 8)
+                if (result.Count == MaxQuickPresets)
                 {
                     break;
                 }
@@ -4150,8 +4157,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AutoRecoverProfile = c.AutoRecoverProfile;
 
         List<double> presets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
+
+        // The card allocates four preset slots; a config saved with more (the old limit
+        // was eight) keeps its first four instead of overflowing the row.
+        if (presets.Count > MaxQuickPresets)
+        {
+            presets = presets.Take(MaxQuickPresets).ToList();
+        }
         // One-time upgrade: a dryer still carrying the old 4-value default gets the
-        // fuller preset set (0…250 °C) without touching a user's custom presets.
+        // current one without touching a user's custom presets.
         if (IsPolEko && presets.SequenceEqual(LegacyPolEkoPresets))
         {
             presets = DefaultQuickPresets();
