@@ -374,55 +374,63 @@
                                             </Border>
                                         </WrapPanel>
 
-                                        <!-- Connection state + activity detail -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center"
-                                                     Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
-                                            <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" Style="{StaticResource Caption}" />
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
-                                                   Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
-                                        <!-- SIKA Remote Control: shown for every SIKA device, green when the bath
-                                             accepts remote writes and orange when it does not, so the operator never
-                                             has to guess why a set point "did nothing". -->
-                                        <StackPanel Margin="0,4,0,0" Orientation="Horizontal"
-                                                    Visibility="{Binding ShowSikaRemoteControl, Converter={StaticResource BoolToVisibility}}">
-                                            <Ellipse Width="9" Height="9" VerticalAlignment="Center">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
-                                                        <Setter Property="Fill" Value="{StaticResource OkBrush}" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
-                                                                <Setter Property="Fill" Value="{StaticResource WarnBrush}" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
-                                            <TextBlock Text="{Binding SikaRemoteControlStatus}" Margin="7,0,0,0"
-                                                       FontFamily="Segoe UI Semibold" FontSize="12" TextWrapping="Wrap">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
-                                                                <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <Button Content="⇅ Zapnúť cez sieť" Style="{StaticResource GhostButton}"
-                                                    Margin="10,0,0,0" Padding="8,2" FontSize="11"
-                                                    Command="{Binding ForceSikaRemoteControlCommand}"
-                                                    Visibility="{Binding IsSikaRemoteControlOn, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
-                                                    ToolTip="Skúsi zapnúť Remote Control priamo cez sieť (Com_ExternWriteFlag = 1). Niektoré firmvéry to dovolia len z displeja prístroja – výsledok sa overí spätným čítaním." />
-                                        </StackPanel>
+                                        <!-- ===== Stav: pripojenie + čo zariadenie práve robí =====
+                                             Boxed like the live values below it: loose lines under the badges
+                                             read as leftovers, a framed block reads as "toto je stav". -->
+                                        <Border Style="{StaticResource Section}" Margin="0,10,0,0" Padding="11,8">
+                                          <StackPanel>
+                                          <StackPanel Orientation="Horizontal">
+                                              <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                                       Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
+                                              <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" Style="{StaticResource Caption}" />
+                                          </StackPanel>
+                                          <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
+                                                     Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                          <!-- SIKA Remote Control: shown for every SIKA device, green when the bath
+                                               accepts remote writes and orange when it does not, so the operator never
+                                               has to guess why a set point "did nothing". -->
+                                          <StackPanel Margin="0,4,0,0" Orientation="Horizontal"
+                                                      Visibility="{Binding ShowSikaRemoteControl, Converter={StaticResource BoolToVisibility}}">
+                                              <Ellipse Width="9" Height="9" VerticalAlignment="Center">
+                                                  <Ellipse.Style>
+                                                      <Style TargetType="Ellipse">
+                                                          <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                                                          <Style.Triggers>
+                                                              <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
+                                                                  <Setter Property="Fill" Value="{StaticResource WarnBrush}" />
+                                                              </DataTrigger>
+                                                          </Style.Triggers>
+                                                      </Style>
+                                                  </Ellipse.Style>
+                                              </Ellipse>
+                                              <TextBlock Text="{Binding SikaRemoteControlStatus}" Margin="7,0,0,0"
+                                                         FontFamily="Segoe UI Semibold" FontSize="12" TextWrapping="Wrap">
+                                                  <TextBlock.Style>
+                                                      <Style TargetType="TextBlock">
+                                                          <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                                          <Style.Triggers>
+                                                              <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
+                                                                  <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                                                              </DataTrigger>
+                                                          </Style.Triggers>
+                                                      </Style>
+                                                  </TextBlock.Style>
+                                              </TextBlock>
+                                              <Button Content="⇅ Zapnúť cez sieť" Style="{StaticResource GhostButton}"
+                                                      Margin="10,0,0,0" Padding="8,2" FontSize="11"
+                                                      Command="{Binding ForceSikaRemoteControlCommand}"
+                                                      Visibility="{Binding IsSikaRemoteControlOn, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
+                                                      ToolTip="Skúsi zapnúť Remote Control priamo cez sieť (Com_ExternWriteFlag = 1). Niektoré firmvéry to dovolia len z displeja prístroja – výsledok sa overí spätným čítaním." />
+                                          </StackPanel>
+                                          </StackPanel>
+                                        </Border>
+
                                         <!-- ===== ② Live values + range =====
                                              Sits inside the header column next to the chamber graphic (which is
                                              172 px tall and left the text column half empty), but in its own
-                                             boxed section – stacked straight under the status lines the numbers
-                                             ran into them and the header read as one dense block. -->
+                                             boxed section, right under the boxed status block – stacked as
+                                             loose lines the numbers ran into the status text and the whole
+                                             header read as one dense block. -->
                                         <Border Style="{StaticResource Section}" Margin="0,10,0,0" Padding="11,8">
                                             <StackPanel>
                                                 <WrapPanel>

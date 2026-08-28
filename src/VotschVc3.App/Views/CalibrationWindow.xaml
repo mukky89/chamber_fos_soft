@@ -6,6 +6,13 @@
         Height="940" Width="1500" MinHeight="760" MinWidth="1180"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundBrush}">
+    <Window.Resources>
+        <!-- Run controls stay solid glyphs, like the transport buttons on a device card. -->
+        <Style x:Key="RunGlyph" TargetType="Path" BasedOn="{StaticResource TransportIcon}">
+            <Setter Property="Width" Value="13" />
+            <Setter Property="Height" Value="13" />
+        </Style>
+    </Window.Resources>
     <Grid Margin="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -15,134 +22,219 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="6,4,6,10">
+        <!-- ===== Header: what this window is + what you can do with it =====
+             The run controls are one group, set apart from "Uložiť zapojenie" so a stop is
+             never a neighbour of a save. -->
+        <DockPanel Grid.Row="0" Margin="6,4,6,12">
             <StackPanel DockPanel.Dock="Left">
                 <TextBlock Text="FBG teplotná kalibrácia" FontSize="24" FontFamily="Segoe UI Semibold" />
-                <TextBlock Text="Komora + PeakLogger + ASL F100 referencia + automatické vyhodnotenie stability wavelength" Style="{StaticResource Caption}" />
+                <TextBlock Text="Komora + PeakLogger + ASL F100 referencia + automatické vyhodnotenie stability wavelength"
+                           Style="{StaticResource Caption}" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="Uložiť zapojenie" Style="{StaticResource GhostButton}" Command="{Binding SaveSetupCommand}" Margin="0,0,8,0" />
-                <Button Content="▶ Spustiť kalibráciu" Style="{StaticResource AccentButton}" Command="{Binding StartCalibrationCommand}" Margin="0,0,8,0" />
-                <Button Content="⏸ Pauza / pokračovať" Style="{StaticResource GhostButton}" Command="{Binding PauseResumeCommand}" Margin="0,0,8,0" />
-                <Button Content="⏹ Stop" Style="{StaticResource DangerButton}" Command="{Binding StopCalibrationCommand}" />
+                <Button Style="{StaticResource GhostButton}" Command="{Binding SaveSetupCommand}" Margin="0,0,14,0"
+                        ToolTip="Uloží zapojenie (vybrané peaky, SN, poznámky) pre ďalší beh.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
+                        <TextBlock Text="Uložiť zapojenie" Style="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Run controls, visually one block. -->
+                <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="10" Padding="5,4">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource AccentButton}" Command="{Binding StartCalibrationCommand}" Margin="0,0,6,0"
+                                ToolTip="Spustí kalibračný beh: komora prejde plata a pri každom sa čaká na stabilnú vlnovú dĺžku.">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource RunGlyph}" Data="{StaticResource Icon.Play}" />
+                                <TextBlock Text="Spustiť kalibráciu" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Command="{Binding PauseResumeCommand}" Margin="0,0,6,0"
+                                ToolTip="Pozastaví alebo obnoví prebiehajúci beh.">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource RunGlyph}" Data="{StaticResource Icon.Pause}" />
+                                <TextBlock Text="Pauza" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource DangerButton}" Command="{Binding StopCalibrationCommand}" Margin="0"
+                                ToolTip="Zastaví beh kalibrácie.">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource RunGlyph}" Data="{StaticResource Icon.Stop}" />
+                                <TextBlock Text="Stop" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </DockPanel>
 
+        <!-- ===== Zostava: čo sa kalibruje, čím sa meria a proti čomu =====
+             Three boxed groups instead of one row of loose controls: the previous layout put
+             the connect button in its own grid column, which left a hand-sized hole in the
+             middle of the card and made nothing look like it belonged together. -->
         <Border Grid.Row="1" Style="{StaticResource Card}" Margin="6,0,6,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="2*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="3*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Kalibračný profil" Style="{StaticResource Label}" />
-                    <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-                              DisplayMemberPath="Name" MinHeight="32" />
-                </StackPanel>
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="Komora" Style="{StaticResource Label}" />
-                    <ComboBox ItemsSource="{Binding Chambers}" SelectedItem="{Binding SelectedChamber}"
-                              DisplayMemberPath="DisplayName" MinHeight="32" />
-                </StackPanel>
-                <StackPanel Grid.Column="4">
-                    <TextBlock Text="PeakLogger" Style="{StaticResource Label}" />
-                    <WrapPanel>
-                        <CheckBox Content="Simulátor" IsChecked="{Binding UseSimulator}" VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <ComboBox ItemsSource="{Binding SimulatorScenarios}" SelectedItem="{Binding SimulatorScenario}"
-                                  Width="190" MinHeight="30" Margin="0,0,8,0" />
-                        <TextBox Text="{Binding PeakLoggerHost, UpdateSourceTrigger=PropertyChanged}" Width="140" Margin="0,0,8,0" />
-                        <TextBox Text="{Binding PeakLoggerPort, UpdateSourceTrigger=LostFocus}" Width="70" />
-                    </WrapPanel>
-                    <TextBlock Text="{Binding PeakLoggerStatus}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
-                </StackPanel>
-                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
-                    <Button Content="Pripojiť PeakLogger" Style="{StaticResource AccentButton}" Command="{Binding ConnectPeakLoggerCommand}" Margin="0,0,8,0" />
-                    <Button Content="↻" Style="{StaticResource GhostButton}" Command="{Binding RefreshSensorsCommand}" ToolTip="Znovu načítať PeakLogger zariadenia, kanály a peaky" />
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- ASL F100 reference thermometer control, modelled after the Temlog workflow:
-             refresh USB ports, select COM, select physical probe channel A/B, perform one
-             explicit control reading and optionally show the live temperature graph. -->
-        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="6,0,6,10" Padding="12,10">
             <StackPanel>
+                <TextBlock Text="Zostava kalibrácie" Style="{StaticResource Heading}" Margin="0,0,0,10" />
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="280" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="130" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="18" />
-                        <ColumnDefinition Width="180" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="1.15*" />
                     </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" Content="↻  Obnoviť porty" Style="{StaticResource GhostButton}"
-                            Command="{Binding RefreshF100PortsCommand}" VerticalAlignment="Bottom"
-                            ToolTip="Znovu načíta USB/sériové porty a dostupné ASL F100 zariadenia." />
+                    <!-- ① Čo sa kalibruje -->
+                    <Border Grid.Column="0" Style="{StaticResource PanelGroup}">
+                        <StackPanel>
+                            <TextBlock Text="Profil a komora" Style="{StaticResource Heading}" />
+                            <StackPanel Style="{StaticResource FieldStack}" Margin="0,8,0,9">
+                                <TextBlock Text="Kalibračný profil" Style="{StaticResource Label}" />
+                                <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                                          DisplayMemberPath="Name" MinHeight="32"
+                                          ToolTip="Teplotný profil, ktorý komora prejde. Kalibračné body sú jeho plata." />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Komora" Style="{StaticResource Label}" />
+                                <ComboBox ItemsSource="{Binding Chambers}" SelectedItem="{Binding SelectedChamber}"
+                                          DisplayMemberPath="DisplayName" MinHeight="32"
+                                          ToolTip="Zariadenie, ktoré počas kalibrácie riadi teplotu." />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
 
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Port" Style="{StaticResource Label}" />
-                        <ComboBox ItemsSource="{Binding F100Devices}" SelectedItem="{Binding SelectedF100, Mode=TwoWay}"
-                                  DisplayMemberPath="Display" MinHeight="32"
-                                  ToolTip="USB COM port vybraného ASL F100 teplomera." />
-                    </StackPanel>
+                    <!-- ② Čím sa merajú vlnové dĺžky -->
+                    <Border Grid.Column="2" Style="{StaticResource PanelGroup}">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False">
+                                <TextBlock Text="PeakLogger (interrogátor)" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                                <CheckBox DockPanel.Dock="Right" Content="Simulátor" IsChecked="{Binding UseSimulator}"
+                                          VerticalAlignment="Center" FontSize="12"
+                                          ToolTip="Beh bez pripojeného prístroja – generuje vlnové dĺžky podľa zvoleného scenára." />
+                            </DockPanel>
 
-                    <StackPanel Grid.Column="4">
-                        <TextBlock Text="Kanál sondy" Style="{StaticResource Label}" />
-                        <ComboBox ItemsSource="{Binding F100Channels}" SelectedItem="{Binding SelectedF100Channel, Mode=TwoWay}"
-                                  MinHeight="32" ToolTip="Fyzický vstup sondy na F100: A alebo B." />
-                    </StackPanel>
+                            <StackPanel Style="{StaticResource FieldStack}" Margin="0,8,0,9"
+                                        Visibility="{Binding UseSimulator, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Scenár simulátora" Style="{StaticResource Label}" />
+                                <ComboBox ItemsSource="{Binding SimulatorScenarios}" SelectedItem="{Binding SimulatorScenario}" MinHeight="30" />
+                            </StackPanel>
 
-                    <Button Grid.Column="6" Content="🌡  Kontrola" Style="{StaticResource AccentButton}"
-                            Command="{Binding CheckF100Command}" VerticalAlignment="Bottom"
-                            ToolTip="Pripojí vybraný F100 (ak treba) a vyčíta jednu čerstvú teplotu zo zvoleného kanála." />
+                            <Grid Margin="0,8,0,0"
+                                  Visibility="{Binding UseSimulator, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="86" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Host" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding PeakLoggerHost, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Port" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding PeakLoggerPort, UpdateSourceTrigger=LostFocus}" MinHeight="30" />
+                                </StackPanel>
+                            </Grid>
 
-                    <StackPanel Grid.Column="8" VerticalAlignment="Center">
-                        <TextBlock Text="ASL F100 referencia" Style="{StaticResource Caption}" />
-                        <TextBlock FontSize="22" FontFamily="Segoe UI Semibold">
-                            <Run Text="{Binding SelectedF100.Temperature, Mode=OneWay, TargetNullValue=—, StringFormat={}{0:F3}}" />
-                            <Run Text=" °C" />
-                        </TextBlock>
-                        <TextBlock Text="{Binding F100ConnectionLabel}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                            <DockPanel Margin="0,10,0,0" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="{Binding PeakLoggerStatus}" Style="{StaticResource Caption}"
+                                           VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="150" />
+                                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Margin="6,0,0,0" Padding="8,5"
+                                        Command="{Binding RefreshSensorsCommand}"
+                                        ToolTip="Znovu načítať PeakLogger zariadenia, kanály a peaky">
+                                    <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Refresh}" />
+                                </Button>
+                                <Button DockPanel.Dock="Right" Content="Pripojiť" Style="{StaticResource AccentButton}" Margin="0"
+                                        Command="{Binding ConnectPeakLoggerCommand}"
+                                        ToolTip="Pripojí PeakLogger a načíta jeho kanály a peaky." />
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
 
-                    <Button Grid.Column="10" Content="{Binding F100ChartButtonText}" Style="{StaticResource GhostButton}"
-                            Command="{Binding ToggleF100ChartCommand}" VerticalAlignment="Bottom"
-                            ToolTip="Zobrazí/skryje priebeh teploty nameranej F100 v čase." />
+                    <!-- ③ Proti čomu sa kalibruje -->
+                    <Border Grid.Column="4" Style="{StaticResource PanelGroup}">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False">
+                                <TextBlock Text="Referenčný teplomer ASL F100" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,3" Margin="0"
+                                        Command="{Binding RefreshF100PortsCommand}"
+                                        ToolTip="Znovu načíta USB/sériové porty a dostupné ASL F100 zariadenia.">
+                                    <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Refresh}" />
+                                </Button>
+                            </DockPanel>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="92" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Port" Style="{StaticResource Label}" />
+                                    <ComboBox ItemsSource="{Binding F100Devices}" SelectedItem="{Binding SelectedF100, Mode=TwoWay}"
+                                              DisplayMemberPath="Display" MinHeight="32"
+                                              ToolTip="USB COM port vybraného ASL F100 teplomera." />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Kanál sondy" Style="{StaticResource Label}" />
+                                    <ComboBox ItemsSource="{Binding F100Channels}" SelectedItem="{Binding SelectedF100Channel, Mode=TwoWay}"
+                                              MinHeight="32" ToolTip="Fyzický vstup sondy na F100: A alebo B." />
+                                </StackPanel>
+                                <Button Grid.Column="4" Style="{StaticResource AccentButton}" VerticalAlignment="Bottom" Margin="0"
+                                        Command="{Binding CheckF100Command}"
+                                        ToolTip="Pripojí vybraný F100 (ak treba) a vyčíta jednu čerstvú teplotu zo zvoleného kanála.">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Thermometer}" />
+                                        <TextBlock Text="Kontrola" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <!-- Live reference reading: the number the whole calibration is measured
+                                 against, so it gets Metric weight and its own row. -->
+                            <DockPanel Margin="0,10,0,0" LastChildFill="False">
+                                <StackPanel DockPanel.Dock="Left">
+                                    <TextBlock Text="Referenčná teplota" Style="{StaticResource Caption}" />
+                                    <TextBlock FontSize="26" FontFamily="Segoe UI Light">
+                                        <Run Text="{Binding SelectedF100.Temperature, Mode=OneWay, TargetNullValue=—, StringFormat={}{0:F3}}" />
+                                        <Run Text=" °C" FontSize="14" Foreground="{StaticResource MutedBrush}" />
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding F100ConnectionLabel}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button DockPanel.Dock="Right" Content="{Binding F100ChartButtonText}" Style="{StaticResource GhostButton}"
+                                        VerticalAlignment="Bottom" Margin="0"
+                                        Command="{Binding ToggleF100ChartCommand}"
+                                        ToolTip="Zobrazí/skryje priebeh teploty nameranej F100 v čase." />
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
                 </Grid>
-
-                <Border Margin="0,10,0,0" Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6"
-                        Visibility="{Binding ShowF100Chart, Converter={StaticResource BoolToVisibility}}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="220" />
-                        </Grid.RowDefinitions>
-                        <DockPanel Grid.Row="0" Margin="4,2,4,6">
-                            <TextBlock Text="Priebeh referenčnej teploty ASL F100" Style="{StaticResource Label}" />
-                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}">
-                                <Run Text="Port: " /><Run Text="{Binding SelectedF100.PortName, Mode=OneWay, TargetNullValue=—}" />
-                                <Run Text=" · kanál " /><Run Text="{Binding SelectedF100Channel, Mode=OneWay}" />
-                            </TextBlock>
-                        </DockPanel>
-                        <views:ChartView Grid.Row="1" Series="{Binding SelectedF100.LiveSeries}" Unit=" °C"
-                                         EmptyText="Stlač Kontrola alebo spusti kalibráciu…"
-                                         ChartTitle="ASL F100 — referenčná teplota" />
-                    </Grid>
-                </Border>
             </StackPanel>
+        </Border>
+
+        <!-- Reference-temperature trace, folded away until the operator asks for it. -->
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="6,0,6,10"
+                Visibility="{Binding ShowF100Chart, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="220" />
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                    <TextBlock Text="Priebeh referenčnej teploty ASL F100" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center">
+                        <Run Text="Port: " /><Run Text="{Binding SelectedF100.PortName, Mode=OneWay, TargetNullValue=—}" />
+                        <Run Text=" · kanál " /><Run Text="{Binding SelectedF100Channel, Mode=OneWay}" />
+                    </TextBlock>
+                </DockPanel>
+                <views:ChartView Grid.Row="1" Series="{Binding SelectedF100.LiveSeries}" Unit=" °C"
+                                 EmptyText="Stlač Kontrola alebo spusti kalibráciu…"
+                                 ChartTitle="ASL F100 — referenčná teplota" />
+            </Grid>
         </Border>
 
         <TabControl Grid.Row="3" Margin="6,0,6,8">
@@ -154,11 +246,31 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <TextBlock DockPanel.Dock="Left"
-                                   Text="PeakLogger deviceSN je SN interrogátora. Produkčné FBG SN zadaj alebo naskenuj samostatne; live identita je PeakLogger SN + kanál + PeakId."
-                                   Style="{StaticResource Caption}" VerticalAlignment="Center" />
-                        <Button DockPanel.Dock="Right" Content="Navrhnúť 1 peak / kanál" Style="{StaticResource GhostButton}" Command="{Binding SelectSuggestedPeaksCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Navrhnúť 1 peak / kanál" Style="{StaticResource GhostButton}"
+                                Margin="10,0,0,0" Command="{Binding SelectSuggestedPeaksCommand}"
+                                ToolTip="Za každý kanál označí jeden najsilnejší peak – rýchly štart, keď je na kanáli jeden senzor." />
+                        <TextBlock Text="PeakLogger deviceSN je SN interrogátora. Produkčné FBG SN zadaj alebo naskenuj samostatne; live identita je PeakLogger SN + kanál + PeakId."
+                                   Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap" />
                     </DockPanel>
+
+                    <!-- Empty state: an empty grid with 15 headers and nothing under them says
+                         nothing about what the operator is supposed to do next. -->
+                    <TextBlock Grid.Row="1" FontSize="13"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" MaxWidth="460" Panel.ZIndex="1"
+                               Text="Zatiaľ žiadne peaky. Pripoj PeakLogger (alebo zapni Simulátor) a stlač ↻ – načítajú sa kanály a nájdené peaky, ktoré potom označíš na kalibráciu.">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Peaks.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
                     <DataGrid Grid.Row="1" ItemsSource="{Binding Peaks}" AutoGenerateColumns="False" CanUserAddRows="False"
                               IsReadOnly="False" HeadersVisibility="Column" EnableRowVirtualization="True"
                               VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">

@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.74.0] – 2026-08-28
+
+### Zmenené
+- **Obrazovka FBG teplotnej kalibrácie je upratná do chlievikov.** Namiesto jedného
+  radu voľne rozhádzaných polí sú hore tri orámované skupiny — „Profil a komora“,
+  „PeakLogger (interrogátor)“ a „Referenčný teplomer ASL F100“. Tlačidlo Pripojiť
+  už nesedí vo vlastnom stĺpci mriežky (čo nechávalo dieru cez pol karty), ale
+  patrí k svojej skupine.
+- **Ovládanie behu je jeden blok**: Spustiť / Pauza / Stop v spoločnom rámiku
+  s vektorovými ikonami, oddelené od „Uložiť zapojenie“ — stop nikdy nesusedí
+  s uložením.
+- **Host a port PeakLoggera sa zobrazia len pri reálnom prístroji**, scenár len pri
+  simulátore; referenčná teplota má veľkosť živej hodnoty, keďže je to číslo, proti
+  ktorému sa celá kalibrácia meria. Graf F100 je vlastná karta, ktorá sa zobrazí až
+  po vyžiadaní.
+- **Prázdna tabuľka peakov má vysvetlenie**, čo má operátor spraviť (pripojiť
+  PeakLogger alebo zapnúť simulátor a načítať kanály).
+- **Karta zariadenia: stav je v rámčeku.** Pripojenie, „Beží · setpoint“ a SIKA
+  Remote Control boli voľné riadky pod odznakmi a pôsobili ako zvyšky; teraz sú
+  v rovnakom boxe ako živé hodnoty pod nimi.
+
 ## [1.73.0] – 2026-08-28
 
 ### Zmenené

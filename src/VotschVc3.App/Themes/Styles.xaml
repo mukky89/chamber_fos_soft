@@ -137,6 +137,22 @@
         </Style.Triggers>
     </Style>
 
+    <!-- Group box inside a card ("chlievik"): one labelled block of related fields.
+         A card full of loose label/field pairs reads as one grey soup – boxing each group
+         is what makes a dense settings screen scannable. -->
+    <Style x:Key="PanelGroup" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="12,10" />
+    </Style>
+
+    <!-- One label + input pair inside a PanelGroup. -->
+    <Style x:Key="FieldStack" TargetType="StackPanel">
+        <Setter Property="Margin" Value="0,0,0,9" />
+    </Style>
+
     <!-- ===== Buttons ===== -->
     <Color x:Key="AccentPressedColor">#FF477AD9</Color>
     <Color x:Key="DangerHoverColor">#FFEC6A70</Color>
