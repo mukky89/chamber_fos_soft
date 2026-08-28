@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.70.1] – 2026-08-28
+
+### Opravené
+- **Zoznamy sú v tmavom režime.** Aplikácia mala vlastný štýl pre položku zoznamu,
+  ale nie pre samotný zoznam, takže sa použila systémová šablóna – biely panel
+  s čiernym rámikom, na ktorom svetlý text tmavej témy takmer zanikol. Najviac to
+  bolo vidieť na „Posledné záznamy“ v prehliadači záznamov a na zozname interných
+  logov SIKA. Zoznam má teraz rovnaké prevedenie ako textové pole (tmavé pozadie,
+  jemný rámik, zaoblené rohy).
+
 ## [1.70.0] – 2026-08-28
 
 ### Pridané

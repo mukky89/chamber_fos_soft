@@ -983,11 +983,50 @@
         </Style.Triggers>
     </Style>
 
+    <!-- ===== ListBox (dark well) ===== -->
+    <!-- Without this the control falls back to the system template: a white panel with a
+         black border, and the light item text of the dark theme all but disappears on it.
+         Same well as a TextBox – raised surface, hairline border, rounded corners – so a
+         list reads as one field inside a card. -->
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <!-- The system style brings these; a template written from scratch has to repeat them
+             or long lists (the raw terminal) lose virtualisation and item-wise scrolling. -->
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingStackPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" SnapsToDevicePixels="True">
+                        <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}">
+                            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </ScrollViewer>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ===== Empty-state list ===== -->
     <!-- ListBox that shows a muted hint (from Tag) when it has no items, so the
          operator never stares at a blank area. Usage:
          <ListBox Style="{StaticResource ListWithEmptyHint}" Tag="Zatiaľ žiadne profily…" /> -->
-    <Style x:Key="ListWithEmptyHint" TargetType="ListBox">
+    <Style x:Key="ListWithEmptyHint" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Style.Triggers>
