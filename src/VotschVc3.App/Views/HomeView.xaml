@@ -235,9 +235,9 @@
                         <!-- Compact mode shrinks the whole card (graphic + text + spacing) via a
                              layout-scale, so more devices fit; toggled by the admin, reverts to the
                              original roomy layout when off. -->
-                        <Border Width="470" Margin="7">
-                            <Border.Style>
-                                <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                        <Grid Width="470" Margin="7">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding DataContext.EffectiveCompactMode, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                                             <Setter Property="LayoutTransform">
@@ -248,7 +248,12 @@
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </Border.Style>
+                            </Grid.Style>
+
+                            <!-- Hover glow, drawn behind the card (see DeviceCardGlow). -->
+                            <Border Style="{StaticResource DeviceCardGlow}" />
+
+                            <Border Style="{StaticResource DeviceCard}" Margin="0">
                             <StackPanel>
 
                                 <!-- ===== Top bar: reorder (admin) + primary "open device" action ===== -->
@@ -819,7 +824,8 @@
                                 <!-- Pripojenie (IP/port), referenčný teplomer, odobratie a premenovanie
                                      zariadenia sú v obrazovke „Nastaviť / ovládať →" (hore na karte). -->
                             </StackPanel>
-                        </Border>
+                            </Border>
+                        </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

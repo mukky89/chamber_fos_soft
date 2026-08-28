@@ -27,7 +27,11 @@
         </Style>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource Card}" Width="360" Margin="5" Padding="13" VerticalAlignment="Top">
+    <Grid Margin="5" VerticalAlignment="Top">
+        <!-- Hover glow, drawn behind the card (see DeviceCardGlow). -->
+        <Border Style="{StaticResource DeviceCardGlow}" />
+
+        <Border Style="{StaticResource DeviceCard}" Width="360" Margin="0" Padding="13">
         <StackPanel>
 
             <!-- ===== Header: connection + name + Detail ===== -->
@@ -287,5 +291,6 @@
                 </Border>
             </StackPanel>
         </StackPanel>
-    </Border>
+        </Border>
+    </Grid>
 </UserControl>

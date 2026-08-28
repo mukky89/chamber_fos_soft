@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.69.1] – 2026-08-28
+
+### Pridané
+- **Karta zariadenia sa pri prejdení myšou rozsvieti** – rámik sa prefarbí na akcentnú
+  modrú a okolo karty sa plynulo objaví jemná žiara. Pri troch komorách vedľa seba je
+  hneď jasné, na ktorej je kurzor. Platí pre klasickú aj Professional kartu.
+  Žiara je nakreslená vo vrstve *za* kartou, takže sa nijako nedotkne ostrosti
+  nameraných hodnôt a popiskov na karte.
+
 ## [1.69.0] – 2026-08-28
 
 ### Pridané

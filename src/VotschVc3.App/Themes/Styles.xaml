@@ -89,6 +89,54 @@
         <Setter Property="Margin" Value="6" />
     </Style>
 
+    <!-- Device card: same card, but its frame lights up in the accent colour while the
+         pointer is anywhere over it – with three chambers side by side it has to be obvious
+         which one the mouse is on. -->
+    <Style x:Key="DeviceCard" TargetType="Border" BasedOn="{StaticResource Card}">
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Glow layer of a device card: an empty border of the same shape drawn *behind* the
+         card, only its outer shadow is visible. The glow deliberately does not sit on the
+         card itself – an Effect pushes the whole subtree through an intermediate bitmap,
+         which would soften every measured value and label on the card while hovering.
+         Put it in the same Grid cell as the card, before it, and give both the same margin. -->
+    <Style x:Key="DeviceCardGlow" TargetType="Border">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="{StaticResource AccentColor}" BlurRadius="16" ShadowDepth="0" Opacity="0.75" />
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.22" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- ===== Buttons ===== -->
     <Color x:Key="AccentPressedColor">#FF477AD9</Color>
     <Color x:Key="DangerHoverColor">#FFEC6A70</Color>
