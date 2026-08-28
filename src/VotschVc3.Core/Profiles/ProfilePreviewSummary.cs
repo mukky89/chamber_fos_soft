@@ -15,15 +15,39 @@ public sealed class ProfilePreviewSummary
 {
     public double? MinTemperature { get; init; }
     public double? MaxTemperature { get; init; }
+    /// <summary>Sum of the segment durations (what the runner counts down).</summary>
     public TimeSpan TotalDuration { get; init; }
+
+    /// <summary>
+    /// Estimated time the device spends driving to the set points, on a profile whose steps
+    /// have no ramp of their own (SIKA). Zero when no settling model was supplied or the
+    /// profile ramps in its own segments.
+    /// </summary>
+    public TimeSpan SettlingDuration { get; init; }
+
+    /// <summary>What the run really takes: dwell time plus the approach time.</summary>
+    public TimeSpan TotalWithSettling => TotalDuration + SettlingDuration;
+
+    /// <summary><c>true</c> when the approach time is worth showing next to the total.</summary>
+    public bool HasSettling => SettlingDuration > TimeSpan.Zero;
     public int Cycles { get; init; }
     public int PlateauCount { get; init; }
     public int TemperatureLevelCount { get; init; }
     public IReadOnlyList<ProfilePlateauSummary> Plateaus { get; init; } = Array.Empty<ProfilePlateauSummary>();
 
-    public static ProfilePreviewSummary Analyze(TestProfile profile)
+    /// <param name="profile">The profile to describe.</param>
+    /// <param name="settling">
+    /// Model for how long a self-settling device needs to reach each set point. Applied only
+    /// to SIKA profiles – a Vötsch profile carries its ramps as segments, so their time is
+    /// already in <see cref="TotalDuration"/>. Pass <c>null</c> to leave it out.
+    /// </param>
+    public static ProfilePreviewSummary Analyze(TestProfile profile, SettlingRates? settling = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
+
+        TimeSpan settlingDuration = profile.DeviceKind == ProfileDeviceKind.Sika && settling is not null
+            ? settling.ForProfile(profile)
+            : TimeSpan.Zero;
 
         if (profile.Segments.Count == 0)
         {
@@ -60,6 +84,7 @@ public sealed class ProfilePreviewSummary
             MinTemperature = profile.Segments.Min(s => s.TargetTemperature),
             MaxTemperature = profile.Segments.Max(s => s.TargetTemperature),
             TotalDuration = profile.TotalDuration,
+            SettlingDuration = settlingDuration,
             Cycles = cycles,
             PlateauCount = plateauCount,
             TemperatureLevelCount = plateauTemperatures.Count,

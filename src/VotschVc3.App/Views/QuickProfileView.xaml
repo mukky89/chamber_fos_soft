@@ -562,9 +562,23 @@
                             <TextBlock Text="Celkový čas (základ)" Style="{StaticResource Caption}" />
                             <TextBlock Text="{Binding BaseTotalText}" FontSize="16" FontFamily="Segoe UI Semibold" />
                         </StackPanel>
-                        <StackPanel>
+                        <StackPanel Margin="0,0,28,0">
                             <TextBlock Text="Celkový čas (optimalizovaný)" Style="{StaticResource Caption}" />
                             <TextBlock Text="{Binding OptimizedTotalText}" FontSize="20" FontFamily="Segoe UI Semibold" />
+                        </StackPanel>
+
+                        <!-- SIKA nemá rampy: kúpeľ si na setpoint nabehne sám a výdrž sa
+                             začne počítať až potom, takže tento čas ide navrch. -->
+                        <StackPanel Margin="0,0,28,0" Visibility="{Binding ShowSettling, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Ustálenie (odhad)" Style="{StaticResource Caption}" />
+                            <TextBlock Text="{Binding SettlingText}" FontSize="16" FontFamily="Segoe UI Semibold"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       ToolTip="Odhadovaný čas, ktorý kúpeľ strávi nábehom na jednotlivé setpointy. Rýchlosti ohrevu/chladenia sa nastavujú v Administrácia → SIKA – odhad času ustálenia." />
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding ShowSettling, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Reálny čas behu (odhad)" Style="{StaticResource Caption}" />
+                            <TextBlock Text="{Binding RunTotalText}" FontSize="20" FontFamily="Segoe UI Semibold"
+                                       ToolTip="Súčet výdrží plus odhadovaný čas nábehu na setpointy – takto dlho beh reálne trvá." />
                         </StackPanel>
                     </WrapPanel>
                 </Grid>

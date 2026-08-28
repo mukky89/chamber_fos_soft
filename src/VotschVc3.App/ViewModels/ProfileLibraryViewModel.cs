@@ -295,7 +295,16 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             $"{profile.Segments.Count} {SegmentWord(profile.Segments.Count)}";
 
         CycleRegionText = DescribeCycles(profile);
-        ProfileDurationText = FormatDuration(TotalDuration(profile));
+
+        // A SIKA profile has no ramps: the bath drives itself to each set point and the dwell
+        // starts only once it is there, so the run is longer than the dwell sum by that much.
+        TimeSpan dwell = TotalDuration(profile);
+        TimeSpan settling = profile.DeviceKind == ProfileDeviceKind.Sika
+            ? ChamberViewModel.SikaSettling.ForProfile(profile)
+            : TimeSpan.Zero;
+        ProfileDurationText = settling > TimeSpan.Zero
+            ? $"{FormatDuration(dwell + settling)} (výdrž {FormatDuration(dwell)} + ustálenie ~{FormatDuration(settling)})"
+            : FormatDuration(dwell);
         BuildHumPreview();
         HasSelection = true;
     }

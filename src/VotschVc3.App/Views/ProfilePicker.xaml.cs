@@ -311,7 +311,7 @@ public partial class ProfilePicker : UserControl
             return;
         }
 
-        ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile);
+        ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile, ViewModels.ChamberViewModel.SikaSettling);
         PreviewName.Text = profile.Name;
         PreviewCaption.Text = profile.PickerCaption;
         PreviewKindText.Text = profile.DeviceKindLabel;
@@ -329,7 +329,15 @@ public partial class ProfilePicker : UserControl
         };
         MinTemperatureText.Text = summary.MinTemperature is { } min ? $"{min:0.#} °C" : "—";
         MaxTemperatureText.Text = summary.MaxTemperature is { } max ? $"{max:0.#} °C" : "—";
-        TotalDurationText.Text = FormatDuration(summary.TotalDuration);
+        // On a SIKA profile the dwell sum is not the run time – the bath drives itself to each
+        // set point first and the dwell only starts once it is there. The tile stays one short
+        // number (it sits in a row of them); the split is in the tooltip.
+        TotalDurationText.Text = FormatDuration(summary.TotalWithSettling);
+        TotalDurationText.ToolTip = summary.HasSettling
+            ? $"Výdrž {FormatDuration(summary.TotalDuration)} + odhad ustálenia {FormatDuration(summary.SettlingDuration)}. "
+              + "SIKA kúpeľ si na každý setpoint nabehne sám a výdrž sa začne počítať až potom. "
+              + "Rýchlosti sa nastavujú v Administrácia → SIKA – odhad času ustálenia."
+            : "Súčet trvania všetkých segmentov vrátane cyklov.";
         CyclesText.Text = summary.Cycles.ToString();
         PlateauCountText.Text = summary.PlateauCount.ToString();
         TemperatureLevelsText.Text = summary.TemperatureLevelCount.ToString();

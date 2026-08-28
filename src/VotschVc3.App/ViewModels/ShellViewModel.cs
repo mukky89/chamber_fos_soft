@@ -63,6 +63,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _ui = _uiStore.Load();
         ChamberViewModel.ProfileLogIntervalSeconds = _ui.ProfileLogIntervalSeconds;
         ChamberViewModel.SikaSoakToleranceC = _ui.SikaSoakToleranceC;
+        ChamberViewModel.SikaSettling = BuildSikaSettling(_ui);
         _notifier.Settings = _emailStore.Load();
 
         Audit = new AuditViewModel(_audit);
@@ -811,6 +812,71 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             ChamberViewModel.SikaSoakToleranceC = tolerance;
             SaveUiSettings();
             OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Builds the settling model the SIKA baths are planned with from the settings.</summary>
+    private static SettlingRates BuildSikaSettling(UiSettings ui) => new(
+        HeatingCPerMin: ui.SikaHeatingCPerMin,
+        CoolingCPerMin: ui.SikaCoolingCPerMin,
+        CoolingBelowZeroCPerMin: ui.SikaCoolingBelowZeroCPerMin,
+        StabilizeMinutes: ui.SikaStabilizeMinutes);
+
+    /// <summary>
+    /// Persisted setting: estimated heating rate (°C/min) of the SIKA baths. A SIKA profile
+    /// has no ramps – the bath drives itself to each set point and the dwell starts only once
+    /// it is there – so every planned duration adds the approach time computed from this.
+    /// </summary>
+    public double SikaHeatingCPerMin
+    {
+        get => _ui.SikaHeatingCPerMin;
+        set => SetSettlingRate(value, r => Math.Abs(_ui.SikaHeatingCPerMin - r) < 0.0001, r => _ui.SikaHeatingCPerMin = r);
+    }
+
+    /// <summary>Persisted setting: estimated cooling rate (°C/min) of the SIKA baths above 0 °C.</summary>
+    public double SikaCoolingCPerMin
+    {
+        get => _ui.SikaCoolingCPerMin;
+        set => SetSettlingRate(value, r => Math.Abs(_ui.SikaCoolingCPerMin - r) < 0.0001, r => _ui.SikaCoolingCPerMin = r);
+    }
+
+    /// <summary>Persisted setting: estimated cooling rate (°C/min) of the SIKA baths below 0 °C.</summary>
+    public double SikaCoolingBelowZeroCPerMin
+    {
+        get => _ui.SikaCoolingBelowZeroCPerMin;
+        set => SetSettlingRate(value, r => Math.Abs(_ui.SikaCoolingBelowZeroCPerMin - r) < 0.0001, r => _ui.SikaCoolingBelowZeroCPerMin = r);
+    }
+
+    /// <summary>Persisted setting: fixed allowance (minutes) for settling inside the soak
+    /// tolerance, added to every set point change of a SIKA profile.</summary>
+    public double SikaStabilizeMinutes
+    {
+        get => _ui.SikaStabilizeMinutes;
+        set => SetSettlingRate(value, r => Math.Abs(_ui.SikaStabilizeMinutes - r) < 0.0001, r => _ui.SikaStabilizeMinutes = r, min: 0, max: 120);
+    }
+
+    /// <summary>Stores one settling parameter, rebuilds the model and refreshes every estimate.</summary>
+    private void SetSettlingRate(
+        double value,
+        Func<double, bool> unchanged,
+        Action<double> store,
+        double min = 0.1,
+        double max = 60,
+        [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        double rate = Math.Clamp(Math.Round(value, 2), min, max);
+        if (unchanged(rate))
+        {
+            return;
+        }
+
+        store(rate);
+        ChamberViewModel.SikaSettling = BuildSikaSettling(_ui);
+        SaveUiSettings();
+        OnPropertyChanged(propertyName);
+        foreach (ChamberViewModel chamber in Chambers)
+        {
+            chamber.RefreshPlannedDuration();
         }
     }
 

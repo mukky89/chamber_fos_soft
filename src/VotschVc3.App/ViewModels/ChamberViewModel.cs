@@ -1472,7 +1472,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Planned duration of the editor profile incl. cycles — anchors the
     /// timeline bar while a delayed start is still waiting for its scheduled time.</summary>
-    public TimeSpan PlannedProfileDuration => BuildProfile().TotalDuration;
+    public TimeSpan PlannedProfileDuration => PlannedDurationOf(BuildProfile());
 
     private void RaiseGanttTimes()
     {
@@ -1498,6 +1498,33 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// from <c>UiSettings</c> at startup and whenever the admin changes it.
     /// </summary>
     public static double SikaSoakToleranceC { get; set; } = 0.3;
+
+    /// <summary>
+    /// How long a SIKA bath needs to reach a new set point and settle on it. A SIKA profile
+    /// carries no ramp segments – the runner writes the set point, waits for the bath to get
+    /// there within <see cref="SikaSoakToleranceC"/> and only then starts the dwell – so the
+    /// dwell sum is not the run time. Every planned duration of a SIKA profile adds this
+    /// estimate. Set from <c>UiSettings</c> at startup and whenever the admin changes it.
+    /// </summary>
+    public static SettlingRates SikaSettling { get; set; } = SettlingRates.SikaDefault;
+
+    /// <summary>The settling model that applies to a profile on this device: the SIKA model
+    /// for a bath that drives itself to the set point, nothing for a chamber whose profiles
+    /// carry their own ramps (the ramp time is already in the segments).</summary>
+    public SettlingRates SettlingModel =>
+        Protocol == ChamberProtocol.SikaRestApi ? SikaSettling : SettlingRates.None;
+
+    /// <summary>Planned duration of <paramref name="profile"/> on this device: the dwell time
+    /// plus, on a SIKA bath, the time it spends driving to each set point.</summary>
+    public TimeSpan PlannedDurationOf(TestProfile profile) =>
+        profile is null
+            ? TimeSpan.Zero
+            : profile.TotalDuration + SettlingModel.ForProfile(profile, SettlingStartTemperature);
+
+    /// <summary>Temperature a run is assumed to start from – the measured one when the device
+    /// is connected, room temperature otherwise.</summary>
+    private double SettlingStartTemperature =>
+        MeasuredTemperature is { } t and > -200 and < 400 ? t : SettlingRates.RoomTemperatureC;
 
     /// <summary>Opens a fresh per-profile temperature log for the run that is starting.</summary>
     private void OpenProfileTemperatureLog(string profileName)
@@ -1842,7 +1869,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Total duration of all chained profiles (incl. cycles).</summary>
     public string ChainDurationText =>
-        "Spolu " + FormatDuration(TimeSpan.FromTicks(ProfileChain.Sum(p => p.TotalDuration.Ticks)));
+        "Spolu " + FormatDuration(TimeSpan.FromTicks(ProfileChain.Sum(p => PlannedDurationOf(p).Ticks)));
 
     public RelayCommand AddToChainCommand { get; }
     public RelayCommand<TestProfile> RemoveFromChainCommand { get; }
@@ -2316,7 +2343,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             }
 
             _profileActualStart = DateTime.Now;
-            _profileEstimatedEnd = DateTime.Now + TimeSpan.FromTicks(profiles.Sum(p => p.TotalDuration.Ticks));
+            _profileEstimatedEnd = DateTime.Now + TimeSpan.FromTicks(profiles.Sum(p => PlannedDurationOf(p).Ticks));
             RaiseGanttTimes();
             StartCountdown();
             RecalculateTiming();
@@ -2437,6 +2464,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             defaultSoakTolerance: SikaSoakToleranceC,
             soakAllSegments: IsSika);
         _activeRunner = runner;
+
+        // The real settling time of every step, so the estimate the plan is built on can be
+        // checked against the device instead of being taken on faith.
+        runner.SoakCompleted += (_, e) => RunOnUi(() =>
+        {
+            string span = e.SpanC is { } d ? $" ({d:+0.#;-0.#} °C" : string.Empty;
+            string rate = e.RateCPerMin is { } r ? $", {r:0.##} °C/min)" : (span.Length > 0 ? ")" : string.Empty);
+            AppLog.Info(Name,
+                $"Ustálenie na {e.Segment.TargetTemperature:0.#} °C trvalo {FormatClock(e.Elapsed)}{span}{rate} " +
+                $"· krok {e.SegmentIndex + 1}, cyklus {e.Cycle}. Odhad plánovania nastavíš v Administrácia → SIKA – odhad času ustálenia.");
+        });
 
         runner.Progress += (_, e) => RunOnUi(() =>
         {
@@ -2782,11 +2820,26 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>Recomputes the planned duration and schedule text – called when the admin
+    /// changes the SIKA settling estimate, which every SIKA plan is built on.</summary>
+    public void RefreshPlannedDuration()
+    {
+        RecalculateTiming();
+        OnPropertyChanged(nameof(PlannedProfileDuration));
+        OnPropertyChanged(nameof(ChainDurationText));
+    }
+
     private void RecalculateTiming()
     {
-        // Region-aware total (intro once + cycled body × cycles + outro once).
-        TimeSpan total = BuildProfile().TotalDuration;
-        ProfileDurationText = FormatDuration(total);
+        // Region-aware total (intro once + cycled body × cycles + outro once), plus the
+        // time a self-settling bath spends driving to each set point.
+        TestProfile planned = BuildProfile();
+        TimeSpan dwell = planned.TotalDuration;
+        TimeSpan settling = SettlingModel.ForProfile(planned, SettlingStartTemperature);
+        TimeSpan total = dwell + settling;
+        ProfileDurationText = settling > TimeSpan.Zero
+            ? $"{FormatDuration(total)}  (výdrž {FormatDuration(dwell)} + ustálenie ~{FormatDuration(settling)})"
+            : FormatDuration(total);
 
         if (IsProfileRunning && _profileActualStart is { } start)
         {
@@ -2809,6 +2862,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         BuildProfilePreview();
         ValidateProfile();
     }
+
+    /// <summary>h:mm:ss for short spans (measured settling times), where "&lt; 1 min" is useless.</summary>
+    private static string FormatClock(TimeSpan t) => t.TotalHours >= 1
+        ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}"
+        : $"{t.Minutes}:{t.Seconds:00}";
 
     private static string FormatDuration(TimeSpan t)
     {

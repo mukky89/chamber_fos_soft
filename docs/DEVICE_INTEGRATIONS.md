@@ -63,6 +63,41 @@ Kontrola je implementovaná v `SikaTpClient`: každý setpoint, START, STOP a
 mutačný príkaz zo surového terminálu číta flag tesne pred zápisom. Stav sa
 zároveň obnovuje počas pollingu a ovládacie príkazy vo WPF sa deaktivujú.
 
+## Čas ustálenia SIKA (plánovanie dĺžky profilu)
+
+SIKA profil nemá rampy: runner zapíše setpoint, čaká (`soakAllSegments`), kým sa
+meraná teplota dostane do tolerancie `SikaSoakToleranceC`, a až potom začne
+odpočítavať výdrž segmentu. **Súčet výdrží preto nie je čas behu** – chýba v ňom
+nábeh na každý setpoint.
+
+Odhad tohto času robí `SettlingRates` (Core/Profiles):
+
+- rýchlosť ohrevu (°C/min),
+- rýchlosť chladenia nad 0 °C (°C/min),
+- rýchlosť chladenia pod 0 °C (°C/min) – kompresor pracuje proti rastúcemu
+  rozdielu voči okoliu, preto sa počíta zvlášť,
+- pevná rezerva (min) na dorovnanie posledných desatín stupňa.
+
+`ForProfile` prejde profil v poradí behu (nábeh raz + cyklované telo × počet
+cyklov + koniec raz) a sleduje, na akej teplote zariadenie práve je; každé
+opakovanie po prvom začína tam, kde skončilo predchádzajúce, takže sa účtuje aj
+krok späť na začiatok tela.
+
+Odhad sa pripočítava v rýchlom profile, v zozname profilov, vo výbere profilu na
+karte, v plánovanom trvaní behu aj na časovej osi.
+
+⚠️ Predvolené hodnoty (8 / 5 / 2,5 °C/min, 5 min) sú **štartovací odhad, nie údaj
+z katalógového listu ani z merania konkrétnych kúpeľov**. Závisia od náplne bloku,
+vložky a teploty v miestnosti. Nastavujú sa v **Administrácia → SIKA – odhad času
+ustálenia**.
+
+Skutočnú hodnotu poskytuje samotný beh: `ProfileRunner` po každom dosiahnutí
+setpointu vyvolá `SoakCompleted` s nameraným časom, prekonaným rozsahom a
+priemernou rýchlosťou (°C/min). `ChamberViewModel` to zapíše do aplikačného logu
+(„Ustálenie na … °C trvalo …“), takže sa nastavenie dá opraviť podľa reality.
+Ďalším zdrojom sú interné logy SIKA (`getTaskLogs`), kde je celý priebeh
+setpointu aj meranej teploty.
+
 ## Interné logy SIKA
 
 `GET /ajax/getTaskLog` vracia `values[]` s `ID`, názvom, typom, stavom, verziou,

@@ -86,4 +86,48 @@ public class ProfilePreviewSummaryTests
         Assert.Equal(0, summary.TemperatureLevelCount);
         Assert.Empty(summary.Plateaus);
     }
+
+    /// <summary>A SIKA profile is dwell times only – the approach to each set point has to be
+    /// added or the preview promises a run far shorter than it is.</summary>
+    [Fact]
+    public void A_sika_profile_carries_the_approach_time_next_to_the_dwell_sum()
+    {
+        var rates = new SettlingRates(10, 5, 2, 4);
+        var profile = new TestProfile
+        {
+            DeviceKind = ProfileDeviceKind.Sika,
+            Segments =
+            {
+                new ProfileSegment { TargetTemperature = 20, Duration = TimeSpan.FromMinutes(30) },
+                new ProfileSegment { TargetTemperature = 70, Duration = TimeSpan.FromMinutes(30) },
+            },
+        };
+
+        ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile, rates);
+
+        Assert.True(summary.HasSettling);
+        Assert.Equal(TimeSpan.FromMinutes(60), summary.TotalDuration);
+        Assert.Equal(summary.TotalDuration + summary.SettlingDuration, summary.TotalWithSettling);
+        Assert.True(summary.SettlingDuration > TimeSpan.Zero);
+    }
+
+    /// <summary>A Vötsch profile ramps in its own segments, so nothing may be added on top.</summary>
+    [Fact]
+    public void A_votsch_profile_gets_no_approach_time_added()
+    {
+        var profile = new TestProfile
+        {
+            DeviceKind = ProfileDeviceKind.Votsch,
+            Segments =
+            {
+                new ProfileSegment { TargetTemperature = 70, Duration = TimeSpan.FromMinutes(20), IsRamp = true },
+                new ProfileSegment { TargetTemperature = 70, Duration = TimeSpan.FromMinutes(30) },
+            },
+        };
+
+        ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile, new SettlingRates(10, 5, 2, 4));
+
+        Assert.False(summary.HasSettling);
+        Assert.Equal(summary.TotalDuration, summary.TotalWithSettling);
+    }
 }

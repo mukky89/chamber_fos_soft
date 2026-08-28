@@ -66,6 +66,13 @@ public sealed class ProfileRunner
     /// <summary>Raised whenever the runner writes a new set point.</summary>
     public event EventHandler<ProfileProgressEventArgs>? Progress;
 
+    /// <summary>
+    /// Raised once a guaranteed soak has finished, with how long the device actually needed
+    /// to reach the set point. This is the real settling time the planned duration only
+    /// estimates, so it is what the estimate can be corrected against.
+    /// </summary>
+    public event EventHandler<ProfileSoakCompletedEventArgs>? SoakCompleted;
+
     /// <summary><c>true</c> while the run is paused (test time is frozen).</summary>
     public bool IsPaused { get; private set; }
 
@@ -326,6 +333,11 @@ public sealed class ProfileRunner
         double? humidity = segment.TargetHumidity ?? startHum;
         double overall = Math.Clamp(completedSeconds / totalSeconds, 0d, 1d);
 
+        // How long the device really needs to get onto the set point – the value every
+        // planned duration of a self-settling device is only an estimate of.
+        var soakClock = System.Diagnostics.Stopwatch.StartNew();
+        double? soakStartTemperature = null;
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -362,8 +374,13 @@ public sealed class ProfileRunner
                 segmentStartTemperature: segment.TargetTemperature,
                 segmentStartHumidity: startHum));
 
+            soakStartTemperature ??= measured;
+
             if (measured is { } m && Math.Abs(m - segment.TargetTemperature) <= tolerance)
             {
+                soakClock.Stop();
+                SoakCompleted?.Invoke(this, new ProfileSoakCompletedEventArgs(
+                    cycle, index, segment, soakStartTemperature, m, soakClock.Elapsed));
                 return false;
             }
 
@@ -454,6 +471,52 @@ public enum ProfileRunPhase
 }
 
 /// <summary>Progress payload raised by <see cref="ProfileRunner"/> on every set point.</summary>
+/// <summary>
+/// A guaranteed soak finished: the device reached the set point and the dwell is about to
+/// start. Carries the time it really took, so the planned-duration estimate for
+/// self-settling devices (SIKA baths) can be checked against reality.
+/// </summary>
+public sealed class ProfileSoakCompletedEventArgs : EventArgs
+{
+    public ProfileSoakCompletedEventArgs(
+        int cycle, int segmentIndex, ProfileSegment segment,
+        double? startTemperature, double reachedTemperature, TimeSpan elapsed)
+    {
+        Cycle = cycle;
+        SegmentIndex = segmentIndex;
+        Segment = segment;
+        StartTemperature = startTemperature;
+        ReachedTemperature = reachedTemperature;
+        Elapsed = elapsed;
+    }
+
+    /// <summary>One-based cycle the segment belongs to.</summary>
+    public int Cycle { get; }
+
+    /// <summary>Zero-based index of the segment inside the profile.</summary>
+    public int SegmentIndex { get; }
+
+    /// <summary>The segment whose set point was reached.</summary>
+    public ProfileSegment Segment { get; }
+
+    /// <summary>Temperature measured when the wait started (null when the first read failed).</summary>
+    public double? StartTemperature { get; }
+
+    /// <summary>Temperature measured when the tolerance band was reached.</summary>
+    public double ReachedTemperature { get; }
+
+    /// <summary>How long the device needed to get there.</summary>
+    public TimeSpan Elapsed { get; }
+
+    /// <summary>Temperature span actually covered, when the starting value is known.</summary>
+    public double? SpanC => StartTemperature is { } from ? ReachedTemperature - from : null;
+
+    /// <summary>Average rate (°C/min) the device managed over this step, when measurable.</summary>
+    public double? RateCPerMin => SpanC is { } span && Math.Abs(span) > 0.2 && Elapsed > TimeSpan.Zero
+        ? Math.Abs(span) / Elapsed.TotalMinutes
+        : null;
+}
+
 public sealed class ProfileProgressEventArgs : EventArgs
 {
     public ProfileProgressEventArgs(

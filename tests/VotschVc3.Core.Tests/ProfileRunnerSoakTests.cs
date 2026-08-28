@@ -65,6 +65,72 @@ public class ProfileRunnerSoakTests
         Assert.Equal(60, device.WrittenTemperatures[^1]);
     }
 
+    /// <summary>
+    /// The wait for the set point is the part a SIKA plan can only estimate, so the runner
+    /// reports how long it really took – that is what the estimate gets corrected against.
+    /// </summary>
+    [Fact]
+    public async Task SoakCompleted_reports_how_long_the_device_needed_to_reach_the_set_point()
+    {
+        var device = new FakeChamberDevice(startTemperature: 20, reachAfterReads: 3);
+        var profile = new TestProfile
+        {
+            Segments =
+            {
+                new ProfileSegment { TargetTemperature = 60, IsRamp = false, Duration = TimeSpan.FromMilliseconds(30) },
+            },
+        };
+
+        var runner = new ProfileRunner(
+            device,
+            updateInterval: TimeSpan.FromMilliseconds(5),
+            defaultSoakTolerance: 0.3,
+            soakAllSegments: true);
+
+        var soaks = new List<ProfileSoakCompletedEventArgs>();
+        runner.SoakCompleted += (_, e) => soaks.Add(e);
+
+        await runner.RunAsync(profile, startTemperature: 20, startHumidity: null);
+
+        ProfileSoakCompletedEventArgs soak = Assert.Single(soaks);
+        Assert.Equal(0, soak.SegmentIndex);
+        Assert.Equal(60, soak.ReachedTemperature);
+        Assert.Equal(20, soak.StartTemperature);
+        Assert.Equal(40, soak.SpanC);
+        Assert.True(soak.Elapsed > TimeSpan.Zero, "the wait took measurable time");
+        Assert.NotNull(soak.RateCPerMin);
+    }
+
+    /// <summary>A device already sitting on the set point has nothing to settle, so no
+    /// measurable rate is reported – the estimate must not be polluted with it.</summary>
+    [Fact]
+    public async Task A_device_already_on_temperature_reports_no_rate()
+    {
+        var device = new FakeChamberDevice(startTemperature: 60, reachAfterReads: 1);
+        var profile = new TestProfile
+        {
+            Segments =
+            {
+                new ProfileSegment { TargetTemperature = 60, IsRamp = false, Duration = TimeSpan.FromMilliseconds(20) },
+            },
+        };
+
+        var runner = new ProfileRunner(
+            device,
+            updateInterval: TimeSpan.FromMilliseconds(5),
+            defaultSoakTolerance: 0.3,
+            soakAllSegments: true);
+
+        var soaks = new List<ProfileSoakCompletedEventArgs>();
+        runner.SoakCompleted += (_, e) => soaks.Add(e);
+
+        await runner.RunAsync(profile, startTemperature: 60, startHumidity: null);
+
+        ProfileSoakCompletedEventArgs soak = Assert.Single(soaks);
+        Assert.Equal(0, soak.SpanC);
+        Assert.Null(soak.RateCPerMin);
+    }
+
     private sealed class FakeChamberDevice : IChamberDevice
     {
         private readonly double _startTemperature;

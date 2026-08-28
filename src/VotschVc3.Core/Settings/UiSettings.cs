@@ -59,6 +59,26 @@ public sealed class UiSettings
     public double SikaSoakToleranceC { get; set; } = 0.3;
 
     /// <summary>
+    /// Estimated heating rate (°C/min) of the SIKA baths, used to add the approach time to
+    /// a SIKA profile's planned duration. A SIKA profile has no ramp segments – the bath
+    /// drives itself to each set point and the dwell only starts once it is there – so the
+    /// dwell sum alone under-estimates the run. Editable in Administrácia; the measured
+    /// settling time of every step is written to the application log so it can be corrected.
+    /// </summary>
+    public double SikaHeatingCPerMin { get; set; } = 8;
+
+    /// <summary>Estimated cooling rate (°C/min) of the SIKA baths above 0 °C.</summary>
+    public double SikaCoolingCPerMin { get; set; } = 5;
+
+    /// <summary>Estimated cooling rate (°C/min) of the SIKA baths below 0 °C – the compressor
+    /// works against a growing difference to ambient, so it is markedly slower.</summary>
+    public double SikaCoolingBelowZeroCPerMin { get; set; } = 2.5;
+
+    /// <summary>Fixed allowance (minutes) for settling inside the soak tolerance, added to
+    /// every set point change of a SIKA profile.</summary>
+    public double SikaStabilizeMinutes { get; set; } = 5;
+
+    /// <summary>
     /// Admin toggle (persisted): which dashboard layout operators see —
     /// Administrácia → Vzhľad a ovládanie → Režim ovládania. Defaults to
     /// <see cref="UiControlMode.Classic"/> so existing installs keep the

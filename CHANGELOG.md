@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.70.0] – 2026-08-28
+
+### Pridané
+- **Plánovaný čas SIKA profilu obsahuje aj čas ustálenia na teplotu.** SIKA profil
+  nemá rampy – kúpeľ si na každý setpoint nabehne sám a výdrž sa začne počítať až
+  keď na teplote je, takže súčet výdrží nikdy nebol skutočný čas behu. Nový odhad
+  (rýchlosť ohrevu, chladenia nad 0 °C a pod 0 °C, plus pevná rezerva na
+  dorovnanie) sa pripočítava v rýchlom profile, v zozname profilov, vo výbere
+  profilu na karte, v plánovanom trvaní aj na časovej osi.
+- **Administrácia → SIKA – odhad času ustálenia**: štyri hodnoty odhadu sa dajú
+  nastaviť. Predvolené (8 / 5 / 2,5 °C/min, 5 min) sú štartovací odhad, nie údaj
+  z merania konkrétnych kúpeľov.
+- **Meranie skutočného času ustálenia.** Po každom dosiahnutí setpointu sa do
+  aplikačného logu zapíše, ako dlho ustálenie trvalo, aký rozsah °C sa prekonal a
+  akú priemernú rýchlosť (°C/min) kúpeľ dosiahol – podľa toho sa dá odhad opraviť.
+
 ## [1.69.1] – 2026-08-28
 
 ### Pridané

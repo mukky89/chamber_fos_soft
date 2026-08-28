@@ -164,6 +164,47 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===== SIKA – odhad času ustálenia ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="SIKA – odhad času ustálenia" Style="{StaticResource Heading}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,10"
+                               Text="SIKA profil nemá rampy – kúpeľ si na každý setpoint nabehne sám a čas výdrže sa začne počítať až keď na teplote je. Súčet výdrží preto nie je skutočný čas behu. Z týchto rýchlostí sa dopočíta čas nábehu na každý setpoint a pripočíta sa k plánovanému trvaniu profilu (v rýchlom profile, v zozname profilov, na karte aj na časovej osi)." />
+                    <WrapPanel>
+                        <StackPanel Margin="0,0,18,10">
+                            <TextBlock Text="Ohrev (°C/min)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Width="130" HorizontalAlignment="Left"
+                                                  Value="{Binding SikaHeatingCPerMin, Mode=TwoWay}"
+                                                  Step="0.5" Minimum="0.1" Maximum="60"
+                                                  ToolTip="Priemerná rýchlosť ohrevu kúpeľa smerom nahor." />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,18,10">
+                            <TextBlock Text="Chladenie nad 0 °C (°C/min)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Width="130" HorizontalAlignment="Left"
+                                                  Value="{Binding SikaCoolingCPerMin, Mode=TwoWay}"
+                                                  Step="0.5" Minimum="0.1" Maximum="60"
+                                                  ToolTip="Priemerná rýchlosť chladenia v kladných teplotách." />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,18,10">
+                            <TextBlock Text="Chladenie pod 0 °C (°C/min)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Width="130" HorizontalAlignment="Left"
+                                                  Value="{Binding SikaCoolingBelowZeroCPerMin, Mode=TwoWay}"
+                                                  Step="0.5" Minimum="0.1" Maximum="60"
+                                                  ToolTip="Chladenie pod nulou je výrazne pomalšie – kompresor pracuje proti rastúcemu rozdielu voči okoliu." />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="Dorovnanie na teplotu (min)" Style="{StaticResource Label}" />
+                            <views:NumericStepper Width="130" HorizontalAlignment="Left"
+                                                  Value="{Binding SikaStabilizeMinutes, Mode=TwoWay}"
+                                                  Step="1" Minimum="0" Maximum="120"
+                                                  ToolTip="Pevná rezerva na posledné desatiny stupňa, ktoré už žiadna rýchlosť dobre nepopíše. Pripočíta sa ku každej zmene setpointu." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                               Text="Predvolené hodnoty (8 / 5 / 2,5 °C/min, 5 min) sú štartovací odhad, nie údaj z merania tvojich kúpeľov – závisia od náplne bloku, vložky a teploty v miestnosti. Skutočný čas ustálenia každého kroku sa počas behu profilu zapisuje do aplikačného logu („ustálenie na … °C trvalo …“), takže sa dajú podľa neho opraviť." />
+                </StackPanel>
+            </Border>
+
             <!-- ===== Users ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>

@@ -737,6 +737,22 @@ public sealed class QuickProfileViewModel : ObservableObject
     private string _optimizedTotalText = "—";
     public string OptimizedTotalText { get => _optimizedTotalText; private set => SetProperty(ref _optimizedTotalText, value); }
 
+    private string _settlingText = "—";
+
+    /// <summary>Estimated time a SIKA bath spends driving to the set points of this profile.</summary>
+    public string SettlingText { get => _settlingText; private set => SetProperty(ref _settlingText, value); }
+
+    private string _runTotalText = "—";
+
+    /// <summary>Dwell time plus the estimated approach time – what the run really takes on a SIKA bath.</summary>
+    public string RunTotalText { get => _runTotalText; private set => SetProperty(ref _runTotalText, value); }
+
+    private bool _showSettling;
+
+    /// <summary>Whether the approach-time columns are shown (SIKA profiles only – a Vötsch
+    /// profile carries its ramps as segments, so their time is already in the total).</summary>
+    public bool ShowSettling { get => _showSettling; private set => SetProperty(ref _showSettling, value); }
+
     private string _effectivePlateauText = "—";
     public string EffectivePlateauText { get => _effectivePlateauText; private set => SetProperty(ref _effectivePlateauText, value); }
 
@@ -1336,6 +1352,40 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Estimated time the bath spends getting to each set point. A SIKA profile has no ramp
+    /// segments: the runner writes the set point, waits until the bath is there and only then
+    /// starts the dwell, so this comes on top of the dwell sum. Vötsch profiles ramp in their
+    /// own segments and get nothing added.
+    /// </summary>
+    private TimeSpan PreviewSettling()
+    {
+        if (UsesRamps || Segments.Count == 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        (int start, int end) = ResolveCycleRegion(Segments.Count);
+        var probe = new TestProfile
+        {
+            Cycles = Math.Max(1, Cycles),
+            CycleStartIndex = start,
+            CycleEndIndex = end,
+            Segments = Segments.Select(s => s.ToModel()).ToList(),
+        };
+
+        return ChamberViewModel.SikaSettling.ForProfile(probe);
+    }
+
+    /// <summary>Refreshes the approach-time readouts from the current preview.</summary>
+    private void RecalculateSettling()
+    {
+        TimeSpan settling = PreviewSettling();
+        ShowSettling = settling > TimeSpan.Zero;
+        SettlingText = ShowSettling ? "+ " + QuickProfileNaming.Duration(settling.TotalMinutes) : "—";
+        RunTotalText = QuickProfileNaming.Duration(PreviewTotalMinutes() + settling.TotalMinutes);
+    }
+
+    /// <summary>
     /// Length of the whole run – every cycle included – measured on the segments that are
     /// actually in the preview, so the numbers under the chart always describe the curve
     /// above them (also after a profile has been loaded verbatim).
@@ -1452,6 +1502,7 @@ public sealed class QuickProfileViewModel : ObservableObject
                 ? $"{Math.Abs(delta) / RampMinutes:0.##} °C/min  ({Math.Abs(delta):0.#} °C / krok)"
                 : "skok (0 min)";
 
+        RecalculateSettling();
         Summary = QuickProfileNaming.Description(DescribeParameters());
     }
 
@@ -1475,6 +1526,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         RampRateText = !UsesRamps
             ? "bez rampy (SIKA · skok na setpoint)"
             : RampMinutes > 0 ? $"{RampMinutes:0.#} min / rampa" : "skok (0 min)";
+        RecalculateSettling();
         Summary = QuickProfileNaming.Description(DescribeParameters());
     }
 
