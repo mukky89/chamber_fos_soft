@@ -8,7 +8,6 @@ namespace VotschVc3.App.Views;
 public partial class MainWindow : Window
 {
     private readonly ShellViewModel _shell = new();
-    private CalibrationWindow? _calibrationWindow;
 
     /// <summary>Set only once the user confirms the exit; lets the real close proceed.</summary>
     private bool _exitConfirmed;
@@ -24,27 +23,10 @@ public partial class MainWindow : Window
         Closing += OnClosing;
         Closed += async (_, _) =>
         {
-            if (_calibrationWindow is not null)
-            {
-                _calibrationWindow.Close();
-                _calibrationWindow = null;
-            }
+            CalibrationWindow.CloseIfOpen();
             await _shell.DisposeAsync();
             Application.Current.Shutdown();
         };
-    }
-
-    private void Calibration_Click(object sender, RoutedEventArgs e)
-    {
-        if (_calibrationWindow is { IsLoaded: true })
-        {
-            _calibrationWindow.Activate();
-            return;
-        }
-
-        _calibrationWindow = new CalibrationWindow { Owner = this };
-        _calibrationWindow.Closed += (_, _) => _calibrationWindow = null;
-        _calibrationWindow.Show();
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)

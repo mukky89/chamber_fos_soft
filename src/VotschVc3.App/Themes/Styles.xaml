@@ -367,6 +367,73 @@
         </Setter>
     </Style>
 
+    <!-- ===== Transport button (profile run controls: play / pause / skip / stop) =====
+         Same colour-coded chrome as IconActionButton but sized for vector icons
+         (see the TransportIcon Path style in Icons.xaml) and bigger, so ▶ ⏸ ⏭ ⏹ are
+         told apart at a glance. Hover deepens the colour wash and adds a glow; the
+         icon keeps its own colour instead of turning white, so a Path content stays
+         readable (a Path does not follow TextElement.Foreground the way a glyph does). -->
+    <Style x:Key="TransportButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Width" Value="62" />
+        <Setter Property="Height" Value="54" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding Foreground}" BorderThickness="1.5"
+                            CornerRadius="13" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True">
+                        <Border.RenderTransform>
+                            <ScaleTransform x:Name="Sc" ScaleX="1" ScaleY="1" />
+                        </Border.RenderTransform>
+                        <Grid>
+                            <Border x:Name="Fill" Background="{TemplateBinding Foreground}" CornerRadius="12" Opacity="0.16" />
+                            <ContentPresenter x:Name="Cp" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Fill" Property="Opacity" Value="0.42" />
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="Bd" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="14" ShadowDepth="0" Opacity="0.55"
+                                                      Color="{StaticResource AccentColor}" />
+                                </Setter.Value>
+                            </Setter>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1.1" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1.1" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Fill" Property="Opacity" Value="0.6" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.3" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                            <Setter TargetName="Fill" Property="Opacity" Value="0" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ===== Inputs ===== -->
     <Style TargetType="TextBox">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -565,10 +632,18 @@
                         <ToggleButton Template="{StaticResource ComboToggleTemplate}"
                                       Focusable="False" ClickMode="Press"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+                        <!-- The closed-state text. ContentTemplateSelector is NOT optional here:
+                             ItemsControl implements DisplayMemberPath by installing an internal
+                             ItemTemplateSelector, and ComboBox.SelectionBoxItemTemplate stays null
+                             for it. Without this line every DisplayMemberPath combo in the app
+                             showed the item's ToString() (e.g. "VotschVc3.Core.Profiles.TestProfile")
+                             while the drop-down list rendered correctly. -->
                         <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False" Margin="9,0,26,0"
                                           VerticalAlignment="Center" HorizontalAlignment="Left"
                                           Content="{TemplateBinding SelectionBoxItem}"
                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                           TextElement.Foreground="{TemplateBinding Foreground}" />
                         <!-- Editable-mode text part (IsEditable="True"): a plain, self-styled
                              TextBox so it isn't picked up by the implicit dark TextBox style

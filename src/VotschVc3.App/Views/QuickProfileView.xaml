@@ -21,10 +21,14 @@
                        VerticalAlignment="Center" Margin="10,0,0,0" />
         </StackPanel>
 
+        <!-- The parameter column starts wider and can be dragged: profile names, tags and
+             the sequence rows never fit in a fixed 360 px, and how much room they need
+             depends on the profile being built. -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="360" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="470" MinWidth="340" MaxWidth="900" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" MinWidth="360" />
             </Grid.ColumnDefinitions>
 
             <!-- ===== Vstupy ===== -->
@@ -36,6 +40,18 @@
                     </Grid.RowDefinitions>
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
                         <StackPanel>
+                    <TextBlock Text="Zariadenie" Style="{StaticResource Heading}" />
+                    <StackPanel Style="{StaticResource QpField}">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Content="Vötsch / Weiss" IsChecked="{Binding IsVotschProfile}" VerticalAlignment="Center"
+                                         ToolTip="Komora sa riadi rampou: medzi dvoma teplotami sa vygeneruje nábeh a potom plato." />
+                            <RadioButton Content="SIKA TP" IsChecked="{Binding IsSikaProfile}" Margin="18,0,0,0" VerticalAlignment="Center"
+                                         ToolTip="Kúpeľ si na setpoint nabehne sám – profil je len zoznam teplôt s dobou výdrže (dwell), bez rámp." />
+                        </StackPanel>
+                        <TextBlock Text="{Binding DeviceKindHint}" Style="{StaticResource Caption}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+
                     <TextBlock Text="Načítať existujúci profil" Style="{StaticResource Heading}" />
                     <StackPanel Style="{StaticResource QpField}">
                         <views:ProfilePicker ItemsSource="{Binding LibraryProfiles}"
@@ -134,7 +150,7 @@
 
                         <StackPanel Style="{StaticResource QpField}">
                             <DockPanel LastChildFill="False">
-                                <TextBlock Text="Body postupnosti (teplota · dĺžka plata)" Style="{StaticResource Label}" DockPanel.Dock="Left" />
+                                <TextBlock Text="Body postupnosti (teplota · dĺžka výdrže)" Style="{StaticResource Label}" DockPanel.Dock="Left" />
                                 <Button DockPanel.Dock="Right" Content="＋ Bod" Style="{StaticResource GhostButton}"
                                         Padding="8,1" Command="{Binding AddSequenceStepCommand}"
                                         ToolTip="Pridá bod s rovnakou teplotou ako posledný a aktuálnou dĺžkou plata." />
@@ -264,12 +280,15 @@
                             <TextBlock Text="Dĺžka plata (min)" Style="{StaticResource Label}" />
                             <views:NumericStepper Value="{Binding PlateauMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
                         </StackPanel>
-                        <StackPanel Grid.Column="2" Style="{StaticResource QpField}">
+                        <StackPanel Grid.Column="2" Style="{StaticResource QpField}"
+                                    Visibility="{Binding UsesRamps, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Dĺžka nábehu (min)" Style="{StaticResource Label}" />
                             <views:NumericStepper Value="{Binding RampMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
                         </StackPanel>
                     </Grid>
 
+                    <!-- SIKA has no ramps at all – the whole lead-in block is meaningless there. -->
+                    <StackPanel Visibility="{Binding UsesRamps, Converter={StaticResource BoolToVisibility}}">
                     <CheckBox Content="Nábeh z aktuálnej teploty" IsChecked="{Binding StartFromCurrent}"
                               Margin="0,0,0,6"
                               ToolTip="Na začiatku pridá rampu z aktuálnej teploty komory na prvú nastavenú teplotu, aby profil neskočil rovno na prvý setpoint." />
@@ -288,10 +307,11 @@
                             <views:NumericStepper Value="{Binding StartRampMinutes, Mode=TwoWay}" Step="5" Minimum="0" />
                         </StackPanel>
                     </Grid>
+                    </StackPanel>
 
                     <CheckBox Content="Ukončiť na bezpečnej teplote (min. 1 hodina)" IsChecked="{Binding EndAtSafeTemperature}"
                               Margin="0,0,0,6"
-                              ToolTip="Na koniec profilu pridá rampu na 25 °C a plato aspoň 1 hodinu, aby komora skončila blízko izbovej teploty pred vypnutím výkonu." />
+                              ToolTip="Na koniec profilu pridá záverečnú teplotu 25 °C na aspoň 1 hodinu (na Vötschi aj s nábehom), aby zariadenie skončilo blízko izbovej teploty pred vypnutím výkonu." />
                     <Grid Visibility="{Binding EndAtSafeTemperature, Converter={StaticResource BoolToVisibility}}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -365,8 +385,12 @@
                 </Grid>
             </Border>
 
+            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="{StaticResource SurfaceAltBrush}" ShowsPreview="False"
+                          ToolTip="Potiahni a nastav šírku ľavého panela s parametrami." />
+
             <!-- ===== Náhľad + výpočty ===== -->
-            <Border Grid.Column="1" Style="{StaticResource Card}" Margin="12,0,0,0">
+            <Border Grid.Column="2" Style="{StaticResource Card}" Margin="4,0,0,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

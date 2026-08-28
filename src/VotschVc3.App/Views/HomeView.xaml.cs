@@ -46,6 +46,19 @@ public partial class HomeView : UserControl
         }
     }
 
+    /// <summary>
+    /// "◈ FBG kalibrácia" on a device card: opens the shared calibration workspace with
+    /// this device preselected. Every device has its own button because every device can
+    /// be used for an FBG calibration run.
+    /// </summary>
+    private void Calibration_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (sender is System.Windows.FrameworkElement { DataContext: ChamberViewModel vm })
+        {
+            CalibrationWindow.OpenFor(System.Windows.Window.GetWindow(this), vm.Id);
+        }
+    }
+
     /// <summary>⛶ on the card: opens the profile chart maximised in its own window.</summary>
     private void MaximizeChart_Click(object sender, System.Windows.RoutedEventArgs e)
     {

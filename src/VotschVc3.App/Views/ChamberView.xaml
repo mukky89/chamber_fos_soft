@@ -26,6 +26,8 @@
                 <Button Content="🌐 Web zariadenia" Margin="8,0,0,0"
                         Command="{Binding OpenDeviceWebCommand}"
                         ToolTip="Otvoriť vstavané webové rozhranie SIKA alebo Vötsch v predvolenom prehliadači." />
+                <Button Content="◈ FBG kalibrácia" Margin="8,0,0,0" Click="Calibration_Click"
+                        ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným." />
                 <Grid Margin="6,0,10,0">
                     <views:ChamberGraphic Width="34" Height="44" IsRunning="{Binding IsActive}"
                                           Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}" />
@@ -118,18 +120,25 @@
                             <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,8"
                                     Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                     Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="{Binding SikaRemoteControlStatus}" TextWrapping="Wrap" FontFamily="Segoe UI Semibold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSikaRemoteControlBlocked}" Value="True">
-                                                    <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <DockPanel LastChildFill="True">
+                                    <Button DockPanel.Dock="Right" Content="⇅ Zapnúť cez sieť" Style="{StaticResource GhostButton}"
+                                            Margin="10,0,0,0" Padding="10,3" FontSize="12" VerticalAlignment="Center"
+                                            Command="{Binding ForceSikaRemoteControlCommand}"
+                                            Visibility="{Binding IsSikaRemoteControlBlocked, Converter={StaticResource BoolToVisibility}}"
+                                            ToolTip="Skúsi zapnúť Remote Control priamo cez sieť (setRegister Com_ExternWriteFlag = 1) namiesto chodenia k displeju prístroja. Výsledok sa overí spätným čítaním registra – niektoré firmvéry to dovolia len z panela." />
+                                    <TextBlock Text="{Binding SikaRemoteControlStatus}" TextWrapping="Wrap" FontFamily="Segoe UI Semibold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSikaRemoteControlBlocked}" Value="True">
+                                                        <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DockPanel>
                             </Border>
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <Button Content="Pripojiť" Style="{StaticResource AccentButton}" Command="{Binding ConnectCommand}" />
@@ -248,6 +257,13 @@
                 <Border Style="{StaticResource Card}" HorizontalAlignment="Left" VerticalAlignment="Top" Width="480">
                     <StackPanel>
                         <TextBlock Text="Manuálny setpoint" Style="{StaticResource Heading}" />
+                        <!-- Manual and profile control are mutually exclusive: while a profile runs
+                             the manual fields are greyed out so nobody overwrites its set point. -->
+                        <TextBlock Text="Beží profil – manuálny setpoint je vypnutý. Najprv zastav profil na karte „Profil (rampy a plata)“."
+                                   Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Foreground="{StaticResource WarnBrush}"
+                                   Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" />
+                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}">
                         <StackPanel Style="{StaticResource FieldStack}">
                             <TextBlock Text="Teplota (°C)" Style="{StaticResource Label}" />
                             <TextBox Text="{Binding ManualTemperature, UpdateSourceTrigger=PropertyChanged}" />
@@ -268,6 +284,7 @@
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <Button Content="Aplikovať setpoint" Style="{StaticResource AccentButton}" Command="{Binding ApplySetpointCommand}" />
                             <Button Content="Stop komory" Style="{StaticResource DangerButton}" Command="{Binding StopChamberCommand}" />
+                        </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>

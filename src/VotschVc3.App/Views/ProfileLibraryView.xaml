@@ -136,6 +136,10 @@
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Typ" Style="{StaticResource Label}" />
                                     <ComboBox ItemsSource="{Binding ChamberKinds}" SelectedItem="{Binding Kind}" />
+                                    <TextBlock Text="Zariadenie" Style="{StaticResource Label}" Margin="0,8,0,3" />
+                                    <ComboBox ItemsSource="{Binding DeviceKinds}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                              SelectedValue="{Binding DeviceKind, Mode=TwoWay}"
+                                              ToolTip="Pre aké zariadenie je profil určený. Vötsch = rampy a plata, SIKA = teploty s dobou výdrže. Univerzálny profil sa ponúka na každom zariadení." />
                                 </StackPanel>
                             </Grid>
                             <Grid Margin="0,8,0,0">
@@ -274,8 +278,11 @@
                             <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableTags}" SelectedItem="{Binding SelectedTag}"
                                       ToolTip="Filtrovať podľa tagu." />
                             <Button Grid.Column="2" Content="✕ Filter" Style="{StaticResource GhostButton}" Padding="10,4"
-                                    Command="{Binding ClearFilterCommand}" ToolTip="Zrušiť text aj tag filter." />
+                                    Command="{Binding ClearFilterCommand}" ToolTip="Zrušiť text, tag aj filter zariadenia." />
                         </Grid>
+                        <ComboBox Margin="0,6,0,0" ItemsSource="{Binding DeviceKinds}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                  SelectedValue="{Binding DeviceKindFilter, Mode=TwoWay}"
+                                  ToolTip="Filtrovať podľa zariadenia: Vötsch (rampy a plata) alebo SIKA (teploty s dobou výdrže). Univerzálny = bez filtra." />
                         <DockPanel Margin="0,6,0,2" LastChildFill="False">
                             <Button DockPanel.Dock="Left" Content="⏷ Rozbaliť všetko" Style="{StaticResource GhostButton}"
                                     Padding="8,3" Command="{Binding ExpandAllCommand}" />

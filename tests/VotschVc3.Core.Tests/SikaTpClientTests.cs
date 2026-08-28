@@ -275,6 +275,54 @@ public class SikaTpClientTests
         Assert.DoesNotContain(handler.Requested, u => u.Contains("startCurrentTask"));
     }
 
+    /// <summary>
+    /// The operator can try to switch "Remote Control" on over the network instead of
+    /// walking to the bath: the client writes Com_ExternWriteFlag = 1 and reports what the
+    /// flag reads back as afterwards.
+    /// </summary>
+    [Fact]
+    public async Task TryEnableRemoteControlAsync_writes_the_flag_and_reports_the_read_back()
+    {
+        var handler = new RouteHandler
+        {
+            ["ajax/getRegister?register=TRset_TR"] =
+                ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=Com_ExternWriteFlag&value=1"] =
+                ("{\"value\":\"success\",\"info\":\"value 1.000000 wrote to register Com_ExternWriteFlag\"}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=Com_ExternWriteFlag"] =
+                ("{\"register\":\"Com_ExternWriteFlag\",\"values\":[{\"value\":1.0,\"times\":1}]}", HttpStatusCode.OK),
+        };
+        await using var client = new SikaTpClient(_ => new HttpClient(handler));
+        await client.ConnectAsync(new ChamberConnectionSettings { Host = "sika", Port = 80 });
+
+        Assert.True(await client.TryEnableRemoteControlAsync());
+        Assert.Contains(handler.Requested, u => u.EndsWith("setRegister?register=Com_ExternWriteFlag&value=1"));
+        Assert.True(client.RemoteControlEnabled);
+    }
+
+    /// <summary>
+    /// Firmware that only allows the switch from the front panel refuses the write. That
+    /// must not throw – the read-back decides, and it still says "off".
+    /// </summary>
+    [Fact]
+    public async Task TryEnableRemoteControlAsync_returns_false_when_the_device_refuses()
+    {
+        var handler = new RouteHandler
+        {
+            ["ajax/getRegister?register=TRset_TR"] =
+                ("{\"register\":\"TRset_TR\",\"values\":[{\"value\":21.0,\"times\":1}]}", HttpStatusCode.OK),
+            ["ajax/setRegister?register=Com_ExternWriteFlag&value=1"] =
+                ("{\"value\":\"error\",\"info\":\"register is read only\"}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=Com_ExternWriteFlag"] =
+                ("{\"register\":\"Com_ExternWriteFlag\",\"values\":[{\"value\":0.0}]}", HttpStatusCode.OK),
+        };
+        await using var client = new SikaTpClient(_ => new HttpClient(handler));
+        await client.ConnectAsync(new ChamberConnectionSettings { Host = "sika", Port = 80 });
+
+        Assert.False(await client.TryEnableRemoteControlAsync());
+        Assert.False(client.RemoteControlEnabled);
+    }
+
     [Fact]
     public async Task Task_logs_are_loaded_from_verified_endpoints()
     {

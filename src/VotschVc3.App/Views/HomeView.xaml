@@ -268,6 +268,10 @@
                                             Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}"
                                             ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
+                                    <Button DockPanel.Dock="Right" Content="◈ FBG kalibrácia" Style="{StaticResource GhostButton}"
+                                            Margin="0,0,8,0" Padding="12,9" FontSize="13"
+                                            Click="Calibration_Click"
+                                            ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným." />
                                     <Button DockPanel.Dock="Right" Content="🌐 Web" Style="{StaticResource GhostButton}"
                                             Margin="0,0,8,0" Padding="12,9" FontSize="13"
                                             Command="{Binding OpenDeviceWebCommand}"
@@ -368,9 +372,42 @@
                                         </StackPanel>
                                         <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
                                                    Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding SikaRemoteControlStatus}" Foreground="{StaticResource WarnBrush}"
-                                                   FontFamily="Segoe UI Semibold" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
-                                                   Visibility="{Binding IsSikaRemoteControlBlocked, Converter={StaticResource BoolToVisibility}}" />
+                                        <!-- SIKA Remote Control: shown for every SIKA device, green when the bath
+                                             accepts remote writes and orange when it does not, so the operator never
+                                             has to guess why a set point "did nothing". -->
+                                        <StackPanel Margin="0,4,0,0" Orientation="Horizontal"
+                                                    Visibility="{Binding ShowSikaRemoteControl, Converter={StaticResource BoolToVisibility}}">
+                                            <Ellipse Width="9" Height="9" VerticalAlignment="Center">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
+                                                                <Setter Property="Fill" Value="{StaticResource WarnBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                            <TextBlock Text="{Binding SikaRemoteControlStatus}" Margin="7,0,0,0"
+                                                       FontFamily="Segoe UI Semibold" FontSize="12" TextWrapping="Wrap">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSikaRemoteControlOn}" Value="False">
+                                                                <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <Button Content="⇅ Zapnúť cez sieť" Style="{StaticResource GhostButton}"
+                                                    Margin="10,0,0,0" Padding="8,2" FontSize="11"
+                                                    Command="{Binding ForceSikaRemoteControlCommand}"
+                                                    Visibility="{Binding IsSikaRemoteControlOn, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
+                                                    ToolTip="Skúsi zapnúť Remote Control priamo cez sieť (Com_ExternWriteFlag = 1). Niektoré firmvéry to dovolia len z displeja prístroja – výsledok sa overí spätným čítaním." />
+                                        </StackPanel>
                                         <!-- Completion (day + time + countdown) right under the profile name. -->
                                         <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
                                                    Foreground="{StaticResource OkBrush}" Margin="0,4,0,0" TextWrapping="Wrap"
@@ -429,9 +466,17 @@
                                      stay bright; the lock toggle lives in the top bar (always enabled). -->
                                 <StackPanel IsEnabled="{Binding IsUnlocked}">
 
-                                <!-- ===== ⑤ Quick control ===== -->
+                                <!-- ===== ⑤ Quick control (manual) =====
+                                     Manual and profile control are mutually exclusive: while a profile
+                                     runs the manual panel is greyed out so nobody overwrites the running
+                                     set point, and while the chamber is driven manually the profile panel
+                                     below is greyed out until the manual run is stopped. -->
                                 <Border Style="{StaticResource Section}">
                                     <StackPanel>
+                                        <TextBlock Text="Manuálne ovládanie je vypnuté, kým beží profil. Profil zastavíš tlačidlom ⏹ nižšie."
+                                                   Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,7"
+                                                   Foreground="{StaticResource WarnBrush}"
+                                                   Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}" />
                                         <DockPanel LastChildFill="False">
                                             <TextBlock Text="Rýchle ovládanie" Style="{StaticResource Label}" DockPanel.Dock="Left" VerticalAlignment="Center" />
                                             <Button DockPanel.Dock="Right" Content="✎ Upraviť predvoľby" Style="{StaticResource GhostButton}"
@@ -448,6 +493,7 @@
                                         </StackPanel>
 
                                         <!-- Preset temperature chips (primary one-tap actions) -->
+                                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}">
                                         <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,8,0,0">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
@@ -480,6 +526,7 @@
                                                         ToolTip="Vypnúť komoru (zastaví reguláciu)." />
                                             </DockPanel>
                                         </Border>
+                                        </StackPanel>
 
                                         <!-- Action feedback banner: pops up after an action so the operator
                                              always sees what happened / what was switched on. Auto-clears. -->
@@ -516,112 +563,70 @@
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <views:ProfilePicker Grid.Column="0" VerticalAlignment="Center"
+                                        <!-- Hint shown while the chamber is being driven by hand: the profile
+                                             controls stay greyed out until the manual run is stopped. -->
+                                        <TextBlock Text="Zariadenie je ovládané manuálne. Profil spustíš až po zastavení manuálneho behu (tlačidlo Stop v „Rýchle ovládanie“)."
+                                                   Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,7"
+                                                   Foreground="{StaticResource WarnBrush}"
+                                                   Visibility="{Binding IsManualActive, Converter={StaticResource BoolToVisibility}}" />
+
+                                        <!-- The picker gets the full card width on its own row: profile names are
+                                             long and used to be squeezed next to the four run buttons. -->
+                                        <StackPanel IsEnabled="{Binding IsProfileControlEnabled}">
+                                            <views:ProfilePicker HorizontalAlignment="Stretch"
                                                                  ItemsSource="{Binding History}"
                                                                  SelectedProfile="{Binding SelectedHistoryProfile, Mode=TwoWay}"
-                                                                 ToolTip="Vyber uložený profil – hľadaj hore a rozbaľ stromovú štruktúru (zákazník/snímač → profily), potom spusti tlačidlom ▶." />
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
-                                                <Button Style="{StaticResource IconActionButton}" Content="▶"
-                                                        Foreground="{StaticResource OkBrush}" Command="{Binding StartSelectedProfileCommand}"
-                                                        ToolTip="Spustiť vybraný profil" />
-                                                <Button Style="{StaticResource IconActionButton}" Content="{Binding PauseResumeGlyph}"
-                                                        Foreground="{StaticResource WarnBrush}" Command="{Binding PauseResumeProfileCommand}"
-                                                        ToolTip="Pozastaviť / pokračovať" />
-                                                <Button Style="{StaticResource IconActionButton}" Content="⏭"
-                                                        Foreground="{StaticResource AccentBrush}" Command="{Binding SkipHoldCommand}"
-                                                        ToolTip="Ukončiť aktuálne plato a pokračovať na ďalší nábeh a plato. Zvyšok profilu zostáva nezmenený; počas nábehu je tlačidlo neaktívne." />
-                                                <Button Style="{StaticResource IconActionButton}" Content="⏹"
-                                                        Foreground="{StaticResource ErrorBrush}" Command="{Binding StopProfileCommand}"
-                                                        Margin="0" ToolTip="Zastaviť profil" />
-                                            </StackPanel>
-                                        </Grid>
+                                                                 ToolTip="Vyber uložený profil – hľadaj hore a rozbaľ stromovú štruktúru (zákazník/snímač → profily), potom spusti tlačidlom ▶.&#10;V zozname sú len profily pre tento typ zariadenia (Vötsch / SIKA)." />
 
-                                        <!-- Počet cyklov: zopakuje iba telo profilu (bez nábehu a konca) N-krát -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <TextBlock Text="Počet cyklov" Style="{StaticResource Caption}" VerticalAlignment="Center" />
-                                            <views:NumericStepper Value="{Binding Cycles, Mode=TwoWay}" Step="1" Minimum="1"
-                                                                  Width="120" Margin="10,0,0,0"
-                                                                  ToolTip="Zopakuje iba telo profilu N-krát. Počiatočný nábeh a koncový dobeh (nábeh/dobeh na krajné teploty) prebehnú len raz. Cyklovaná časť je na grafe nižšie zvýraznená." />
-                                        </StackPanel>
-
-                                        <!-- Quick profile launch: curated one-click buttons; admin can pick which profiles show -->
-                                        <StackPanel Margin="0,10,0,0" Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}}">
-                                            <DockPanel LastChildFill="False">
-                                                <TextBlock Text="Rýchle spustenie profilu" Style="{StaticResource Caption}" DockPanel.Dock="Left" VerticalAlignment="Center" />
-                                                <Button DockPanel.Dock="Right" Content="✎ Upraviť" Style="{StaticResource GhostButton}"
-                                                        Padding="6,1" FontSize="12" Command="{Binding ToggleEditQuickProfilesCommand}"
-                                                        Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
-                                                        ToolTip="Admin: vyber, ktoré profily sa zobrazia ako rýchle tlačidlá." />
+                                            <DockPanel LastChildFill="False" Margin="0,10,0,0">
+                                                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                                                    <Button Style="{StaticResource TransportButton}"
+                                                            Foreground="{StaticResource OkBrush}" Command="{Binding StartSelectedProfileCommand}"
+                                                            ToolTip="Spustiť vybraný profil">
+                                                        <Path Style="{StaticResource TransportIcon}" Data="{StaticResource Icon.Play}" />
+                                                    </Button>
+                                                    <Button Style="{StaticResource TransportButton}"
+                                                            Foreground="{StaticResource WarnBrush}" Command="{Binding PauseResumeProfileCommand}"
+                                                            ToolTip="Pozastaviť / pokračovať">
+                                                        <Path>
+                                                            <Path.Style>
+                                                                <Style TargetType="Path" BasedOn="{StaticResource TransportIcon}">
+                                                                    <Setter Property="Data" Value="{StaticResource Icon.Pause}" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsProfilePaused}" Value="True">
+                                                                            <Setter Property="Data" Value="{StaticResource Icon.Play}" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Path.Style>
+                                                        </Path>
+                                                    </Button>
+                                                    <Button Style="{StaticResource TransportButton}"
+                                                            Foreground="{StaticResource AccentBrush}" Command="{Binding SkipHoldCommand}"
+                                                            ToolTip="Ukončiť aktuálne plato a pokračovať na ďalší nábeh a plato. Zvyšok profilu zostáva nezmenený; počas nábehu je tlačidlo neaktívne.">
+                                                        <Path Style="{StaticResource TransportIcon}" Data="{StaticResource Icon.SkipNext}" />
+                                                    </Button>
+                                                    <Button Style="{StaticResource TransportButton}" Margin="0"
+                                                            Foreground="{StaticResource ErrorBrush}" Command="{Binding StopProfileCommand}"
+                                                            ToolTip="Zastaviť profil – čas aj graf sa vynulujú">
+                                                        <Path Style="{StaticResource TransportIcon}" Data="{StaticResource Icon.Stop}" />
+                                                    </Button>
+                                                </StackPanel>
                                                 <Button DockPanel.Dock="Right" Content="✕ Zrušiť profil" Style="{StaticResource GhostButton}"
-                                                        Padding="6,1" FontSize="12" Margin="0,0,8,0"
+                                                        VerticalAlignment="Center" Margin="0" Padding="10,5" FontSize="12"
                                                         Foreground="{StaticResource DangerBrush}"
                                                         Command="{Binding CancelProfileCommand}"
                                                         ToolTip="Zastaví spustený profil (ak beží) a odoberie ho z karty, aby nezostal svietiť ako testovací profil." />
                                             </DockPanel>
+                                        </StackPanel>
 
-                                            <!-- Admin editor: insert an existing profile / remove pinned ones -->
-                                            <StackPanel Margin="0,6,0,8" Visibility="{Binding IsEditingQuickProfiles, Converter={StaticResource BoolToVisibility}}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <ComboBox Grid.Column="0" ItemsSource="{Binding History}"
-                                                              SelectedItem="{Binding ProfileToPin, Mode=TwoWay}" DisplayMemberPath="Name"
-                                                              ToolTip="Vyber existujúci profil a pridaj ho tlačidlom Pridať." />
-                                                    <Button Grid.Column="1" Content="Pridať" Margin="8,0,0,0" Style="{StaticResource AccentButton}"
-                                                            Command="{Binding AddQuickProfileCommand}" />
-                                                </Grid>
-                                                <ItemsControl ItemsSource="{Binding PinnedProfileNames}" Margin="0,7,0,0"
-                                                              Visibility="{Binding HasPinnedProfiles, Converter={StaticResource BoolToVisibility}}">
-                                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="7" Padding="10,5" Margin="0,0,7,7">
-                                                                <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="None" />
-                                                                    <Button Content="✕" Style="{StaticResource GhostButton}" Padding="7,0" Margin="7,0,0,0"
-                                                                            Foreground="{StaticResource DangerBrush}"
-                                                                            Command="{Binding DataContext.RemoveQuickProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                            CommandParameter="{Binding}"
-                                                                            ToolTip="Odobrať z rýchleho spustenia" />
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                                <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,0"
-                                                           Text="Zobrazia sa iba tu pridané profily. Vyber v zozname vyššie tie, ktoré chceš mať ako rýchle spustenie." />
-                                            </StackPanel>
-
-                                            <!-- Empty-state hint when nothing is pinned yet. -->
-                                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,0"
-                                                       Visibility="{Binding HasNoQuickProfiles, Converter={StaticResource BoolToVisibility}}"
-                                                       Text="Žiadne rýchle spustenie nie je nastavené. Admin ho pridá cez „✎ Upraviť“." />
-
-                                            <!-- Launch buttons: full profile name, one click = load + start -->
-                                            <ItemsControl ItemsSource="{Binding QuickProfiles}" Margin="0,5,0,0">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Button Style="{StaticResource PresetChip}" Margin="0,0,7,7"
-                                                                Command="{Binding DataContext.QuickStartProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                CommandParameter="{Binding}"
-                                                                ToolTip="Klikni = spusti tento profil na komore">
-                                                            <TextBlock TextWrapping="Wrap" TextTrimming="None" MaxWidth="430">
-                                                                <Run Text="▶ " Foreground="{StaticResource OkBrush}" FontFamily="Segoe UI Semibold" /><Run Text="{Binding Name}" />
-                                                            </TextBlock>
-                                                        </Button>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                        <!-- Počet cyklov: zopakuje iba telo profilu (bez nábehu a konca) N-krát -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                    IsEnabled="{Binding IsProfileControlEnabled}">
+                                            <TextBlock Text="Počet cyklov" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                                            <views:NumericStepper Value="{Binding Cycles, Mode=TwoWay}" Step="1" Minimum="1"
+                                                                  Width="120" Margin="10,0,0,0"
+                                                                  ToolTip="Zopakuje iba telo profilu N-krát. Počiatočný nábeh a koncový dobeh (nábeh/dobeh na krajné teploty) prebehnú len raz. Cyklovaná časť je na grafe nižšie zvýraznená." />
                                         </StackPanel>
 
                                         <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6,4" Margin="0,10,0,0"
@@ -671,7 +676,8 @@
                                                 Content="{Binding AdvancedProfileOptionsGlyph}"
                                                 Command="{Binding ToggleAdvancedProfileOptionsCommand}"
                                                 ToolTip="Rozbalí rad profilov (až 3 profily za sebou) a odložený štart." />
-                                        <StackPanel Visibility="{Binding ShowAdvancedProfileOptions, Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel Visibility="{Binding ShowAdvancedProfileOptions, Converter={StaticResource BoolToVisibility}}"
+                                                    IsEnabled="{Binding IsProfileControlEnabled}">
                                         <!-- Rad profilov: až 3 uložené profily spustené za sebou -->
                                         <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="10,8" Margin="0,10,0,0">
                                             <StackPanel>

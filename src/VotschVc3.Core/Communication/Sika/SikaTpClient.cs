@@ -432,6 +432,36 @@ public sealed class SikaTpClient : IChamberDevice
         return RemoteControlEnabled.Value;
     }
 
+    /// <summary>
+    /// Tries to switch the device's "Remote Control" (extern write) flag on over the
+    /// network, so the operator does not have to walk to the bath's front panel.
+    /// Deliberately bypasses <see cref="EnsureRemoteControlEnabledAsync"/> – this is the
+    /// one write that has to be attempted while remote control is still off.
+    /// <para>
+    /// Firmware that treats the flag as a front-panel-only setting either answers with an
+    /// error or acknowledges and ignores the write, so the result is never trusted: the
+    /// flag is read back afterwards and that read-back is what is returned.
+    /// </para>
+    /// </summary>
+    /// <returns><c>true</c> when the device reports remote control enabled afterwards.</returns>
+    public async Task<bool> TryEnableRemoteControlAsync(CancellationToken cancellationToken = default)
+    {
+        string url = SikaRestApiProtocol.BuildSetRegisterUrl(
+            Settings.Host, Settings.Port, SikaRestApiProtocol.ExternWriteFlagRegister, 1);
+        try
+        {
+            string response = await GetWithRetryAsync(url, cancellationToken).ConfigureAwait(false);
+            RaiseFrame($"GET {url}", response);
+            SikaRestApiProtocol.ParseSetRegisterResponse(response);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
+        {
+            RaiseFrame("REMOTE", $"Zápis {SikaRestApiProtocol.ExternWriteFlagRegister}=1 odmietnutý: {ex.Message}");
+        }
+
+        return await ReadRemoteControlEnabledAsync(retry: true, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>Lists the measurement logs stored on the device itself.</summary>
     public async Task<IReadOnlyList<SikaTaskLogSummary>> GetTaskLogsAsync(CancellationToken cancellationToken = default)
     {

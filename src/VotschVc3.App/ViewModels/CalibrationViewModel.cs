@@ -43,7 +43,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();
         _referenceThermometers = new ThermometersViewModel();
 
-        Profiles = new ObservableCollection<TestProfile>(_profileStore.LoadAll());
+        Profiles = new ObservableCollection<TestProfile>();
         Chambers = new ObservableCollection<CalibrationChamberOption>(
             _chamberStore.LoadAll().Select(c => new CalibrationChamberOption(c)));
         Peaks = new ObservableCollection<CalibrationPeakRowViewModel>();
@@ -66,8 +66,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         CheckF100Command = new AsyncRelayCommand(CheckF100Async, () => SelectedF100 is not null, ReportError);
         ToggleF100ChartCommand = new RelayCommand(() => ShowF100Chart = !ShowF100Chart);
 
-        if (Profiles.Count > 0) SelectedProfile = Profiles[0];
         if (Chambers.Count > 0) SelectedChamber = Chambers[0];
+        RefreshProfiles();
         SelectedF100 = F100Devices.FirstOrDefault();
     }
 
@@ -111,8 +111,46 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         get => _selectedChamber;
         set
         {
-            if (SetProperty(ref _selectedChamber, value)) RefreshCommands();
+            if (SetProperty(ref _selectedChamber, value))
+            {
+                // Vötsch profiles (ramp + plateau) and SIKA profiles (setpoint + dwell)
+                // must not get mixed up, so the profile list follows the chosen device.
+                RefreshProfiles();
+                RefreshCommands();
+            }
         }
+    }
+
+    /// <summary>Preselects the device the operator opened this workspace from (one FBG
+    /// calibration button per device card).</summary>
+    public void SelectChamber(Guid chamberId)
+    {
+        if (Chambers.FirstOrDefault(c => c.Config.Id == chamberId) is { } match)
+        {
+            SelectedChamber = match;
+        }
+    }
+
+    /// <summary>
+    /// Reloads <see cref="Profiles"/> from the library, keeping only the profiles that
+    /// belong to the selected device's family (plus the universal ones), and keeps the
+    /// current selection when it survives the filter.
+    /// </summary>
+    private void RefreshProfiles()
+    {
+        ProfileDeviceKind deviceKind = SelectedChamber is { } chamber
+            ? chamber.Config.Protocol.ToDeviceKind()
+            : ProfileDeviceKind.Any;
+
+        Guid? previous = SelectedProfile?.Id;
+        Profiles.Clear();
+        foreach (TestProfile profile in _profileStore.LoadAll().Where(p => p.DeviceKind.CanRunOn(deviceKind)))
+        {
+            Profiles.Add(profile);
+        }
+
+        SelectedProfile = (previous is { } id ? Profiles.FirstOrDefault(p => p.Id == id) : null)
+            ?? Profiles.FirstOrDefault();
     }
 
     private CalibrationRunRecord? _selectedHistoryRun;
