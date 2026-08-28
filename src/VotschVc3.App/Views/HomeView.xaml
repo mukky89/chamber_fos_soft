@@ -28,14 +28,14 @@
             </Style.Triggers>
         </Style>
         <Style x:Key="LockGlyphSmall" TargetType="Path" BasedOn="{StaticResource LockGlyphPath}">
-            <Setter Property="Width" Value="13" />
-            <Setter Property="Height" Value="13" />
+            <Setter Property="Width" Value="12" />
+            <Setter Property="Height" Value="12" />
             <Setter Property="StrokeThickness" Value="2" />
         </Style>
         <Style x:Key="LockBadgeText" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI Semibold" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Margin" Value="6,0,0,0" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Margin" Value="5,0,0,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
             <Style.Triggers>
@@ -48,8 +48,10 @@
         <Style x:Key="Badge" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
             <Setter Property="CornerRadius" Value="7" />
-            <Setter Property="Padding" Value="9,4" />
-            <Setter Property="Margin" Value="0,0,6,0" />
+            <!-- Tight on purpose: four badges have to fit on one line of a 470 px card, and
+                 the bottom margin only shows when the row does have to wrap. -->
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="Margin" Value="0,0,5,4" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <!-- Vertical navigation button in the sidebar: full width, left-aligned label,
@@ -393,16 +395,23 @@
                                                        VerticalAlignment="Center" ToolTip="{Binding Name}" />
                                         </Border>
 
-                                        <!-- Badges: kind, state, lock, control mode, alarm -->
+                                        <!-- ===== Badges =====
+                                             Ordered by how much an operator needs them, because the row wraps
+                                             on a narrow card and whatever sits last is what drops to a second
+                                             line: alarm, run state, lock and control mode stay together on the
+                                             first line, the device kind (which the device name already says in
+                                             brackets, and the chamber graphic repeats) gives way first. -->
                                         <WrapPanel Margin="0,0,0,0">
-                                            <Border Style="{StaticResource Badge}">
-                                                <TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}" />
+                                            <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="7,3"
+                                                    Margin="0,0,5,4" VerticalAlignment="Center"
+                                                    Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="⚠ ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11.5" />
                                             </Border>
                                             <Border Style="{StaticResource Badge}">
                                                 <StackPanel Orientation="Horizontal">
                                                     <Ellipse Width="9" Height="9" VerticalAlignment="Center"
                                                              Fill="{Binding IsActive, Converter={StaticResource BoolToBrush}}" />
-                                                    <TextBlock Text="{Binding StateLabel}" Margin="6,0,0,0" FontFamily="Segoe UI Semibold" FontSize="12"
+                                                    <TextBlock Text="{Binding StateLabel}" Margin="5,0,0,0" FontFamily="Segoe UI Semibold" FontSize="11.5"
                                                                Foreground="{Binding IsActive, Converter={StaticResource BoolToBrush}}" />
                                                 </StackPanel>
                                             </Border>
@@ -417,13 +426,13 @@
                                                 </StackPanel>
                                             </Border>
                                             <!-- Prominent control-mode badge: PROFIL vs MANUÁL. -->
-                                            <Border Background="{StaticResource AccentBrush}" CornerRadius="7" Padding="9,4" VerticalAlignment="Center"
+                                            <Border Background="{StaticResource AccentBrush}" CornerRadius="7" Padding="7,3"
+                                                    Margin="0,0,5,4" VerticalAlignment="Center"
                                                     Visibility="{Binding HasControlMode, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="{Binding ControlModeBadge}" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12" />
+                                                <TextBlock Text="{Binding ControlModeBadge}" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11.5" />
                                             </Border>
-                                            <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="9,4" VerticalAlignment="Center"
-                                                    Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="⚠ ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12" />
+                                            <Border Style="{StaticResource Badge}">
+                                                <TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}" FontSize="11.5" />
                                             </Border>
                                         </WrapPanel>
 
@@ -503,11 +512,15 @@
                                 <Border Style="{StaticResource Section}" Margin="0,0,0,10" Padding="11,8">
                                     <StackPanel>
                                         <WrapPanel>
-                                            <StackPanel Margin="0,0,24,0">
+                                            <!-- The tooltip carries the frame the number was parsed from: when a
+                                                 value looks wrong or coarser than the chamber's own display, the
+                                                 answer is in what the controller actually sent. -->
+                                            <StackPanel Margin="0,0,24,0"
+                                                        ToolTip="{Binding LastRaw, Mode=OneWay, StringFormat=Odpoveď komory (RAW): {0}}">
                                                 <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0000}" />
+                                                               Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
                                                     <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
                                                 </StackPanel>
                                             </StackPanel>
@@ -515,7 +528,7 @@
                                                 <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                                               Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0000}" />
+                                                               Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
                                                     <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
                                                 </StackPanel>
                                             </StackPanel>
@@ -523,7 +536,7 @@
                                                 <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0000}" />
+                                                               Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
                                                     <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
                                                 </StackPanel>
                                             </StackPanel>

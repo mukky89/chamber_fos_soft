@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.75.2] – 2026-08-28
+
+### Opravené
+- **Odznaky na karte sa už nebijú.** Sú menšie (menší padding a písmo) a zoradené
+  podľa dôležitosti — alarm, stav behu, zámok a režim (MANUÁL/PROFIL) zostanú na
+  jednom riadku vedľa seba; ako prvý sa na druhý riadok zalomí typ zariadenia,
+  ktorý je aj tak v názve v zátvorke a na obrázku komory.
+- **Teplota sa zobrazuje presne tak, ako ju zariadenie poslalo** — už sa
+  nedopisujú nuly. Ak regulátor pošle `0025.0`, na karte je `25,0`; ak pošle
+  `24,9981`, zobrazí sa `24,9981`. Predchádzajúca verzia vypisovala napevno štyri
+  desatinné miesta, čo z hodnoty `25,0` spravilo `25,0000` a predstieralo
+  presnosť, ktorú prenos nemá.
+
+### Pridané
+- **Tooltip na nameranej teplote ukazuje surovú odpoveď komory** (RAW rámec).
+  Keď sa hodnota javí iná alebo hrubšia než na displeji komory, hneď vidieť, čo
+  regulátor naozaj poslal.
+
 ## [1.75.1] – 2026-08-28
 
 ### Zmenené
