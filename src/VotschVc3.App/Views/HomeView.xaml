@@ -507,35 +507,54 @@
                                      an empty block of card beside the chamber picture. -->
                                 <Border Style="{StaticResource Section}" Margin="0,0,0,10" Padding="11,8">
                                     <StackPanel>
-                                        <WrapPanel>
-                                            <!-- The tooltip carries the frame the number was parsed from: when a
-                                                 value looks wrong or coarser than the chamber's own display, the
-                                                 answer is in what the controller actually sent. -->
-                                            <StackPanel Margin="0,0,24,0"
-                                                        ToolTip="{Binding LastRaw, Mode=OneWay, StringFormat=Odpoveď komory (RAW): {0}}">
-                                                <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                        <!-- Every live value in its own box, framed and captioned in the
+                                             channel's colour: modrá = čo komora meria, oranžová = čo sme jej
+                                             nastavili, tyrkysová = vlhkosť. Voľne pod sebou stojace čísla sa
+                                             na karte s dvomi teplotami dali ľahko zameniť. -->
+                                        <WrapPanel Margin="0,0,-8,-8">
+                                            <!-- The tooltip carries the frames the number was parsed from (ASCII-2
+                                                 and, when it refined the value, the SIMSERV answer): when a value
+                                                 looks wrong or coarser than the chamber's own display, the answer
+                                                 is in what the controller actually sent. -->
+                                            <Border Style="{StaticResource MetricTile}"
+                                                    BorderBrush="{StaticResource AccentSoftBrush}"
+                                                    ToolTip="{Binding LastRaw, Mode=OneWay, StringFormat=Odpoveď komory (RAW): {0}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="TEPLOTA KOMORY" Style="{StaticResource MetricTileCaption}"
+                                                               Foreground="{StaticResource AccentBrush}" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource MetricStrong}"
+                                                                   Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
                                                 </StackPanel>
-                                            </StackPanel>
-                                            <StackPanel Margin="0,0,24,0">
-                                                <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                                               Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                            <Border Style="{StaticResource MetricTile}"
+                                                    BorderBrush="{StaticResource WarnSoftBrush}"
+                                                    ToolTip="Hodnota, ktorú má komora držať – posiela ju aplikácia, nemeria sa.">
+                                                <StackPanel>
+                                                    <TextBlock Text="NASTAVENÁ (SETPOINT)" Style="{StaticResource MetricTileCaption}"
+                                                               Foreground="{StaticResource WarnBrush}" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource MetricStrong}" Foreground="{StaticResource WarnBrush}"
+                                                                   Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
                                                 </StackPanel>
-                                            </StackPanel>
-                                            <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                    <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                            <Border Style="{StaticResource MetricTile}"
+                                                    BorderBrush="{StaticResource HumiditySoftBrush}"
+                                                    Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="VLHKOSŤ" Style="{StaticResource MetricTileCaption}"
+                                                               Foreground="{StaticResource HumidityBrush}" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource MetricStrong}"
+                                                                   Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                                                        <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
                                                 </StackPanel>
-                                            </StackPanel>
+                                            </Border>
                                         </WrapPanel>
                                         <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap">
                                             <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />

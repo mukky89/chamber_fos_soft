@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.76.1] – 2026-08-28
+
+### Zmenené
+- **Živé hodnoty na karte sú v samostatných chlievikoch.** Meraná teplota,
+  nastavená teplota (setpoint) a vlhkosť majú každá vlastný rámček s farebným
+  označením a tučným popiskom: modrá = čo komora meria, oranžová = čo sme jej
+  nastavili, tyrkysová = vlhkosť. Doteraz to boli tri voľne stojace čísla vedľa
+  seba a dve teploty sa dali ľahko zameniť.
+- Nameraná hodnota je tučná (Segoe UI Semibold) – v pôvodnom tenkom reze sa na
+  podfarbenom rámčeku strácala.
+- Setpoint má nápovedu, že ho posiela aplikácia a nemeria sa, takže je jasné,
+  prečo nemá toľko desatinných miest ako meraná hodnota.
+- Nové zdieľané štýly `MetricTile`, `MetricTileCaption` a `MetricStrong`
+  a farba kanála vlhkosti (`HumidityBrush`) – zámerne mimo semaforu
+  zelená/oranžová/červená, ktorý na karte znamená stav zariadenia.
+
 ## [1.76.0] – 2026-08-28
 
 ### Pridané
