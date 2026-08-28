@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.68.0] – 2026-08-28
+
+### Zmenené
+- **Na obrazovku sa zmestia tri komory vedľa seba.** Karta zariadenia má 470 px
+  (bolo 600), takže tri karty aj s medzerami zaberú ~1450 px namiesto ~1850 px.
+- **Predvoľby teplôt sú v bloku 2 × 2** namiesto jedného radu – štyri miesta zostávajú,
+  ale vedľa nich sa do toho istého riadku zmestí aj nastavenie vlastnej teploty
+  a tlačidlá „Nastaviť“ a „Stop“.
+- **Menší obrázok zariadenia** (108 px namiesto 128 px), aby na užšej karte zostalo viac
+  miesta na názov a živé hodnoty.
+- **Názov zariadenia sa zalamuje namiesto orezania** – celé „Komora 2 — Vötsch VC3 7034
+  (teplota + vlhkosť)“ je čitateľné aj na užšej karte.
+
 ## [1.67.5] – 2026-08-28
 
 ### Zmenené
