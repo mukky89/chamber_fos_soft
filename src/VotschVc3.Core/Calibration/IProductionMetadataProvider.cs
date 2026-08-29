@@ -2,9 +2,8 @@ namespace VotschVc3.Core.Calibration;
 
 /// <summary>
 /// Abstraction for enriching calibration wiring rows with production/order metadata.
-/// The current application keeps these fields editable by the operator; a future SQL
-/// adapter can implement this interface without coupling calibration logic to a specific
-/// database schema or server.
+/// Chamber FOS obtains these values through the central Sylex FOS API and never connects
+/// directly to ISYS/DBFOS.
 /// </summary>
 public interface IProductionMetadataProvider
 {
@@ -16,6 +15,6 @@ public interface IProductionMetadataProvider
 
 public sealed record ProductionMetadata(
     string ProductDescription,
-    string Customer,
+    string SensorName,
     string Order,
     string? Notes = null);
