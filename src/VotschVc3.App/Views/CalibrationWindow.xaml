@@ -14,8 +14,7 @@
             <Setter Property="Height" Value="13" />
         </Style>
     </Window.Resources>
-    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-    <Grid Margin="14" MinWidth="1040" MinHeight="820">
+    <Grid Margin="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -69,6 +68,13 @@
                         </Button>
                     </StackPanel>
                 </Border>
+                <Button Style="{StaticResource GhostButton}" Margin="10,0,0,0" Padding="12,8"
+                        Click="CloseButton_Click" ToolTip="Skryje okno. Prebiehajúca kalibrácia a pripojené zariadenia zostanú aktívne.">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Close}" />
+                        <TextBlock Text="Zavrieť" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </DockPanel>
 
@@ -81,11 +87,11 @@
                 <TextBlock Text="Zostava kalibrácie" Style="{StaticResource Heading}" Margin="0,0,0,10" />
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="0.8*" />
                         <ColumnDefinition Width="10" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="0.8*" />
                         <ColumnDefinition Width="10" />
-                        <ColumnDefinition Width="1.15*" />
+                        <ColumnDefinition Width="1.4*" />
                     </Grid.ColumnDefinitions>
 
                     <!-- ① Čo sa kalibruje -->
@@ -259,7 +265,8 @@
                                         </ItemsControl.Template>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2" />
+                                                <TextBlock Text="{Binding}" Style="{StaticResource Caption}"
+                                                           TextWrapping="WrapWithOverflow" Margin="0,2" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -356,6 +363,8 @@
                             <DataGridCheckBoxColumn Header="Kalibrovať" Binding="{Binding Selected, Mode=TwoWay}" Width="90" />
                             <DataGridTextColumn Header="PeakLogger SN" Binding="{Binding PeakLoggerDeviceSerialNumber}" IsReadOnly="True" Width="125" />
                             <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" IsReadOnly="True" Width="70" />
+                            <DataGridTextColumn Header="Snímač" Binding="{Binding SensorType}" IsReadOnly="True" Width="120" />
+                            <DataGridTextColumn Header="Typ FBG" Binding="{Binding FbgType}" IsReadOnly="True" Width="100" />
                             <DataGridTextColumn Header="Žila 1" Binding="{Binding Core1, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
                             <DataGridTextColumn Header="Žila 2" Binding="{Binding Core2, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
                             <DataGridTextColumn Header="FBG sensor SN (kanál)" Binding="{Binding ChannelSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="175" />
@@ -500,5 +509,4 @@
             </StackPanel>
         </Border>
     </Grid>
-    </ScrollViewer>
 </Window>

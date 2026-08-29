@@ -18,6 +18,8 @@ namespace VotschVc3.App.ViewModels;
 /// </summary>
 public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 {
+    public CalibrationStatusViewModel FbgCalibration { get; } = CalibrationStatusViewModel.Instance;
+
     private static readonly HashSet<string> PersistedKeys = new HashSet<string>
     {
         nameof(ChamberViewModel.Name),

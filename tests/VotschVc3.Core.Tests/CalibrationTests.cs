@@ -111,12 +111,13 @@ public sealed class CalibrationTests
                 "slsr": 0,
                 "width": 0.2,
                 "asymmetry": 0.995,
+                "sensorType": "Temperature probe",
                 "device": {
                   "deviceType": "Hyperion",
                   "deviceSN": "HIAER3",
                   "connector": 4
                 },
-                "fos4x": null
+                "fos4x": { "fbgType": "temperature" }
               },
               {
                 "index": 2,
@@ -156,6 +157,8 @@ public sealed class CalibrationTests
                 Assert.Equal(1, p.PeakIndex);
                 Assert.Equal(1512.9482421875, p.WavelengthNm, 10);
                 Assert.Equal(-24.5599994659424, p.Intensity!.Value, 10);
+                Assert.Equal("Temperature probe", p.SensorType);
+                Assert.Equal("temperature", p.FbgType);
             },
             p =>
             {

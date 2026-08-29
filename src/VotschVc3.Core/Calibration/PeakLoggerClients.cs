@@ -264,7 +264,9 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
                         PeakId(p.Index),
                         p.Index,
                         p.Wavelength,
-                        p.Intensity))
+                        p.Intensity,
+                        GetMetadata(p, SensorTypeNames),
+                        GetMetadata(p, FbgTypeNames)))
                     .ToArray()))
             .ToArray();
     }
@@ -380,6 +382,102 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
     private static string PeakId(int index) => $"P{index}";
 
+    private static readonly string[] SensorTypeNames =
+        { "sensorType", "sensor", "sensorName", "sensorModel" };
+
+    private static readonly string[] FbgTypeNames =
+        { "fbgType", "typeFBG", "fbg_type", "measurementType" };
+
+    private static string GetMetadata(PeakLoggerApiPeakDto peak, IReadOnlyList<string> names)
+    {
+        if (TryFindString(peak.ExtensionData, names, out string value))
+        {
+            return value;
+        }
+
+        if (peak.Fos4x is { } fos4x && TryFindString(fos4x, names, out value))
+        {
+            return value;
+        }
+
+        if (peak.Device?.ExtensionData is { } deviceData && TryFindString(deviceData, names, out value))
+        {
+            return value;
+        }
+
+        return string.Empty;
+    }
+
+    private static bool TryFindString(
+        IReadOnlyDictionary<string, JsonElement>? values,
+        IReadOnlyList<string> names,
+        out string value)
+    {
+        if (values is not null)
+        {
+            foreach ((string key, JsonElement element) in values)
+            {
+                if (names.Any(name => key.Equals(name, StringComparison.OrdinalIgnoreCase)) &&
+                    TryElementText(element, out value))
+                {
+                    return true;
+                }
+
+                if (TryFindString(element, names, out value))
+                {
+                    return true;
+                }
+            }
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static bool TryFindString(JsonElement element, IReadOnlyList<string> names, out string value)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (names.Any(name => property.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) &&
+                    TryElementText(property.Value, out value))
+                {
+                    return true;
+                }
+
+                if (TryFindString(property.Value, names, out value))
+                {
+                    return true;
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement child in element.EnumerateArray())
+            {
+                if (TryFindString(child, names, out value))
+                {
+                    return true;
+                }
+            }
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static bool TryElementText(JsonElement element, out string value)
+    {
+        value = element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString()?.Trim() ?? string.Empty,
+            JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => element.ToString(),
+            _ => string.Empty,
+        };
+        return value.Length > 0;
+    }
+
     private static string GetDeviceSerial(PeakLoggerApiPeakDto peak)
     {
         if (!string.IsNullOrWhiteSpace(peak.Device?.DeviceSN))
@@ -442,6 +540,9 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
         [JsonPropertyName("fos4x")]
         public JsonElement? Fos4x { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     private sealed class PeakLoggerApiDeviceDto
@@ -454,6 +555,9 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
         [JsonPropertyName("connector")]
         public int? Connector { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     public sealed record DiscoveredInstance(string Host, int Port, string ApiPath, int PeakCount, int DeviceCount)

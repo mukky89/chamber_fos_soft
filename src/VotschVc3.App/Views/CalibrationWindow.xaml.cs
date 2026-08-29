@@ -14,6 +14,7 @@ public partial class CalibrationWindow : Window
 
     private readonly CalibrationViewModel _viewModel = new();
     private bool _disposing;
+    private bool _shutdownRequested;
 
     public CalibrationWindow()
     {
@@ -49,6 +50,11 @@ public partial class CalibrationWindow : Window
         }
         else
         {
+            if (!existing.IsVisible)
+            {
+                existing.Show();
+            }
+
             if (existing.WindowState == WindowState.Minimized)
             {
                 existing.WindowState = WindowState.Normal;
@@ -63,11 +69,16 @@ public partial class CalibrationWindow : Window
     /// <summary>Closes the workspace if one is open (called when the app shuts down).</summary>
     public static void CloseIfOpen()
     {
-        _instance?.Close();
-        _instance = null;
+        if (_instance is { } window)
+        {
+            window._shutdownRequested = true;
+            window.Close();
+        }
     }
 
     private void SelectChamber(Guid chamberId) => _viewModel.SelectChamber(chamberId);
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
     /// <summary>
     /// Tears the long-running calibration resources down before the window really closes.
@@ -79,6 +90,13 @@ public partial class CalibrationWindow : Window
     /// </summary>
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (!_shutdownRequested)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
         if (_disposing)
         {
             return;

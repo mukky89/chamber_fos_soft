@@ -166,6 +166,30 @@
 
                 <!-- Navigation -->
                 <StackPanel VerticalAlignment="Top">
+                    <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="9" Padding="10,8" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False">
+                                <TextBlock Text="FBG KALIBRÁCIA" Style="{StaticResource Caption}" DockPanel.Dock="Left" />
+                                <TextBlock Text="{Binding FbgCalibration.StateText}" DockPanel.Dock="Right"
+                                           FontFamily="Segoe UI Semibold" FontSize="12">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FbgCalibration.IsRunning}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DockPanel>
+                            <TextBlock Text="{Binding FbgCalibration.DetailText}" Style="{StaticResource Caption}"
+                                       TextWrapping="Wrap" Margin="0,4,0,5" />
+                            <ProgressBar Height="5" Minimum="0" Maximum="100"
+                                         Value="{Binding FbgCalibration.ProgressPercent}" />
+                        </StackPanel>
+                    </Border>
                     <Button Style="{StaticResource NavButton}" Command="{Binding OpenProfileLibraryCommand}"
                             ToolTip="Prehľad uložených profilov s náhľadom priebehu. Upraviť sa dajú tlačidlom v náhľade (otvorí sa rýchly profil).">
                         <StackPanel Orientation="Horizontal">

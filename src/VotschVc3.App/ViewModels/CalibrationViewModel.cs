@@ -39,6 +39,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private double? _lastReferenceTemperatureC;
     private DateTimeOffset? _lastReferenceMismatchEmailAt;
     private bool _propagatingChannelSerialNumber;
+    private double _calibrationProgressPercent;
 
     private static readonly Regex ProductionSerialNumberPattern = new(
         "^[A-Za-z0-9]{6}/[A-Za-z0-9]{4}$",
@@ -313,7 +314,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         get => _isRunning;
         private set
         {
-            if (SetProperty(ref _isRunning, value)) RefreshCommands();
+            if (SetProperty(ref _isRunning, value))
+            {
+                RefreshCommands();
+                PublishCalibrationStatus();
+            }
         }
     }
 
@@ -1071,6 +1076,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         TargetProgress.Clear();
         _runCts = new CancellationTokenSource();
         _stopRequested = false;
+        _calibrationProgressPercent = 0;
         IsRunning = true;
         _lastChamberTemperatureC = null;
         _lastReferenceTemperatureC = SelectedF100?.Temperature;
@@ -1166,6 +1172,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         RunState = snapshot.State.ToString();
         PlateauLabel = snapshot.PlateauCount <= 0 ? "—" : $"Plato {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount}";
+        _calibrationProgressPercent = snapshot.PlateauCount <= 0
+            ? 0
+            : 100d * Math.Clamp(snapshot.PlateauIndex + 1, 0, snapshot.PlateauCount) / snapshot.PlateauCount;
         TemperatureLabel = snapshot.ActualTemperatureC is { } actual
             ? $"{actual:F2} °C  →  {snapshot.TargetTemperatureC:F2} °C"
             : $"→ {snapshot.TargetTemperatureC:F2} °C";
@@ -1174,6 +1183,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         ReferenceTemperatureLabel = snapshot.ReferenceTemperatureC is { } reference ? $"{reference:F3} °C" : ReferenceTemperatureLabel;
         StableLabel = $"{snapshot.StableTargets} / {snapshot.TotalTargets}";
         StatusMessage = snapshot.Message;
+        PublishCalibrationStatus();
 
         Dictionary<string, CalibrationTargetProgressViewModel> existing = TargetProgress.ToDictionary(x => x.Identity, StringComparer.OrdinalIgnoreCase);
         foreach (CalibrationTargetProgress target in snapshot.Targets)
@@ -1221,6 +1231,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _runCts?.Cancel();
         StatusMessage = "Zastavujem kalibráciu a posielam bezpečný STOP komore…";
     }
+
+    private void PublishCalibrationStatus() => CalibrationStatusViewModel.Instance.Update(
+        IsRunning,
+        SelectedProfile?.Name ?? "FBG kalibrácia",
+        RunState,
+        PlateauLabel,
+        _calibrationProgressPercent);
 
     private void RefreshHistory()
     {
@@ -1368,6 +1385,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         Channel = sensor.Channel;
         PeakId = peak.PeakId;
         PeakIndex = peak.PeakIndex;
+        SensorType = string.IsNullOrWhiteSpace(peak.SensorType) ? "—" : peak.SensorType;
+        FbgType = string.IsNullOrWhiteSpace(peak.FbgType) ? "—" : peak.FbgType;
         _currentWavelengthNm = peak.WavelengthNm;
         _intensity = peak.Intensity;
         _selected = saved?.Selected ?? false;
@@ -1394,6 +1413,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
             }
         }
     }
+
     public string ChainSerialNumber
     {
         get => _chainSerialNumber;
@@ -1425,6 +1445,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     public string Channel { get; }
     public string PeakId { get; }
     public int PeakIndex { get; }
+    public string SensorType { get; }
+    public string FbgType { get; }
     public double CurrentWavelengthNm { get => _currentWavelengthNm; private set => SetProperty(ref _currentWavelengthNm, value); }
     public double? Intensity { get => _intensity; private set => SetProperty(ref _intensity, value); }
     public DateTimeOffset? LastWavelengthUpdate { get => _lastWavelengthUpdate; private set => SetProperty(ref _lastWavelengthUpdate, value); }

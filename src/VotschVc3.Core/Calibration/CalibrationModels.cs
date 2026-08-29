@@ -162,7 +162,9 @@ public sealed record PeakLoggerPeak(
     string PeakId,
     int PeakIndex,
     double WavelengthNm,
-    double? Intensity = null);
+    double? Intensity = null,
+    string SensorType = "",
+    string FbgType = "");
 
 public sealed record PeakLoggerSensor(
     string SerialNumber,
