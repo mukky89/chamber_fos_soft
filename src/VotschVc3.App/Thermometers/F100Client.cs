@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.IO.Ports;
 using System.Text;
 using VotschVc3.Core.Thermometers;
@@ -43,19 +44,38 @@ public sealed class F100Client : IAsyncDisposable
 
     public string PortName => _port.PortName;
 
-    public Task OpenAsync()
+    public async Task OpenAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposing();
-        return Task.Run(() =>
-    {
-        ThrowIfDisposing();
-        if (!_port.IsOpen)
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            _port.Open();
-            _port.DiscardInBuffer();
-            _port.DiscardOutBuffer();
+            ThrowIfDisposing();
+            if (_port.IsOpen)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    _port.Open();
+                    _port.DiscardInBuffer();
+                    _port.DiscardOutBuffer();
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                throw new IOException(
+                    $"Port {_port.PortName} je obsadený. Zatvor FOS4X, inú inštanciu aplikácie alebo inú diagnostiku, ktorá používa tento port, a skús pripojenie znova.",
+                    ex);
+            }
         }
-    });
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <summary>Sends a non-query command. No read is attempted, so commands such as SYSTEM:REMOTE do not time out.</summary>

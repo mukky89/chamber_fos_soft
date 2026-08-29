@@ -148,9 +148,26 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private async Task ConnectAsync()
     {
-        _client = new F100Client(PortName, BaudRate);
+        if (_client is not null)
+        {
+            try { await _client.DisposeAsync(); } catch { }
+            _client = null;
+        }
+
+        var client = new F100Client(PortName, BaudRate);
         StatusMessage = $"Otváram {PortName}…";
-        await _client.OpenAsync();
+        try
+        {
+            await client.OpenAsync();
+            _client = client;
+        }
+        catch
+        {
+            await client.DisposeAsync();
+            IsConnected = false;
+            throw;
+        }
+
         IsConnected = true;
         StatusMessage = "Pripojené · čakám na USB dáta F100.";
         AppLog.Info("F100", $"Teplomer {PortName} @ {BaudRate} bd pripojený.");
