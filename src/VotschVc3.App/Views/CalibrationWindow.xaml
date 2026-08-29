@@ -350,6 +350,12 @@
                         <DataGrid.CellStyle>
                             <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
                                 <Setter Property="Padding" Value="6,0" />
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                    </Trigger>
+                                </Style.Triggers>
                             </Style>
                         </DataGrid.CellStyle>
                         <DataGrid.RowStyle>
@@ -373,6 +379,11 @@
                                         <Setter Property="BorderThickness" Value="3,0,0,0" />
                                         <Setter Property="ToolTip" Value="{Binding SerialNumberWarning}" />
                                     </DataTrigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#FF293958" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="2" />
+                                    </Trigger>
                                 </Style.Triggers>
                             </Style>
                         </DataGrid.RowStyle>
@@ -412,9 +423,18 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <TextBlock Text="Iba označené hold segmenty sa použijú ako kalibračné body. Rampy sa nikdy nevyhodnocujú ako finálne kalibračné body." Style="{StaticResource Caption}" />
-                        <Button DockPanel.Dock="Right" Content="Označiť všetky plata" Style="{StaticResource GhostButton}" Command="{Binding MarkAllPlateausCommand}" />
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+                        <TextBlock DockPanel.Dock="Left" MaxWidth="850" TextWrapping="Wrap"
+                                   Text="Vyber hold segmenty, ktoré sa majú použiť ako kalibračné body. Rampy sa do finálneho vyhodnotenia nezaraďujú."
+                                   Style="{StaticResource Caption}" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource AccentOutlineButton}"
+                                Padding="11,6" Margin="12,0,0,0" Command="{Binding MarkAllPlateausCommand}"
+                                ToolTip="Označí všetky dostupné hold segmenty profilu ako kalibračné body.">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Calibration}" />
+                                <TextBlock Text="Vybrať všetky plata" Style="{StaticResource IconLabel}" Margin="7,0,0,0" />
+                            </StackPanel>
+                        </Button>
                     </DockPanel>
                     <DataGrid Grid.Row="1" ItemsSource="{Binding CalibrationPoints}" AutoGenerateColumns="False" CanUserAddRows="False">
                         <DataGrid.Columns>
