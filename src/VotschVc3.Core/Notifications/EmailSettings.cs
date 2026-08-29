@@ -54,6 +54,15 @@ public sealed class EmailSettings
     /// <summary>Master switch for sending notification e-mails.</summary>
     public bool Enabled { get; set; }
 
+    /// <summary>Warn when the ASL F100 reference differs too much from the chamber reading.</summary>
+    public bool ReferenceTemperatureMismatchAlertsEnabled { get; set; } = true;
+
+    /// <summary>Maximum allowed absolute difference between chamber and F100.</summary>
+    public double ReferenceTemperatureMismatchLimitC { get; set; } = 5.0;
+
+    /// <summary>Minimum interval between repeated mismatch e-mails.</summary>
+    public int ReferenceTemperatureMismatchEmailCooldownMinutes { get; set; } = 30;
+
     /// <summary>Delivery mechanism.</summary>
     public EmailMethod Method { get; set; } = EmailMethod.BrevoApi;
 

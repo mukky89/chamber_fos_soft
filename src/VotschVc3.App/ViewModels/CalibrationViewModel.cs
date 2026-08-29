@@ -37,6 +37,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private bool _stopRequested;
     private double? _lastChamberTemperatureC;
     private double? _lastReferenceTemperatureC;
+    private DateTimeOffset? _lastReferenceMismatchEmailAt;
     private bool _propagatingChannelSerialNumber;
 
     private static readonly Regex ProductionSerialNumberPattern = new(
@@ -889,7 +890,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         try
         {
             SelectedF100 = _referenceThermometers.AddManualPort(ManualF100Port);
-            StatusMessage = $"Port {SelectedF100.PortName} bol pridaný ručne. Stlač Kontrola alebo Vynútiť pripojenie.";
+            StatusMessage = $"Port {SelectedF100.PortName} bol pridaný ručne. Stlač Načítať teplotu alebo Vynútiť pripojenie.";
         }
         catch (Exception ex)
         {
@@ -919,12 +920,18 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StatusMessage = $"Kontrola ASL F100 · {SelectedF100.PortName} · kanál {SelectedF100Channel}…";
         double? value = await SelectedF100.CheckAsync();
         _lastReferenceTemperatureC = value;
+        double? chamberTemperature = await ReadCurrentChamberTemperatureAsync();
+        _lastChamberTemperatureC = chamberTemperature ?? _lastChamberTemperatureC;
         ReferenceTemperatureLabel = value is { } t ? $"{t:F3} °C" : "—";
         OnPropertyChanged(nameof(F100TemperatureLabel));
         OnPropertyChanged(nameof(F100ConnectionLabel));
         StatusMessage = value is { } temperature
             ? $"ASL F100 OK · {SelectedF100.PortName} · kanál {SelectedF100Channel} · {temperature:F3} °C"
             : "ASL F100 nevrátil platnú teplotu.";
+        if (value is { } reference && chamberTemperature is { } chamber)
+        {
+            await ValidateReferenceTemperatureAsync(chamber, reference);
+        }
     }
 
     private async Task<double?> ReadReferenceTemperatureAsync(CancellationToken token)
@@ -933,6 +940,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SelectedF100.SelectedChannel = SelectedF100Channel;
         double? value = await SelectedF100.ReadReferenceTemperatureAsync(token);
         _lastReferenceTemperatureC = value;
+        double? currentChamberTemperature = await ReadCurrentChamberTemperatureAsync(token);
+        _lastChamberTemperatureC = currentChamberTemperature ?? _lastChamberTemperatureC;
+        if (value is { } reference && currentChamberTemperature is { } chamber)
+        {
+            await ValidateReferenceTemperatureAsync(chamber, reference, token);
+        }
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
             ReferenceTemperatureLabel = value is { } t ? $"{t:F3} °C" : "—";
@@ -940,6 +953,79 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             OnPropertyChanged(nameof(F100ConnectionLabel));
         });
         return value;
+    }
+
+    private async Task<double?> ReadCurrentChamberTemperatureAsync(CancellationToken cancellationToken = default)
+    {
+        if (_chamber is not null)
+        {
+            return (await _chamber.ReadAsync(cancellationToken)).Temperature;
+        }
+
+        if (SelectedChamber is null)
+        {
+            return null;
+        }
+
+        await using IChamberDevice chamber = CreateChamberClient(SelectedChamber.Config);
+        await chamber.ConnectAsync(ToConnectionSettings(SelectedChamber.Config), cancellationToken);
+        try
+        {
+            return (await chamber.ReadAsync(cancellationToken)).Temperature;
+        }
+        finally
+        {
+            try { await chamber.DisconnectAsync(); } catch { }
+        }
+    }
+
+    private async Task ValidateReferenceTemperatureAsync(
+        double chamberTemperature,
+        double referenceTemperature,
+        CancellationToken cancellationToken = default)
+    {
+        EmailSettings settings = _email.Settings;
+        if (!settings.ReferenceTemperatureMismatchAlertsEnabled)
+        {
+            return;
+        }
+
+        double limit = Math.Max(0.1, Math.Abs(settings.ReferenceTemperatureMismatchLimitC));
+        double difference = Math.Abs(referenceTemperature - chamberTemperature);
+        if (difference <= limit)
+        {
+            return;
+        }
+
+        string message = $"CHYBA TEPLOTY: F100 {referenceTemperature:F3} °C sa nezhoduje s komorou " +
+                         $"{chamberTemperature:F3} °C. Rozdiel {difference:F3} °C prekročil povolených ±{limit:F1} °C.";
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            WarningText = message;
+            StatusMessage = message;
+        });
+        AppLog.Warn("F100 kontrola", message);
+
+        int cooldownMinutes = Math.Max(1, settings.ReferenceTemperatureMismatchEmailCooldownMinutes);
+        DateTimeOffset now = DateTimeOffset.Now;
+        if (_lastReferenceMismatchEmailAt is { } last && now - last < TimeSpan.FromMinutes(cooldownMinutes))
+        {
+            return;
+        }
+
+        EmailResult result = await _email.SendAsync(
+            $"CHYBA – rozdiel teploty F100 a komory – {SelectedChamber?.Config.Name ?? "komora"}",
+            $"{message}\n\nKomora: {SelectedChamber?.Config.Name}\nF100: {SelectedF100?.PortName} / kanál {SelectedF100Channel}\nČas: {now:yyyy-MM-dd HH:mm:ss}",
+            cancellationToken: cancellationToken);
+        if (result.Sent)
+        {
+            _lastReferenceMismatchEmailAt = now;
+        }
+        else if (result.Error is { } error)
+        {
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                WarningText = $"{message} E-mail sa nepodarilo odoslať: {error}");
+        }
     }
 
     private void SaveSetup() => PersistSetup(showStatus: true);

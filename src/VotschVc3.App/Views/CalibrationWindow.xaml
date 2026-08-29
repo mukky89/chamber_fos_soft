@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:VotschVc3.App.Views"
         Title="FBG teplotná kalibrácia · PeakLogger"
-        Height="940" Width="1500" MinHeight="760" MinWidth="1180"
+        Height="940" Width="1500" MinHeight="700" MinWidth="1080"
+        WindowState="Maximized"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundBrush}">
     <Window.Resources>
@@ -13,7 +14,8 @@
             <Setter Property="Height" Value="13" />
         </Style>
     </Window.Resources>
-    <Grid Margin="14">
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+    <Grid Margin="14" MinWidth="1040" MinHeight="820">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -208,7 +210,7 @@
                                         ToolTip="Pripojí vybraný F100 (ak treba) a vyčíta jednu čerstvú teplotu zo zvoleného kanála.">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Thermometer}" />
-                                        <TextBlock Text="Kontrola" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                                        <TextBlock Text="Načítať teplotu" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
                                     </StackPanel>
                                 </Button>
                             </Grid>
@@ -287,7 +289,7 @@
                     </TextBlock>
                 </DockPanel>
                 <views:ChartView Grid.Row="1" Series="{Binding SelectedF100.LiveSeries}" Unit=" °C"
-                                 EmptyText="Stlač Kontrola alebo spusti kalibráciu…"
+                                 EmptyText="Stlač Načítať teplotu alebo spusti kalibráciu…"
                                  ChartTitle="ASL F100 — referenčná teplota" />
             </Grid>
         </Border>
@@ -498,4 +500,5 @@
             </StackPanel>
         </Border>
     </Grid>
+    </ScrollViewer>
 </Window>

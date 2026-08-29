@@ -323,6 +323,32 @@
                     <TextBlock Text="{Binding EmailApiKeyHint}" Style="{StaticResource Caption}"
                                TextWrapping="Wrap" Margin="0,2,0,0" />
 
+                    <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,10,0,0">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False">
+                                <TextBlock Text="Kontrola F100 vs. komora" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                                <CheckBox Content="Kontrola zapnutá"
+                                          IsChecked="{Binding Email.ReferenceTemperatureMismatchAlertsEnabled}"
+                                          DockPanel.Dock="Right" />
+                            </DockPanel>
+                            <TextBlock Text="Pri prekročení povoleného rozdielu sa v kalibrácii zobrazí chyba a odošle e-mail na adresáty uvedené vyššie."
+                                       Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,6" />
+                            <WrapPanel>
+                                <StackPanel Style="{StaticResource MiniField}" Width="190">
+                                    <TextBlock Text="Max. rozdiel [°C]" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Email.ReferenceTemperatureMismatchLimitC, UpdateSourceTrigger=LostFocus}"
+                                             ToolTip="Predvolená hodnota je ±5 °C." />
+                                </StackPanel>
+                                <StackPanel Style="{StaticResource MiniField}" Width="220">
+                                    <TextBlock Text="Opakovať e-mail najskôr [min]" Style="{StaticResource Label}" />
+                                    <TextBox Text="{Binding Email.ReferenceTemperatureMismatchEmailCooldownMinutes, UpdateSourceTrigger=LostFocus}"
+                                             ToolTip="Chráni pred opakovaným posielaním rovnakého upozornenia." />
+                                </StackPanel>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Says up front what is still missing – previously the only way to find
                          out was to press "Poslať test" and read the failure. -->
                     <TextBlock Text="{Binding EmailReadinessText}" TextWrapping="Wrap" Margin="0,8,0,0"
