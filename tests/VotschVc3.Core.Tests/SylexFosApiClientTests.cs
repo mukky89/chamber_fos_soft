@@ -26,8 +26,8 @@ public sealed class SylexFosApiClientTests
                 {
                   "serialNumber": "123456/0001",
                   "productId": "123456",
-                  "productDescription": "FBG temperature sensor",
-                  "customer": "Customer A",
+                  "productDescription": "Temperature sensor assembly",
+                  "sensorName": "FBG temperature sensor",
                   "customerCode": "CUST-A",
                   "orderNumber": null,
                   "source": "ISYS product lookup",
@@ -48,11 +48,10 @@ public sealed class SylexFosApiClientTests
             }, http);
 
             SylexFbgCalibrationContext? context = await client.GetFbgCalibrationContextAsync("123456/0001");
-
             Assert.NotNull(context);
             Assert.Equal("123456", context.ProductId);
-            Assert.Equal("FBG temperature sensor", context.ProductDescription);
-            Assert.Equal("Customer A", context.Customer);
+            Assert.Equal("Temperature sensor assembly", context.ProductDescription);
+            Assert.Equal("FBG temperature sensor", context.SensorName);
             Assert.Null(context.OrderNumber);
         }
         finally
@@ -67,8 +66,8 @@ public sealed class SylexFosApiClientTests
         var fake = new FakeClient(new SylexFbgCalibrationContext(
             "123456/0001",
             "123456",
-            "FBG sensor",
-            "Customer A",
+            "Temperature sensor assembly",
+            "FBG temperature sensor",
             "CUST-A",
             null,
             "ISYS product lookup",
@@ -78,14 +77,14 @@ public sealed class SylexFosApiClientTests
         ProductionMetadata? metadata = await provider.FindAsync("123456/0001", "1");
 
         Assert.NotNull(metadata);
-        Assert.Equal("FBG sensor", metadata.ProductDescription);
-        Assert.Equal("Customer A", metadata.Customer);
+        Assert.Equal("Temperature sensor assembly", metadata.ProductDescription);
+        Assert.Equal("FBG temperature sensor", metadata.SensorName);
         Assert.Equal(string.Empty, metadata.Order);
         Assert.Contains("Sylex FOS API", metadata.Notes);
         Assert.Equal(1, fake.RequestCount);
 
         _ = await provider.FindAsync("123456/0001", "2");
-        Assert.Equal(1, fake.RequestCount); // cached by production SN, not PeakLogger channel
+        Assert.Equal(1, fake.RequestCount);
     }
 
     [Fact]
@@ -122,10 +121,8 @@ public sealed class SylexFosApiClientTests
     private sealed class FakeClient(SylexFbgCalibrationContext context) : ISylexFosApiClient
     {
         public int RequestCount { get; private set; }
-
         public Task<SylexFosApiHealth> CheckHealthAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new SylexFosApiHealth(true, "healthy", DateTimeOffset.UtcNow));
-
         public Task<SylexFbgCalibrationContext?> GetFbgCalibrationContextAsync(string serialNumber, CancellationToken cancellationToken = default)
         {
             RequestCount++;
