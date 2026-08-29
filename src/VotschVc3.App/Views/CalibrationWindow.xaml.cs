@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Threading;
+using VotschVc3.App.Calibration;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Diagnostics;
 
@@ -12,6 +13,7 @@ public partial class CalibrationWindow : Window
     private static readonly Dictionary<Guid, CalibrationWindow> Instances = new();
 
     private readonly CalibrationViewModel _viewModel;
+    private readonly SylexFosCalibrationIntegration _sylexFosIntegration;
     private readonly Guid _chamberId;
     private bool _disposing;
     private bool _shutdownRequested;
@@ -20,6 +22,7 @@ public partial class CalibrationWindow : Window
     {
         _chamberId = chamberId;
         _viewModel = new CalibrationViewModel(chamberId);
+        _sylexFosIntegration = new SylexFosCalibrationIntegration(_viewModel);
         InitializeComponent();
         DataContext = _viewModel;
         Closing += OnClosing;
@@ -109,11 +112,12 @@ public partial class CalibrationWindow : Window
     {
         try
         {
+            await _sylexFosIntegration.DisposeAsync();
             await _viewModel.DisposeAsync();
         }
         catch (Exception ex)
         {
-            // The window must close even if a device hangs on shutdown – log and carry on.
+            // The window must close even if a device/API integration hangs on shutdown – log and carry on.
             AppLog.Warn("FBG kalibrácia", $"Ukončenie kalibračného okna: {ex.Message}");
         }
 
