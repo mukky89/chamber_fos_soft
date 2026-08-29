@@ -114,7 +114,9 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
         }
 
         string encodedSerial = Uri.EscapeDataString(serialNumber.Trim());
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/calibrations/fbg/context/{encodedSerial}");
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/api/v1/calibrations/fbg/context?serialNumber={encodedSerial}");
         request.Headers.Add("X-API-Key", apiKey);
         request.Headers.Add("X-Correlation-ID", Guid.NewGuid().ToString("N"));
 
