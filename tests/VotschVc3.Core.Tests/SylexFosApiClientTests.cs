@@ -19,7 +19,8 @@ public sealed class SylexFosApiClientTests
             {
                 Assert.Equal("test-secret", request.Headers.GetValues("X-API-Key").Single());
                 Assert.True(request.Headers.Contains("X-Correlation-ID"));
-                Assert.Equal("/api/v1/calibrations/fbg/context/123456%2F0001", request.RequestUri?.AbsolutePath);
+                Assert.Equal("/api/v1/calibrations/fbg/context", request.RequestUri?.AbsolutePath);
+                Assert.Equal("?serialNumber=123456%2F0001", request.RequestUri?.Query);
 
                 const string json = """
                 {
