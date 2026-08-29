@@ -4,11 +4,6 @@ using System.Text.Json;
 
 namespace VotschVc3.Core.Calibration;
 
-/// <summary>
-/// Configuration for the central Sylex FOS API used by FBG calibration.
-/// Secrets are intentionally not persisted here; the API key is resolved from an
-/// environment variable on the workstation.
-/// </summary>
 public sealed class SylexFosApiSettings
 {
     public const string DefaultBaseUrl = "http://localhost:5080";
@@ -18,23 +13,18 @@ public sealed class SylexFosApiSettings
     public string ApiKeyEnvironmentVariable { get; set; } = DefaultApiKeyEnvironmentVariable;
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
-    public string? ResolveApiKey() =>
-        string.IsNullOrWhiteSpace(ApiKeyEnvironmentVariable)
-            ? null
-            : Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariable);
+    public string? ResolveApiKey() => string.IsNullOrWhiteSpace(ApiKeyEnvironmentVariable)
+        ? null
+        : Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariable);
 }
 
-public sealed record SylexFosApiHealth(
-    bool IsReachable,
-    string Status,
-    DateTimeOffset CheckedAtUtc,
-    string? Detail = null);
+public sealed record SylexFosApiHealth(bool IsReachable, string Status, DateTimeOffset CheckedAtUtc, string? Detail = null);
 
 public sealed record SylexFbgCalibrationContext(
     string SerialNumber,
     string ProductId,
     string? ProductDescription,
-    string? Customer,
+    string? SensorName,
     string? CustomerCode,
     string? OrderNumber,
     string Source,
@@ -43,21 +33,12 @@ public sealed record SylexFbgCalibrationContext(
 public interface ISylexFosApiClient
 {
     Task<SylexFosApiHealth> CheckHealthAsync(CancellationToken cancellationToken = default);
-    Task<SylexFbgCalibrationContext?> GetFbgCalibrationContextAsync(
-        string serialNumber,
-        CancellationToken cancellationToken = default);
+    Task<SylexFbgCalibrationContext?> GetFbgCalibrationContextAsync(string serialNumber, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Read-only client for the internal Sylex FOS API. It never connects directly to ISYS/DBFOS.
-/// </summary>
 public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        PropertyNameCaseInsensitive = true,
-    };
-
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     private readonly HttpClient _httpClient;
     private readonly SylexFosApiSettings _settings;
     private readonly bool _ownsHttpClient;
@@ -67,14 +48,10 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _httpClient = httpClient ?? new HttpClient();
         _ownsHttpClient = httpClient is null;
-
         if (!Uri.TryCreate(settings.BaseUrl?.TrimEnd('/'), UriKind.Absolute, out Uri? baseUri))
             throw new ArgumentException("Sylex FOS API BaseUrl must be an absolute URL.", nameof(settings));
-
         _httpClient.BaseAddress = baseUri;
-        _httpClient.Timeout = settings.RequestTimeout > TimeSpan.Zero
-            ? settings.RequestTimeout
-            : TimeSpan.FromSeconds(10);
+        _httpClient.Timeout = settings.RequestTimeout > TimeSpan.Zero ? settings.RequestTimeout : TimeSpan.FromSeconds(10);
     }
 
     public async Task<SylexFosApiHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
@@ -83,70 +60,40 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
         {
             using HttpResponseMessage response = await _httpClient.GetAsync("/health", cancellationToken).ConfigureAwait(false);
             string status = response.IsSuccessStatusCode ? "healthy" : $"http_{(int)response.StatusCode}";
-            return new SylexFosApiHealth(
-                response.IsSuccessStatusCode,
-                status,
-                DateTimeOffset.UtcNow,
-                response.IsSuccessStatusCode ? null : response.ReasonPhrase);
+            return new(response.IsSuccessStatusCode, status, DateTimeOffset.UtcNow, response.IsSuccessStatusCode ? null : response.ReasonPhrase);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new SylexFosApiHealth(false, "timeout", DateTimeOffset.UtcNow, "Sylex FOS API request timed out.");
+            return new(false, "timeout", DateTimeOffset.UtcNow, "Sylex FOS API request timed out.");
         }
         catch (HttpRequestException ex)
         {
-            return new SylexFosApiHealth(false, "unreachable", DateTimeOffset.UtcNow, ex.Message);
+            return new(false, "unreachable", DateTimeOffset.UtcNow, ex.Message);
         }
     }
 
-    public async Task<SylexFbgCalibrationContext?> GetFbgCalibrationContextAsync(
-        string serialNumber,
-        CancellationToken cancellationToken = default)
+    public async Task<SylexFbgCalibrationContext?> GetFbgCalibrationContextAsync(string serialNumber, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(serialNumber))
-            return null;
-
+        if (string.IsNullOrWhiteSpace(serialNumber)) return null;
         string? apiKey = _settings.ResolveApiKey();
         if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException(
-                $"Sylex FOS API key is not configured. Set environment variable '{_settings.ApiKeyEnvironmentVariable}'.");
-        }
+            throw new InvalidOperationException($"Sylex FOS API key is not configured. Set environment variable '{_settings.ApiKeyEnvironmentVariable}'.");
 
         string encodedSerial = Uri.EscapeDataString(serialNumber.Trim());
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            $"/api/v1/calibrations/fbg/context?serialNumber={encodedSerial}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/calibrations/fbg/context?serialNumber={encodedSerial}");
         request.Headers.Add("X-API-Key", apiKey);
         request.Headers.Add("X-Correlation-ID", Guid.NewGuid().ToString("N"));
-
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound)
-            return null;
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-            throw new InvalidOperationException("Sylex FOS API rejected the configured API key (401 Unauthorized).");
-
-        if (response.StatusCode == HttpStatusCode.Forbidden)
-            throw new InvalidOperationException("Sylex FOS API key is missing the calibrations.read scope (403 Forbidden).");
-
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        if (response.StatusCode == HttpStatusCode.Unauthorized) throw new InvalidOperationException("Sylex FOS API rejected the configured API key (401 Unauthorized).");
+        if (response.StatusCode == HttpStatusCode.Forbidden) throw new InvalidOperationException("Sylex FOS API key is missing the calibrations.read scope (403 Forbidden).");
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<SylexFbgCalibrationContext>(JsonOptions, cancellationToken)
-            .ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<SylexFbgCalibrationContext>(JsonOptions, cancellationToken).ConfigureAwait(false);
     }
 
-    public void Dispose()
-    {
-        if (_ownsHttpClient)
-            _httpClient.Dispose();
-    }
+    public void Dispose() { if (_ownsHttpClient) _httpClient.Dispose(); }
 }
 
-/// <summary>
-/// Bridges the central Sylex FOS API into the existing calibration metadata abstraction.
-/// Product/customer metadata are filled from the stable FBG calibration context endpoint.
-/// Order remains editable until the central API has a verified OrderNumber mapping.
-/// </summary>
 public sealed class SylexFosApiProductionMetadataProvider : IProductionMetadataProvider, IDisposable
 {
     private readonly ISylexFosApiClient _client;
@@ -160,44 +107,18 @@ public sealed class SylexFosApiProductionMetadataProvider : IProductionMetadataP
         _ownedClient = client as IDisposable;
     }
 
-    public static SylexFosApiProductionMetadataProvider CreateDefault(string? baseUrl = null)
+    public async Task<ProductionMetadata?> FindAsync(string serialNumber, string channel, CancellationToken cancellationToken = default)
     {
-        var settings = new SylexFosApiSettings
-        {
-            BaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? SylexFosApiSettings.DefaultBaseUrl : baseUrl.Trim(),
-        };
-        return new SylexFosApiProductionMetadataProvider(new SylexFosApiClient(settings));
-    }
-
-    public async Task<ProductionMetadata?> FindAsync(
-        string serialNumber,
-        string channel,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(serialNumber))
-            return null;
-
+        if (string.IsNullOrWhiteSpace(serialNumber)) return null;
         string key = serialNumber.Trim();
-        lock (_cacheSync)
-        {
-            if (_cache.TryGetValue(key, out ProductionMetadata? cached))
-                return cached;
-        }
-
-        SylexFbgCalibrationContext? context =
-            await _client.GetFbgCalibrationContextAsync(key, cancellationToken).ConfigureAwait(false);
-
-        ProductionMetadata? metadata = context is null
-            ? null
-            : new ProductionMetadata(
-                context.ProductDescription ?? context.ProductId,
-                context.Customer ?? context.CustomerCode ?? string.Empty,
-                context.OrderNumber ?? string.Empty,
-                $"Sylex FOS API · {context.Source}");
-
-        lock (_cacheSync)
-            _cache[key] = metadata;
-
+        lock (_cacheSync) if (_cache.TryGetValue(key, out ProductionMetadata? cached)) return cached;
+        SylexFbgCalibrationContext? context = await _client.GetFbgCalibrationContextAsync(key, cancellationToken).ConfigureAwait(false);
+        ProductionMetadata? metadata = context is null ? null : new ProductionMetadata(
+            context.ProductDescription ?? context.ProductId,
+            context.SensorName ?? string.Empty,
+            context.OrderNumber ?? string.Empty,
+            $"Sylex FOS API · {context.Source}");
+        lock (_cacheSync) _cache[key] = metadata;
         return metadata;
     }
 
