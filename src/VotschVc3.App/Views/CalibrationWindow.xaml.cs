@@ -8,16 +8,18 @@ namespace VotschVc3.App.Views;
 
 public partial class CalibrationWindow : Window
 {
-    /// <summary>The one open calibration workspace, so every device button reuses it
-    /// instead of opening a second window with its own PeakLogger connection.</summary>
-    private static CalibrationWindow? _instance;
+    /// <summary>Each chamber owns one independent, reusable calibration workspace.</summary>
+    private static readonly Dictionary<Guid, CalibrationWindow> Instances = new();
 
-    private readonly CalibrationViewModel _viewModel = new();
+    private readonly CalibrationViewModel _viewModel;
+    private readonly Guid _chamberId;
     private bool _disposing;
     private bool _shutdownRequested;
 
-    public CalibrationWindow()
+    public CalibrationWindow(Guid chamberId)
     {
+        _chamberId = chamberId;
+        _viewModel = new CalibrationViewModel(chamberId);
         InitializeComponent();
         DataContext = _viewModel;
         Closing += OnClosing;
@@ -31,20 +33,18 @@ public partial class CalibrationWindow : Window
     public static void OpenFor(Window? owner, Guid chamberId)
     {
         // A window that is already tearing its devices down must not be handed back out.
-        CalibrationWindow? existing = _instance;
+        Instances.TryGetValue(chamberId, out CalibrationWindow? existing);
         if (existing is null || !existing.IsLoaded || existing._disposing)
         {
-            var window = new CalibrationWindow { Owner = owner };
-            // Only clear the shared slot if it still points at this window – a slow close
-            // of the previous one must not wipe the workspace that replaced it.
+            var window = new CalibrationWindow(chamberId) { Owner = owner };
             window.Closed += (_, _) =>
             {
-                if (ReferenceEquals(_instance, window))
+                if (Instances.TryGetValue(chamberId, out CalibrationWindow? current) && ReferenceEquals(current, window))
                 {
-                    _instance = null;
+                    Instances.Remove(chamberId);
                 }
             };
-            _instance = window;
+            Instances[chamberId] = window;
             existing = window;
             existing.Show();
         }
@@ -63,20 +63,17 @@ public partial class CalibrationWindow : Window
             existing.Activate();
         }
 
-        existing.SelectChamber(chamberId);
     }
 
     /// <summary>Closes the workspace if one is open (called when the app shuts down).</summary>
     public static void CloseIfOpen()
     {
-        if (_instance is { } window)
+        foreach (CalibrationWindow window in Instances.Values.ToArray())
         {
             window._shutdownRequested = true;
             window.Close();
         }
     }
-
-    private void SelectChamber(Guid chamberId) => _viewModel.SelectChamber(chamberId);
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 

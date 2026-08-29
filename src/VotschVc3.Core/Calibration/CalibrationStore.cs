@@ -33,12 +33,26 @@ public sealed class CalibrationStore
     public void SaveSetup(CalibrationSetup setup)
     {
         ArgumentNullException.ThrowIfNull(setup);
-        File.WriteAllText(SetupPath(setup.ProfileId), JsonSerializer.Serialize(setup, JsonOptions));
+        File.WriteAllText(SetupPath(setup.ProfileId, setup.ChamberId), JsonSerializer.Serialize(setup, JsonOptions));
     }
 
     public CalibrationSetup? LoadSetup(Guid profileId)
     {
-        string path = SetupPath(profileId);
+        string path = SetupPath(profileId, Guid.Empty);
+        if (!File.Exists(path)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<CalibrationSetup>(File.ReadAllText(path), JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    public CalibrationSetup? LoadSetup(Guid profileId, Guid chamberId)
+    {
+        string path = SetupPath(profileId, chamberId);
         if (!File.Exists(path)) return null;
         try
         {
@@ -149,7 +163,9 @@ public sealed class CalibrationStore
     }
 
     internal string RunDirectory(Guid runId) => Path.Combine(RunsDirectory, runId.ToString("N"));
-    private string SetupPath(Guid profileId) => Path.Combine(SetupsDirectory, $"{profileId:N}.json");
+    private string SetupPath(Guid profileId, Guid chamberId) => chamberId == Guid.Empty
+        ? Path.Combine(SetupsDirectory, $"{profileId:N}.json")
+        : Path.Combine(SetupsDirectory, $"{chamberId:N}-{profileId:N}.json");
     private string CheckpointPath(Guid chamberId) => Path.Combine(CheckpointsDirectory, $"{chamberId:N}.json");
 
     private static string F(double value) => value.ToString("G17", CultureInfo.InvariantCulture);

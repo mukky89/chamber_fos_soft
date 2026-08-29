@@ -150,6 +150,8 @@ public sealed class CalibrationSensorMapping
 public sealed class CalibrationSetup
 {
     public Guid ProfileId { get; set; }
+    public Guid ChamberId { get; set; }
+    public List<int> CalibrationSegmentIndices { get; set; } = new();
     public List<CalibrationSensorMapping> Mappings { get; set; } = new();
     public CalibrationProfileSettings Settings { get; set; } = new();
 }

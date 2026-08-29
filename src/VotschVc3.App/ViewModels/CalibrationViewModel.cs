@@ -24,6 +24,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private readonly CalibrationStore _calibrationStore;
     private readonly EmailNotifier _email = new();
     private readonly ThermometersViewModel _referenceThermometers;
+    private readonly Guid _workspaceChamberId;
     private PeakLoggerSettings _peakLoggerSettings = new();
     private IPeakLoggerClient? _peakLogger;
     private IChamberDevice? _chamber;
@@ -40,13 +41,16 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private DateTimeOffset? _lastReferenceMismatchEmailAt;
     private bool _propagatingChannelSerialNumber;
     private double _calibrationProgressPercent;
+    private string? _reservedF100Key;
+    private string? _reservedPeakLoggerKey;
 
     private static readonly Regex ProductionSerialNumberPattern = new(
         "^[A-Za-z0-9]{6}/[A-Za-z0-9]{4}$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    public CalibrationViewModel()
+    public CalibrationViewModel(Guid chamberId)
     {
+        _workspaceChamberId = chamberId;
         AppPaths.Initialize();
         _profileStore = new ProfileStore(AppPaths.ProfilesDir);
         _chamberStore = new ChamberConfigStore(Path.Combine(AppPaths.SettingsDir, "chambers.json"));
@@ -86,7 +90,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         AddManualF100PortCommand = new RelayCommand(AddManualF100Port);
         ForceReconnectF100Command = new AsyncRelayCommand(ForceReconnectF100Async, () => SelectedF100 is not null, ReportError);
 
-        if (Chambers.Count > 0) SelectedChamber = Chambers[0];
+        SelectedChamber = Chambers.FirstOrDefault(chamber => chamber.Config.Id == chamberId)
+            ?? Chambers.FirstOrDefault();
         RefreshProfiles();
         SelectedF100 = F100Devices.FirstOrDefault();
     }
@@ -428,13 +433,16 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        _setup = _calibrationStore.LoadSetup(SelectedProfile.Id) ?? new CalibrationSetup { ProfileId = SelectedProfile.Id };
+        Guid chamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
+        _setup = _calibrationStore.LoadSetup(SelectedProfile.Id, chamberId)
+            ?? new CalibrationSetup { ProfileId = SelectedProfile.Id, ChamberId = chamberId };
         for (int i = 0; i < SelectedProfile.Segments.Count; i++)
         {
             ProfileSegment segment = SelectedProfile.Segments[i];
             if (!segment.IsRamp)
             {
                 var point = new CalibrationPointRowViewModel(i, segment);
+                point.Selected = _setup.CalibrationSegmentIndices.Contains(i);
                 point.PropertyChanged += (_, e) =>
                 {
                     if (e.PropertyName == nameof(CalibrationPointRowViewModel.Selected))
@@ -451,8 +459,27 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private async Task ConnectPeakLoggerAsync()
     {
+        string? newReservationKey = null;
+        if (!UseSimulator)
+        {
+            int port = PeakLoggerPort > 0 ? PeakLoggerPort : PeakLoggerApiClient.DefaultPort;
+            newReservationKey = CalibrationResourceRegistry.PeakLoggerKey(PeakLoggerHost, port);
+            if (!CalibrationResourceRegistry.TryAcquire(
+                    newReservationKey, _workspaceChamberId, WorkspaceName, out string occupiedBy))
+            {
+                throw new InvalidOperationException(
+                    $"PeakLogger API {PeakLoggerHost}:{port} je obsadené kalibráciou zariadenia „{occupiedBy}“. Vyber inú API inštanciu alebo ju najprv uvoľni v pôvodnom okne.");
+            }
+        }
+
         StopPeakMonitor();
         if (_peakLogger is not null) await _peakLogger.DisposeAsync();
+        if (_reservedPeakLoggerKey is { } oldReservation &&
+            !string.Equals(oldReservation, newReservationKey, StringComparison.OrdinalIgnoreCase))
+        {
+            CalibrationResourceRegistry.Release(oldReservation, _workspaceChamberId);
+        }
+        _reservedPeakLoggerKey = newReservationKey;
         _peakLoggerSettings = new PeakLoggerSettings
         {
             Host = PeakLoggerHost.Trim(),
@@ -464,12 +491,30 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             ? new FakePeakLoggerClient(SimulatorScenario)
             : new PeakLoggerApiClient();
 
-        PeakLoggerStatus = "Pripájam…";
-        await _peakLogger.ConnectAsync(_peakLoggerSettings);
-        PeakLoggerConnected = true;
-        PeakLoggerStatus = UseSimulator ? $"Pripojený · simulátor ({SimulatorScenario})" : "Pripojený";
-        await DiscoverSensorsAsync();
-        StartPeakMonitor();
+        try
+        {
+            PeakLoggerStatus = "Pripájam…";
+            await _peakLogger.ConnectAsync(_peakLoggerSettings);
+            PeakLoggerConnected = true;
+            PeakLoggerStatus = UseSimulator ? $"Pripojený · simulátor ({SimulatorScenario})" : "Pripojený";
+            await DiscoverSensorsAsync();
+            StartPeakMonitor();
+        }
+        catch
+        {
+            PeakLoggerConnected = false;
+            if (newReservationKey is not null)
+            {
+                CalibrationResourceRegistry.Release(newReservationKey, _workspaceChamberId);
+                _reservedPeakLoggerKey = null;
+            }
+            if (_peakLogger is not null)
+            {
+                await _peakLogger.DisposeAsync();
+                _peakLogger = null;
+            }
+            throw;
+        }
     }
 
     private async Task DiscoverPeakLoggerApisAsync()
@@ -907,9 +952,19 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is null) return;
+        bool acquired = EnsureF100Reservation();
         SelectedF100.SelectedChannel = SelectedF100Channel;
         StatusMessage = $"Vynucujem nové pripojenie {SelectedF100.PortName}…";
-        double? value = await SelectedF100.ForceReconnectAsync();
+        double? value;
+        try
+        {
+            value = await SelectedF100.ForceReconnectAsync();
+        }
+        catch
+        {
+            if (acquired) ReleaseF100Reservation();
+            throw;
+        }
         OnPropertyChanged(nameof(F100TemperatureLabel));
         OnPropertyChanged(nameof(F100ConnectionLabel));
         StatusMessage = value is { } t
@@ -921,9 +976,19 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is null) return;
+        bool acquired = EnsureF100Reservation();
         SelectedF100.SelectedChannel = SelectedF100Channel;
         StatusMessage = $"Kontrola ASL F100 · {SelectedF100.PortName} · kanál {SelectedF100Channel}…";
-        double? value = await SelectedF100.CheckAsync();
+        double? value;
+        try
+        {
+            value = await SelectedF100.CheckAsync();
+        }
+        catch
+        {
+            if (acquired) ReleaseF100Reservation();
+            throw;
+        }
         _lastReferenceTemperatureC = value;
         double? chamberTemperature = await ReadCurrentChamberTemperatureAsync();
         _lastChamberTemperatureC = chamberTemperature ?? _lastChamberTemperatureC;
@@ -942,6 +1007,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private async Task<double?> ReadReferenceTemperatureAsync(CancellationToken token)
     {
         if (SelectedF100 is null) return null;
+        EnsureF100Reservation();
         SelectedF100.SelectedChannel = SelectedF100Channel;
         double? value = await SelectedF100.ReadReferenceTemperatureAsync(token);
         _lastReferenceTemperatureC = value;
@@ -1039,14 +1105,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         if (SelectedProfile is null) return;
         _setup.ProfileId = SelectedProfile.Id;
+        _setup.ChamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
         _setup.Mappings = Peaks.Select(p => p.ToMapping()).ToList();
+        _setup.CalibrationSegmentIndices = CalibrationPoints
+            .Where(point => point.Selected)
+            .Select(point => point.SegmentIndex)
+            .ToList();
         _calibrationStore.SaveSetup(_setup);
 
         SelectedProfile.ExecutionMode = ProfileExecutionMode.TemperatureCalibration;
-        foreach (CalibrationPointRowViewModel point in CalibrationPoints)
-        {
-            SelectedProfile.Segments[point.SegmentIndex].IsCalibrationPoint = point.Selected;
-        }
         _profileStore.Save(SelectedProfile);
         if (showStatus)
         {
@@ -1071,6 +1138,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         if (!CanStartCalibration() || SelectedProfile is null || SelectedChamber is null || _peakLogger is null) return;
         await RescanF100PortsAsync(showStatus: false);
+        if (SelectedF100 is not null) EnsureF100Reservation();
         SaveSetup();
         WarningText = string.Empty;
         TargetProgress.Clear();
@@ -1233,11 +1301,42 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     }
 
     private void PublishCalibrationStatus() => CalibrationStatusViewModel.Instance.Update(
+        _workspaceChamberId,
+        SelectedChamber?.Config.Name ?? "Komora",
         IsRunning,
         SelectedProfile?.Name ?? "FBG kalibrácia",
         RunState,
         PlateauLabel,
         _calibrationProgressPercent);
+
+    private string WorkspaceName => SelectedChamber?.Config.Name ?? "Neznáme zariadenie";
+
+    /// <returns>True when this call acquired a new reservation.</returns>
+    private bool EnsureF100Reservation()
+    {
+        if (SelectedF100 is null) return false;
+        string key = CalibrationResourceRegistry.F100Key(SelectedF100.PortName);
+        if (string.Equals(key, _reservedF100Key, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!CalibrationResourceRegistry.TryAcquire(key, _workspaceChamberId, WorkspaceName, out string occupiedBy))
+        {
+            throw new InvalidOperationException(
+                $"Port {SelectedF100.PortName} / ASL F100 je obsadený kalibráciou zariadenia „{occupiedBy}“. Vyber iný F100 alebo ho najprv uvoľni v pôvodnom okne.");
+        }
+
+        if (_reservedF100Key is { } oldKey)
+        {
+            CalibrationResourceRegistry.Release(oldKey, _workspaceChamberId);
+        }
+        _reservedF100Key = key;
+        return true;
+    }
+
+    private void ReleaseF100Reservation()
+    {
+        if (_reservedF100Key is not { } key) return;
+        CalibrationResourceRegistry.Release(key, _workspaceChamberId);
+        _reservedF100Key = null;
+    }
 
     private void RefreshHistory()
     {
@@ -1351,6 +1450,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
         if (_peakLogger is not null) await _peakLogger.DisposeAsync();
         await _referenceThermometers.DisposeAsync();
+        ReleaseF100Reservation();
+        if (_reservedPeakLoggerKey is { } peakLoggerKey)
+        {
+            CalibrationResourceRegistry.Release(peakLoggerKey, _workspaceChamberId);
+            _reservedPeakLoggerKey = null;
+        }
         _runCts?.Dispose();
     }
 }

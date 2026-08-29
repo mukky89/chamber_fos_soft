@@ -318,6 +318,22 @@ public sealed class CalibrationTests
             Assert.Equal("123456/0002", loadedMapping.ChainSerialNumber);
             Assert.Equal("123456/0002", loadedMapping.SerialNumber);
 
+            Guid secondChamberId = Guid.NewGuid();
+            store.SaveSetup(new CalibrationSetup
+            {
+                ProfileId = profileId,
+                ChamberId = chamberId,
+                CalibrationSegmentIndices = { 1, 3 },
+            });
+            store.SaveSetup(new CalibrationSetup
+            {
+                ProfileId = profileId,
+                ChamberId = secondChamberId,
+                CalibrationSegmentIndices = { 2, 4 },
+            });
+            Assert.Equal(new[] { 1, 3 }, store.LoadSetup(profileId, chamberId)?.CalibrationSegmentIndices);
+            Assert.Equal(new[] { 2, 4 }, store.LoadSetup(profileId, secondChamberId)?.CalibrationSegmentIndices);
+
             var run = new CalibrationRunRecord { ProfileId = profileId, ChamberId = chamberId, ProfileName = "T CAL", State = CalibrationRunState.Completed };
             run.Plateaus.Add(Plateau(0, 20, 1550));
             store.SaveRun(run);
