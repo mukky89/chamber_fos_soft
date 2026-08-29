@@ -295,7 +295,9 @@ public sealed class CalibrationTests
                 {
                     new CalibrationSensorMapping
                     {
-                        SerialNumber = "SN1",
+                        SerialNumber = "123456/0002",
+                        ChannelSerialNumber = "123456/0001",
+                        ChainSerialNumber = "123456/0002",
                         PeakLoggerDeviceSerialNumber = "HIAER3",
                         Channel = "1.1",
                         PeakId = "P2",
@@ -309,6 +311,9 @@ public sealed class CalibrationTests
             CalibrationSensorMapping loadedMapping = Assert.Single(loaded.Mappings);
             Assert.Equal("P2", loadedMapping.PeakId);
             Assert.Equal("HIAER3", loadedMapping.PeakLoggerDeviceSerialNumber);
+            Assert.Equal("123456/0001", loadedMapping.ChannelSerialNumber);
+            Assert.Equal("123456/0002", loadedMapping.ChainSerialNumber);
+            Assert.Equal("123456/0002", loadedMapping.SerialNumber);
 
             var run = new CalibrationRunRecord { ProfileId = profileId, ChamberId = chamberId, ProfileName = "T CAL", State = CalibrationRunState.Completed };
             run.Plateaus.Add(Plateau(0, 20, 1550));

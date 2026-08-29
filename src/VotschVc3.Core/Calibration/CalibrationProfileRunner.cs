@@ -275,6 +275,8 @@ public sealed class CalibrationProfileRunner
         Core1 = m.Core1,
         Core2 = m.Core2,
         SerialNumber = m.SerialNumber,
+        ChannelSerialNumber = m.ChannelSerialNumber,
+        ChainSerialNumber = m.ChainSerialNumber,
         PeakLoggerDeviceSerialNumber = m.PeakLoggerDeviceSerialNumber,
         PeakId = m.PeakId,
         PeakIndex = m.PeakIndex,

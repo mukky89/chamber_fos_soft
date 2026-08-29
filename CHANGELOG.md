@@ -13,10 +13,25 @@
   plat, teplotné úrovne a prehľad dĺžok jednotlivých plat.
 
 ### Opravené
+- Odpojenie alebo vynútené opätovné pripojenie ASL F100 už nezatvára COM port
+  počas blokujúceho čítania. Klient najprv bezpečne dokončí alebo časovo ukončí
+  aktívne čítanie, čím sa odstránila `OperationCanceledException` zo
+  `System.IO.Ports.SerialStream.ReadByte`.
+- Pred každou kontrolou, vynúteným pripojením a štartom kalibrácie sa nanovo
+  skenujú aktuálne Windows USB/COM porty. Výber sa obnovuje podľa USB sériového
+  čísla, takže ten istý F100 zostane vybraný aj po zmene napr. z COM4 na COM9.
+- USB diagnostika má bezpečný „Pasívny test F100“: bez odoslania jediného
+  príkazu skúsi port otvoriť a počúva talk-only dáta pri 4800/9600/19200 bd.
+  Rozlíši obsadený port, chybu ovládača, funkčný dátový prúd a stav, keď treba
+  na prístroji zapnúť Menu → Options → Talk Only → On. Výsledky zapisuje aj do
+  aplikačného logu.
 - USB komunikácia s pôvodným ASL F100 najprv automaticky načíta jeho pasívny
   „talk-only“ dátový prúd a už po pripojení neposiela nepodporované SCPI
   príkazy. Rozpozná rámce s kanálom A/B aj 1/2; dotazovací režim zostáva ako
   fallback pre kompatibilné F150/F250 a novšie firmvéry.
+- Pri odpojení sa príkaz `SYSTEM:LOCAL` posiela iba zariadeniu, ktoré už
+  preukázateľne komunikovalo v query režime. Talk-only F100 už pri zatváraní
+  nedostane žiadny skúšobný SCPI príkaz.
 - Pri talk-only rámcoch s číslom kanála pred hodnotou sa ako teplota parsuje
   meraná hodnota, nie číslo kanála.
 - Kalibračné okno má rozbaľovaciu USB diagnostiku: zoznam COM portov, USB/PnP
@@ -30,12 +45,21 @@
   Paralelne prehľadá 32 portov od zadaného portu a ukáže počet API procesov,
   interrogátorov (`deviceSN`) a peakov; výber nálezu automaticky nastaví port.
 - Nameraná teplota, setpoint a vlhkosť sú na dashboardovej karte oddelené do
-  samostatných metrických blokov. Hodnoty aj rámiky používajú rovnaké farby ako
-  graf: oranžová teplota, svetlooranžový setpoint a modrá vlhkosť.
+  nenápadných metrických plôch bez farebných rámov. Farbu nesú iba výraznejšie
+  hodnoty a väčšie jednotky: oranžová teplota, svetlooranžový setpoint a modrá
+  vlhkosť.
 - Riadok stavových odznakov aj riadok metrík majú pevnú výšku bez zalamovania.
 - Live monitor automaticky pridá novo objavené PeakLogger peaky do tabuľky bez
   ručného obnovenia. Riadok bez FBG sensor SN má jemné červené pozadie a
   výrazný ľavý okraj; zvýraznenie po zadaní SN okamžite zmizne.
+- Bežné FBG SN sa po naskenovaní prenesie na všetky peaky rovnakého kanála.
+  Pre CHAIN zapojenie pribudol samostatný per-peak stĺpec „FBG sensor SN CHAIN“,
+  ktorého hodnota má prednosť pred kanálovým SN.
+- FBG SN sa priebežne ukladá s krátkym debounce, kontroluje formát
+  `XXXXXX/XXXX` a duplicity. Neštandardný text zostáva povolený a uložený, ale
+  riadok aj súhrn zobrazia operátorovi upozornenie.
+- Kalibračná tabuľka má explicitné tmavé pozadie a svetlý text aj po ukončení
+  editácie alebo strate fokusu, takže nevzniká nečitateľný sivý text na bielom.
 - Profil môže obsahovať viacriadkovú poznámku zadanú v rýchlom vytvárači.
   Poznámka sa ukladá s profilom, zobrazuje sa v rozšírenom náhľade aj v
   knižnici profilov a dá sa podľa nej vyhľadávať.

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using Microsoft.Win32;
 using VotschVc3.App.Mvvm;
@@ -9,6 +10,7 @@ using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Communication;
 using VotschVc3.Core.Communication.PolEko;
 using VotschVc3.Core.Communication.Sika;
+using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Notifications;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Thermometers;
@@ -28,12 +30,18 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private CalibrationProfileRunner? _runner;
     private CancellationTokenSource? _runCts;
     private CancellationTokenSource? _peakMonitorCts;
+    private CancellationTokenSource? _setupAutosaveCts;
     private CalibrationRunRecord? _activeRun;
     private CalibrationRunWriter? _activeWriter;
     private CalibrationSetup _setup = new();
     private bool _stopRequested;
     private double? _lastChamberTemperatureC;
     private double? _lastReferenceTemperatureC;
+    private bool _propagatingChannelSerialNumber;
+
+    private static readonly Regex ProductionSerialNumberPattern = new(
+        "^[A-Za-z0-9]{6}/[A-Za-z0-9]{4}$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public CalibrationViewModel()
     {
@@ -64,11 +72,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
 
-        RefreshF100PortsCommand = new RelayCommand(RefreshF100Ports, () => !IsRunning);
+        RefreshF100PortsCommand = new AsyncRelayCommand(RefreshF100PortsAsync, () => !IsRunning, ReportError);
         CheckF100Command = new AsyncRelayCommand(CheckF100Async, () => SelectedF100 is not null, ReportError);
         ToggleF100ChartCommand = new RelayCommand(() => ShowF100Chart = !ShowF100Chart);
         ToggleUsbDiagnosticsCommand = new RelayCommand(ToggleUsbDiagnostics);
         AnalyzeUsbCommand = new RelayCommand(AnalyzeUsb);
+        DiagnoseF100TalkOnlyCommand = new AsyncRelayCommand(
+            DiagnoseF100TalkOnlyAsync,
+            () => !IsRunning,
+            ReportError);
         AddManualF100PortCommand = new RelayCommand(AddManualF100Port);
         ForceReconnectF100Command = new AsyncRelayCommand(ForceReconnectF100Async, () => SelectedF100 is not null, ReportError);
 
@@ -98,11 +110,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand StopCalibrationCommand { get; }
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ExportSelectedRunCommand { get; }
-    public RelayCommand RefreshF100PortsCommand { get; }
+    public AsyncRelayCommand RefreshF100PortsCommand { get; }
     public AsyncRelayCommand CheckF100Command { get; }
     public RelayCommand ToggleF100ChartCommand { get; }
     public RelayCommand ToggleUsbDiagnosticsCommand { get; }
     public RelayCommand AnalyzeUsbCommand { get; }
+    public AsyncRelayCommand DiagnoseF100TalkOnlyCommand { get; }
     public RelayCommand AddManualF100PortCommand { get; }
     public AsyncRelayCommand ForceReconnectF100Command { get; }
     public ObservableCollection<string> UsbDiagnostics { get; } = new();
@@ -324,6 +337,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private string _warningText = string.Empty;
     public string WarningText { get => _warningText; private set => SetProperty(ref _warningText, value); }
 
+    private string _serialNumberValidationMessage = string.Empty;
+    public string SerialNumberValidationMessage
+    {
+        get => _serialNumberValidationMessage;
+        private set => SetProperty(ref _serialNumberValidationMessage, value);
+    }
+
     public int RequiredStableSamples
     {
         get => _setup.Settings.RequiredStableSamples;
@@ -499,6 +519,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         {
             StatusMessage = "PeakLogger peaky načítané. Produkčné SN FBG senzora zadaj alebo naskenuj k vybranému peaku; deviceSN z API je SN interrogátora.";
         }
+        ValidateSerialNumbers();
         RefreshCommands();
     }
 
@@ -510,16 +531,116 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         var row = new CalibrationPeakRowViewModel(sensor, peak, saved);
         if (UseSimulator && string.IsNullOrWhiteSpace(row.SerialNumber))
         {
-            row.SerialNumber = sensor.SerialNumber;
+            row.ChannelSerialNumber = sensor.SerialNumber;
         }
         row.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(CalibrationPeakRowViewModel.Selected) or nameof(CalibrationPeakRowViewModel.SerialNumber))
+            if (e.PropertyName == nameof(CalibrationPeakRowViewModel.ChannelSerialNumber) && !_propagatingChannelSerialNumber)
             {
+                PropagateChannelSerialNumber(row);
+            }
+
+            if (e.PropertyName is nameof(CalibrationPeakRowViewModel.Selected)
+                or nameof(CalibrationPeakRowViewModel.ChannelSerialNumber)
+                or nameof(CalibrationPeakRowViewModel.ChainSerialNumber))
+            {
+                ValidateSerialNumbers();
                 StartCalibrationCommand.RaiseCanExecuteChanged();
+            }
+
+            if (e.PropertyName is not nameof(CalibrationPeakRowViewModel.CurrentWavelengthNm)
+                and not nameof(CalibrationPeakRowViewModel.Intensity)
+                and not nameof(CalibrationPeakRowViewModel.LastWavelengthUpdate)
+                and not nameof(CalibrationPeakRowViewModel.SerialNumber)
+                and not nameof(CalibrationPeakRowViewModel.NeedsSensorSerialNumber)
+                and not nameof(CalibrationPeakRowViewModel.SerialNumberWarning)
+                and not nameof(CalibrationPeakRowViewModel.HasSerialNumberWarning))
+            {
+                ScheduleSetupAutosave();
             }
         };
         return row;
+    }
+
+    private void PropagateChannelSerialNumber(CalibrationPeakRowViewModel source)
+    {
+        _propagatingChannelSerialNumber = true;
+        try
+        {
+            foreach (CalibrationPeakRowViewModel row in Peaks.Where(row =>
+                         !ReferenceEquals(row, source) &&
+                         string.Equals(row.PeakLoggerDeviceSerialNumber, source.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
+                         string.Equals(row.Channel, source.Channel, StringComparison.OrdinalIgnoreCase)))
+            {
+                row.ChannelSerialNumber = source.ChannelSerialNumber;
+            }
+        }
+        finally
+        {
+            _propagatingChannelSerialNumber = false;
+        }
+    }
+
+    private void ValidateSerialNumbers()
+    {
+        foreach (CalibrationPeakRowViewModel row in Peaks)
+        {
+            row.SetSerialNumberWarning(string.Empty);
+        }
+
+        foreach (CalibrationPeakRowViewModel row in Peaks.Where(row => !string.IsNullOrWhiteSpace(row.SerialNumber)))
+        {
+            if (!ProductionSerialNumberPattern.IsMatch(row.SerialNumber))
+            {
+                row.AddSerialNumberWarning("Neštandardný formát SN; očakáva sa XXXXXX/XXXX. Text je povolený, ale skontroluj ho.");
+            }
+        }
+
+        foreach (IGrouping<string, CalibrationPeakRowViewModel> duplicate in Peaks
+                     .Where(row => !string.IsNullOrWhiteSpace(row.SerialNumber))
+                     .GroupBy(row => row.SerialNumber, StringComparer.OrdinalIgnoreCase)
+                     .Where(group => group.Count() > 1))
+        {
+            bool containsChainOverride = duplicate.Any(row => !string.IsNullOrWhiteSpace(row.ChainSerialNumber));
+            int channelCount = duplicate
+                .Select(row => $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+            if (!containsChainOverride && channelCount == 1) continue;
+
+            foreach (CalibrationPeakRowViewModel row in duplicate)
+            {
+                row.AddSerialNumberWarning($"Duplicitné SN „{duplicate.Key}“ – skontroluj kanál alebo CHAIN zapojenie.");
+            }
+        }
+
+        List<CalibrationPeakRowViewModel> warnings = Peaks.Where(row => row.HasSerialNumberWarning).ToList();
+        SerialNumberValidationMessage = warnings.Count == 0
+            ? string.Empty
+            : $"⚠ Kontrola SN: {warnings.Count} riadkov vyžaduje kontrolu. Prejdi myšou na zvýraznené SN.";
+    }
+
+    private void ScheduleSetupAutosave()
+    {
+        if (SelectedProfile is null || IsRunning) return;
+        _setupAutosaveCts?.Cancel();
+        _setupAutosaveCts?.Dispose();
+        _setupAutosaveCts = new CancellationTokenSource();
+        CancellationToken token = _setupAutosaveCts.Token;
+        _ = AutosaveSetupAsync(token);
+    }
+
+    private async Task AutosaveSetupAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(350, token);
+            await Application.Current.Dispatcher.InvokeAsync(() => PersistSetup(showStatus: false));
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer keystroke restarts the short debounce window.
+        }
     }
 
     private void StartPeakMonitor()
@@ -688,15 +809,29 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StartCalibrationCommand.RaiseCanExecuteChanged();
     }
 
-    private void RefreshF100Ports()
+    private async Task RefreshF100PortsAsync()
+    {
+        await RescanF100PortsAsync();
+    }
+
+    private async Task RescanF100PortsAsync(bool showStatus = true)
     {
         string? previousPort = SelectedF100?.PortName;
-        _referenceThermometers.RefreshCommand.Execute(null);
-        SelectedF100 = F100Devices.FirstOrDefault(d => string.Equals(d.PortName, previousPort, StringComparison.OrdinalIgnoreCase))
+        string? previousUsbSerial = SelectedF100?.SerialNumber;
+        await _referenceThermometers.RefreshAsync();
+        SelectedF100 = (!string.IsNullOrWhiteSpace(previousUsbSerial)
+                ? F100Devices.FirstOrDefault(device =>
+                    string.Equals(device.SerialNumber, previousUsbSerial, StringComparison.OrdinalIgnoreCase))
+                : null)
+            ?? F100Devices.FirstOrDefault(device =>
+                string.Equals(device.PortName, previousPort, StringComparison.OrdinalIgnoreCase))
             ?? F100Devices.FirstOrDefault();
-        StatusMessage = F100Devices.Count == 0
-            ? "ASL F100: nenašiel sa žiadny USB/COM port."
-            : $"ASL F100: načítaných {F100Devices.Count} sériových portov.";
+        if (showStatus)
+        {
+            StatusMessage = F100Devices.Count == 0
+                ? "ASL F100: nový scan nenašiel žiadny USB/COM port."
+                : $"ASL F100: nový scan našiel {F100Devices.Count} portov · vybraný {SelectedF100?.PortName}.";
+        }
     }
 
     private void ToggleUsbDiagnostics()
@@ -710,6 +845,43 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         UsbDiagnostics.Clear();
         foreach (string line in SerialPortEnumerator.DiagnoseUsb()) UsbDiagnostics.Add(line);
         StatusMessage = $"USB diagnostika dokončená · {UsbDiagnostics.Count} záznamov.";
+    }
+
+    private async Task DiagnoseF100TalkOnlyAsync()
+    {
+        StatusMessage = "Pasívna diagnostika F100: skenujem porty a čakám na talk-only dáta…";
+        foreach (ThermometerDeviceViewModel connected in F100Devices.Where(device => device.IsConnected).ToList())
+        {
+            await connected.DisposeAsync();
+        }
+        await RescanF100PortsAsync(showStatus: false);
+        AnalyzeUsb();
+
+        List<SerialDeviceInfo> candidates = F100Devices
+            .Where(device => ReferenceEquals(device, SelectedF100)
+                || !string.IsNullOrWhiteSpace(device.SerialNumber)
+                || (device.Info.Description?.Contains("USB Serial", StringComparison.OrdinalIgnoreCase) ?? false)
+                || (device.Info.Description?.Contains("FTDI", StringComparison.OrdinalIgnoreCase) ?? false)
+                || (device.Info.Description?.Contains("F100", StringComparison.OrdinalIgnoreCase) ?? false))
+            .Select(device => device.Info)
+            .ToList();
+        if (candidates.Count == 0 && SelectedF100 is not null)
+        {
+            candidates.Add(SelectedF100.Info);
+        }
+
+        UsbDiagnostics.Add("— Pasívny test F100 (bez odoslania príkazov) —");
+        IReadOnlyList<string> results = await SerialPortEnumerator.DiagnoseTalkOnlyAsync(candidates);
+        foreach (string line in results)
+        {
+            UsbDiagnostics.Add(line);
+            AppLog.Info("F100 diagnostika", line);
+        }
+
+        bool hasData = results.Any(line => line.Contains("DATA OK", StringComparison.Ordinal));
+        StatusMessage = hasData
+            ? "Pasívna diagnostika F100: talk-only dáta boli nájdené."
+            : "Pasívna diagnostika F100: port je dostupný, ale dáta neprišli. Skontroluj na F100 Options → Talk Only → On.";
     }
 
     private void AddManualF100Port()
@@ -727,6 +899,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private async Task ForceReconnectF100Async()
     {
+        await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is null) return;
         SelectedF100.SelectedChannel = SelectedF100Channel;
         StatusMessage = $"Vynucujem nové pripojenie {SelectedF100.PortName}…";
@@ -740,6 +913,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private async Task CheckF100Async()
     {
+        await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is null) return;
         SelectedF100.SelectedChannel = SelectedF100Channel;
         StatusMessage = $"Kontrola ASL F100 · {SelectedF100.PortName} · kanál {SelectedF100Channel}…";
@@ -768,7 +942,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         return value;
     }
 
-    private void SaveSetup()
+    private void SaveSetup() => PersistSetup(showStatus: true);
+
+    private void PersistSetup(bool showStatus)
     {
         if (SelectedProfile is null) return;
         _setup.ProfileId = SelectedProfile.Id;
@@ -781,7 +957,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             SelectedProfile.Segments[point.SegmentIndex].IsCalibrationPoint = point.Selected;
         }
         _profileStore.Save(SelectedProfile);
-        StatusMessage = $"Kalibračné zapojenie pre profil „{SelectedProfile.Name}“ bolo uložené.";
+        if (showStatus)
+        {
+            StatusMessage = $"Kalibračné zapojenie pre profil „{SelectedProfile.Name}“ bolo uložené.";
+        }
         RefreshCommands();
     }
 
@@ -800,6 +979,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private async Task StartCalibrationAsync()
     {
         if (!CanStartCalibration() || SelectedProfile is null || SelectedChamber is null || _peakLogger is null) return;
+        await RescanF100PortsAsync(showStatus: false);
         SaveSetup();
         WarningText = string.Empty;
         TargetProgress.Clear();
@@ -1041,11 +1221,19 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SelectSuggestedPeaksCommand.RaiseCanExecuteChanged();
         MarkAllPlateausCommand.RaiseCanExecuteChanged();
         RefreshF100PortsCommand.RaiseCanExecuteChanged();
+        DiagnoseF100TalkOnlyCommand.RaiseCanExecuteChanged();
         CheckF100Command.RaiseCanExecuteChanged();
     }
 
     public async ValueTask DisposeAsync()
     {
+        _setupAutosaveCts?.Cancel();
+        _setupAutosaveCts?.Dispose();
+        _setupAutosaveCts = null;
+        if (SelectedProfile is not null && !IsRunning)
+        {
+            PersistSetup(showStatus: false);
+        }
         StopPeakMonitor();
         _activeWriter = null;
         _stopRequested = IsRunning;
@@ -1072,7 +1260,9 @@ public sealed record CalibrationChamberOption(ChamberConfig Config)
 public sealed class CalibrationPeakRowViewModel : ObservableObject
 {
     private bool _selected;
-    private string _serialNumber;
+    private string _channelSerialNumber;
+    private string _chainSerialNumber;
+    private string _serialNumberWarning = string.Empty;
     private string _notes;
     private string _productDescription;
     private string _customer;
@@ -1085,7 +1275,10 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     public CalibrationPeakRowViewModel(PeakLoggerSensor sensor, PeakLoggerPeak peak, CalibrationSensorMapping? saved)
     {
         PeakLoggerDeviceSerialNumber = sensor.SerialNumber;
-        _serialNumber = saved?.SerialNumber ?? string.Empty;
+        _chainSerialNumber = saved?.ChainSerialNumber ?? string.Empty;
+        _channelSerialNumber = saved?.ChannelSerialNumber
+            ?? (string.IsNullOrWhiteSpace(_chainSerialNumber) ? saved?.SerialNumber : string.Empty)
+            ?? string.Empty;
         Channel = sensor.Channel;
         PeakId = peak.PeakId;
         PeakIndex = peak.PeakIndex;
@@ -1103,18 +1296,46 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     }
 
     public string PeakLoggerDeviceSerialNumber { get; }
-    public string SerialNumber
+    public string ChannelSerialNumber
     {
-        get => _serialNumber;
+        get => _channelSerialNumber;
         set
         {
-            if (SetProperty(ref _serialNumber, value?.Trim() ?? string.Empty))
+            if (SetProperty(ref _channelSerialNumber, NormalizeBarcode(value)))
             {
+                OnPropertyChanged(nameof(SerialNumber));
                 OnPropertyChanged(nameof(NeedsSensorSerialNumber));
             }
         }
     }
+    public string ChainSerialNumber
+    {
+        get => _chainSerialNumber;
+        set
+        {
+            if (SetProperty(ref _chainSerialNumber, NormalizeBarcode(value)))
+            {
+                OnPropertyChanged(nameof(SerialNumber));
+                OnPropertyChanged(nameof(NeedsSensorSerialNumber));
+            }
+        }
+    }
+    public string SerialNumber => string.IsNullOrWhiteSpace(ChainSerialNumber)
+        ? ChannelSerialNumber
+        : ChainSerialNumber;
     public bool NeedsSensorSerialNumber => string.IsNullOrWhiteSpace(SerialNumber);
+    public string SerialNumberWarning
+    {
+        get => _serialNumberWarning;
+        private set
+        {
+            if (SetProperty(ref _serialNumberWarning, value))
+            {
+                OnPropertyChanged(nameof(HasSerialNumberWarning));
+            }
+        }
+    }
+    public bool HasSerialNumberWarning => !string.IsNullOrWhiteSpace(SerialNumberWarning);
     public string Channel { get; }
     public string PeakId { get; }
     public int PeakIndex { get; }
@@ -1138,12 +1359,22 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         LastWavelengthUpdate = timestamp;
     }
 
+    public void SetSerialNumberWarning(string warning) => SerialNumberWarning = warning;
+
+    public void AddSerialNumberWarning(string warning) => SerialNumberWarning =
+        string.IsNullOrWhiteSpace(SerialNumberWarning) ? warning : $"{SerialNumberWarning} {warning}";
+
+    private static string NormalizeBarcode(string? value) =>
+        (value ?? string.Empty).Trim().Replace("\r", string.Empty).Replace("\n", string.Empty);
+
     public CalibrationSensorMapping ToMapping() => new()
     {
         Channel = Channel,
         Core1 = Core1,
         Core2 = Core2,
         SerialNumber = SerialNumber,
+        ChannelSerialNumber = ChannelSerialNumber,
+        ChainSerialNumber = ChainSerialNumber,
         PeakLoggerDeviceSerialNumber = PeakLoggerDeviceSerialNumber,
         PeakId = PeakId,
         PeakIndex = PeakIndex,

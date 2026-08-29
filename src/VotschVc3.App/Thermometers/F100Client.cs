@@ -18,6 +18,7 @@ public sealed class F100Client : IAsyncDisposable
     private readonly SerialPort _port;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private CommunicationMode _communicationMode;
+    private int _disposeStarted;
 
     public F100Client(string portName, int baudRate = F100Protocol.DefaultBaudRate)
     {
@@ -33,10 +34,21 @@ public sealed class F100Client : IAsyncDisposable
 
     public bool IsOpen => _port.IsOpen;
 
+    /// <summary>Returns a confirmed query-capable instrument to local control. The original
+    /// talk-only F100 must never receive speculative SCPI commands.</summary>
+    public Task ReturnToLocalIfSupportedAsync(CancellationToken cancellationToken = default) =>
+        _communicationMode == CommunicationMode.Query
+            ? SendAsync(F100Protocol.LocalCommand, cancellationToken)
+            : Task.CompletedTask;
+
     public string PortName => _port.PortName;
 
-    public Task OpenAsync() => Task.Run(() =>
+    public Task OpenAsync()
     {
+        ThrowIfDisposing();
+        return Task.Run(() =>
+    {
+        ThrowIfDisposing();
         if (!_port.IsOpen)
         {
             _port.Open();
@@ -44,14 +56,17 @@ public sealed class F100Client : IAsyncDisposable
             _port.DiscardOutBuffer();
         }
     });
+    }
 
     /// <summary>Sends a non-query command. No read is attempted, so commands such as SYSTEM:REMOTE do not time out.</summary>
     public async Task SendAsync(string command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+        ThrowIfDisposing();
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ThrowIfDisposing();
             await Task.Run(() => WriteWithDelay(F100Protocol.Frame(command)), cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -64,13 +79,15 @@ public sealed class F100Client : IAsyncDisposable
     public async Task<string> SendReceiveAsync(string command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+        ThrowIfDisposing();
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ThrowIfDisposing();
             return await Task.Run(() =>
             {
                 WriteWithDelay(F100Protocol.Frame(command));
-                return ReadLine();
+                return ReadLine(cancellationToken);
             }, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -145,6 +162,7 @@ public sealed class F100Client : IAsyncDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ThrowIfDisposing();
             return await Task.Run(() =>
             {
                 var clock = Stopwatch.StartNew();
@@ -152,7 +170,7 @@ public sealed class F100Client : IAsyncDisposable
                 while (clock.Elapsed < timeout)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    string raw = ReadLine();
+                    string raw = ReadLine(cancellationToken);
                     if (string.IsNullOrWhiteSpace(raw)) continue;
 
                     lastRaw = raw;
@@ -186,13 +204,14 @@ public sealed class F100Client : IAsyncDisposable
         }
     }
 
-    private string ReadLine()
+    private string ReadLine(CancellationToken cancellationToken)
     {
         var sb = new StringBuilder();
         var clock = Stopwatch.StartNew();
 
         while (clock.ElapsedMilliseconds <= _port.ReadTimeout)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             int b;
             try
             {
@@ -225,24 +244,48 @@ public sealed class F100Client : IAsyncDisposable
         return sb.ToString();
     }
 
+    private void ThrowIfDisposing()
+    {
+        if (Volatile.Read(ref _disposeStarted) != 0)
+        {
+            throw new ObjectDisposedException(nameof(F100Client), "Komunikácia ASL F100 sa zatvára.");
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
-        await Task.Run(() =>
+        if (Interlocked.Exchange(ref _disposeStarted, 1) != 0)
         {
-            try
-            {
-                if (_port.IsOpen)
-                {
-                    _port.Close();
-                }
-            }
-            catch
-            {
-                // ignore close errors
-            }
+            return;
+        }
 
-            _port.Dispose();
-        }).ConfigureAwait(false);
+        // Never close SerialPort while another thread is blocked in ReadByte(). Closing a
+        // live handle makes System.IO.Ports cancel that read with OperationCanceledException.
+        // Waiting for the shared gate lets the read finish (or hit its short timeout) first.
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    if (_port.IsOpen)
+                    {
+                        _port.Close();
+                    }
+                }
+                catch
+                {
+                    // A disappearing USB device may reject close; Dispose still releases it.
+                }
+
+                _port.Dispose();
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
 
         _gate.Dispose();
     }

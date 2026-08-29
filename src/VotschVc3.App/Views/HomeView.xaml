@@ -61,9 +61,9 @@
             <Setter Property="Width" Value="194" />
             <Setter Property="Height" Value="66" />
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-            <Setter Property="BorderThickness" Value="3,1,1,1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="10,6" />
             <Setter Property="Margin" Value="0,0,8,8" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding SupportsHumidity}" Value="True">
@@ -536,7 +536,6 @@
                                                  value looks wrong or coarser than the chamber's own display, the
                                                  answer is in what the controller actually sent. -->
                                             <Border Style="{StaticResource DashboardMetricTile}"
-                                                    BorderBrush="{StaticResource TemperatureBrush}"
                                                     ToolTip="{Binding LastRaw, Mode=OneWay, StringFormat=Odpoveď komory (RAW): {0}}">
                                                 <StackPanel>
                                                     <TextBlock TextTrimming="CharacterEllipsis">
@@ -554,13 +553,12 @@
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}"
                                                                    Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4"
-                                                                   Foreground="{StaticResource TemperatureBrush}" Opacity="0.8" />
+                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
+                                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource TemperatureBrush}" />
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Border>
-                                            <Border Style="{StaticResource DashboardMetricTile}"
-                                                    BorderBrush="{StaticResource TemperatureSetpointBrush}">
+                                            <Border Style="{StaticResource DashboardMetricTile}">
                                                 <StackPanel>
                                                     <TextBlock TextTrimming="CharacterEllipsis">
                                                         <TextBlock.Style>
@@ -577,21 +575,20 @@
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource TemperatureSetpointBrush}"
                                                                    Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
-                                                                   Foreground="{StaticResource TemperatureSetpointBrush}" Opacity="0.8" />
+                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
+                                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource TemperatureSetpointBrush}" />
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Border>
                                             <Border Style="{StaticResource DashboardMetricTile}"
-                                                    BorderBrush="{StaticResource HumidityBrush}"
                                                     Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                                                 <StackPanel>
                                                     <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource HumidityBrush}"
                                                                    Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                        <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4"
-                                                                   Foreground="{StaticResource HumidityBrush}" Opacity="0.8" />
+                                                        <TextBlock Text="%" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
+                                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource HumidityBrush}" />
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Border>

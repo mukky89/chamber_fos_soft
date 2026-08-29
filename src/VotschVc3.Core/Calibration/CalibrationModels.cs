@@ -110,6 +110,12 @@ public sealed class CalibrationSensorMapping
     /// </summary>
     public string SerialNumber { get; set; } = string.Empty;
 
+    /// <summary>SN shared by every peak on one PeakLogger channel (normal wiring).</summary>
+    public string ChannelSerialNumber { get; set; } = string.Empty;
+
+    /// <summary>Optional per-peak SN override for CHAIN wiring; wins over channel SN.</summary>
+    public string ChainSerialNumber { get; set; } = string.Empty;
+
     /// <summary>
     /// Serial number from PeakLogger response <c>device.deviceSN</c> (for example a
     /// Hyperion interrogator SN). This identifies the API source, not the FBG product.

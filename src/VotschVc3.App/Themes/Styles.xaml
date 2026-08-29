@@ -71,8 +71,8 @@
     <!-- Compact live value for dashboard cards (measured temperature / humidity). -->
     <Style x:Key="MetricSmall" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-        <Setter Property="FontFamily" Value="Segoe UI Light" />
-        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+        <Setter Property="FontSize" Value="22" />
     </Style>
 
     <!-- Secondary metric (setpoint, reference) – colour it inline (WarnBrush/OkBrush). -->

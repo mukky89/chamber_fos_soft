@@ -236,6 +236,9 @@
                                     <WrapPanel Margin="0,0,0,7">
                                         <Button Content="Znovu analyzovať" Style="{StaticResource GhostButton}" Margin="0,0,6,0"
                                                 Command="{Binding AnalyzeUsbCommand}" />
+                                        <Button Content="Pasívny test F100" Style="{StaticResource AccentOutlineButton}" Margin="0,0,6,0"
+                                                Command="{Binding DiagnoseF100TalkOnlyCommand}"
+                                                ToolTip="Nanovo načíta USB/COM porty a iba počúva talk-only dáta pri 4800/9600/19200 bd. Do F100 neodošle ani jeden príkaz. Test môže trvať približne 10 sekúnd." />
                                         <Button Content="Vynútiť pripojenie" Style="{StaticResource AccentOutlineButton}" Margin="0,0,10,0"
                                                 Command="{Binding ForceReconnectF100Command}"
                                                 ToolTip="Zatvorí spojenie tejto aplikácie, znovu otvorí vybraný COM port a skúsi načítať F100." />
@@ -244,7 +247,7 @@
                                         <Button Content="Pridať port" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
                                                 Command="{Binding AddManualF100PortCommand}" />
                                     </WrapPanel>
-                                    <ItemsControl ItemsSource="{Binding UsbDiagnostics}" MaxHeight="130">
+                                    <ItemsControl ItemsSource="{Binding UsbDiagnostics}" MaxHeight="210">
                                         <ItemsControl.Template>
                                             <ControlTemplate TargetType="ItemsControl">
                                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -258,7 +261,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <TextBlock Text="Ak je port obsadený, zatvor FOS4X alebo inú aplikáciu. Ak Windows hlási chybu 28/31, treba opraviť ovládač v Správcovi zariadení."
+                                    <TextBlock Text="Ak je port obsadený, zatvor FOS4X alebo inú aplikáciu. Ak sa port otvorí, ale neprídu žiadne dáta, na F100 nastav Menu → Options → Talk Only → On. Toto nastavenie zostáva uložené aj po vypnutí."
                                                Style="{StaticResource Caption}" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>
@@ -328,12 +331,21 @@
                               VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                                <Setter Property="BorderThickness" Value="0,0,0,1" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding NeedsSensorSerialNumber}" Value="True">
                                         <Setter Property="Background" Value="{StaticResource PendingRowBrush}" />
                                         <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
                                         <Setter Property="BorderThickness" Value="4,0,0,1" />
                                         <Setter Property="ToolTip" Value="Nový peak – doplň FBG sensor SN. Po vyplnení červené zvýraznenie zmizne." />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding HasSerialNumberWarning}" Value="True">
+                                        <Setter Property="BorderBrush" Value="{StaticResource WarnBrush}" />
+                                        <Setter Property="BorderThickness" Value="4,0,0,1" />
+                                        <Setter Property="ToolTip" Value="{Binding SerialNumberWarning}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -344,7 +356,8 @@
                             <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" IsReadOnly="True" Width="70" />
                             <DataGridTextColumn Header="Žila 1" Binding="{Binding Core1, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
                             <DataGridTextColumn Header="Žila 2" Binding="{Binding Core2, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="65" />
-                            <DataGridTextColumn Header="FBG sensor SN" Binding="{Binding SerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="165" />
+                            <DataGridTextColumn Header="FBG sensor SN (kanál)" Binding="{Binding ChannelSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="175" />
+                            <DataGridTextColumn Header="FBG sensor SN CHAIN" Binding="{Binding ChainSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="180" />
                             <DataGridTextColumn Header="Peak ID" Binding="{Binding PeakId}" IsReadOnly="True" Width="75" />
                             <DataGridTextColumn Header="FBG index" Binding="{Binding PeakIndex}" IsReadOnly="True" Width="80" />
                             <DataGridTextColumn Header="Aktuálna λ [nm]" Binding="{Binding CurrentWavelengthNm, StringFormat=F6}" IsReadOnly="True" Width="120" />
@@ -356,8 +369,12 @@
                             <DataGridTextColumn Header="Zákazka" Binding="{Binding Order, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="100" />
                         </DataGrid.Columns>
                     </DataGrid>
-                    <TextBlock Grid.Row="2" Margin="2,7,0,0" Style="{StaticResource Caption}" TextWrapping="Wrap"
-                               Text="Nové peaky sa pridávajú automaticky a červený riadok čaká na zadanie FBG sensor SN. Aktuálna λ sa obnovuje live z PeakLoggera. Počas reálnej kalibrácie sa každý označený FBG index zaznamenáva po celý beh do wavelength-trace.csv spolu s produkčným SN, PeakLogger SN, kanálom, λ, intenzitou a dostupnou teplotou." />
+                    <StackPanel Grid.Row="2" Margin="2,7,0,0">
+                        <TextBlock Text="{Binding SerialNumberValidationMessage}" Foreground="{StaticResource WarnBrush}"
+                                   FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                   Text="Bežné SN sa prenesie na všetky peaky rovnakého kanála. Pri CHAIN zapojení zadaj odlišné SN do stĺpca CHAIN pri konkrétnom peaku; CHAIN má prednosť. Očakávaný formát je XXXXXX/XXXX, iný text sa uloží s upozornením. Zmeny sa ukladajú priebežne." />
+                    </StackPanel>
                 </Grid>
             </TabItem>
 

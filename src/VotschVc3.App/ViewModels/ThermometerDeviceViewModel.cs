@@ -166,7 +166,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         StopPolling();
         if (_client is not null)
         {
-            try { await _client.SendAsync(F100Protocol.LocalCommand); } catch { }
+            try { await _client.ReturnToLocalIfSupportedAsync(); } catch { }
             await _client.DisposeAsync();
             _client = null;
         }
@@ -457,9 +457,10 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         StopRecording();
         if (_client is not null)
         {
-            try { await _client.SendAsync(F100Protocol.LocalCommand); } catch { }
+            try { await _client.ReturnToLocalIfSupportedAsync(); } catch { }
             await _client.DisposeAsync();
             _client = null;
         }
+        IsConnected = false;
     }
 }
