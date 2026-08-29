@@ -16,6 +16,11 @@
     <Color x:Key="OkColor">#FF4FC17A</Color>
     <Color x:Key="WarnColor">#FFFFB454</Color>
     <Color x:Key="ErrorColor">#FFE5646E</Color>
+    <!-- Live chart/readout colors: measured temperature, its setpoint and humidity. -->
+    <Color x:Key="TemperatureColor">#FFFF8A5C</Color>
+    <Color x:Key="TemperatureSetpointColor">#FFFFC2A8</Color>
+    <Color x:Key="HumidityColor">#FF4FB6FF</Color>
+    <Color x:Key="PendingRowColor">#FF492B38</Color>
 
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
@@ -29,6 +34,10 @@
     <SolidColorBrush x:Key="OkBrush" Color="{StaticResource OkColor}" />
     <SolidColorBrush x:Key="WarnBrush" Color="{StaticResource WarnColor}" />
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="TemperatureBrush" Color="{StaticResource TemperatureColor}" />
+    <SolidColorBrush x:Key="TemperatureSetpointBrush" Color="{StaticResource TemperatureSetpointColor}" />
+    <SolidColorBrush x:Key="HumidityBrush" Color="{StaticResource HumidityColor}" />
+    <SolidColorBrush x:Key="PendingRowBrush" Color="{StaticResource PendingRowColor}" />
 
     <sys:Double x:Key="DefaultFontSize">13</sys:Double>
 

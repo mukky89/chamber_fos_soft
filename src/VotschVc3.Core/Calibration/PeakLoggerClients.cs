@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -460,24 +461,54 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
         public string Display => $"{Host}:{Port} · {DeviceCount} interrogátorov · {PeakCount} peakov · /{ApiPath.TrimEnd('?')}";
     }
 
-    /// <summary>Finds concurrently running PeakLogger API instances on consecutive ports.</summary>
-    public static async Task<IReadOnlyList<DiscoveredInstance>> DiscoverInstancesAsync(
+    public sealed record DiscoveryReport(IReadOnlyList<DiscoveredInstance> Instances, int ScannedPortCount);
+
+    /// <summary>
+    /// Finds concurrently running PeakLogger API instances. For localhost it probes every
+    /// active TCP listener reported by the OS, plus a fallback consecutive range. Remote
+    /// hosts cannot expose their listener table, so only the fallback range is available.
+    /// </summary>
+    public static async Task<DiscoveryReport> DiscoverInstancesAsync(
         string host,
         int firstPort = DefaultPort,
-        int portCount = 32,
+        int portCount = 64,
         CancellationToken cancellationToken = default)
     {
         string normalizedHost = string.IsNullOrWhiteSpace(host) ? "localhost" : host.Trim();
         int start = firstPort > 0 ? firstPort : DefaultPort;
-        int count = Math.Clamp(portCount, 1, 128);
+        int count = Math.Clamp(portCount, 1, 512);
         using var http = new HttpClient { Timeout = TimeSpan.FromMilliseconds(900) };
 
-        Task<DiscoveredInstance?>[] probes = Enumerable.Range(start, count)
+        var candidatePorts = new HashSet<int>(Enumerable.Range(start, count));
+        if (IsLocalHost(normalizedHost))
+        {
+            try
+            {
+                foreach (IPEndPoint listener in IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners())
+                {
+                    candidatePorts.Add(listener.Port);
+                }
+            }
+            catch (NetworkInformationException)
+            {
+                // The fallback range is still useful if the OS listener table is unavailable.
+            }
+        }
+
+        Task<DiscoveredInstance?>[] probes = candidatePorts.OrderBy(port => port)
             .Select(port => ProbeInstanceAsync(http, normalizedHost, port, cancellationToken))
             .ToArray();
         DiscoveredInstance?[] results = await Task.WhenAll(probes).ConfigureAwait(false);
-        return results.Where(x => x is not null).Cast<DiscoveredInstance>().OrderBy(x => x.Port).ToArray();
+        DiscoveredInstance[] instances = results.Where(x => x is not null).Cast<DiscoveredInstance>().OrderBy(x => x.Port).ToArray();
+        return new DiscoveryReport(instances, candidatePorts.Count);
     }
+
+    private static bool IsLocalHost(string host) =>
+        host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+        host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+        host.Equals("::1", StringComparison.OrdinalIgnoreCase) ||
+        host.Equals(".", StringComparison.OrdinalIgnoreCase) ||
+        host.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase);
 
     private static async Task<DiscoveredInstance?> ProbeInstanceAsync(
         HttpClient http,

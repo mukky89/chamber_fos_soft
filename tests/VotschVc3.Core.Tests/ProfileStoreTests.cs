@@ -59,6 +59,37 @@ public class ProfileStoreTests : IDisposable
         Assert.Equal(2, Assert.Single(store.LoadAll()).Segments.Count);
     }
 
+    [Fact]
+    public void Profile_note_round_trips_with_the_profile()
+    {
+        var store = new ProfileStore(_dir);
+        var profile = new TestProfile
+        {
+            Name = "Profil s poznámkou",
+            Notes = "Snímače pripájať postupne.\nPo každom kroku skontrolovať SN.",
+            ValidationStatus = ProfileValidationStatus.WIP,
+            Warning = "Pred spustením skontrolovať referenčný teplomer.",
+        };
+
+        store.Save(profile);
+
+        Assert.Equal(profile.Notes, Assert.Single(store.LoadAll()).Notes);
+        Assert.Equal(ProfileValidationStatus.WIP, Assert.Single(store.LoadAll()).ValidationStatus);
+        Assert.Equal(profile.Warning, Assert.Single(store.LoadAll()).Warning);
+        Assert.Equal(profile.Notes, profile.Clone().Notes);
+        Assert.Equal(profile.ValidationStatus, profile.Clone().ValidationStatus);
+        Assert.Equal(profile.Warning, profile.Clone().Warning);
+    }
+
+    [Fact]
+    public void Profiles_without_a_saved_status_default_to_tbt()
+    {
+        TestProfile profile = JsonSerializer.Deserialize<TestProfile>("{\"Name\":\"Starý profil\"}")!;
+
+        Assert.Equal(ProfileValidationStatus.TBT, profile.ValidationStatus);
+        Assert.False(profile.HasWarning);
+    }
+
     /// <summary>A renamed profile must not leave its old file behind – the folder would fill
     /// up with every name a profile ever had.</summary>
     [Fact]

@@ -175,6 +175,37 @@
                             <TextBlock Text="{Binding NameModeText}" Style="{StaticResource Caption}"
                                        TextWrapping="Wrap" Margin="0,2,0,0" />
                         </StackPanel>
+
+                        <StackPanel Style="{StaticResource QpField}">
+                            <TextBlock Text="Poznámka k profilu (voliteľné)" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding ProfileNotes, UpdateSourceTrigger=PropertyChanged}"
+                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
+                                     VerticalScrollBarVisibility="Auto"
+                                     ToolTip="Voľná poznámka pre operátora. Uloží sa s profilom a zobrazí sa v jeho náhľadoch." />
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource QpField}">
+                            <DockPanel>
+                                <TextBlock Text="Stav profilu" Style="{StaticResource Label}" DockPanel.Dock="Left" />
+                                <TextBlock Text="?" DockPanel.Dock="Right" FontFamily="Segoe UI Semibold"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           ToolTip="OK – všetko je v poriadku, môže sa používať.&#10;NOK – NOT OK, nepoužívať.&#10;WIP – WORK IN PROGRESS, rozpracované.&#10;TBT – TO BE TESTED, musí sa otestovať." />
+                            </DockPanel>
+                            <ComboBox ItemsSource="{Binding ProfileValidationStatuses}"
+                                      SelectedItem="{Binding ProfileValidationStatus, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding ProfileValidationStatusDescription}" Style="{StaticResource Caption}"
+                                       Foreground="{Binding ProfileValidationStatus, Converter={StaticResource ProfileStatusToBrush}}"
+                                       TextWrapping="Wrap" Margin="0,3,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource QpField}">
+                            <TextBlock Text="! Upozornenie pri výbere (voliteľné)" Style="{StaticResource Label}"
+                                       Foreground="{StaticResource WarnBrush}" />
+                            <TextBox Text="{Binding ProfileWarning, UpdateSourceTrigger=PropertyChanged}"
+                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
+                                     VerticalScrollBarVisibility="Auto"
+                                     ToolTip="Dôležité upozornenie pre operátora. Pri každom výbere profilu sa zobrazí výrazne so symbolom !" />
+                        </StackPanel>
                         </StackPanel>
                     </Border>
 

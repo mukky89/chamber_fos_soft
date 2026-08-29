@@ -54,6 +54,24 @@
             <Setter Property="Margin" Value="0,0,5,4" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+        <!-- Dashboard metric tile: two wide tiles on temperature-only devices,
+             three compact tiles on humidity devices. The widths deliberately fit
+             one fixed row so cards below never shift vertically. -->
+        <Style x:Key="DashboardMetricTile" TargetType="Border">
+            <Setter Property="Width" Value="194" />
+            <Setter Property="Height" Value="66" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderThickness" Value="3,1,1,1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="Margin" Value="0,0,8,8" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SupportsHumidity}" Value="True">
+                    <Setter Property="Width" Value="128" />
+                    <Setter Property="Padding" Value="7,5" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <!-- Vertical navigation button in the sidebar: full width, left-aligned label,
              transparent at rest, subtle surface fill + accent glyph bar on hover. -->
         <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -393,7 +411,7 @@
                                              line: alarm, run state, lock and control mode stay together on the
                                              first line, the device kind (which the device name already says in
                                              brackets, and the chamber graphic repeats) gives way first. -->
-                                        <WrapPanel Margin="0,0,0,0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
                                             <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="7,3"
                                                     Margin="0,0,5,4" VerticalAlignment="Center"
                                                     Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
@@ -424,9 +442,10 @@
                                                 <TextBlock Text="{Binding ControlModeBadge}" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11.5" />
                                             </Border>
                                             <Border Style="{StaticResource Badge}">
-                                                <TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}" FontSize="11.5" />
+                                                <TextBlock Text="{Binding KindCompactLabel}" Style="{StaticResource Caption}" FontSize="11.5"
+                                                           ToolTip="{Binding KindLabel}" />
                                             </Border>
-                                        </WrapPanel>
+                                        </StackPanel>
 
                                         <!-- ===== Stav: pripojenie + čo zariadenie práve robí =====
                                              Boxed like the live values below it: loose lines under the badges
@@ -512,37 +531,72 @@
                                      an empty block of card beside the chamber picture. -->
                                 <Border Style="{StaticResource Section}" Margin="0,0,0,10" Padding="11,8">
                                     <StackPanel>
-                                        <WrapPanel>
+                                        <StackPanel Orientation="Horizontal">
                                             <!-- The tooltip carries the frame the number was parsed from: when a
                                                  value looks wrong or coarser than the chamber's own display, the
                                                  answer is in what the controller actually sent. -->
-                                            <StackPanel Margin="0,0,24,0"
-                                                        ToolTip="{Binding LastRaw, Mode=OneWay, StringFormat=Odpoveď komory (RAW): {0}}">
-                                                <TextBlock Text="Teplota komory" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                            <Border Style="{StaticResource DashboardMetricTile}"
+                                                    BorderBrush="{StaticResource TemperatureBrush}"
+                                                    ToolTip="{Binding LastRaw, Mode=OneWay, StringFormat=Odpoveď komory (RAW): {0}}">
+                                                <StackPanel>
+                                                    <TextBlock TextTrimming="CharacterEllipsis">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                                                <Setter Property="Text" Value="Teplota komory" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SupportsHumidity}" Value="True">
+                                                                        <Setter Property="Text" Value="Teplota" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}"
+                                                                   Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,4"
+                                                                   Foreground="{StaticResource TemperatureBrush}" Opacity="0.8" />
+                                                    </StackPanel>
                                                 </StackPanel>
-                                            </StackPanel>
-                                            <StackPanel Margin="0,0,24,0">
-                                                <TextBlock Text="Nastavená (setpoint)" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                                               Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                    <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3" Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                            <Border Style="{StaticResource DashboardMetricTile}"
+                                                    BorderBrush="{StaticResource TemperatureSetpointBrush}">
+                                                <StackPanel>
+                                                    <TextBlock TextTrimming="CharacterEllipsis">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                                                <Setter Property="Text" Value="Nastavená (setpoint)" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SupportsHumidity}" Value="True">
+                                                                        <Setter Property="Text" Value="Setpoint" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource TemperatureSetpointBrush}"
+                                                                   Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="3,0,0,3"
+                                                                   Foreground="{StaticResource TemperatureSetpointBrush}" Opacity="0.8" />
+                                                    </StackPanel>
                                                 </StackPanel>
-                                            </StackPanel>
-                                            <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource MetricSmall}"
-                                                               Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                    <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4" Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                            <Border Style="{StaticResource DashboardMetricTile}"
+                                                    BorderBrush="{StaticResource HumidityBrush}"
+                                                    Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource HumidityBrush}"
+                                                                   Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                                                        <TextBlock Text="%" VerticalAlignment="Bottom" Margin="3,0,0,4"
+                                                                   Foreground="{StaticResource HumidityBrush}" Opacity="0.8" />
+                                                    </StackPanel>
                                                 </StackPanel>
-                                            </StackPanel>
-                                        </WrapPanel>
-                                        <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap">
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,0" TextWrapping="Wrap">
                                             <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
                                             <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
                                         </TextBlock>

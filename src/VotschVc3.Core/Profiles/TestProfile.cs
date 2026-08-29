@@ -123,6 +123,21 @@ public sealed class TestProfile
     /// <summary>Project the profile belongs to (optional).</summary>
     public string Project { get; set; } = string.Empty;
 
+    /// <summary>Free-form operator note shown with the profile previews (optional).</summary>
+    public string Notes { get; set; } = string.Empty;
+
+    /// <summary>Readiness state. TBT is intentionally the safe default for old and new profiles.</summary>
+    public ProfileValidationStatus ValidationStatus { get; set; } = ProfileValidationStatus.TBT;
+
+    /// <summary>Important operator warning shown prominently whenever the profile is selected.</summary>
+    public string Warning { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public bool HasWarning => !string.IsNullOrWhiteSpace(Warning);
+
+    [JsonIgnore]
+    public string ValidationStatusDescription => ValidationStatus.Description();
+
     /// <summary>Grouping key for pickers/trees: customer if set, else the first sensor, else "Ostatné".</summary>
     [JsonIgnore]
     public string GroupKey =>
@@ -204,6 +219,9 @@ public sealed class TestProfile
         Sensors = new List<string>(Sensors),
         Customer = Customer,
         Project = Project,
+        Notes = Notes,
+        ValidationStatus = ValidationStatus,
+        Warning = Warning,
         Tags = new List<string>(Tags),
         Segments = Segments.Select(s => new ProfileSegment
         {

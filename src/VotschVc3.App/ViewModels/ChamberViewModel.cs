@@ -214,6 +214,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ? "SIKA TP · Teplota (kúpeľ)"
             : SupportsHumidity ? "Teplota + vlhkosť" : "Teplota";
 
+    /// <summary>Compact one-line badge used where all dashboard cards must keep equal height.</summary>
+    public string KindCompactLabel => IsPolEko
+        ? "Sušiareň"
+        : IsSika
+            ? "Kúpeľ"
+            : SupportsHumidity ? "T + RH" : "T";
+
     #region Nameplate (type-plate details)
 
     private ChamberNameplate _nameplate = new();

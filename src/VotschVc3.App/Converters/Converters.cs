@@ -5,6 +5,32 @@ using System.Windows.Media;
 
 namespace VotschVc3.App.Converters;
 
+/// <summary>Maps profile readiness to its shared semantic colour.</summary>
+public sealed class ProfileStatusToBrushConverter : IValueConverter
+{
+    private static readonly Brush Ok = Frozen(0x4F, 0xC1, 0x7A);
+    private static readonly Brush Nok = Frozen(0xE5, 0x64, 0x6E);
+    private static readonly Brush Wip = Frozen(0xFF, 0xB4, 0x54);
+    private static readonly Brush Tbt = Frozen(0x5B, 0x8D, 0xEF);
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
+    {
+        VotschVc3.Core.Profiles.ProfileValidationStatus.OK => Ok,
+        VotschVc3.Core.Profiles.ProfileValidationStatus.NOK => Nok,
+        VotschVc3.Core.Profiles.ProfileValidationStatus.WIP => Wip,
+        _ => Tbt,
+    };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
+
+    private static Brush Frozen(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+}
+
 /// <summary>Formats a nullable number, showing an em dash when no value is present.</summary>
 public sealed class ValueOrDashConverter : IValueConverter
 {

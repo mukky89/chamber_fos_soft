@@ -61,6 +61,9 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// <summary>Tags of the profile (chips).</summary>
     public ObservableCollection<string> EditorTags { get; } = new();
 
+    public IReadOnlyList<ProfileValidationStatus> ProfileValidationStatuses { get; } =
+        Enum.GetValues<ProfileValidationStatus>();
+
     /// <summary>Known sensor names from the library (suggestions).</summary>
     public ObservableCollection<string> KnownSensors { get; } = new();
 
@@ -569,6 +572,36 @@ public sealed class QuickProfileViewModel : ObservableObject
         }
     }
 
+    private string _profileNotes = string.Empty;
+    /// <summary>Optional operator note persisted with the profile and shown in previews.</summary>
+    public string ProfileNotes
+    {
+        get => _profileNotes;
+        set => SetProperty(ref _profileNotes, value);
+    }
+
+    private ProfileValidationStatus _profileValidationStatus = ProfileValidationStatus.TBT;
+    public ProfileValidationStatus ProfileValidationStatus
+    {
+        get => _profileValidationStatus;
+        set
+        {
+            if (SetProperty(ref _profileValidationStatus, value))
+            {
+                OnPropertyChanged(nameof(ProfileValidationStatusDescription));
+            }
+        }
+    }
+
+    public string ProfileValidationStatusDescription => ProfileValidationStatus.Description();
+
+    private string _profileWarning = string.Empty;
+    public string ProfileWarning
+    {
+        get => _profileWarning;
+        set => SetProperty(ref _profileWarning, value);
+    }
+
     private double _lowTemperature = -20;
     public double LowTemperature { get => _lowTemperature; set { if (SetProperty(ref _lowTemperature, value)) { OnPropertyChanged(nameof(HasLeadIn)); Recalculate(); } } }
 
@@ -893,6 +926,9 @@ public sealed class QuickProfileViewModel : ObservableObject
 
             Customer = profile.Customer ?? string.Empty;
             Project = profile.Project ?? string.Empty;
+            ProfileNotes = profile.Notes ?? string.Empty;
+            ProfileValidationStatus = profile.ValidationStatus;
+            ProfileWarning = profile.Warning ?? string.Empty;
             EditorSensors.Clear();
             foreach (string s in profile.Sensors ?? new List<string>()) EditorSensors.Add(s);
             EditorTags.Clear();
@@ -1315,6 +1351,9 @@ public sealed class QuickProfileViewModel : ObservableObject
             CycleEndIndex = end,
             Customer = Customer.Trim(),
             Project = Project.Trim(),
+            Notes = ProfileNotes.Trim(),
+            ValidationStatus = ProfileValidationStatus,
+            Warning = ProfileWarning.Trim(),
             Sensors = EditorSensors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             Tags = EditorTags.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             CreatedAt = DateTimeOffset.Now,
@@ -1690,6 +1729,9 @@ public sealed class QuickProfileViewModel : ObservableObject
         CycleBodyOnly = true;
         Customer = string.Empty;
         Project = string.Empty;
+        ProfileNotes = string.Empty;
+        ProfileValidationStatus = ProfileValidationStatus.TBT;
+        ProfileWarning = string.Empty;
         EditorSensors.Clear();
         EditorTags.Clear();
         EnableAutoName(); // back to an auto-generated name

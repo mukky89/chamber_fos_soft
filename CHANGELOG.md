@@ -29,6 +29,28 @@
 - Pri PeakLogger nastavení pribudol vyhľadávač viacerých súčasne spustených API.
   Paralelne prehľadá 32 portov od zadaného portu a ukáže počet API procesov,
   interrogátorov (`deviceSN`) a peakov; výber nálezu automaticky nastaví port.
+- Nameraná teplota, setpoint a vlhkosť sú na dashboardovej karte oddelené do
+  samostatných metrických blokov. Hodnoty aj rámiky používajú rovnaké farby ako
+  graf: oranžová teplota, svetlooranžový setpoint a modrá vlhkosť.
+- Riadok stavových odznakov aj riadok metrík majú pevnú výšku bez zalamovania.
+- Live monitor automaticky pridá novo objavené PeakLogger peaky do tabuľky bez
+  ručného obnovenia. Riadok bez FBG sensor SN má jemné červené pozadie a
+  výrazný ľavý okraj; zvýraznenie po zadaní SN okamžite zmizne.
+- Profil môže obsahovať viacriadkovú poznámku zadanú v rýchlom vytvárači.
+  Poznámka sa ukladá s profilom, zobrazuje sa v rozšírenom náhľade aj v
+  knižnici profilov a dá sa podľa nej vyhľadávať.
+- Profily majú vždy viditeľný stav pripravenosti: OK (zelený), NOK (červený),
+  WIP (oranžový) alebo TBT (modrý). Staré aj nové profily majú bezpečný
+  predvolený stav TBT; vysvetlenie stavov je dostupné cez „?“.
+- Voliteľné upozornenie profilu sa pri výbere zobrazí výrazne so symbolom „!“.
+  Vyhľadávanie podporuje aj ID profilu, stav a text upozornenia a zatvorený
+  výber profilu zobrazuje ID spolu s názvom.
+  Komora s vlhkosťou používa kratší odznak `T + RH` a tri užšie metrické bloky,
+  takže ovládacie panely pod nimi zostávajú zarovnané s ostatnými kartami.
+- Vyhľadávač PeakLogger API na `localhost` už nehádá iba úzky rozsah portov:
+  preverí všetky aktívne TCP listenery z Windows a k nim rezervných 64 portov.
+  Tak nájde aj ďalšiu inštanciu s dynamicky prideleným vzdialeným portom a v
+  súhrne ukáže počet skontrolovaných portov.
 
 ## [1.76.0] – 2026-08-28
 

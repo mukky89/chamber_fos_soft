@@ -101,6 +101,32 @@ public sealed class ProfileLibraryViewModel : ObservableObject
 
     public bool HasOriginalName => !string.IsNullOrWhiteSpace(OriginalName);
 
+    private string _previewNotes = string.Empty;
+    /// <summary>Optional operator note stored with the previewed profile.</summary>
+    public string PreviewNotes
+    {
+        get => _previewNotes;
+        private set { if (SetProperty(ref _previewNotes, value)) OnPropertyChanged(nameof(HasPreviewNotes)); }
+    }
+
+    public bool HasPreviewNotes => !string.IsNullOrWhiteSpace(PreviewNotes);
+
+    private ProfileValidationStatus _previewValidationStatus = ProfileValidationStatus.TBT;
+    public ProfileValidationStatus PreviewValidationStatus
+    {
+        get => _previewValidationStatus;
+        private set => SetProperty(ref _previewValidationStatus, value);
+    }
+
+    private string _previewWarning = string.Empty;
+    public string PreviewWarning
+    {
+        get => _previewWarning;
+        private set { if (SetProperty(ref _previewWarning, value)) OnPropertyChanged(nameof(HasPreviewWarning)); }
+    }
+
+    public bool HasPreviewWarning => !string.IsNullOrWhiteSpace(PreviewWarning);
+
     /// <summary>Sensors of the previewed profile (chips).</summary>
     public ObservableCollection<string> PreviewSensors { get; } = new();
 
@@ -266,6 +292,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             PreviewMeta = string.Empty;
             PreviewOwner = string.Empty;
             OriginalName = string.Empty;
+            PreviewNotes = string.Empty;
+            PreviewValidationStatus = ProfileValidationStatus.TBT;
+            PreviewWarning = string.Empty;
             PreviewSensors.Clear();
             PreviewTags.Clear();
             ProfileDurationText = "—";
@@ -285,6 +314,9 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         CycleBandEnd = profile.ResolvedCycleEnd;
         PreviewName = profile.CodeAndName;
         OriginalName = profile.OriginalName ?? string.Empty;
+        PreviewNotes = profile.Notes?.Trim() ?? string.Empty;
+        PreviewValidationStatus = profile.ValidationStatus;
+        PreviewWarning = profile.Warning?.Trim() ?? string.Empty;
         PreviewOwner = string.Join(" · ", new[] { profile.Customer, profile.Project }
             .Where(s => !string.IsNullOrWhiteSpace(s)));
         ReplaceAll(PreviewSensors, profile.Sensors);
@@ -512,9 +544,13 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         }
 
         bool InText(string? s) => s is not null && s.Contains(needle, StringComparison.CurrentCultureIgnoreCase);
-        return InText(p.Name)
+        return InText(p.Code)
+            || InText(p.Name)
             || InText(p.Customer)
             || InText(p.Project)
+            || InText(p.Notes)
+            || InText(p.Warning)
+            || InText(p.ValidationStatus.ToString())
             || (p.Sensors ?? new List<string>()).Any(InText)
             || (p.Tags ?? new List<string>()).Any(InText);
     }

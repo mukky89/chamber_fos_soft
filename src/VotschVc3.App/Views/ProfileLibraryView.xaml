@@ -119,7 +119,19 @@
                             <!-- Profile leaf node -->
                             <DataTemplate DataType="{x:Type core:TestProfile}">
                                 <StackPanel ToolTip="Klik zobrazí náhľad profilu vpravo. Upraviť sa dá tlačidlom „✎ Upraviť v rýchlom profile“.">
-                                    <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                                    <DockPanel LastChildFill="True">
+                                        <Border DockPanel.Dock="Left" CornerRadius="5" Padding="6,1" Margin="0,0,7,0"
+                                                BorderThickness="1"
+                                                BorderBrush="{Binding ValidationStatus, Converter={StaticResource ProfileStatusToBrush}}"
+                                                ToolTip="{Binding ValidationStatusDescription}">
+                                            <TextBlock Text="{Binding ValidationStatus}" FontSize="10.5" FontFamily="Segoe UI Semibold"
+                                                       Foreground="{Binding ValidationStatus, Converter={StaticResource ProfileStatusToBrush}}" />
+                                        </Border>
+                                        <TextBlock DockPanel.Dock="Right" Text="!" FontSize="15" Margin="7,0,0,0"
+                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource WarnBrush}"
+                                                   Visibility="{Binding HasWarning, Converter={StaticResource BoolToVisibility}}" />
+                                        <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                                    </DockPanel>
                                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0">
                                         <Run Text="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm', Mode=OneWay}" />
                                         <Run Text=" · " />
@@ -188,6 +200,33 @@
                             </TextBlock>
                             <TextBlock Text="{Binding CycleRegionText}" Style="{StaticResource Caption}"
                                        Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            <WrapPanel Margin="0,7,0,0">
+                                <Border CornerRadius="6" Padding="8,2" BorderThickness="1"
+                                        BorderBrush="{Binding PreviewValidationStatus, Converter={StaticResource ProfileStatusToBrush}}">
+                                    <TextBlock Text="{Binding PreviewValidationStatus}" FontFamily="Segoe UI Semibold"
+                                               Foreground="{Binding PreviewValidationStatus, Converter={StaticResource ProfileStatusToBrush}}" />
+                                </Border>
+                                <TextBlock Text="?" Margin="7,0,0,0" FontFamily="Segoe UI Semibold"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           ToolTip="OK – všetko je v poriadku, môže sa používať.&#10;NOK – NOT OK, nepoužívať.&#10;WIP – WORK IN PROGRESS, rozpracované.&#10;TBT – TO BE TESTED, musí sa otestovať." />
+                            </WrapPanel>
+                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource WarnBrush}"
+                                    BorderThickness="1" CornerRadius="7" Padding="10,7" Margin="0,8,0,0"
+                                    Visibility="{Binding HasPreviewWarning, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="!" FontSize="18" FontFamily="Segoe UI Semibold"
+                                               Foreground="{StaticResource WarnBrush}" Margin="0,0,9,0" />
+                                    <TextBlock Text="{Binding PreviewWarning}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="7" Padding="10,7" Margin="0,8,0,0"
+                                    Visibility="{Binding HasPreviewNotes, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel>
+                                    <TextBlock Text="Poznámka" Style="{StaticResource Label}" />
+                                    <TextBlock Text="{Binding PreviewNotes}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
                             <ItemsControl ItemsSource="{Binding PreviewSensors}" Margin="0,8,0,0"
                                           ItemsPanel="{StaticResource ChipPanel}" ItemTemplate="{StaticResource ChipTemplate}" />
                             <ItemsControl ItemsSource="{Binding PreviewTags}"

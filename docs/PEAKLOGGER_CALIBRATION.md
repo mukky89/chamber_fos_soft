@@ -86,9 +86,12 @@ Používané requesty:
 - `GET /peaks?` – starší kompatibilný endpoint,
 - pôvodná aplikácia pozná aj `GET /peaks?channel=<channel>&enableFos4x=false` pre konkrétny kanál.
 
-Kalibračné okno vie paralelne prehľadať 32 portov od zadaného portu. Každý
-nájdený endpoint overí cez JSON odpoveď a zobrazí počet API procesov, jedinečných
-`deviceSN` interrogátorov a peakov. Výber výsledku automaticky nastaví port.
+Kalibračné okno na `localhost` paralelne preverí všetky aktívne TCP listenery,
+ktoré hlási operačný systém, plus rezervných 64 portov od zadanej hodnoty. Na
+vzdialenom hoste používa 64-portový rozsah, pretože tabuľku jeho listenerov nevie
+čítať. Každý nájdený endpoint overí cez JSON odpoveď a zobrazí počet API
+procesov, jedinečných `deviceSN` interrogátorov, peakov aj skontrolovaných portov.
+Výber výsledku automaticky nastaví port.
 
 V existujúcej implementácii nie je pre tieto requesty použitá autentifikácia.
 

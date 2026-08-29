@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using VotschVc3.App.Charting;
@@ -127,7 +128,7 @@ public partial class ProfilePicker : UserControl
     {
         var picker = (ProfilePicker)d;
         var profile = e.NewValue as TestProfile;
-        picker.SelectedName = profile?.Name ?? string.Empty;
+        picker.SelectedName = profile?.CodeAndName ?? string.Empty;
         picker.SelectedCaption = profile?.PickerCaption ?? string.Empty;
         picker.HasSelection = profile is not null;
 
@@ -208,7 +209,8 @@ public partial class ProfilePicker : UserControl
         bool In(string? s) => !string.IsNullOrEmpty(s) &&
             s.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
 
-        return In(p.Name) || In(p.OriginalName) || In(p.Customer) || In(p.Project) || In(p.GroupKey)
+        return In(p.Code) || In(p.Name) || In(p.OriginalName) || In(p.Customer) || In(p.Project)
+            || In(p.Notes) || In(p.Warning) || In(p.GroupKey)
             || p.Sensors.Any(In) || p.Tags.Any(In);
     }
 
@@ -314,6 +316,19 @@ public partial class ProfilePicker : UserControl
         ProfilePreviewSummary summary = ProfilePreviewSummary.Analyze(profile, ViewModels.ChamberViewModel.SikaSettling);
         PreviewName.Text = profile.CodeAndName;
         PreviewCaption.Text = profile.PickerCaption;
+        PreviewNotes.Text = profile.Notes?.Trim() ?? string.Empty;
+        PreviewNotesBorder.Visibility = string.IsNullOrWhiteSpace(PreviewNotes.Text)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        PreviewWarning.Text = profile.Warning?.Trim() ?? string.Empty;
+        PreviewWarningBorder.Visibility = profile.HasWarning ? Visibility.Visible : Visibility.Collapsed;
+        Brush statusBrush = TryFindResource("ProfileStatusToBrush") is IValueConverter converter
+            ? (Brush)converter.Convert(profile.ValidationStatus, typeof(Brush), null, System.Globalization.CultureInfo.CurrentCulture)
+            : Brushes.SteelBlue;
+        PreviewStatusText.Text = profile.ValidationStatus.ToString();
+        PreviewStatusText.Foreground = statusBrush;
+        PreviewStatusBadge.BorderBrush = statusBrush;
+        PreviewStatusBadge.ToolTip = profile.ValidationStatusDescription;
         PreviewKindText.Text = profile.DeviceKindLabel;
         PreviewKindText.Foreground = (profile.DeviceKind switch
         {

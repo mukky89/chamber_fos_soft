@@ -144,7 +144,7 @@
                                 <DockPanel LastChildFill="True">
                                     <Button DockPanel.Dock="Right" Content="Vyhľadať API" Style="{StaticResource GhostButton}"
                                             Margin="7,0,0,0" Padding="9,4" Command="{Binding DiscoverPeakLoggerApisCommand}"
-                                            ToolTip="Prehľadá 32 portov od zadaného portu a nájde všetky lokálne PeakLogger API (/api/v1/peaks aj staršie /peaks)." />
+                                            ToolTip="Na localhoste preverí všetky aktívne TCP porty z Windows a rezervných 64 portov od zadanej hodnoty. Hľadá /api/v1/peaks aj staršie /peaks." />
                                     <ComboBox ItemsSource="{Binding PeakLoggerInstances}"
                                               SelectedItem="{Binding SelectedPeakLoggerInstance, Mode=TwoWay}"
                                               DisplayMemberPath="Display" MinHeight="30"
@@ -326,6 +326,18 @@
                     <DataGrid Grid.Row="1" ItemsSource="{Binding Peaks}" AutoGenerateColumns="False" CanUserAddRows="False"
                               IsReadOnly="False" HeadersVisibility="Column" EnableRowVirtualization="True"
                               VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding NeedsSensorSerialNumber}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource PendingRowBrush}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+                                        <Setter Property="BorderThickness" Value="4,0,0,1" />
+                                        <Setter Property="ToolTip" Value="Nový peak – doplň FBG sensor SN. Po vyplnení červené zvýraznenie zmizne." />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <DataGridCheckBoxColumn Header="Kalibrovať" Binding="{Binding Selected, Mode=TwoWay}" Width="90" />
                             <DataGridTextColumn Header="PeakLogger SN" Binding="{Binding PeakLoggerDeviceSerialNumber}" IsReadOnly="True" Width="125" />
@@ -345,7 +357,7 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     <TextBlock Grid.Row="2" Margin="2,7,0,0" Style="{StaticResource Caption}" TextWrapping="Wrap"
-                               Text="Aktuálna λ sa obnovuje live z PeakLoggera. Počas reálnej kalibrácie sa každý označený FBG index zaznamenáva po celý beh do wavelength-trace.csv spolu s produkčným SN, PeakLogger SN, kanálom, λ, intenzitou a dostupnou teplotou." />
+                               Text="Nové peaky sa pridávajú automaticky a červený riadok čaká na zadanie FBG sensor SN. Aktuálna λ sa obnovuje live z PeakLoggera. Počas reálnej kalibrácie sa každý označený FBG index zaznamenáva po celý beh do wavelength-trace.csv spolu s produkčným SN, PeakLogger SN, kanálom, λ, intenzitou a dostupnou teplotou." />
                 </Grid>
             </TabItem>
 

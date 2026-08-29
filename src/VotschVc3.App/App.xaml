@@ -18,6 +18,7 @@
             <conv:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
             <conv:BoolToGridLengthConverter x:Key="BoolToGridLength" />
             <conv:TagBrushConverter x:Key="TagBrush" />
+            <conv:ProfileStatusToBrushConverter x:Key="ProfileStatusToBrush" />
             <conv:EnumToBooleanConverter x:Key="EnumToBoolean" />
             <conv:DeltaConverter x:Key="Delta" />
             <conv:OneBasedIndexConverter x:Key="OneBasedIndex" />
