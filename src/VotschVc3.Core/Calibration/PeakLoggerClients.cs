@@ -167,8 +167,8 @@ public sealed class FakePeakLoggerClient : IPeakLoggerClient, IPeakLoggerSimulat
 /// <summary>
 /// Production adapter for the local PeakLogger REST API used by the existing
 /// Auto_calibrator_Pali application. The established contract is:
-/// <c>GET /swagger/index.html</c> for a lightweight availability check and
-/// <c>GET /peaks?</c> for all currently detected peaks. PeakLogger normally listens
+/// <c>GET /api/v1/peaks</c> (current) or <c>GET /peaks?</c> (legacy) for all
+/// currently detected peaks. PeakLogger normally listens
 /// on localhost:43122. A peak response contains index, channel, wavelength,
 /// intensity and device.deviceSN/deviceType/connector.
 /// </summary>
@@ -185,6 +185,9 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
     private readonly bool _ownsHttpClient;
     private PeakLoggerSettings _settings = new();
     private Uri? _baseUri;
+    private string _peaksPath = "api/v1/peaks";
+
+    public string PeaksPath => _peaksPath;
 
     public PeakLoggerApiClient(HttpClient? httpClient = null)
     {
@@ -205,16 +208,34 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
         IsConnected = false;
         LastDataTimestamp = null;
 
-        using HttpResponseMessage response = await SendGetAsync("swagger/index.html", cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
+        HttpStatusCode? lastStatus = null;
+        foreach (string candidate in new[] { "api/v1/peaks", "peaks?" })
         {
-            throw new HttpRequestException(
-                $"PeakLogger API nie je dostupné na {_baseUri} (HTTP {(int)response.StatusCode} {response.ReasonPhrase}).",
-                null,
-                response.StatusCode);
+            using HttpResponseMessage response = await SendGetAsync(candidate, cancellationToken).ConfigureAwait(false);
+            lastStatus = response.StatusCode;
+            if (!response.IsSuccessStatusCode) continue;
+
+            string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                JsonDocument document = JsonDocument.Parse(json);
+                if (document.RootElement.ValueKind != JsonValueKind.Array) continue;
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            _peaksPath = candidate;
+            IsConnected = true;
+            return;
         }
 
-        IsConnected = true;
+        throw new HttpRequestException(
+            $"PeakLogger API nie je dostupné na {_baseUri}. Skúšané /api/v1/peaks aj /peaks " +
+            $"(posledný stav HTTP {(int?)lastStatus}).",
+            null,
+            lastStatus);
     }
 
     public Task DisconnectAsync()
@@ -276,7 +297,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
     {
         try
         {
-            using HttpResponseMessage response = await SendGetAsync("peaks?", cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage response = await SendGetAsync(_peaksPath, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
                 return Array.Empty<PeakLoggerApiPeakDto>();
@@ -285,7 +306,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
             if (!response.IsSuccessStatusCode)
             {
                 throw new HttpRequestException(
-                    $"PeakLogger /peaks zlyhal (HTTP {(int)response.StatusCode} {response.ReasonPhrase}).",
+                    $"PeakLogger /{_peaksPath.TrimEnd('?')} zlyhal (HTTP {(int)response.StatusCode} {response.ReasonPhrase}).",
                     null,
                     response.StatusCode);
             }
@@ -306,7 +327,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
         }
         catch (JsonException ex)
         {
-            throw new InvalidDataException("PeakLogger /peaks vrátil neplatný JSON.", ex);
+            throw new InvalidDataException($"PeakLogger /{_peaksPath.TrimEnd('?')} vrátil neplatný JSON.", ex);
         }
     }
 
@@ -432,5 +453,66 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
         [JsonPropertyName("connector")]
         public int? Connector { get; set; }
+    }
+
+    public sealed record DiscoveredInstance(string Host, int Port, string ApiPath, int PeakCount, int DeviceCount)
+    {
+        public string Display => $"{Host}:{Port} · {DeviceCount} interrogátorov · {PeakCount} peakov · /{ApiPath.TrimEnd('?')}";
+    }
+
+    /// <summary>Finds concurrently running PeakLogger API instances on consecutive ports.</summary>
+    public static async Task<IReadOnlyList<DiscoveredInstance>> DiscoverInstancesAsync(
+        string host,
+        int firstPort = DefaultPort,
+        int portCount = 32,
+        CancellationToken cancellationToken = default)
+    {
+        string normalizedHost = string.IsNullOrWhiteSpace(host) ? "localhost" : host.Trim();
+        int start = firstPort > 0 ? firstPort : DefaultPort;
+        int count = Math.Clamp(portCount, 1, 128);
+        using var http = new HttpClient { Timeout = TimeSpan.FromMilliseconds(900) };
+
+        Task<DiscoveredInstance?>[] probes = Enumerable.Range(start, count)
+            .Select(port => ProbeInstanceAsync(http, normalizedHost, port, cancellationToken))
+            .ToArray();
+        DiscoveredInstance?[] results = await Task.WhenAll(probes).ConfigureAwait(false);
+        return results.Where(x => x is not null).Cast<DiscoveredInstance>().OrderBy(x => x.Port).ToArray();
+    }
+
+    private static async Task<DiscoveredInstance?> ProbeInstanceAsync(
+        HttpClient http,
+        string host,
+        int port,
+        CancellationToken cancellationToken)
+    {
+        foreach (string path in new[] { "api/v1/peaks", "peaks?" })
+        {
+            try
+            {
+                var uri = new UriBuilder(Uri.UriSchemeHttp, host, port, path).Uri;
+                using HttpResponseMessage response = await http.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode) continue;
+                using JsonDocument json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+                if (json.RootElement.ValueKind != JsonValueKind.Array) continue;
+
+                int peaks = json.RootElement.GetArrayLength();
+                var devices = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (JsonElement peak in json.RootElement.EnumerateArray())
+                {
+                    if (peak.TryGetProperty("device", out JsonElement device) &&
+                        device.TryGetProperty("deviceSN", out JsonElement serial) &&
+                        !string.IsNullOrWhiteSpace(serial.GetString()))
+                    {
+                        devices.Add(serial.GetString()!);
+                    }
+                }
+                return new DiscoveredInstance(host, port, path, peaks, devices.Count);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                // Closed/non-PeakLogger port: continue with the next candidate.
+            }
+        }
+        return null;
     }
 }

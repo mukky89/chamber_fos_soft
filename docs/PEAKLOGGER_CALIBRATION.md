@@ -82,8 +82,13 @@ Default:
 Používané requesty:
 
 - `GET /swagger/index.html` – availability check,
-- `GET /peaks?` – všetky aktuálne detegované peaky,
+- `GET /api/v1/peaks` – všetky aktuálne detegované peaky v súčasnej verzii PeakLoggera,
+- `GET /peaks?` – starší kompatibilný endpoint,
 - pôvodná aplikácia pozná aj `GET /peaks?channel=<channel>&enableFos4x=false` pre konkrétny kanál.
+
+Kalibračné okno vie paralelne prehľadať 32 portov od zadaného portu. Každý
+nájdený endpoint overí cez JSON odpoveď a zobrazí počet API procesov, jedinečných
+`deviceSN` interrogátorov a peakov. Výber výsledku automaticky nastaví port.
 
 V existujúcej implementácii nie je pre tieto requesty použitá autentifikácia.
 

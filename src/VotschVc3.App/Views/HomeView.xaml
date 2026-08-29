@@ -292,30 +292,36 @@
                             <Border Style="{StaticResource DeviceCard}" Margin="0">
                             <StackPanel>
 
-                                <!-- ===== Top bar: reorder (admin) + primary "open device" action ===== -->
+                                <!-- ===== Top bar: local card actions + FBG calibration ===== -->
                                 <DockPanel LastChildFill="False" Margin="0,0,0,12">
-                                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center"
-                                                Visibility="{Binding DataContext.IsReorderAllowed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
-                                        <Button Content="◀" Style="{StaticResource GhostButton}" Padding="7,2"
-                                                ToolTip="Posunúť doľava (admin)"
-                                                Command="{Binding DataContext.MoveChamberUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}" />
-                                        <Button Content="▶" Style="{StaticResource GhostButton}" Padding="7,2"
-                                                ToolTip="Posunúť doprava (admin)"
-                                                Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}" />
+                                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                    Visibility="{Binding DataContext.IsReorderAllowed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                                            <Button Content="◀" Style="{StaticResource GhostButton}" Padding="7,2"
+                                                    ToolTip="Posunúť doľava (admin)"
+                                                    Command="{Binding DataContext.MoveChamberUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Content="▶" Style="{StaticResource GhostButton}" Padding="7,2"
+                                                    ToolTip="Posunúť doprava (admin)"
+                                                    Command="{Binding DataContext.MoveChamberDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                        <!-- Lock toggle: always enabled so a locked device can be unlocked. -->
+                                        <Button Margin="0,0,6,0" Padding="9,8"
+                                                Style="{StaticResource GhostButton}" Command="{Binding ToggleLockCommand}"
+                                                ToolTip="{Binding LockButtonText, Mode=OneWay}">
+                                            <Path Style="{StaticResource LockGlyphPath}" />
+                                        </Button>
+                                        <Button Style="{StaticResource AccentOutlineButton}" Padding="9,8"
+                                                Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="Upraviť nastavenia a otvoriť plné ovládanie zariadenia.">
+                                            <Path Style="{StaticResource IconPath}" Width="16" Height="16"
+                                                  Data="{StaticResource Icon.Edit}" />
+                                        </Button>
                                     </StackPanel>
-                                    <!-- The card is a fixed 500 px. Only the lock and the web link are
-                                         icon-only (their glyph says it all and the tooltip carries the rest);
-                                         the two actions an operator looks for by name keep their label and the
-                                         row still fits: 42 + 42 + ~130 + ~178 px. -->
-                                    <Button DockPanel.Dock="Right" Content="⚙  Nastaviť / ovládať  →" Style="{StaticResource AccentButton}"
-                                            Padding="11,8" FontSize="12.5"
-                                            Command="{Binding DataContext.OpenChamberCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"
-                                            ToolTip="Otvoriť nastavenia a plné ovládanie zariadenia (pripojenie, profily, záznam, bezpečnosť…)." />
                                     <Button DockPanel.Dock="Right" Style="{StaticResource AccentOutlineButton}"
-                                            Margin="0,0,6,0" Padding="10,7" FontSize="12.5"
+                                            Padding="10,7" FontSize="12.5"
                                             Click="Calibration_Click"
                                             ToolTip="Otvorí PeakLogger FBG teplotnú kalibráciu s týmto zariadením predvoleným.">
                                         <StackPanel Orientation="Horizontal">
@@ -323,16 +329,6 @@
                                                   Data="{StaticResource Icon.Signal}" />
                                             <TextBlock Text="FBG Kalibrácia" Style="{StaticResource IconLabel}" Margin="7,0,0,0" />
                                         </StackPanel>
-                                    </Button>
-                                    <Button DockPanel.Dock="Right" Content="🌐" Style="{StaticResource GhostButton}"
-                                            Margin="0,0,5,0" Padding="9,8" FontSize="14"
-                                            Command="{Binding OpenDeviceWebCommand}"
-                                            ToolTip="Otvoriť webové rozhranie zariadenia v predvolenom prehliadači." />
-                                    <!-- Lock toggle: always enabled so a locked device can be unlocked. -->
-                                    <Button DockPanel.Dock="Right" Margin="0,0,5,0" Padding="9,8"
-                                            Style="{StaticResource GhostButton}" Command="{Binding ToggleLockCommand}"
-                                            ToolTip="{Binding LockButtonText, Mode=OneWay}">
-                                        <Path Style="{StaticResource LockGlyphPath}" />
                                     </Button>
                                 </DockPanel>
 
@@ -441,6 +437,15 @@
                                               <Ellipse Width="10" Height="10" VerticalAlignment="Center"
                                                        Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
                                               <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" Style="{StaticResource Caption}" />
+                                          </StackPanel>
+                                          <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                              <TextBlock Text="IP:" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                                              <TextBlock Text="{Binding Endpoint}" Style="{StaticResource Caption}"
+                                                         Margin="5,0,0,0" VerticalAlignment="Center" />
+                                              <Button Content="WWW ↗" Style="{StaticResource GhostButton}"
+                                                      Margin="7,0,0,0" Padding="7,2" FontSize="11.5"
+                                                      Command="{Binding OpenDeviceWebCommand}"
+                                                      ToolTip="Otvoriť webové rozhranie zariadenia v predvolenom prehliadači." />
                                           </StackPanel>
                                           <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
                                                      Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />

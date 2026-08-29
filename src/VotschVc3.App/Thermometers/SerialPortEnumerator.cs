@@ -94,4 +94,57 @@ public static class SerialPortEnumerator
 
         return last;
     }
+
+    /// <summary>Returns operator-readable Windows PnP diagnostics for USB serial devices.</summary>
+    public static IReadOnlyList<string> DiagnoseUsb()
+    {
+        var lines = new List<string>();
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT Name, Status, ConfigManagerErrorCode, PNPDeviceID, Manufacturer, Service " +
+                "FROM Win32_PnPEntity WHERE PNPDeviceID LIKE 'USB%' OR Name LIKE '%(COM%'");
+
+            foreach (ManagementBaseObject device in searcher.Get())
+            {
+                string name = device["Name"] as string ?? "Neznáme USB zariadenie";
+                string pnpId = device["PNPDeviceID"] as string ?? string.Empty;
+                string manufacturer = device["Manufacturer"] as string ?? "—";
+                string service = device["Service"] as string ?? "—";
+                uint error = device["ConfigManagerErrorCode"] is uint code ? code : 0;
+                bool relevant = ComInName.IsMatch(name) ||
+                    name.Contains("F100", StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("USB Serial", StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("FTDI", StringComparison.OrdinalIgnoreCase) ||
+                    manufacturer.Contains("FTDI", StringComparison.OrdinalIgnoreCase);
+                if (!relevant) continue;
+
+                string state = error == 0 ? "OK" : $"CHYBA {error}: {ConfigManagerErrorText(error)}";
+                lines.Add($"{name} · {state} · ovládač {service} · {manufacturer} · {pnpId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            lines.Add($"Windows PnP diagnostika zlyhala: {ex.Message}");
+        }
+
+        string[] ports = SerialPort.GetPortNames().OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();
+        lines.Insert(0, ports.Length == 0
+            ? "SerialPort API: žiadny COM port"
+            : $"SerialPort API: {string.Join(", ", ports)}");
+        if (lines.Count == 1) lines.Add("Windows nenašiel žiadny relevantný USB sériový adaptér ani ASL F100.");
+        return lines;
+    }
+
+    private static string ConfigManagerErrorText(uint code) => code switch
+    {
+        1 => "zariadenie nie je správne nakonfigurované",
+        10 => "zariadenie sa nedá spustiť",
+        22 => "zariadenie je vypnuté",
+        28 => "ovládač nie je nainštalovaný",
+        31 => "Windows nevie načítať potrebný ovládač",
+        43 => "zariadenie nahlásilo problém",
+        45 => "zariadenie nie je momentálne pripojené",
+        _ => "pozri Správcu zariadení",
+    };
 }

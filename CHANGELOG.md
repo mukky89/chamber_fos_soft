@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.76.1] – 2026-08-29
+
+### Zmenené
+- Akcie v hlavičke karty zariadenia sú prehľadnejšie: zámok je vľavo, vedľa
+  neho je ikonka ceruzky na nastavenie a ovládanie a vpravo zostala iba
+  pomenovaná akcia „FBG Kalibrácia“.
+- Odkaz na webové rozhranie je označený „WWW ↗“ a presunutý priamo vedľa IP
+  adresy zariadenia, aby bolo zrejmé, kam odkaz smeruje.
+- Výber kalibračného profilu používa rovnaký rozšírený náhľad ako hlavné
+  zobrazenie: vyhľadávanie, graf priebehu, min/max, celkový čas, cykly, počet
+  plat, teplotné úrovne a prehľad dĺžok jednotlivých plat.
+
+### Opravené
+- USB komunikácia s pôvodným ASL F100 najprv automaticky načíta jeho pasívny
+  „talk-only“ dátový prúd a už po pripojení neposiela nepodporované SCPI
+  príkazy. Rozpozná rámce s kanálom A/B aj 1/2; dotazovací režim zostáva ako
+  fallback pre kompatibilné F150/F250 a novšie firmvéry.
+- Pri talk-only rámcoch s číslom kanála pred hodnotou sa ako teplota parsuje
+  meraná hodnota, nie číslo kanála.
+- Kalibračné okno má rozbaľovaciu USB diagnostiku: zoznam COM portov, USB/PnP
+  stav, ovládač, hardvérové ID a vysvetlenie Windows chybového kódu. Umožňuje
+  port znovu analyzovať, pridať ručne (`COMx`) a vynútiť jeho bezpečné
+  zatvorenie a opätovné otvorenie v aplikácii.
+- PeakLogger klient automaticky rozpozná aktuálny endpoint `/api/v1/peaks` aj
+  starší `/peaks?`; dostupnosť už nekontroluje cez Swagger, ktorý môže legitímne
+  vracať 404.
+- Pri PeakLogger nastavení pribudol vyhľadávač viacerých súčasne spustených API.
+  Paralelne prehľadá 32 portov od zadaného portu a ukáže počet API procesov,
+  interrogátorov (`deviceSN`) a peakov; výber nálezu automaticky nastaví port.
+
 ## [1.76.0] – 2026-08-28
 
 ### Pridané

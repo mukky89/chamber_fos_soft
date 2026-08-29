@@ -152,28 +152,8 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         StatusMessage = $"Otváram {PortName}…";
         await _client.OpenAsync();
         IsConnected = true;
-        StatusMessage = "Pripojené.";
+        StatusMessage = "Pripojené · čakám na USB dáta F100.";
         AppLog.Info("F100", $"Teplomer {PortName} @ {BaudRate} bd pripojený.");
-
-        try
-        {
-            await IdentifyAsync();
-        }
-        catch
-        {
-            // Identification is best-effort; some firmware may not answer *IDN?.
-        }
-
-        // SYSTEM:REMOTE is a command, not a query. It must not wait for a response.
-        try
-        {
-            await _client.SendAsync(F100Protocol.RemoteCommand);
-            AppLog.Info($"F100 {PortName}", "USB remote mode enabled.");
-        }
-        catch (Exception ex)
-        {
-            AppLog.Warn($"F100 {PortName}", $"SYSTEM:REMOTE zlyhal: {ex.Message}");
-        }
 
         if (PollingEnabled)
         {
@@ -247,6 +227,22 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     /// <summary>One operator "Kontrola" action: connect when needed and acquire one fresh value.</summary>
     public Task<double?> CheckAsync(CancellationToken cancellationToken = default) =>
         ReadReferenceTemperatureAsync(cancellationToken);
+
+    /// <summary>Closes a stale/occupied handle owned by this app and opens the selected port again.</summary>
+    public async Task<double?> ForceReconnectAsync(CancellationToken cancellationToken = default)
+    {
+        StopPolling();
+        if (_client is not null)
+        {
+            try { await _client.DisposeAsync(); } catch { }
+            _client = null;
+        }
+
+        IsConnected = false;
+        StatusMessage = $"Vynucujem nové pripojenie {PortName}…";
+        await ConnectAsync();
+        return await ReadReferenceTemperatureAsync(cancellationToken);
+    }
 
     private void StartPolling()
     {

@@ -92,9 +92,10 @@
                             <TextBlock Text="Profil a komora" Style="{StaticResource Heading}" />
                             <StackPanel Style="{StaticResource FieldStack}" Margin="0,8,0,9">
                                 <TextBlock Text="Kalibračný profil" Style="{StaticResource Label}" />
-                                <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-                                          DisplayMemberPath="Name" MinHeight="32"
-                                          ToolTip="Teplotný profil, ktorý komora prejde. Kalibračné body sú jeho plata." />
+                                <views:ProfilePicker ItemsSource="{Binding Profiles}"
+                                                     SelectedProfile="{Binding SelectedProfile, Mode=TwoWay}"
+                                                     Placeholder="Vyber kalibračný profil"
+                                                     ToolTip="Vyber teplotný profil – v náhľade uvidíš graf, rozsah, celkový čas a podrobný prehľad plat. Kalibračné body sú jeho plata." />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="Komora" Style="{StaticResource Label}" />
@@ -138,6 +139,21 @@
                                 </StackPanel>
                             </Grid>
 
+                            <StackPanel Margin="0,7,0,0"
+                                        Visibility="{Binding UseSimulator, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                                <DockPanel LastChildFill="True">
+                                    <Button DockPanel.Dock="Right" Content="Vyhľadať API" Style="{StaticResource GhostButton}"
+                                            Margin="7,0,0,0" Padding="9,4" Command="{Binding DiscoverPeakLoggerApisCommand}"
+                                            ToolTip="Prehľadá 32 portov od zadaného portu a nájde všetky lokálne PeakLogger API (/api/v1/peaks aj staršie /peaks)." />
+                                    <ComboBox ItemsSource="{Binding PeakLoggerInstances}"
+                                              SelectedItem="{Binding SelectedPeakLoggerInstance, Mode=TwoWay}"
+                                              DisplayMemberPath="Display" MinHeight="30"
+                                              ToolTip="Vyber nájdenú PeakLogger API inštanciu; host a port sa doplnia automaticky." />
+                                </DockPanel>
+                                <TextBlock Text="{Binding PeakLoggerDiscoverySummary}" Style="{StaticResource Caption}"
+                                           Margin="0,4,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+
                             <DockPanel Margin="0,10,0,0" LastChildFill="False">
                                 <TextBlock DockPanel.Dock="Left" Text="{Binding PeakLoggerStatus}" Style="{StaticResource Caption}"
                                            VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="150" />
@@ -163,6 +179,9 @@
                                         ToolTip="Znovu načíta USB/sériové porty a dostupné ASL F100 zariadenia.">
                                     <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Refresh}" />
                                 </Button>
+                                <Button DockPanel.Dock="Right" Content="USB diagnostika" Style="{StaticResource GhostButton}"
+                                        Padding="8,3" Margin="0,0,6,0" Command="{Binding ToggleUsbDiagnosticsCommand}"
+                                        ToolTip="Zobrazí COM porty, stav USB/PnP zariadenia, ovládač a Windows chybový kód." />
                             </DockPanel>
 
                             <Grid Margin="0,8,0,0">
@@ -210,6 +229,39 @@
                                         Command="{Binding ToggleF100ChartCommand}"
                                         ToolTip="Zobrazí/skryje priebeh teploty nameranej F100 v čase." />
                             </DockPanel>
+
+                            <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="9" Margin="0,9,0,0"
+                                    Visibility="{Binding ShowUsbDiagnostics, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel>
+                                    <WrapPanel Margin="0,0,0,7">
+                                        <Button Content="Znovu analyzovať" Style="{StaticResource GhostButton}" Margin="0,0,6,0"
+                                                Command="{Binding AnalyzeUsbCommand}" />
+                                        <Button Content="Vynútiť pripojenie" Style="{StaticResource AccentOutlineButton}" Margin="0,0,10,0"
+                                                Command="{Binding ForceReconnectF100Command}"
+                                                ToolTip="Zatvorí spojenie tejto aplikácie, znovu otvorí vybraný COM port a skúsi načítať F100." />
+                                        <TextBox Width="72" Text="{Binding ManualF100Port, UpdateSourceTrigger=PropertyChanged}"
+                                                 VerticalContentAlignment="Center" ToolTip="Ručný COM port, napríklad COM4." />
+                                        <Button Content="Pridať port" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
+                                                Command="{Binding AddManualF100PortCommand}" />
+                                    </WrapPanel>
+                                    <ItemsControl ItemsSource="{Binding UsbDiagnostics}" MaxHeight="130">
+                                        <ItemsControl.Template>
+                                            <ControlTemplate TargetType="ItemsControl">
+                                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                                    <ItemsPresenter />
+                                                </ScrollViewer>
+                                            </ControlTemplate>
+                                        </ItemsControl.Template>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="Ak je port obsadený, zatvor FOS4X alebo inú aplikáciu. Ak Windows hlási chybu 28/31, treba opraviť ovládač v Správcovi zariadení."
+                                               Style="{StaticResource Caption}" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
                 </Grid>

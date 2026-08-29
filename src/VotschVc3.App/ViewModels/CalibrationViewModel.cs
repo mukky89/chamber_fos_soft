@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using VotschVc3.App.Mvvm;
+using VotschVc3.App.Thermometers;
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Communication;
 using VotschVc3.Core.Communication.PolEko;
@@ -52,6 +53,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         History = new ObservableCollection<CalibrationRunRecord>(_calibrationStore.LoadHistory());
 
         ConnectPeakLoggerCommand = new AsyncRelayCommand(ConnectPeakLoggerAsync, () => !IsRunning, ReportError);
+        DiscoverPeakLoggerApisCommand = new AsyncRelayCommand(DiscoverPeakLoggerApisAsync, () => !IsRunning && !UseSimulator, ReportError);
         RefreshSensorsCommand = new AsyncRelayCommand(DiscoverSensorsAsync, () => PeakLoggerConnected && !IsRunning, ReportError);
         SaveSetupCommand = new RelayCommand(SaveSetup, () => SelectedProfile is not null && !IsRunning);
         SelectSuggestedPeaksCommand = new RelayCommand(SelectSuggestedPeaks, () => Peaks.Count > 0 && !IsRunning);
@@ -65,6 +67,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshF100PortsCommand = new RelayCommand(RefreshF100Ports, () => !IsRunning);
         CheckF100Command = new AsyncRelayCommand(CheckF100Async, () => SelectedF100 is not null, ReportError);
         ToggleF100ChartCommand = new RelayCommand(() => ShowF100Chart = !ShowF100Chart);
+        ToggleUsbDiagnosticsCommand = new RelayCommand(ToggleUsbDiagnostics);
+        AnalyzeUsbCommand = new RelayCommand(AnalyzeUsb);
+        AddManualF100PortCommand = new RelayCommand(AddManualF100Port);
+        ForceReconnectF100Command = new AsyncRelayCommand(ForceReconnectF100Async, () => SelectedF100 is not null, ReportError);
 
         if (Chambers.Count > 0) SelectedChamber = Chambers[0];
         RefreshProfiles();
@@ -82,6 +88,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public IReadOnlyList<string> F100Channels => F100Protocol.ProbeChannels;
 
     public AsyncRelayCommand ConnectPeakLoggerCommand { get; }
+    public AsyncRelayCommand DiscoverPeakLoggerApisCommand { get; }
     public AsyncRelayCommand RefreshSensorsCommand { get; }
     public RelayCommand SaveSetupCommand { get; }
     public RelayCommand SelectSuggestedPeaksCommand { get; }
@@ -94,6 +101,17 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand RefreshF100PortsCommand { get; }
     public AsyncRelayCommand CheckF100Command { get; }
     public RelayCommand ToggleF100ChartCommand { get; }
+    public RelayCommand ToggleUsbDiagnosticsCommand { get; }
+    public RelayCommand AnalyzeUsbCommand { get; }
+    public RelayCommand AddManualF100PortCommand { get; }
+    public AsyncRelayCommand ForceReconnectF100Command { get; }
+    public ObservableCollection<string> UsbDiagnostics { get; } = new();
+
+    private bool _showUsbDiagnostics;
+    public bool ShowUsbDiagnostics { get => _showUsbDiagnostics; set => SetProperty(ref _showUsbDiagnostics, value); }
+
+    private string _manualF100Port = "COM4";
+    public string ManualF100Port { get => _manualF100Port; set => SetProperty(ref _manualF100Port, value); }
 
     private TestProfile? _selectedProfile;
     public TestProfile? SelectedProfile
@@ -218,7 +236,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public bool UseSimulator
     {
         get => _useSimulator;
-        set => SetProperty(ref _useSimulator, value);
+        set
+        {
+            if (SetProperty(ref _useSimulator, value)) DiscoverPeakLoggerApisCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private FakePeakLoggerScenario _simulatorScenario = FakePeakLoggerScenario.Normal;
@@ -235,6 +256,29 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private int _peakLoggerPort = PeakLoggerApiClient.DefaultPort;
     public int PeakLoggerPort { get => _peakLoggerPort; set => SetProperty(ref _peakLoggerPort, Math.Max(0, value)); }
+
+    public ObservableCollection<PeakLoggerApiClient.DiscoveredInstance> PeakLoggerInstances { get; } = new();
+
+    private PeakLoggerApiClient.DiscoveredInstance? _selectedPeakLoggerInstance;
+    public PeakLoggerApiClient.DiscoveredInstance? SelectedPeakLoggerInstance
+    {
+        get => _selectedPeakLoggerInstance;
+        set
+        {
+            if (SetProperty(ref _selectedPeakLoggerInstance, value) && value is not null)
+            {
+                PeakLoggerHost = value.Host;
+                PeakLoggerPort = value.Port;
+            }
+        }
+    }
+
+    private string _peakLoggerDiscoverySummary = "API inštancie ešte neboli vyhľadané.";
+    public string PeakLoggerDiscoverySummary
+    {
+        get => _peakLoggerDiscoverySummary;
+        private set => SetProperty(ref _peakLoggerDiscoverySummary, value);
+    }
 
     private bool _peakLoggerConnected;
     public bool PeakLoggerConnected
@@ -400,6 +444,24 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         PeakLoggerStatus = UseSimulator ? $"Pripojený · simulátor ({SimulatorScenario})" : "Pripojený";
         await DiscoverSensorsAsync();
         StartPeakMonitor();
+    }
+
+    private async Task DiscoverPeakLoggerApisAsync()
+    {
+        PeakLoggerDiscoverySummary = $"Hľadám PeakLogger API na {PeakLoggerHost}:{PeakLoggerPort}–{PeakLoggerPort + 31}…";
+        IReadOnlyList<PeakLoggerApiClient.DiscoveredInstance> found =
+            await PeakLoggerApiClient.DiscoverInstancesAsync(PeakLoggerHost, PeakLoggerPort, 32);
+
+        PeakLoggerInstances.Clear();
+        foreach (PeakLoggerApiClient.DiscoveredInstance instance in found) PeakLoggerInstances.Add(instance);
+        SelectedPeakLoggerInstance = found.FirstOrDefault(x => x.Port == PeakLoggerPort) ?? found.FirstOrDefault();
+
+        int interrogators = found.Sum(x => x.DeviceCount);
+        int peaks = found.Sum(x => x.PeakCount);
+        PeakLoggerDiscoverySummary = found.Count == 0
+            ? "Nenašlo sa žiadne PeakLogger API. Skontroluj, či PeakLogger beží a či port nie je blokovaný firewallom."
+            : $"Nájdené API: {found.Count} · interrogátory/inštancie: {interrogators} · peaky: {peaks}";
+        StatusMessage = PeakLoggerDiscoverySummary;
     }
 
     private async Task DiscoverSensorsAsync()
@@ -580,6 +642,45 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StatusMessage = F100Devices.Count == 0
             ? "ASL F100: nenašiel sa žiadny USB/COM port."
             : $"ASL F100: načítaných {F100Devices.Count} sériových portov.";
+    }
+
+    private void ToggleUsbDiagnostics()
+    {
+        ShowUsbDiagnostics = !ShowUsbDiagnostics;
+        if (ShowUsbDiagnostics) AnalyzeUsb();
+    }
+
+    private void AnalyzeUsb()
+    {
+        UsbDiagnostics.Clear();
+        foreach (string line in SerialPortEnumerator.DiagnoseUsb()) UsbDiagnostics.Add(line);
+        StatusMessage = $"USB diagnostika dokončená · {UsbDiagnostics.Count} záznamov.";
+    }
+
+    private void AddManualF100Port()
+    {
+        try
+        {
+            SelectedF100 = _referenceThermometers.AddManualPort(ManualF100Port);
+            StatusMessage = $"Port {SelectedF100.PortName} bol pridaný ručne. Stlač Kontrola alebo Vynútiť pripojenie.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ručný port sa nepodarilo pridať: {ex.Message}";
+        }
+    }
+
+    private async Task ForceReconnectF100Async()
+    {
+        if (SelectedF100 is null) return;
+        SelectedF100.SelectedChannel = SelectedF100Channel;
+        StatusMessage = $"Vynucujem nové pripojenie {SelectedF100.PortName}…";
+        double? value = await SelectedF100.ForceReconnectAsync();
+        OnPropertyChanged(nameof(F100TemperatureLabel));
+        OnPropertyChanged(nameof(F100ConnectionLabel));
+        StatusMessage = value is { } t
+            ? $"ASL F100 znovu pripojený · {SelectedF100.PortName} · {t:F3} °C"
+            : $"Port {SelectedF100.PortName} sa otvoril, ale F100 neposlal platnú teplotu.";
     }
 
     private async Task CheckF100Async()

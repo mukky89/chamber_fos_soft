@@ -28,6 +28,23 @@ public class F100ProtocolTests
         Assert.Equal(23.4, reading.Temperature!.Value, 4);
     }
 
+    [Theory]
+    [InlineData("A 23.4567 C", "A", 23.4567)]
+    [InlineData("ChB 24.125 C", "B", 24.125)]
+    [InlineData("1 22.500 C", "A", 22.500)]
+    [InlineData("2 25.750 C", "B", 25.750)]
+    public void ParseReading_handles_talk_only_channel_prefix(string raw, string channel, double expected)
+    {
+        Assert.Equal(channel, F100Protocol.DetectTalkOnlyChannel(raw));
+        Assert.Equal(expected, F100Protocol.ParseReading(raw).Temperature!.Value, 4);
+    }
+
+    [Fact]
+    public void DetectTalkOnlyChannel_allows_frames_without_channel_prefix()
+    {
+        Assert.Null(F100Protocol.DetectTalkOnlyChannel("23.4567 C"));
+    }
+
     [Fact]
     public void Frame_appends_terminator_once()
     {

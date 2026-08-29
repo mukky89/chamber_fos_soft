@@ -291,11 +291,12 @@ ako virtuálny COM port**.
 - **Referenčné meranie pri komore** – ku komore priradíš F100 ako externú
   referenciu; v live zobrazení vidíš referenčnú teplotu a **odchýlku**
   (komora − referencia), ktorá sa zapíše aj do CSV záznamu komory.
-- **Komunikácia**: 9600 8N1 (voliteľne 4800/19200), príkazy zakončené **CR**,
-  1–2 ms medzi znakmi. `*IDN?` na identifikáciu; **príkaz čítania je
-  konfigurovateľný** (default `READ?`), lebo sa medzi firmvérmi líši.
-- **SCPI terminál** na kalibráciu a ladenie (napr. `UNITS C`, `CHANNEL A`,
-  `MODE REMOTE` – presnú syntax over voči svojmu kusu).
+- **Komunikácia**: 9600 8N1. Pôvodný F100 sa automaticky číta z pasívneho
+  USB „talk-only“ prúdu (vrátane rozlíšenia kanála A/B alebo 1/2). Ak prúd
+  neprichádza, aplikácia skúsi dotazovací SCPI režim príbuzných firmvérov;
+  príkaz čítania je konfigurovateľný (default `READ?`).
+- **Terminál** na kalibráciu a ladenie dotazovacích firmvérov; pôvodný F100
+  v talk-only režime nepotrebuje prijímať žiadne príkazy.
 
 > Pozn.: parsovanie hodnoty/jednotky je v `F100Protocol` (jadro, testované);
 > sériová komunikácia (`System.IO.Ports`) a enumerácia USB sériových čísiel

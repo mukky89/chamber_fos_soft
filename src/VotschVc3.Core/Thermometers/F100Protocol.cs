@@ -51,6 +51,9 @@ public static class F100Protocol
     private static readonly Regex NumberToken =
         new(@"[-+]?\d+(?:[.,]\d+)?", RegexOptions.Compiled);
 
+    private static readonly Regex TalkOnlyChannel =
+        new(@"^\s*(?:(?:CH|CHANNEL)\s*)?(?<channel>A|B|1|2)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     /// <summary>
     /// ASL SCPI-family command that selects an input without initiating a measurement.
     /// F100 firmware variants that do not expose it are handled by the client's READ? fallback.
@@ -105,9 +108,13 @@ public static class F100Protocol
         }
 
         double? value = null;
-        Match m = NumberToken.Match(trimmed);
-        if (m.Success)
+        // Talk-only F100 frames can start with a channel number (for example
+        // "2 23.456 C"). The measurement is therefore the last numeric token,
+        // not necessarily the first one.
+        MatchCollection matches = NumberToken.Matches(trimmed);
+        if (matches.Count > 0)
         {
+            Match m = matches[^1];
             string number = m.Value.Replace(',', '.');
             if (double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double v))
             {
@@ -116,6 +123,25 @@ public static class F100Protocol
         }
 
         return new ThermometerReading(DateTimeOffset.Now, value, DetectUnit(trimmed), raw);
+    }
+
+    /// <summary>
+    /// Extracts the input identifier from a talk-only frame. F100 variants use
+    /// either A/B or 1/2 at the start of the line; frames without an identifier
+    /// are valid too and return <see langword="null"/>.
+    /// </summary>
+    public static string? DetectTalkOnlyChannel(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        Match match = TalkOnlyChannel.Match(raw);
+        if (!match.Success) return null;
+
+        return match.Groups["channel"].Value.ToUpperInvariant() switch
+        {
+            "A" or "1" => "A",
+            "B" or "2" => "B",
+            _ => null,
+        };
     }
 
     private static string DetectUnit(string text)

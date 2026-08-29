@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using VotschVc3.App.Mvvm;
 using VotschVc3.App.Thermometers;
 using VotschVc3.Core.Thermometers;
@@ -32,6 +33,23 @@ public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
 
     public RelayCommand RefreshCommand { get; }
+
+    public ThermometerDeviceViewModel AddManualPort(string portName)
+    {
+        string normalized = (portName ?? string.Empty).Trim().ToUpperInvariant();
+        if (!Regex.IsMatch(normalized, @"^COM\d+$"))
+        {
+            throw new ArgumentException("Port zadaj vo formáte COM4.", nameof(portName));
+        }
+
+        ThermometerDeviceViewModel? existing = Devices.FirstOrDefault(d =>
+            string.Equals(d.PortName, normalized, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null) return existing;
+
+        var device = new ThermometerDeviceViewModel(new SerialDeviceInfo(normalized, null, "ručne zadaný port"));
+        Devices.Add(device);
+        return device;
+    }
 
     /// <summary>
     /// Re-enumerates the serial ports, adding new devices and removing

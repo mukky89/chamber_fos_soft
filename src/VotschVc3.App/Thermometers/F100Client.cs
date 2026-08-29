@@ -13,8 +13,11 @@ namespace VotschVc3.App.Thermometers;
 /// </summary>
 public sealed class F100Client : IAsyncDisposable
 {
+    private enum CommunicationMode { Unknown, TalkOnly, Query }
+
     private readonly SerialPort _port;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private CommunicationMode _communicationMode;
 
     public F100Client(string portName, int baudRate = F100Protocol.DefaultBaudRate)
     {
@@ -95,6 +98,30 @@ public sealed class F100Client : IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         string normalized = F100Protocol.NormalizeChannel(channel);
+
+        // The original F100 USB interface normally emits measurements as a
+        // continuous talk-only stream. It does not necessarily implement the
+        // SCPI query set used by later ASL models. Detect that stream first and
+        // remember the result so subsequent reads do not send unsupported commands.
+        if (_communicationMode is CommunicationMode.Unknown or CommunicationMode.TalkOnly)
+        {
+            ThermometerReading passive = await ReadTalkOnlyAsync(
+                normalized,
+                _communicationMode == CommunicationMode.Unknown ? TimeSpan.FromSeconds(4) : TimeSpan.FromSeconds(3),
+                cancellationToken).ConfigureAwait(false);
+            if (passive.Temperature is not null)
+            {
+                _communicationMode = CommunicationMode.TalkOnly;
+                return passive;
+            }
+
+            if (_communicationMode == CommunicationMode.TalkOnly)
+            {
+                return passive;
+            }
+        }
+
+        _communicationMode = CommunicationMode.Query;
         string directCommand = F100Protocol.BuildMeasureChannelCommand(normalized);
         string response = await SendReceiveAsync(directCommand, cancellationToken).ConfigureAwait(false);
         ThermometerReading direct = F100Protocol.ParseReading(response);
@@ -108,6 +135,43 @@ public sealed class F100Client : IAsyncDisposable
         // change can take several seconds; use five seconds to avoid returning the old channel.
         await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
         return await ReadAsync(fallbackReadCommand, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<ThermometerReading> ReadTalkOnlyAsync(
+        string channel,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var clock = Stopwatch.StartNew();
+                string lastRaw = string.Empty;
+                while (clock.Elapsed < timeout)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string raw = ReadLine();
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+
+                    lastRaw = raw;
+                    ThermometerReading reading = F100Protocol.ParseReading(raw);
+                    string? frameChannel = F100Protocol.DetectTalkOnlyChannel(raw);
+                    if (reading.Temperature is not null &&
+                        (frameChannel is null || string.Equals(frameChannel, channel, StringComparison.Ordinal)))
+                    {
+                        return reading;
+                    }
+                }
+
+                return new ThermometerReading(DateTimeOffset.Now, null, string.Empty, lastRaw);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private void WriteWithDelay(string text)

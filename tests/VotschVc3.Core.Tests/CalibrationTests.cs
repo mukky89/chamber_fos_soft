@@ -166,8 +166,8 @@ public sealed class CalibrationTests
         Assert.Equal(2, measurements.Count);
         Assert.All(measurements, m => Assert.Equal("HIAER3", m.SerialNumber));
         Assert.NotNull(peakLogger.LastDataTimestamp);
-        Assert.Contains(handler.Requests, u => u.Host == "localhost" && u.Port == PeakLoggerApiClient.DefaultPort && u.AbsolutePath == "/swagger/index.html");
-        Assert.Contains(handler.Requests, u => u.Host == "localhost" && u.Port == PeakLoggerApiClient.DefaultPort && u.AbsolutePath == "/peaks");
+        Assert.Contains(handler.Requests, u => u.Host == "localhost" && u.Port == PeakLoggerApiClient.DefaultPort && u.AbsolutePath == "/api/v1/peaks");
+        Assert.Equal("api/v1/peaks", peakLogger.PeaksPath);
     }
 
     [Fact]
@@ -364,6 +364,7 @@ public sealed class CalibrationTests
     {
         private readonly string _peaksJson;
         private readonly HttpStatusCode _peaksStatus;
+        private int _peakRequests;
 
         public PeakLoggerHttpHandler(string peaksJson, HttpStatusCode peaksStatus = HttpStatusCode.OK)
         {
@@ -378,17 +379,14 @@ public sealed class CalibrationTests
             Uri uri = Assert.IsType<Uri>(request.RequestUri);
             Requests.Add(uri);
 
-            if (uri.AbsolutePath.Equals("/swagger/index.html", StringComparison.OrdinalIgnoreCase))
+            if (uri.AbsolutePath.Equals("/api/v1/peaks", StringComparison.OrdinalIgnoreCase) ||
+                uri.AbsolutePath.Equals("/peaks", StringComparison.OrdinalIgnoreCase))
             {
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("<html>PeakLogger Swagger</html>", Encoding.UTF8, "text/html"),
-                });
-            }
-
-            if (uri.AbsolutePath.Equals("/peaks", StringComparison.OrdinalIgnoreCase))
-            {
-                return Task.FromResult(new HttpResponseMessage(_peaksStatus)
+                _peakRequests++;
+                HttpStatusCode status = _peaksStatus == HttpStatusCode.NotFound && _peakRequests == 1
+                    ? HttpStatusCode.OK
+                    : _peaksStatus;
+                return Task.FromResult(new HttpResponseMessage(status)
                 {
                     Content = new StringContent(_peaksJson, Encoding.UTF8, "application/json"),
                 });
