@@ -84,7 +84,26 @@ public static class SerialPortEnumerator
             return null;
         }
 
-        string last = pnpDeviceId.Split('\\').LastOrDefault() ?? string.Empty;
+        string[] segments = pnpDeviceId.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        string last = segments.LastOrDefault() ?? string.Empty;
+
+        // FTDI exposes the COM interface as ...\0000. That suffix is identical for every
+        // converter and must not be shown as its identity. The parent segment encodes the
+        // FTDI serial (or, for chips without a programmed serial, Windows' unique instance
+        // location), e.g. VID_0403+PID_6001+FTABC123 or ...+6&20EF229&0&4.
+        if (last.All(char.IsDigit) && last.All(c => c == '0') && segments.Length >= 2)
+        {
+            string parent = segments[^2];
+            int separator = parent.LastIndexOf('+');
+            if (separator >= 0 && separator + 1 < parent.Length)
+            {
+                string parentIdentity = parent[(separator + 1)..].Trim();
+                if (parentIdentity.Length > 0)
+                {
+                    return parentIdentity;
+                }
+            }
+        }
 
         // Composite-device entries use "&" (e.g. "6&1abc&0&2"); those are not real
         // serial numbers, so ignore them.
