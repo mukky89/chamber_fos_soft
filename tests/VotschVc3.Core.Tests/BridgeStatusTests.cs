@@ -19,17 +19,20 @@ public sealed class BridgeStatusTests
                 UpdatedUtc = new DateTime(2026, 8, 25, 12, 0, 0, DateTimeKind.Utc),
                 DashboardUrl = "https://fos.example",
                 MachineName = "LAB-PC",
-                Version = "1.52.1",
+                Version = "1.75.3",
             };
 
             BridgeStatusFile.Write(path, expected);
             BridgeStatus? actual = BridgeStatusFile.Read(path);
+            string json = File.ReadAllText(path);
 
             Assert.NotNull(actual);
+            Assert.Equal(2, actual.ContractVersion);
             Assert.True(actual.Running);
             Assert.True(actual.DashboardReachable);
             Assert.Equal(expected.DashboardUrl, actual.DashboardUrl);
-            Assert.DoesNotContain("agentKey", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"contractVersion\": 2", json, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("agentKey", json, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
