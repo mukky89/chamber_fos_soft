@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace VotschVc3.Core.Profiles;
 
 /// <summary>
@@ -8,6 +11,7 @@ namespace VotschVc3.Core.Profiles;
 public sealed class ChamberConfig
 {
     /// <summary>Stable identity used to match a saved config to its chamber.</summary>
+    [JsonConverter(typeof(EmptyGuidJsonConverter))]
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>Display name of the chamber.</summary>
@@ -60,4 +64,24 @@ public sealed class ChamberConfig
     /// can be released without a password (a quick safety lock).
     /// </summary>
     public string? LockPasswordHash { get; set; }
+}
+
+/// <summary>
+/// Dashboard-created configurations have no id until the local desktop store assigns one.
+/// System.Text.Json normally rejects an empty string for Guid; accepting it as Guid.Empty
+/// keeps the wire contract backward-compatible without weakening validation of non-empty ids.
+/// </summary>
+internal sealed class EmptyGuidJsonConverter : JsonConverter<Guid>
+{
+    public override Guid Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+            throw new JsonException("GUID musí byť JSON string.");
+        string? value = reader.GetString();
+        if (string.IsNullOrWhiteSpace(value)) return Guid.Empty;
+        return Guid.TryParse(value, out Guid id) ? id : throw new JsonException("Neplatný GUID.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, Guid value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value);
 }
