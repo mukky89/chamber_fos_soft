@@ -150,6 +150,26 @@ V **Administrácia → Prepojenie s FOS Dashboardom** sa zobrazuje proces agenta
 
 Dashboard Bridge v2 používa kompaktný snapshot endpoint a Laboratory Control Center obnovuje živý stav približne každé 2 sekundy.
 
+## Acceptance pre-flight na Windows
+
+Pred povolením `AllowControl` spusti na laboratórnom PC:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify-dashboard-bridge-v2.ps1
+```
+
+Skript bez vypísania `agentKey` skontroluje:
+
+- `bridge.json` a jeho JSON formát;
+- HTTPS Dashboard URL a sieťovú/TLS/HTTP dosiahnuteľnosť;
+- prítomnosť pairing tokenu iba podľa formátu, bez zobrazenia hodnoty;
+- lokálne cesty ku konfigurácii komôr a profilovej knižnici;
+- Scheduled Task `Sylex Lab Control Bridge` a existenciu jeho executable;
+- `bridge-status.json`, `Running`, `DashboardReachable`, čerstvosť statusu a posledného heartbeat-u;
+- reportovanú verziu agenta.
+
+Ak skončí `FAIL > 0`, remote control ešte nepovoľuj. `PRE-FLIGHT READY` znamená, že infraštruktúrna časť je pripravená na manuálnu kontrolu `contractVersion=2`, live dát a bezpečný test jednej komory.
+
 ## Rollout — body 1 až 11
 
 ### 1. Nasadiť Dashboard Bridge v2
@@ -190,7 +210,7 @@ Až po overení správneho `deviceId`, IP, portu, protokolu a bezpečnostných l
 
 ### 10. Funkčný ovládací test
 
-Na komore bez kritického testu vykonať malú bezpečnú zmenu setpointu, napr. o 1 °C v rámci schválených limitov. Overiť command status `queued → delivered/running → succeeded`, reakciu fyzickej komory a spätnú telemetriu. START/STOP profilového testu skúšať až po tomto kroku.
+Na komore bez kritického testu vykonať malú bezpečnú zmenu setpointu, napr. o 1 °C v rámci schválených limitov. Overiť command status `queued → delivered/running → completed`, reakciu fyzickej komory a spätnú telemetriu. START/STOP profilového testu skúšať až po tomto kroku.
 
 ### 11. Akceptačný end-to-end test a ostré povolenie
 
