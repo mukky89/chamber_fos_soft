@@ -5,6 +5,7 @@ namespace VotschVc3.Core.Settings;
 /// <summary>Local health snapshot shared by the Lab Bridge and desktop UI.</summary>
 public sealed class BridgeStatus
 {
+    public int ContractVersion { get; set; } = 2;
     public bool Running { get; set; }
     public bool DashboardReachable { get; set; }
     public DateTime UpdatedUtc { get; set; }
