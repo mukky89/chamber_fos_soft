@@ -196,6 +196,13 @@ else {
 }
 
 if ($status) {
+    if ([int]$status.contractVersion -eq 2) {
+        Write-Check PASS 'Bridge contract' 'contractVersion=2.'
+    }
+    else {
+        Write-Check FAIL 'Bridge contract' ("Očakáva sa contractVersion=2, status obsahuje '{0}'. Aktualizuj agent." -f $status.contractVersion)
+    }
+
     if ($status.running -eq $true) {
         Write-Check PASS 'Agent process state' 'Agent reportuje Running=true.'
     }
@@ -262,6 +269,6 @@ if ($script:Failures -gt 0) {
 }
 
 Write-Host 'Výsledok: PRE-FLIGHT READY.'
-Write-Host 'Ďalší krok: v Dashboarde potvrď contractVersion=2, live hodnoty, profile/config roundtrip,'
+Write-Host 'Ďalší krok: v Dashboarde potvrď live hodnoty a profile/config roundtrip,'
 Write-Host 'potom povoľ AllowControl iba na jednej testovacej komore a vykonaj bezpečný setpoint test.'
 exit 0
