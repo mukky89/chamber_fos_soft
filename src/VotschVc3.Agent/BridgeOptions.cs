@@ -137,7 +137,7 @@ public sealed class BridgeOptions
             {
                 Id = Guid.Empty,
                 Name = d.Name,
-                Kind = d.HasHumidity ? ChamberKind.TemperatureHumidity : ChamberKind.Temperature,
+                Kind = d.HasHumidity ? ChamberKind.TemperatureHumidity : ChamberKind.TemperatureOnly,
                 Protocol = d.Protocol,
                 Host = d.Host,
                 Port = d.Port,
