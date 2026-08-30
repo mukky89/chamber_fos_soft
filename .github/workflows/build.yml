@@ -26,14 +26,14 @@ jobs:
           )
           foreach ($file in $files) {
             $tokens = $null
-            $errors = $null
+            $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile(
               (Resolve-Path $file).Path,
               [ref]$tokens,
-              [ref]$errors
+              [ref]$parseErrors
             ) | Out-Null
-            if ($errors.Count -gt 0) {
-              $errors | ForEach-Object { Write-Error ("{0}: {1}" -f $file, $_.Message) }
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Error ("{0}: {1}" -f $file, $_.Message) }
               exit 1
             }
             Write-Host "PowerShell syntax OK: $file"
