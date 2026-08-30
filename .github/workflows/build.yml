@@ -17,6 +17,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate PowerShell scripts
+        shell: pwsh
+        run: |
+          $files = @(
+            'scripts/install-lab-bridge-task.ps1',
+            'scripts/verify-dashboard-bridge-v2.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error ("{0}: {1}" -f $file, $_.Message) }
+              exit 1
+            }
+            Write-Host "PowerShell syntax OK: $file"
+          }
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
