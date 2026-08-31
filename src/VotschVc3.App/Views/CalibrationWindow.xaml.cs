@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using VotschVc3.App.Calibration;
 using VotschVc3.App.ViewModels;
@@ -15,6 +17,8 @@ public partial class CalibrationWindow : Window
     private readonly CalibrationViewModel _viewModel;
     private readonly SylexFosCalibrationIntegration _sylexFosIntegration;
     private readonly Guid _chamberId;
+    private readonly Border _fosApiStatusBadge;
+    private readonly TextBlock _fosApiStatusText;
     private bool _disposing;
     private bool _shutdownRequested;
 
@@ -22,10 +26,77 @@ public partial class CalibrationWindow : Window
     {
         _chamberId = chamberId;
         _viewModel = new CalibrationViewModel(chamberId);
-        _sylexFosIntegration = new SylexFosCalibrationIntegration(_viewModel);
         InitializeComponent();
         DataContext = _viewModel;
+
+        (_fosApiStatusBadge, _fosApiStatusText) = CreateFosApiStatusBadge();
+        if (Content is Grid rootGrid)
+        {
+            Grid.SetRow(_fosApiStatusBadge, 0);
+            Panel.SetZIndex(_fosApiStatusBadge, 50);
+            rootGrid.Children.Add(_fosApiStatusBadge);
+        }
+
+        _sylexFosIntegration = new SylexFosCalibrationIntegration(_viewModel);
+        _sylexFosIntegration.LookupStatusChanged += OnSylexFosLookupStatusChanged;
+        _ = _sylexFosIntegration.InitializeAsync();
+
         Closing += OnClosing;
+    }
+
+    private static (Border Badge, TextBlock Text) CreateFosApiStatusBadge()
+    {
+        var text = new TextBlock
+        {
+            Text = "FOS API · kontrolujem pripojenie…",
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Brushes.White,
+        };
+
+        var badge = new Border
+        {
+            Child = text,
+            Background = Brushes.DimGray,
+            BorderBrush = Brushes.Gray,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(10, 5, 10, 5),
+            Margin = new Thickness(0, 2, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            ToolTip = "Stav načítania výrobných údajov zo Sylex FOS API. Výpadok API neblokuje samotnú kalibráciu.",
+        };
+
+        return (badge, text);
+    }
+
+    private void OnSylexFosLookupStatusChanged(object? sender, SylexFosLookupStatus status)
+    {
+        _ = Dispatcher.InvokeAsync(() => ApplyFosApiStatus(status));
+    }
+
+    private void ApplyFosApiStatus(SylexFosLookupStatus status)
+    {
+        _fosApiStatusText.Text = status.Message;
+        _fosApiStatusBadge.Background = status.State switch
+        {
+            SylexFosLookupState.Loaded or SylexFosLookupState.ApiAvailable => Brushes.SeaGreen,
+            SylexFosLookupState.Loading or SylexFosLookupState.CheckingApi => Brushes.DarkGoldenrod,
+            SylexFosLookupState.NotFound or SylexFosLookupState.ConfigurationError => Brushes.DarkOrange,
+            SylexFosLookupState.ApiUnavailable => Brushes.Firebrick,
+            _ => Brushes.DimGray,
+        };
+
+        _fosApiStatusBadge.ToolTip = status.State switch
+        {
+            SylexFosLookupState.Loaded => "Výrobné údaje boli načítané: zakázka, popis výrobku a názov snímača.",
+            SylexFosLookupState.NotFound => "SN sa v Sylex FOS API nenašlo. Skontroluj SN; polia zostávajú ručne editovateľné.",
+            SylexFosLookupState.ConfigurationError => "Skontroluj SYLEX_FOS_API_KEY a konfiguráciu klienta chamber-fos.",
+            SylexFosLookupState.ApiUnavailable => "Centrálne API nie je dostupné. Kalibrácia môže pokračovať bez automatického doplnenia údajov.",
+            _ => "Stav načítania výrobných údajov zo Sylex FOS API.",
+        };
     }
 
     /// <summary>
@@ -112,6 +183,7 @@ public partial class CalibrationWindow : Window
     {
         try
         {
+            _sylexFosIntegration.LookupStatusChanged -= OnSylexFosLookupStatusChanged;
             await _sylexFosIntegration.DisposeAsync();
             await _viewModel.DisposeAsync();
         }
