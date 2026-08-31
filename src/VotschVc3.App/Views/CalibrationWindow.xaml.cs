@@ -1,7 +1,9 @@
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using VotschVc3.App.Calibration;
@@ -20,7 +22,11 @@ public partial class CalibrationWindow : Window
     private readonly Guid _chamberId;
     private readonly Border _fosApiStatusBadge;
     private readonly TextBlock _fosApiStatusText;
+    private readonly DispatcherTimer _fosApiStatusHideTimer;
+    private readonly Border _duplicateSnBadge;
+    private readonly TextBlock _duplicateSnText;
     private DataGrid? _wiringGrid;
+    private StrictSerialValidationCommand? _strictStartCommand;
     private bool _pendingWiringGridRefresh;
     private bool _disposing;
     private bool _shutdownRequested;
@@ -34,11 +40,27 @@ public partial class CalibrationWindow : Window
         Loaded += OnLoaded;
 
         (_fosApiStatusBadge, _fosApiStatusText) = CreateFosApiStatusBadge();
+        _fosApiStatusHideTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(5),
+        };
+        _fosApiStatusHideTimer.Tick += (_, _) =>
+        {
+            _fosApiStatusHideTimer.Stop();
+            _fosApiStatusBadge.Visibility = Visibility.Collapsed;
+        };
+
+        (_duplicateSnBadge, _duplicateSnText) = CreateDuplicateSnBadge();
+
         if (Content is Grid rootGrid)
         {
             Grid.SetRow(_fosApiStatusBadge, 0);
             Panel.SetZIndex(_fosApiStatusBadge, 50);
             rootGrid.Children.Add(_fosApiStatusBadge);
+
+            Grid.SetRow(_duplicateSnBadge, 0);
+            Panel.SetZIndex(_duplicateSnBadge, 51);
+            rootGrid.Children.Add(_duplicateSnBadge);
         }
 
         _sylexFosIntegration = new SylexFosCalibrationIntegration(_viewModel);
@@ -95,6 +117,8 @@ public partial class CalibrationWindow : Window
         sensorName.DisplayIndex = firstProductionIndex + 1;
         productDescription.DisplayIndex = firstProductionIndex + 2;
         customer.DisplayIndex = firstProductionIndex + 3;
+
+        AttachStrictSerialValidation();
     }
 
     private static DataGridColumn? FindColumn(DataGrid grid, string header) =>
@@ -114,6 +138,23 @@ public partial class CalibrationWindow : Window
             }
 
             DataGrid? nested = FindWiringGrid(child);
+            if (nested is not null) return nested;
+        }
+        return null;
+    }
+
+    private static Button? FindButtonByCommand(DependencyObject root, ICommand command)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, i);
+            if (child is Button button && ReferenceEquals(button.Command, command))
+            {
+                return button;
+            }
+
+            Button? nested = FindButtonByCommand(child, command);
             if (nested is not null) return nested;
         }
         return null;
@@ -142,6 +183,36 @@ public partial class CalibrationWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
             ToolTip = "Stav načítania výrobných údajov zo Sylex FOS API. Výpadok API neblokuje samotnú kalibráciu.",
+        };
+
+        return (badge, text);
+    }
+
+    private static (Border Badge, TextBlock Text) CreateDuplicateSnBadge()
+    {
+        var text = new TextBlock
+        {
+            FontSize = 12,
+            FontWeight = FontWeights.Bold,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Brushes.White,
+            TextWrapping = TextWrapping.Wrap,
+        };
+
+        var badge = new Border
+        {
+            Child = text,
+            Background = Brushes.Firebrick,
+            BorderBrush = Brushes.OrangeRed,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12, 6, 12, 6),
+            Margin = new Thickness(0, 34, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            MaxWidth = 900,
+            Visibility = Visibility.Collapsed,
+            ToolTip = "Rovnaké produkčné FBG SN nesmie byť priradené k viacerým PeakLogger kanálom.",
         };
 
         return (badge, text);
@@ -212,6 +283,8 @@ public partial class CalibrationWindow : Window
 
     private void ApplyFosApiStatus(SylexFosLookupStatus status)
     {
+        _fosApiStatusHideTimer.Stop();
+        _fosApiStatusBadge.Visibility = Visibility.Visible;
         _fosApiStatusText.Text = status.Message;
         _fosApiStatusBadge.Background = status.State switch
         {
@@ -230,6 +303,159 @@ public partial class CalibrationWindow : Window
             SylexFosLookupState.ApiUnavailable => "Centrálne API nie je dostupné. Kalibrácia môže pokračovať bez automatického doplnenia údajov.",
             _ => "Stav načítania výrobných údajov zo Sylex FOS API.",
         };
+
+        // Green success/availability notifications are transient. Error states stay visible
+        // until a later status replaces them so operators do not miss connectivity problems.
+        if (status.State is SylexFosLookupState.Loaded or SylexFosLookupState.ApiAvailable)
+        {
+            _fosApiStatusHideTimer.Start();
+        }
+    }
+
+    private void AttachStrictSerialValidation()
+    {
+        foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks)
+        {
+            AttachStrictSerialValidationRow(row);
+        }
+
+        _viewModel.Peaks.CollectionChanged -= OnStrictValidationPeaksChanged;
+        _viewModel.Peaks.CollectionChanged += OnStrictValidationPeaksChanged;
+
+        Button? startButton = FindButtonByCommand(this, _viewModel.StartCalibrationCommand);
+        if (startButton is not null)
+        {
+            _strictStartCommand = new StrictSerialValidationCommand(
+                _viewModel.StartCalibrationCommand,
+                () => !HasCrossChannelDuplicateSerialNumbers());
+            startButton.Command = _strictStartCommand;
+        }
+
+        UpdateStrictSerialValidation();
+    }
+
+    private void OnStrictValidationPeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+        {
+            foreach (CalibrationPeakRowViewModel row in e.OldItems)
+            {
+                row.PropertyChanged -= OnStrictValidationRowPropertyChanged;
+            }
+        }
+
+        if (e.NewItems is not null)
+        {
+            foreach (CalibrationPeakRowViewModel row in e.NewItems)
+            {
+                AttachStrictSerialValidationRow(row);
+            }
+        }
+
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks)
+            {
+                AttachStrictSerialValidationRow(row);
+            }
+        }
+
+        UpdateStrictSerialValidation();
+    }
+
+    private void AttachStrictSerialValidationRow(CalibrationPeakRowViewModel row)
+    {
+        row.PropertyChanged -= OnStrictValidationRowPropertyChanged;
+        row.PropertyChanged += OnStrictValidationRowPropertyChanged;
+    }
+
+    private void OnStrictValidationRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CalibrationPeakRowViewModel.ChannelSerialNumber)
+            or nameof(CalibrationPeakRowViewModel.ChainSerialNumber)
+            or nameof(CalibrationPeakRowViewModel.SerialNumber))
+        {
+            UpdateStrictSerialValidation();
+        }
+    }
+
+    private void UpdateStrictSerialValidation()
+    {
+        List<IGrouping<string, CalibrationPeakRowViewModel>> duplicates = GetCrossChannelDuplicateSerialNumbers();
+        if (duplicates.Count == 0)
+        {
+            _duplicateSnBadge.Visibility = Visibility.Collapsed;
+            _duplicateSnText.Text = string.Empty;
+            _strictStartCommand?.RaiseCanExecuteChanged();
+            return;
+        }
+
+        foreach (IGrouping<string, CalibrationPeakRowViewModel> duplicate in duplicates)
+        {
+            string channels = string.Join(", ", duplicate
+                .Select(row => row.Channel)
+                .Where(channel => !string.IsNullOrWhiteSpace(channel))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+            string message = $"CHYBA: FBG SN „{duplicate.Key}“ je priradené k viacerým kanálom ({channels}). Každé produkčné FBG SN môže patriť iba jednému kanálu.";
+            foreach (CalibrationPeakRowViewModel row in duplicate)
+            {
+                row.AddSerialNumberWarning(message);
+            }
+        }
+
+        string summary = string.Join("  |  ", duplicates.Select(group =>
+        {
+            string channels = string.Join(", ", group
+                .Select(row => row.Channel)
+                .Where(channel => !string.IsNullOrWhiteSpace(channel))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+            return $"{group.Key}: kanály {channels}";
+        }));
+
+        _duplicateSnText.Text = $"⛔ DUPLICITNÉ FBG SN — kalibráciu nemožno spustiť. {summary}";
+        _duplicateSnBadge.Visibility = Visibility.Visible;
+        _strictStartCommand?.RaiseCanExecuteChanged();
+    }
+
+    private bool HasCrossChannelDuplicateSerialNumbers() => GetCrossChannelDuplicateSerialNumbers().Count > 0;
+
+    private List<IGrouping<string, CalibrationPeakRowViewModel>> GetCrossChannelDuplicateSerialNumbers() =>
+        _viewModel.Peaks
+            .Where(row => !string.IsNullOrWhiteSpace(row.SerialNumber))
+            .GroupBy(row => row.SerialNumber.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group
+                .Select(row => $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count() > 1)
+            .ToList();
+
+    private sealed class StrictSerialValidationCommand : ICommand
+    {
+        private readonly ICommand _inner;
+        private readonly Func<bool> _isValid;
+
+        public StrictSerialValidationCommand(ICommand inner, Func<bool> isValid)
+        {
+            _inner = inner;
+            _isValid = isValid;
+            _inner.CanExecuteChanged += OnInnerCanExecuteChanged;
+        }
+
+        public event EventHandler? CanExecuteChanged;
+
+        public bool CanExecute(object? parameter) => _isValid() && _inner.CanExecute(parameter);
+
+        public void Execute(object? parameter)
+        {
+            if (CanExecute(parameter))
+            {
+                _inner.Execute(parameter);
+            }
+        }
+
+        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+
+        private void OnInnerCanExecuteChanged(object? sender, EventArgs e) => RaiseCanExecuteChanged();
     }
 
     /// <summary>
@@ -315,6 +541,12 @@ public partial class CalibrationWindow : Window
     {
         try
         {
+            _fosApiStatusHideTimer.Stop();
+            _viewModel.Peaks.CollectionChanged -= OnStrictValidationPeaksChanged;
+            foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks)
+            {
+                row.PropertyChanged -= OnStrictValidationRowPropertyChanged;
+            }
             _sylexFosIntegration.LookupStatusChanged -= OnSylexFosLookupStatusChanged;
             await _sylexFosIntegration.DisposeAsync();
             await _viewModel.DisposeAsync();
