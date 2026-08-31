@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using VotschVc3.App.Calibration;
@@ -19,6 +20,7 @@ public partial class CalibrationWindow : Window
     private readonly Guid _chamberId;
     private readonly Border _fosApiStatusBadge;
     private readonly TextBlock _fosApiStatusText;
+    private DataGrid? _wiringGrid;
     private bool _disposing;
     private bool _shutdownRequested;
 
@@ -46,33 +48,52 @@ public partial class CalibrationWindow : Window
     }
 
     /// <summary>
-    /// Keeps the operator-facing production metadata next to the entered FBG SN. The persisted
-    /// property is still named Customer for backwards compatibility with existing setup files,
-    /// but its business meaning is SensorName and the UI must never present it as a customer.
+    /// Customer and SensorName are distinct business fields. Customer keeps its original
+    /// persisted meaning; SensorName is shown in a dedicated runtime column populated from FOS API.
     /// </summary>
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
-        DataGrid? wiringGrid = FindWiringGrid(this);
-        if (wiringGrid is null) return;
+        _wiringGrid = FindWiringGrid(this);
+        if (_wiringGrid is null) return;
 
-        DataGridColumn? chainSn = FindColumn(wiringGrid, "FBG sensor SN CHAIN");
-        DataGridColumn? order = FindColumn(wiringGrid, "Zákazka");
-        DataGridColumn? sensorName = FindColumn(wiringGrid, "Zákazník");
-        DataGridColumn? productDescription = FindColumn(wiringGrid, "Popis produktu");
-        if (order is null || sensorName is null || productDescription is null) return;
+        DataGridColumn? chainSn = FindColumn(_wiringGrid, "FBG sensor SN CHAIN");
+        DataGridColumn? order = FindColumn(_wiringGrid, "Zákazka");
+        DataGridColumn? customer = FindColumn(_wiringGrid, "Zákazník");
+        DataGridColumn? productDescription = FindColumn(_wiringGrid, "Popis produktu")
+            ?? FindColumn(_wiringGrid, "Popis výrobku");
+        if (order is null || customer is null || productDescription is null) return;
 
-        sensorName.Header = "Názov snímača";
+        // Restore the correct business meaning. Customer is customer name, never sensor name.
+        customer.Header = "Zákazník";
         productDescription.Header = "Popis výrobku";
 
-        // Put API-enriched production fields directly after the effective FBG SN columns:
-        // FBG SN -> Zakázka -> Názov snímača -> Popis výrobku.
+        DataGridColumn? sensorName = FindColumn(_wiringGrid, "Názov snímača");
+        if (sensorName is null)
+        {
+            sensorName = new DataGridTextColumn
+            {
+                Header = "Názov snímača",
+                IsReadOnly = true,
+                Width = new DataGridLength(0.85, DataGridLengthUnitType.Star),
+                Binding = new Binding
+                {
+                    Converter = new SylexFosSensorNameConverter(),
+                    Mode = BindingMode.OneWay,
+                },
+            };
+            _wiringGrid.Columns.Add(sensorName);
+        }
+
+        // Operator-facing production data stays together after the FBG SN columns.
+        // FBG SN -> Zakázka -> Názov snímača -> Popis výrobku -> Zákazník.
         int firstProductionIndex = Math.Min(
-            wiringGrid.Columns.Count - 3,
-            (chainSn?.DisplayIndex ?? FindColumn(wiringGrid, "FBG sensor SN (kanál)")?.DisplayIndex ?? 0) + 1);
+            _wiringGrid.Columns.Count - 4,
+            (chainSn?.DisplayIndex ?? FindColumn(_wiringGrid, "FBG sensor SN (kanál)")?.DisplayIndex ?? 0) + 1);
         order.DisplayIndex = firstProductionIndex;
         sensorName.DisplayIndex = firstProductionIndex + 1;
         productDescription.DisplayIndex = firstProductionIndex + 2;
+        customer.DisplayIndex = firstProductionIndex + 3;
     }
 
     private static DataGridColumn? FindColumn(DataGrid grid, string header) =>
@@ -127,7 +148,14 @@ public partial class CalibrationWindow : Window
 
     private void OnSylexFosLookupStatusChanged(object? sender, SylexFosLookupStatus status)
     {
-        _ = Dispatcher.InvokeAsync(() => ApplyFosApiStatus(status));
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            ApplyFosApiStatus(status);
+            if (status.State is SylexFosLookupState.Loaded or SylexFosLookupState.NotFound)
+            {
+                _wiringGrid?.Items.Refresh();
+            }
+        });
     }
 
     private void ApplyFosApiStatus(SylexFosLookupStatus status)
@@ -144,7 +172,7 @@ public partial class CalibrationWindow : Window
 
         _fosApiStatusBadge.ToolTip = status.State switch
         {
-            SylexFosLookupState.Loaded => "Výrobné údaje boli načítané: zakázka, popis výrobku a názov snímača.",
+            SylexFosLookupState.Loaded => "Výrobné údaje boli načítané: zakázka, popis výrobku a názov snímača. Zákazník je samostatné pole.",
             SylexFosLookupState.NotFound => "SN sa v Sylex FOS API nenašlo. Skontroluj SN; polia zostávajú ručne editovateľné.",
             SylexFosLookupState.ConfigurationError => "Skontroluj SYLEX_FOS_API_KEY a konfiguráciu klienta chamber-fos.",
             SylexFosLookupState.ApiUnavailable => "Centrálne API nie je dostupné. Kalibrácia môže pokračovať bez automatického doplnenia údajov.",
