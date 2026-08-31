@@ -25,6 +25,8 @@ public sealed record SylexFbgCalibrationContext(
     string ProductId,
     string? ProductDescription,
     string? SensorName,
+    string? CustomerId,
+    string? CustomerName,
     string? CustomerCode,
     string? OrderNumber,
     string Source,
@@ -117,6 +119,7 @@ public sealed class SylexFosApiProductionMetadataProvider : IProductionMetadataP
             context.ProductDescription ?? context.ProductId,
             context.SensorName ?? string.Empty,
             context.OrderNumber ?? string.Empty,
+            context.CustomerName,
             $"Sylex FOS API · {context.Source}");
         lock (_cacheSync) _cache[key] = metadata;
         return metadata;
