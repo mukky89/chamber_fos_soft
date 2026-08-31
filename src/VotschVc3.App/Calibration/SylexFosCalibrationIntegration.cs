@@ -118,17 +118,14 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
             {
                 if (!string.Equals(row.SerialNumber, serialNumber, StringComparison.OrdinalIgnoreCase)) return;
                 if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) row.ProductDescription = metadata.ProductDescription;
-
-                // IMPORTANT: SensorName and Customer are different business fields.
-                // Never write SensorName into row.Customer. Customer stays customer name.
                 SylexFosSensorNameStore.Set(row, metadata.SensorName);
-
                 if (!string.IsNullOrWhiteSpace(metadata.Order)) row.Order = metadata.Order;
+                if (!string.IsNullOrWhiteSpace(metadata.CustomerName)) row.Customer = metadata.CustomerName;
             });
 
             string suffix = string.IsNullOrWhiteSpace(metadata.Order) ? string.Empty : $" · Zakázka {metadata.Order}";
             Report(SylexFosLookupState.Loaded, $"FOS API · načítané {serialNumber}{suffix}");
-            AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: doplnená zakázka, popis výrobku a názov snímača. Zákazník zostáva samostatné pole.");
+            AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: doplnená zakázka, popis výrobku, názov snímača a zákazník.");
         }
         catch (OperationCanceledException) { }
         catch (InvalidOperationException ex)
