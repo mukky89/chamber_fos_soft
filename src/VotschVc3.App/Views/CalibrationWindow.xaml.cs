@@ -21,6 +21,7 @@ public partial class CalibrationWindow : Window
     private readonly Border _fosApiStatusBadge;
     private readonly TextBlock _fosApiStatusText;
     private DataGrid? _wiringGrid;
+    private bool _pendingWiringGridRefresh;
     private bool _disposing;
     private bool _shutdownRequested;
 
@@ -153,9 +154,60 @@ public partial class CalibrationWindow : Window
             ApplyFosApiStatus(status);
             if (status.State is SylexFosLookupState.Loaded or SylexFosLookupState.NotFound)
             {
-                _wiringGrid?.Items.Refresh();
+                RefreshWiringGridWhenSafe();
             }
         });
+    }
+
+    /// <summary>
+    /// DataGrid forbids CollectionView.Refresh while a row is in AddNew/EditItem state.
+    /// API lookups complete asynchronously and can therefore arrive while the operator is still
+    /// editing the serial-number cell. Defer the refresh until RowEditEnding instead of forcing
+    /// the transaction to commit or crashing the calibration window.
+    /// </summary>
+    private void RefreshWiringGridWhenSafe()
+    {
+        DataGrid? grid = _wiringGrid;
+        if (grid is null) return;
+
+        if (grid.Items is IEditableCollectionView editableView &&
+            (editableView.IsAddingNew || editableView.IsEditingItem))
+        {
+            if (!_pendingWiringGridRefresh)
+            {
+                _pendingWiringGridRefresh = true;
+                grid.RowEditEnding += OnWiringGridRowEditEnding;
+            }
+            return;
+        }
+
+        _pendingWiringGridRefresh = false;
+        grid.RowEditEnding -= OnWiringGridRowEditEnding;
+
+        try
+        {
+            grid.Items.Refresh();
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A WPF edit transaction may begin between the state check and Refresh().
+            // Keep the UI usable and refresh on the next completed row edit.
+            _pendingWiringGridRefresh = true;
+            grid.RowEditEnding -= OnWiringGridRowEditEnding;
+            grid.RowEditEnding += OnWiringGridRowEditEnding;
+            AppLog.Warn("Sylex FOS API", $"Odložené obnovenie kalibračnej tabuľky: {ex.Message}");
+        }
+    }
+
+    private void OnWiringGridRowEditEnding(object? sender, DataGridRowEditEndingEventArgs e)
+    {
+        if (!_pendingWiringGridRefresh) return;
+
+        // RowEditEnding fires before WPF finishes the edit transaction. Run after the event
+        // returns so CollectionView.Refresh is legal.
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.ContextIdle,
+            new Action(RefreshWiringGridWhenSafe));
     }
 
     private void ApplyFosApiStatus(SylexFosLookupStatus status)
