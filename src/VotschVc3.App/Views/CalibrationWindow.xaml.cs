@@ -28,6 +28,7 @@ public partial class CalibrationWindow : Window
         _viewModel = new CalibrationViewModel(chamberId);
         InitializeComponent();
         DataContext = _viewModel;
+        Loaded += OnLoaded;
 
         (_fosApiStatusBadge, _fosApiStatusText) = CreateFosApiStatusBadge();
         if (Content is Grid rootGrid)
@@ -42,6 +43,58 @@ public partial class CalibrationWindow : Window
         _ = _sylexFosIntegration.InitializeAsync();
 
         Closing += OnClosing;
+    }
+
+    /// <summary>
+    /// Keeps the operator-facing production metadata next to the entered FBG SN. The persisted
+    /// property is still named Customer for backwards compatibility with existing setup files,
+    /// but its business meaning is SensorName and the UI must never present it as a customer.
+    /// </summary>
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        DataGrid? wiringGrid = FindWiringGrid(this);
+        if (wiringGrid is null) return;
+
+        DataGridColumn? chainSn = FindColumn(wiringGrid, "FBG sensor SN CHAIN");
+        DataGridColumn? order = FindColumn(wiringGrid, "Zákazka");
+        DataGridColumn? sensorName = FindColumn(wiringGrid, "Zákazník");
+        DataGridColumn? productDescription = FindColumn(wiringGrid, "Popis produktu");
+        if (order is null || sensorName is null || productDescription is null) return;
+
+        sensorName.Header = "Názov snímača";
+        productDescription.Header = "Popis výrobku";
+
+        // Put API-enriched production fields directly after the effective FBG SN columns:
+        // FBG SN -> Zakázka -> Názov snímača -> Popis výrobku.
+        int firstProductionIndex = Math.Min(
+            wiringGrid.Columns.Count - 3,
+            (chainSn?.DisplayIndex ?? FindColumn(wiringGrid, "FBG sensor SN (kanál)")?.DisplayIndex ?? 0) + 1);
+        order.DisplayIndex = firstProductionIndex;
+        sensorName.DisplayIndex = firstProductionIndex + 1;
+        productDescription.DisplayIndex = firstProductionIndex + 2;
+    }
+
+    private static DataGridColumn? FindColumn(DataGrid grid, string header) =>
+        grid.Columns.FirstOrDefault(column => string.Equals(column.Header?.ToString(), header, StringComparison.Ordinal));
+
+    private static DataGrid? FindWiringGrid(DependencyObject root)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, i);
+            if (child is DataGrid grid &&
+                FindColumn(grid, "FBG sensor SN (kanál)") is not null &&
+                FindColumn(grid, "Zákazka") is not null)
+            {
+                return grid;
+            }
+
+            DataGrid? nested = FindWiringGrid(child);
+            if (nested is not null) return nested;
+        }
+        return null;
     }
 
     private static (Border Badge, TextBlock Text) CreateFosApiStatusBadge()
@@ -136,7 +189,6 @@ public partial class CalibrationWindow : Window
 
             existing.Activate();
         }
-
     }
 
     /// <summary>Closes the workspace if one is open (called when the app shuts down).</summary>
