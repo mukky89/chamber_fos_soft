@@ -17,4 +17,5 @@ public sealed record ProductionMetadata(
     string ProductDescription,
     string SensorName,
     string Order,
+    string? CustomerName = null,
     string? Notes = null);
