@@ -7,6 +7,24 @@ using VotschVc3.Core.Diagnostics;
 
 namespace VotschVc3.App.Calibration;
 
+public enum SylexFosLookupState
+{
+    Idle,
+    CheckingApi,
+    ApiAvailable,
+    Loading,
+    Loaded,
+    NotFound,
+    ConfigurationError,
+    ApiUnavailable,
+}
+
+public sealed record SylexFosLookupStatus(
+    SylexFosLookupState State,
+    string Message,
+    string? SerialNumber = null,
+    string? OrderNumber = null);
+
 /// <summary>
 /// UI integration adapter that enriches FBG calibration rows from the central Sylex FOS API.
 /// The calibration remains usable when the API is unavailable; production fields stay editable.
@@ -20,6 +38,8 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private bool _disposed;
     private bool _configurationWarningLogged;
 
+    public event EventHandler<SylexFosLookupStatus>? LookupStatusChanged;
+
     public SylexFosCalibrationIntegration(CalibrationViewModel viewModel)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -30,7 +50,14 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
         _viewModel.Peaks.CollectionChanged += OnPeaksChanged;
         foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks) AttachRow(row);
-        _ = CheckApiAsync();
+    }
+
+    public Task InitializeAsync() => CheckApiAsync();
+
+    private void PublishStatus(SylexFosLookupStatus status)
+    {
+        if (_disposed) return;
+        LookupStatusChanged?.Invoke(this, status);
     }
 
     private void OnPeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -84,10 +111,22 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
             previous.Cancel();
             previous.Dispose();
         }
-        if (string.IsNullOrWhiteSpace(row.SerialNumber)) return;
+
+        string serialNumber = row.SerialNumber.Trim();
+        if (string.IsNullOrWhiteSpace(serialNumber))
+        {
+            PublishStatus(new SylexFosLookupStatus(SylexFosLookupState.Idle, "FOS API · čaká na FBG SN"));
+            return;
+        }
+
+        PublishStatus(new SylexFosLookupStatus(
+            SylexFosLookupState.Loading,
+            $"FOS API · načítavam {serialNumber}…",
+            serialNumber));
+
         var cts = new CancellationTokenSource();
         _lookups[row] = cts;
-        _ = LookupAndApplyAsync(row, row.SerialNumber, cts.Token);
+        _ = LookupAndApplyAsync(row, serialNumber, cts.Token);
     }
 
     private async Task LookupAndApplyAsync(CalibrationPeakRowViewModel row, string serialNumber, CancellationToken cancellationToken)
@@ -96,7 +135,17 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         {
             await Task.Delay(250, cancellationToken).ConfigureAwait(false);
             ProductionMetadata? metadata = await _metadataProvider.FindAsync(serialNumber, row.Channel, cancellationToken).ConfigureAwait(false);
-            if (metadata is null || cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested) return;
+
+            if (metadata is null)
+            {
+                PublishStatus(new SylexFosLookupStatus(
+                    SylexFosLookupState.NotFound,
+                    $"FOS API · SN {serialNumber} sa nenašlo",
+                    serialNumber));
+                AppLog.Warn("Sylex FOS API", $"FBG SN {serialNumber}: produkčné metadata sa nenašli.");
+                return;
+            }
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
@@ -106,11 +155,25 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                 if (!string.IsNullOrWhiteSpace(metadata.Order)) row.Order = metadata.Order;
             });
 
+            string orderSuffix = string.IsNullOrWhiteSpace(metadata.Order) ? string.Empty : $" · Zakázka {metadata.Order}";
+            PublishStatus(new SylexFosLookupStatus(
+                SylexFosLookupState.Loaded,
+                $"FOS API · načítané {serialNumber}{orderSuffix}",
+                serialNumber,
+                metadata.Order));
+
             AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: doplnená zakázka, popis výrobku a názov snímača.");
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            // Normal debounce or serial-number replacement.
+        }
         catch (InvalidOperationException ex)
         {
+            PublishStatus(new SylexFosLookupStatus(
+                SylexFosLookupState.ConfigurationError,
+                "FOS API · chýba alebo je neplatná konfigurácia",
+                serialNumber));
             if (!_configurationWarningLogged)
             {
                 _configurationWarningLogged = true;
@@ -119,6 +182,10 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            PublishStatus(new SylexFosLookupStatus(
+                SylexFosLookupState.ApiUnavailable,
+                $"FOS API · nedostupné pre {serialNumber}",
+                serialNumber));
             AppLog.Warn("Sylex FOS API", $"FBG SN {serialNumber}: metadata sa nepodarilo načítať ({ex.Message}). Polia zostávajú editovateľné.");
         }
         finally
@@ -133,11 +200,18 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
     private async Task CheckApiAsync()
     {
+        PublishStatus(new SylexFosLookupStatus(SylexFosLookupState.CheckingApi, "FOS API · kontrolujem pripojenie…"));
         SylexFosApiHealth health = await _apiClient.CheckHealthAsync().ConfigureAwait(false);
         if (health.IsReachable)
+        {
+            PublishStatus(new SylexFosLookupStatus(SylexFosLookupState.ApiAvailable, "FOS API · dostupné"));
             AppLog.Info("Sylex FOS API", $"Centrálne API je dostupné na {ApiClientBaseUrl()}.");
+        }
         else
+        {
+            PublishStatus(new SylexFosLookupStatus(SylexFosLookupState.ApiUnavailable, $"FOS API · nedostupné ({health.Status})"));
             AppLog.Warn("Sylex FOS API", $"Centrálne API nie je dostupné ({health.Status}). Kalibrácia môže pokračovať bez automatického doplnenia metadata.");
+        }
     }
 
     private static string ApiClientBaseUrl() => Environment.GetEnvironmentVariable("SYLEX_FOS_API_URL") ?? SylexFosApiSettings.DefaultBaseUrl;
