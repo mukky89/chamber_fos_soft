@@ -576,9 +576,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (SelectedF100?.ChannelAutoDetected == true)
         {
             SelectedF100Channel = SelectedF100.SelectedChannel;
-                OnPropertyChanged(nameof(F100TemperatureLabel));
-                OnPropertyChanged(nameof(F100ConnectionLabel));
-                OnPropertyChanged(nameof(ReferenceThermometerTitle));
+            OnPropertyChanged(nameof(F100TemperatureLabel));
+            OnPropertyChanged(nameof(F100ConnectionLabel));
+            OnPropertyChanged(nameof(ReferenceThermometerTitle));
         }
         try
         {
