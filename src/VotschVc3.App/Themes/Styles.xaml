@@ -342,8 +342,8 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" CornerRadius="8" BorderThickness="1.4"
-                            BorderBrush="{StaticResource AccentBrush}"
+                    <Border x:Name="Bd" CornerRadius="8" BorderThickness="2"
+                            BorderBrush="{StaticResource AccentHoverBrush}"
                             Background="{StaticResource SurfaceAltBrush}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}" />
