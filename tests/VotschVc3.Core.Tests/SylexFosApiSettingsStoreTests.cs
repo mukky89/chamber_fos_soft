@@ -8,6 +8,10 @@ public sealed class SylexFosApiSettingsStoreTests : IDisposable
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"sylex-fos-settings-{Guid.NewGuid():N}");
 
     [Fact]
+    public void New_settings_use_the_company_api_hostname() =>
+        Assert.Equal("http://syx260421n01:5080", new SylexFosApiSettings().BaseUrl);
+
+    [Fact]
     public void Saves_and_loads_hostname_and_api_key()
     {
         string path = Path.Combine(_directory, "sylex-fos-api.json");

@@ -64,7 +64,7 @@
                         </StackPanel>
                     </WrapPanel>
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
-                               Text="Nastavenie sa uloží do Dokumenty\Lab Control\sylex-fos-api.json a načíta automaticky pri otvorení kalibrácie. Ak URL nie je uložená, zostáva kompatibilná premenná SYLEX_FOS_API_URL a predvolený localhost:5080." />
+                               Text="Nastavenie sa uloží do Dokumenty\Lab Control\sylex-fos-api.json a načíta automaticky pri otvorení kalibrácie. Ak URL nie je uložená, zostáva kompatibilná premenná SYLEX_FOS_API_URL a predvolený hostname syx260421n01:5080." />
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Uložiť API" Style="{StaticResource AccentButton}" Command="{Binding SaveSylexFosApiSettingsCommand}" />
                         <Button Content="Otestovať spojenie" Command="{Binding TestSylexFosApiCommand}" />

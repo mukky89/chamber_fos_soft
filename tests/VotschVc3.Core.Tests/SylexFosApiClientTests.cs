@@ -70,6 +70,8 @@ public sealed class SylexFosApiClientTests
             "FBG temperature sensor",
             "CUST-A",
             null,
+            null,
+            null,
             "ISYS product lookup",
             DateTimeOffset.UtcNow));
 

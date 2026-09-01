@@ -6,7 +6,7 @@ namespace VotschVc3.Core.Calibration;
 
 public sealed class SylexFosApiSettings
 {
-    public const string DefaultBaseUrl = "http://localhost:5080";
+    public const string DefaultBaseUrl = "http://syx260421n01:5080";
     public const string DefaultApiKeyEnvironmentVariable = "SYLEX_FOS_API_KEY";
 
     public string BaseUrl { get; set; } = DefaultBaseUrl;

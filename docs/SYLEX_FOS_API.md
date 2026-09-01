@@ -53,10 +53,10 @@ kalibračného okna.
 Premenné prostredia nižšie zostávajú podporované ako záložná konfigurácia pre staršie
 inštalácie. Hodnota uložená v Admin sekcii má prednosť.
 
-Ak Sylex FOS API beží na rovnakom notebooku na porte 5080, URL netreba nastavovať. Default je:
+Ak URL nie je uložená v Admin sekcii ani nastavená cez premennú prostredia, predvolený firemný hostname je:
 
 ```text
-http://localhost:5080
+http://syx260421n01:5080
 ```
 
 Ak API beží inde, nastav Windows environment variable:
