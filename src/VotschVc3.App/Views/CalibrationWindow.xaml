@@ -30,7 +30,7 @@
         <DockPanel Grid.Row="0" Margin="6,4,6,12">
             <StackPanel DockPanel.Dock="Left">
                 <TextBlock Text="FBG teplotná kalibrácia" FontSize="24" FontFamily="Segoe UI Semibold" />
-                <TextBlock Text="Komora + PeakLogger + ASL F100 referencia + automatické vyhodnotenie stability wavelength"
+                <TextBlock Text="Komora + PeakLogger + USB referenčný teplomer + automatické vyhodnotenie stability wavelength"
                            Style="{StaticResource Caption}" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -185,7 +185,7 @@
                                 <TextBlock Text="{Binding ReferenceThermometerTitle}" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
                                 <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,3" Margin="0"
                                         Command="{Binding RefreshF100PortsCommand}"
-                                        ToolTip="Znovu načíta USB/sériové porty a dostupné ASL F100 zariadenia.">
+                                        ToolTip="Znovu načíta USB/sériové porty a dostupné referenčné teplomery.">
                                     <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Refresh}" />
                                 </Button>
                                 <Button DockPanel.Dock="Right" Content="USB diagnostika" Style="{StaticResource GhostButton}"
@@ -210,16 +210,16 @@
                                     <TextBlock Text="Port" Style="{StaticResource Label}" />
                                     <ComboBox ItemsSource="{Binding F100Devices}" SelectedItem="{Binding SelectedF100, Mode=TwoWay}"
                                               DisplayMemberPath="Display" MinHeight="32"
-                                              ToolTip="USB COM port vybraného ASL F100 teplomera." />
+                                              ToolTip="USB COM port vybraného referenčného teplomera." />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Kanál sondy" Style="{StaticResource Label}" />
-                                    <ComboBox ItemsSource="{Binding F100Channels}" SelectedItem="{Binding SelectedF100Channel, Mode=TwoWay}" IsEnabled="False"
-                                              MinHeight="32" ToolTip="Fyzický vstup sondy na F100: A alebo B." />
+                                    <ComboBox ItemsSource="{Binding F100Channels}" SelectedItem="{Binding SelectedF100Channel, Mode=TwoWay}"
+                                              MinHeight="32" ToolTip="Automaticky zistený fyzický vstup sondy; v prípade potreby ho môžeš zmeniť na A alebo B." />
                                 </StackPanel>
                                 <Button Grid.Column="4" Style="{StaticResource AccentButton}" VerticalAlignment="Bottom" Margin="0"
                                         Command="{Binding CheckF100Command}"
-                                        ToolTip="Pripojí vybraný F100 (ak treba) a vyčíta jednu čerstvú teplotu zo zvoleného kanála.">
+                                        ToolTip="Pripojí vybraný USB teplomer, identifikuje model a načíta čerstvú teplotu z dostupnej sondy.">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Thermometer}" />
                                         <TextBlock Text="Načítať teplotu" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
@@ -250,7 +250,7 @@
                                     <WrapPanel Margin="0,0,0,7">
                                         <Button Content="Znovu analyzovať" Style="{StaticResource GhostButton}" Margin="0,0,6,0"
                                                 Command="{Binding AnalyzeUsbCommand}" />
-                                        <Button Content="Pasívny test F100" Style="{StaticResource AccentOutlineButton}" Margin="0,0,6,0"
+                                        <Button Content="Pasívny test starého F100" Style="{StaticResource AccentOutlineButton}" Margin="0,0,6,0"
                                                 Command="{Binding DiagnoseF100TalkOnlyCommand}"
                                                 ToolTip="Nanovo načíta USB/COM porty a iba počúva talk-only dáta pri 4800/9600/19200 bd. Do F100 neodošle ani jeden príkaz. Test môže trvať približne 10 sekúnd." />
                                         <Button Content="Vynútiť pripojenie" Style="{StaticResource AccentOutlineButton}" Margin="0,0,10,0"
@@ -276,7 +276,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <TextBlock Text="Ak je port obsadený, zatvor FOS4X alebo inú aplikáciu. Ak sa port otvorí, ale neprídu žiadne dáta, na F100 nastav Menu → Options → Talk Only → On. Toto nastavenie zostáva uložené aj po vypnutí."
+                                    <TextBlock Text="WIKA CTH7000: aplikácia automaticky identifikuje zariadenie a nájde sondu na vstupe A alebo B. Ak je port obsadený, zatvor inú aplikáciu používajúcu rovnaký COM port. Pasívny Talk Only test je určený iba pre starší ASL F100."
                                                Style="{StaticResource Caption}" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>
@@ -295,7 +295,7 @@
                     <RowDefinition Height="220" />
                 </Grid.RowDefinitions>
                 <DockPanel Grid.Row="0" Margin="0,0,0,6">
-                    <TextBlock Text="Priebeh referenčnej teploty ASL F100" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                    <TextBlock Text="Priebeh USB referenčnej teploty" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
                     <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center">
                         <Run Text="Port: " /><Run Text="{Binding SelectedF100.PortName, Mode=OneWay, TargetNullValue=—}" />
                         <Run Text=" · kanál " /><Run Text="{Binding SelectedF100Channel, Mode=OneWay}" />
@@ -303,7 +303,7 @@
                 </DockPanel>
                 <views:ChartView Grid.Row="1" Series="{Binding SelectedF100.LiveSeries}" Unit=" °C"
                                  EmptyText="Stlač Načítať teplotu alebo spusti kalibráciu…"
-                                 ChartTitle="ASL F100 — referenčná teplota" />
+                                 ChartTitle="USB referenčný teplomer" />
             </Grid>
         </Border>
 
@@ -461,7 +461,7 @@
                         <Border Style="{StaticResource Card}" MinWidth="190"><StackPanel><TextBlock Text="Stav" Style="{StaticResource Label}"/><TextBlock Text="{Binding RunState}" Style="{StaticResource Heading}"/></StackPanel></Border>
                         <Border Style="{StaticResource Card}" MinWidth="190"><StackPanel><TextBlock Text="Plato" Style="{StaticResource Label}"/><TextBlock Text="{Binding PlateauLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
                         <Border Style="{StaticResource Card}" MinWidth="250"><StackPanel><TextBlock Text="Komora" Style="{StaticResource Label}"/><TextBlock Text="{Binding TemperatureLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
-                        <Border Style="{StaticResource Card}" MinWidth="190"><StackPanel><TextBlock Text="ASL F100" Style="{StaticResource Label}"/><TextBlock Text="{Binding ReferenceTemperatureLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
+                        <Border Style="{StaticResource Card}" MinWidth="190"><StackPanel><TextBlock Text="Referenčný teplomer" Style="{StaticResource Label}"/><TextBlock Text="{Binding ReferenceTemperatureLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
                         <Border Style="{StaticResource Card}" MinWidth="200"><StackPanel><TextBlock Text="Stabilné wavelengthy" Style="{StaticResource Label}"/><TextBlock Text="{Binding StableLabel}" Style="{StaticResource Heading}"/></StackPanel></Border>
                     </WrapPanel>
                     <TextBlock Grid.Row="1" Margin="2,0,0,8" Style="{StaticResource Caption}" TextWrapping="Wrap"
