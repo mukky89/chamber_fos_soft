@@ -209,10 +209,21 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _selectedF100, value))
             {
-                if (value is not null) value.SelectedChannel = SelectedF100Channel;
+                if (value is not null)
+                {
+                    if (value.ChannelAutoDetected)
+                    {
+                        SelectedF100Channel = value.SelectedChannel;
+                    }
+                    else
+                    {
+                        value.SelectedChannel = SelectedF100Channel;
+                    }
+                }
                 CheckF100Command.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(F100TemperatureLabel));
                 OnPropertyChanged(nameof(F100ConnectionLabel));
+                OnPropertyChanged(nameof(ReferenceThermometerTitle));
             }
         }
     }
@@ -248,11 +259,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     public string F100ChartButtonText => ShowF100Chart ? "Skryť graf" : "Zobraziť graf";
     public string F100TemperatureLabel => SelectedF100?.Temperature is { } t ? $"{t:F3} {SelectedF100.Unit}" : "—";
+    public string ReferenceThermometerTitle => SelectedF100?.DeviceName ?? "Referenčný teplomer";
     public string F100ConnectionLabel => SelectedF100 is null
         ? "Žiadny ASL F100"
         : $"{SelectedF100.PortName} · kanál {SelectedF100Channel} · {SelectedF100.ConnectionState}";
 
-    private bool _useSimulator = true;
+    private bool _useSimulator;
     public bool UseSimulator
     {
         get => _useSimulator;
@@ -543,6 +555,44 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                   $"Dostupné interrogátory: {interrogators} · peaky: {peaks}."
                 : $"Nájdené API: {found.Count} · interrogátory/inštancie: {interrogators} · peaky: {peaks} · skontrolované porty: {report.ScannedPortCount}";
         StatusMessage = PeakLoggerDiscoverySummary;
+    }
+
+    public async Task InitializeHardwareAsync()
+    {
+        UseSimulator = false;
+        await RescanF100PortsAsync(showStatus: false);
+        foreach (ThermometerDeviceViewModel thermometer in F100Devices)
+        {
+            try
+            {
+                thermometer.PollingEnabled = false;
+                await thermometer.CheckAsync();
+            }
+            catch (Exception ex)
+            {
+                AppLog.Warn("USB teplomer", $"Automatický scan {thermometer.PortName}: {ex.Message}");
+            }
+        }
+        if (SelectedF100?.ChannelAutoDetected == true)
+        {
+            SelectedF100Channel = SelectedF100.SelectedChannel;
+                OnPropertyChanged(nameof(F100TemperatureLabel));
+                OnPropertyChanged(nameof(F100ConnectionLabel));
+                OnPropertyChanged(nameof(ReferenceThermometerTitle));
+        }
+        try
+        {
+            await DiscoverPeakLoggerApisAsync();
+            if (SelectedPeakLoggerInstance is not null && !PeakLoggerConnected)
+            {
+                await ConnectPeakLoggerAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            PeakLoggerStatus = "Nepripojený";
+            AppLog.Warn("PeakLogger", $"Automatické pripojenie pri otvorení kalibrácie: {ex.Message}");
+        }
     }
 
     private static int GetLocalPeakLoggerProcessCount()
@@ -1010,6 +1060,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         try
         {
             value = await SelectedF100.CheckAsync();
+            SelectedF100Channel = SelectedF100.SelectedChannel;
+            OnPropertyChanged(nameof(ReferenceThermometerTitle));
         }
         catch
         {
