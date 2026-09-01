@@ -947,6 +947,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         string? previousPort = SelectedF100?.PortName;
         string? previousUsbSerial = SelectedF100?.SerialNumber;
         await _referenceThermometers.RefreshAsync();
+        // Calibration uses explicit one-shot reads. Background polling started by a newly
+        // enumerated device would compete for the same serial response and can consume *IDN?.
+        foreach (ThermometerDeviceViewModel device in F100Devices)
+        {
+            device.PollingEnabled = false;
+        }
         SelectedF100 = (!string.IsNullOrWhiteSpace(previousUsbSerial)
                 ? F100Devices.FirstOrDefault(device =>
                     string.Equals(device.SerialNumber, previousUsbSerial, StringComparison.OrdinalIgnoreCase))
@@ -957,8 +963,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (showStatus)
         {
             StatusMessage = F100Devices.Count == 0
-                ? "ASL F100: nový scan nenašiel žiadny USB/COM port."
-                : $"ASL F100: nový scan našiel {F100Devices.Count} portov · vybraný {SelectedF100?.PortName}.";
+                ? "USB teplomer: nový scan nenašiel žiadny COM port."
+                : $"USB teplomer: nový scan našiel {F100Devices.Count} portov · vybraný {SelectedF100?.PortName}.";
         }
     }
 
@@ -1055,7 +1061,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (SelectedF100 is null) return;
         bool acquired = EnsureF100Reservation();
         SelectedF100.SelectedChannel = SelectedF100Channel;
-        StatusMessage = $"Kontrola ASL F100 · {SelectedF100.PortName} · kanál {SelectedF100Channel}…";
+        StatusMessage = $"Čítam referenčný teplomer · {SelectedF100.PortName} · kanál {SelectedF100Channel}…";
         double? value;
         try
         {
@@ -1075,8 +1081,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(F100TemperatureLabel));
         OnPropertyChanged(nameof(F100ConnectionLabel));
         StatusMessage = value is { } temperature
-            ? $"ASL F100 OK · {SelectedF100.PortName} · kanál {SelectedF100Channel} · {temperature:F3} °C"
-            : "ASL F100 nevrátil platnú teplotu.";
+            ? $"{SelectedF100.DeviceName} OK · {SelectedF100.PortName} · kanál {SelectedF100Channel} · {temperature:F3} °C"
+            : $"{SelectedF100.PortName}: teplomer nevrátil platnú teplotu.";
         if (value is { } reference && chamberTemperature is { } chamber)
         {
             await ValidateReferenceTemperatureAsync(chamber, reference);
