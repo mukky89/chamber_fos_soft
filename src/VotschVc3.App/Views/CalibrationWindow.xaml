@@ -182,7 +182,7 @@
                     <Border Grid.Column="4" Style="{StaticResource PanelGroup}">
                         <StackPanel>
                             <DockPanel LastChildFill="False">
-                                <TextBlock Text="Referenčný teplomer ASL F100" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                                <TextBlock Text="{Binding ReferenceThermometerTitle}" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
                                 <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,3" Margin="0"
                                         Command="{Binding RefreshF100PortsCommand}"
                                         ToolTip="Znovu načíta USB/sériové porty a dostupné ASL F100 zariadenia.">
@@ -192,6 +192,11 @@
                                         Padding="8,3" Margin="0,0,6,0" Command="{Binding ToggleUsbDiagnosticsCommand}"
                                         ToolTip="Zobrazí COM porty, stav USB/PnP zariadenia, ovládač a Windows chybový kód." />
                             </DockPanel>
+                            <StackPanel Margin="0,2,0,2">
+                                <TextBlock Text="{Binding SelectedF100.DeviceTypeLabel}" Style="{StaticResource Caption}" />
+                                <TextBlock Text="{Binding SelectedF100.Identity, StringFormat=Identifikácia: {0}}"
+                                           Style="{StaticResource Caption}" ToolTip="Úplná odpoveď zariadenia na príkaz *IDN?" />
+                            </StackPanel>
 
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
@@ -209,7 +214,7 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Kanál sondy" Style="{StaticResource Label}" />
-                                    <ComboBox ItemsSource="{Binding F100Channels}" SelectedItem="{Binding SelectedF100Channel, Mode=TwoWay}"
+                                    <ComboBox ItemsSource="{Binding F100Channels}" SelectedItem="{Binding SelectedF100Channel, Mode=TwoWay}" IsEnabled="False"
                                               MinHeight="32" ToolTip="Fyzický vstup sondy na F100: A alebo B." />
                                 </StackPanel>
                                 <Button Grid.Column="4" Style="{StaticResource AccentButton}" VerticalAlignment="Bottom" Margin="0"
