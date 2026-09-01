@@ -2,6 +2,13 @@
 
 ## [Nezverejnené]
 
+## [1.76.3] – 2026-09-01
+
+### Opravené
+- Textové a projektové súbory používajú jednotné Windows ukončenie riadkov
+  `CRLF`. Pravidlo je uložené v `.editorconfig`, takže Visual Studio už pri
+  otvorení `VotschVc3.App.csproj` nezobrazuje dialóg „Inconsistent Line Endings“.
+
 ## [1.76.2] – 2026-09-01
 
 ### Zmenené
