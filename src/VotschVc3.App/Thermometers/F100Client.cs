@@ -20,6 +20,7 @@ public sealed class F100Client : IAsyncDisposable
     private readonly bool _allowQueryFallback;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private CommunicationMode _communicationMode;
+    private bool _queryInstrumentIdentified;
     private int _disposeStarted;
 
     public F100Client(
@@ -39,6 +40,7 @@ public sealed class F100Client : IAsyncDisposable
     }
 
     public bool IsOpen => _port.IsOpen;
+    public string InstrumentIdentity { get; private set; } = string.Empty;
 
     /// <summary>Returns a confirmed query-capable instrument to local control. The original
     /// talk-only F100 must never receive speculative SCPI commands.</summary>
@@ -141,6 +143,20 @@ public sealed class F100Client : IAsyncDisposable
     {
         string normalized = F100Protocol.NormalizeChannel(channel);
 
+        // CTH7000 answers *IDN? immediately. Try identification first so the operator
+        // does not wait four seconds for a talk-only stream that this model never emits.
+        if (_communicationMode == CommunicationMode.Unknown)
+        {
+            string initialIdentity = await SendReceiveAsync(F100Protocol.IdentifyCommand, cancellationToken).ConfigureAwait(false);
+            InstrumentIdentity = initialIdentity.Trim();
+            _queryInstrumentIdentified = IsSupportedQueryInstrument(initialIdentity);
+            if (_queryInstrumentIdentified)
+            {
+                await SendAsync(F100Protocol.RemoteCommand, cancellationToken).ConfigureAwait(false);
+                _communicationMode = CommunicationMode.Query;
+            }
+        }
+
         // The original F100 USB interface normally emits measurements as a
         // continuous talk-only stream. It does not necessarily implement the
         // SCPI query set used by later ASL models. Detect that stream first and
@@ -149,7 +165,7 @@ public sealed class F100Client : IAsyncDisposable
         {
             ThermometerReading passive = await ReadTalkOnlyAsync(
                 normalized,
-                _communicationMode == CommunicationMode.Unknown ? TimeSpan.FromSeconds(4) : TimeSpan.FromSeconds(3),
+                _communicationMode == CommunicationMode.Unknown ? TimeSpan.FromSeconds(2) : TimeSpan.FromSeconds(2),
                 cancellationToken).ConfigureAwait(false);
             if (passive.Temperature is not null)
             {
@@ -166,12 +182,10 @@ public sealed class F100Client : IAsyncDisposable
         // Both instruments use an FTDI virtual COM port. Identify the query-capable
         // CTH7000 before sending its numeric-channel measurement command; a silent
         // original F100 continues to require Talk Only and receives no further command.
-        string identity = await SendReceiveAsync(F100Protocol.IdentifyCommand, cancellationToken).ConfigureAwait(false);
-        bool queryCapable = !string.IsNullOrWhiteSpace(identity) &&
-            !F100Protocol.IsErrorResponse(identity) &&
-            (identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase) ||
-             identity.Contains("F150", StringComparison.OrdinalIgnoreCase) ||
-             identity.Contains("F250", StringComparison.OrdinalIgnoreCase));
+        string identity = _queryInstrumentIdentified
+            ? string.Empty
+            : await SendReceiveAsync(F100Protocol.IdentifyCommand, cancellationToken).ConfigureAwait(false);
+        bool queryCapable = _queryInstrumentIdentified || IsSupportedQueryInstrument(identity);
         if (!_allowQueryFallback && !queryCapable)
         {
             return new ThermometerReading(
@@ -194,12 +208,43 @@ public sealed class F100Client : IAsyncDisposable
             return direct;
         }
 
+        // CTH7000 explicitly reports NoProbe for an empty input. That is a valid,
+        // immediate result; legacy READ? fallback is unsupported and only adds delay.
+        if (_queryInstrumentIdentified)
+        {
+            return direct;
+        }
+
         await SendAsync(F100Protocol.BuildConfigureChannelCommand(normalized), cancellationToken).ConfigureAwait(false);
         // Community integrations of the F100 report that the first conversion after an A/B
         // change can take several seconds; use five seconds to avoid returning the old channel.
         await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
         return await ReadAsync(fallbackReadCommand, cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<(string Channel, ThermometerReading Reading)> ReadAvailableChannelAsync(
+        string preferredChannel,
+        string fallbackReadCommand = F100Protocol.DefaultReadCommand,
+        CancellationToken cancellationToken = default)
+    {
+        string preferred = F100Protocol.NormalizeChannel(preferredChannel) == "B" ? "B" : "A";
+        ThermometerReading first = await ReadChannelAsync(preferred, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
+        if (first.Temperature is not null || _communicationMode != CommunicationMode.Query)
+        {
+            return (preferred, first);
+        }
+
+        string alternate = preferred == "A" ? "B" : "A";
+        ThermometerReading second = await ReadChannelAsync(alternate, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
+        return second.Temperature is not null ? (alternate, second) : (preferred, first);
+    }
+
+    private static bool IsSupportedQueryInstrument(string identity) =>
+        !string.IsNullOrWhiteSpace(identity) &&
+        !F100Protocol.IsErrorResponse(identity) &&
+        (identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase) ||
+         identity.Contains("F150", StringComparison.OrdinalIgnoreCase) ||
+         identity.Contains("F250", StringComparison.OrdinalIgnoreCase));
 
     private async Task<ThermometerReading> ReadTalkOnlyAsync(
         string channel,
