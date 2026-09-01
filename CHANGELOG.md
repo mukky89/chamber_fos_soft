@@ -2,7 +2,27 @@
 
 ## [Nezverejnené]
 
+## [1.76.2] – 2026-09-01
+
+### Zmenené
+- Kalibračné okno pri otvorení automaticky vyhľadá a pripojí reálne PeakLogger
+  API; simulátor už nie je predvolene zapnutý.
+- Referenčný teplomer zobrazuje identifikovaný názov, výrobcu, model a úplnú
+  odpoveď `*IDN?`, napríklad `WIKA CTH7000`.
+- Výber kanála sondy A/B je opäť dostupný. Aplikácia kanál naďalej automaticky
+  nastaví podľa vstupu, na ktorom nájde pripojenú sondu.
+- Modré obrysové tlačidlá majú svetlejší a hrubší rám, aby boli na tmavom
+  pozadí zreteľné.
+
 ### Opravené
+- WIKA CTH7000 po otvorení USB portu dostane čas na inicializáciu a po príkaze
+  `SYSTEM:REMOTE` krátku stabilizačnú pauzu. Merací timeout rešpektuje reálny
+  čas konverzie približne 2,1–2,3 sekundy, takže sa odpoveď nestratí ani
+  neposunie k nasledujúcemu kanálu.
+- Kalibračné jednorazové čítanie už nesúťaží s automatickým pollingom o rovnakú
+  sériovú odpoveď.
+- Z kalibračnej obrazovky boli odstránené zastarané popisy ASL F100 a Talk Only;
+  diagnostika jasne odlišuje WIKA CTH7000 od staršieho pasívneho ASL F100.
 - USB identifikácia rozpozná reálne pripojené teplomery WIKA CTH7000 a pri
   meraní mapuje vstupy A/B na príkazy `MEASURE:CHANNEL? 1/2`. Predchádzajúce
   textové parametre A/B zariadenie odmietalo ako `ERR CMD`.
