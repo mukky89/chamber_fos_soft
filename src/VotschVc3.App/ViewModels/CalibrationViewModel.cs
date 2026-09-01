@@ -1697,4 +1697,3 @@ public sealed class CalibrationTargetProgressViewModel : ObservableObject
         OnPropertyChanged(nameof(SamplesLabel));
     }
 }
-

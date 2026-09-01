@@ -183,4 +183,3 @@ Pred ostrým nasadením treba overiť správanie na bezpečných setpointoch a z
 - F100 je v Core pripravený ako voliteľný reference-temperature callback, ale samostatné kalibračné okno ho zatiaľ neprepája s existujúcim `ThermometersViewModel`.
 - Checkpoint sa ukladá po dokončených platach; plný operator-guided resume workflow kalibračného runu ešte treba dopojiť do UI.
 - SQL provider je iba interface; konkrétne DB mapovanie sa doplní po dodaní schémy.
-

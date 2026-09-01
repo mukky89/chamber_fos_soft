@@ -85,4 +85,3 @@ public class F100ProtocolTests
         Assert.Null(F100Protocol.ParseReading(raw).Temperature);
     }
 }
-

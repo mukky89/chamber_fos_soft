@@ -2331,4 +2331,3 @@ Inšpirované Weiss **SIMPATI** (gap-analýza):
 [0.3.0]: https://github.com/mukky89/chamber_fos_soft
 [0.2.0]: https://github.com/mukky89/chamber_fos_soft
 [0.1.0]: https://github.com/mukky89/chamber_fos_soft
-

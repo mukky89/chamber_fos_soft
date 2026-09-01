@@ -188,4 +188,3 @@ public static class F100Protocol
         return string.Empty;
     }
 }
-

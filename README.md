@@ -350,4 +350,3 @@ Frekvenciu vzorkovania určuje interval pollingu v záložke *Connection*.
 
 Softvér je poskytnutý „tak ako je". Overuj na bezpečných hodnotách – riadiš
 reálne zariadenie schopné extrémnych teplôt.
-
