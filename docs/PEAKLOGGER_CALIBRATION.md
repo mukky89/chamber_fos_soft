@@ -79,6 +79,13 @@ Default:
 
 `http://localhost:43122`
 
+Port `43122` je v aktuálnej PeakLogger aplikácii pevný a na jednom Windows
+počítači ho môže počúvať iba jeden proces. Otvorenie druhého okna PeakLogger
+preto samo nevytvorí druhé REST API. Ak majú byť merané dva interrogátory,
+musia byť dostupné v jednej API inštancii; alternatívou je druhý počítač/VM s
+vlastným `localhost:43122`. Vyhľadávač v kalibračnom okne upozorní, keď počet
+procesov PeakLogger prevyšuje počet nájdených API.
+
 Používané requesty:
 
 - `GET /swagger/index.html` – availability check,
@@ -176,3 +183,4 @@ Pred ostrým nasadením treba overiť správanie na bezpečných setpointoch a z
 - F100 je v Core pripravený ako voliteľný reference-temperature callback, ale samostatné kalibračné okno ho zatiaľ neprepája s existujúcim `ThermometersViewModel`.
 - Checkpoint sa ukladá po dokončených platach; plný operator-guided resume workflow kalibračného runu ešte treba dopojiť do UI.
 - SQL provider je iba interface; konkrétne DB mapovanie sa doplní po dodaní schémy.
+

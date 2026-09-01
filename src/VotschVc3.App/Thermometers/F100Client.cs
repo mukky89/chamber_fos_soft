@@ -17,12 +17,17 @@ public sealed class F100Client : IAsyncDisposable
     private enum CommunicationMode { Unknown, TalkOnly, Query }
 
     private readonly SerialPort _port;
+    private readonly bool _allowQueryFallback;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private CommunicationMode _communicationMode;
     private int _disposeStarted;
 
-    public F100Client(string portName, int baudRate = F100Protocol.DefaultBaudRate)
+    public F100Client(
+        string portName,
+        int baudRate = F100Protocol.DefaultBaudRate,
+        bool allowQueryFallback = false)
     {
+        _allowQueryFallback = allowQueryFallback;
         _port = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
         {
             Handshake = Handshake.None,
@@ -158,6 +163,28 @@ public sealed class F100Client : IAsyncDisposable
             }
         }
 
+        // Both instruments use an FTDI virtual COM port. Identify the query-capable
+        // CTH7000 before sending its numeric-channel measurement command; a silent
+        // original F100 continues to require Talk Only and receives no further command.
+        string identity = await SendReceiveAsync(F100Protocol.IdentifyCommand, cancellationToken).ConfigureAwait(false);
+        bool queryCapable = !string.IsNullOrWhiteSpace(identity) &&
+            !F100Protocol.IsErrorResponse(identity) &&
+            (identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase) ||
+             identity.Contains("F150", StringComparison.OrdinalIgnoreCase) ||
+             identity.Contains("F250", StringComparison.OrdinalIgnoreCase));
+        if (!_allowQueryFallback && !queryCapable)
+        {
+            return new ThermometerReading(
+                DateTimeOffset.Now,
+                null,
+                string.Empty,
+                $"{PortName}: bez talk-only dát. Na ASL F100 zapni Menu → Options → Talk Only → On.");
+        }
+
+        if (queryCapable)
+        {
+            await SendAsync(F100Protocol.RemoteCommand, cancellationToken).ConfigureAwait(false);
+        }
         _communicationMode = CommunicationMode.Query;
         string directCommand = F100Protocol.BuildMeasureChannelCommand(normalized);
         string response = await SendReceiveAsync(directCommand, cancellationToken).ConfigureAwait(false);
@@ -310,3 +337,4 @@ public sealed class F100Client : IAsyncDisposable
         _gate.Dispose();
     }
 }
+

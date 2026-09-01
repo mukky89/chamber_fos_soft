@@ -1,5 +1,19 @@
 # Changelog
 
+## [Nezverejnené]
+
+### Opravené
+- USB identifikácia rozpozná reálne pripojené teplomery WIKA CTH7000 a pri
+  meraní mapuje vstupy A/B na príkazy `MEASURE:CHANNEL? 1/2`. Predchádzajúce
+  textové parametre A/B zariadenie odmietalo ako `ERR CMD`.
+- Pôvodný ASL F100 po neúspešnom pasívnom čítaní už nedostáva automatické
+  SCPI príkazy určené pre novšie kompatibilné modely. Aplikácia namiesto
+  zavádzajúceho timeoutu vysvetlí, že na prístroji treba zapnúť
+  `Menu → Options → Talk Only → On`.
+- Vyhľadávanie PeakLogger API rozpozná stav, keď bežia dve okná PeakLogger, ale
+  iba prvý proces vlastní pevný REST port `43122`, a zobrazí operátorovi, že
+  druhá inštancia nemá samostatné API.
+
 ## [1.76.1] – 2026-08-29
 
 ### Zmenené
@@ -2317,3 +2331,4 @@ Inšpirované Weiss **SIMPATI** (gap-analýza):
 [0.3.0]: https://github.com/mukky89/chamber_fos_soft
 [0.2.0]: https://github.com/mukky89/chamber_fos_soft
 [0.1.0]: https://github.com/mukky89/chamber_fos_soft
+

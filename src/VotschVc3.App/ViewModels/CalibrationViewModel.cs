@@ -532,10 +532,37 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
         int interrogators = found.Sum(x => x.DeviceCount);
         int peaks = found.Sum(x => x.PeakCount);
+        int localProcessCount = IsLocalPeakLoggerHost(PeakLoggerHost)
+            ? GetLocalPeakLoggerProcessCount()
+            : 0;
         PeakLoggerDiscoverySummary = found.Count == 0
             ? $"Nenašlo sa žiadne PeakLogger API · skontrolovaných portov: {report.ScannedPortCount}. Skontroluj proces a firewall."
-            : $"Nájdené API: {found.Count} · interrogátory/inštancie: {interrogators} · peaky: {peaks} · skontrolované porty: {report.ScannedPortCount}";
+            : localProcessCount > found.Count
+                ? $"Nájdené API: {found.Count}, ale bežia procesy PeakLogger: {localProcessCount}. " +
+                  $"Ďalšia inštancia nemá vlastný REST port (43122 môže držať iba jedna). " +
+                  $"Dostupné interrogátory: {interrogators} · peaky: {peaks}."
+                : $"Nájdené API: {found.Count} · interrogátory/inštancie: {interrogators} · peaky: {peaks} · skontrolované porty: {report.ScannedPortCount}";
         StatusMessage = PeakLoggerDiscoverySummary;
+    }
+
+    private static int GetLocalPeakLoggerProcessCount()
+    {
+        try
+        {
+            Process[] processes = Process.GetProcessesByName("PeakLogger");
+            try
+            {
+                return processes.Length;
+            }
+            finally
+            {
+                foreach (Process process in processes) process.Dispose();
+            }
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static bool IsLocalPeakLoggerHost(string? host) =>
@@ -1670,3 +1697,4 @@ public sealed class CalibrationTargetProgressViewModel : ObservableObject
         OnPropertyChanged(nameof(SamplesLabel));
     }
 }
+

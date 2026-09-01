@@ -292,7 +292,8 @@ ako virtuálny COM port**.
   referenciu; v live zobrazení vidíš referenčnú teplotu a **odchýlku**
   (komora − referencia), ktorá sa zapíše aj do CSV záznamu komory.
 - **Komunikácia**: 9600 8N1. Pôvodný F100 sa automaticky číta z pasívneho
-  USB „talk-only“ prúdu (vrátane rozlíšenia kanála A/B alebo 1/2). Ak prúd
+  USB „talk-only“ prúdu (vrátane rozlíšenia kanála A/B alebo 1/2). Na prístroji
+  musí byť zapnuté **Menu → Options → Talk Only → On**. Ak prúd
   neprichádza, aplikácia skúsi dotazovací SCPI režim príbuzných firmvérov;
   príkaz čítania je konfigurovateľný (default `READ?`).
 - **Terminál** na kalibráciu a ladenie dotazovacích firmvérov; pôvodný F100
@@ -349,3 +350,4 @@ Frekvenciu vzorkovania určuje interval pollingu v záložke *Connection*.
 
 Softvér je poskytnutý „tak ako je". Overuj na bezpečných hodnotách – riadiš
 reálne zariadenie schopné extrémnych teplôt.
+

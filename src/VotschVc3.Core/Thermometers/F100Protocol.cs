@@ -66,7 +66,16 @@ public static class F100Protocol
     /// because it makes the requested A/B channel explicit for every reference reading.
     /// </summary>
     public static string BuildMeasureChannelCommand(string channel) =>
-        $"MEASURE:CHANNEL? {NormalizeChannel(channel)}";
+        $"MEASURE:CHANNEL? {ChannelNumber(channel)}";
+
+    /// <summary>Maps UI input labels to the numeric CTH7000 USB syntax.</summary>
+    public static string ChannelNumber(string channel) => NormalizeChannel(channel) switch
+    {
+        "A" => "1",
+        "B" => "2",
+        "A-B" => "-",
+        _ => throw new ArgumentOutOfRangeException(nameof(channel)),
+    };
 
     public static string NormalizeChannel(string? channel)
     {
@@ -92,6 +101,14 @@ public static class F100Protocol
     {
         if (string.IsNullOrWhiteSpace(raw)) return false;
         string text = raw.Trim();
+        if (text.Contains("ERR CMD", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("NOPROBE", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("NO PROBE", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("OVER RANGE", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("UNDER RANGE", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
         if (Regex.IsMatch(text, @"^E\d+\b", RegexOptions.IgnoreCase)) return true;
         return Regex.IsMatch(text, @"^-2\d{2}\b");
     }
@@ -171,3 +188,4 @@ public static class F100Protocol
         return string.Empty;
     }
 }
+

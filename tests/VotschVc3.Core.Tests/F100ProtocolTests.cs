@@ -65,7 +65,9 @@ public class F100ProtocolTests
     [Fact]
     public void Channel_commands_make_probe_explicit()
     {
-        Assert.Equal("MEASURE:CHANNEL? B", F100Protocol.BuildMeasureChannelCommand("B"));
+        Assert.Equal("MEASURE:CHANNEL? 1", F100Protocol.BuildMeasureChannelCommand("A"));
+        Assert.Equal("MEASURE:CHANNEL? 2", F100Protocol.BuildMeasureChannelCommand("B"));
+        Assert.Equal("MEASURE:CHANNEL? -", F100Protocol.BuildMeasureChannelCommand("A-B"));
         Assert.Equal("CONFIGURE:CHANNEL A", F100Protocol.BuildConfigureChannelCommand("A"));
         Assert.Equal(new[] { "A", "B" }, F100Protocol.ProbeChannels);
     }
@@ -74,9 +76,13 @@ public class F100ProtocolTests
     [InlineData("E4")]
     [InlineData("E5 invalid command")]
     [InlineData("-200")]
+    [InlineData("'ERR CMD")]
+    [InlineData("1,NoProbe,\"CEL\"")]
+    [InlineData("2,No Probe,\"CEL\"")]
     public void ParseReading_does_not_treat_instrument_error_as_temperature(string raw)
     {
         Assert.True(F100Protocol.IsErrorResponse(raw));
         Assert.Null(F100Protocol.ParseReading(raw).Temperature);
     }
 }
+
