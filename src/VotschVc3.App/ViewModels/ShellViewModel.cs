@@ -8,6 +8,7 @@ using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
 using VotschVc3.Core.Security;
 using VotschVc3.Core.Settings;
+using VotschVc3.Core.Calibration;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -44,6 +45,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     private readonly EmailNotifier _notifier = new();
     private readonly UiSettingsStore _uiStore;
     private readonly UiSettings _ui;
+    private readonly SylexFosApiSettingsStore _sylexFosApiStore;
+    private readonly SylexFosApiSettings _sylexFosApi;
     private CancellationTokenSource? _saveCts;
     private readonly System.Windows.Threading.DispatcherTimer _bridgeStatusTimer;
 
@@ -65,6 +68,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _audit = new AuditLog(System.IO.Path.Combine(dir, "audit.csv"));
         _uiStore = new UiSettingsStore(System.IO.Path.Combine(dir, "ui.json"));
         _ui = _uiStore.Load();
+        _sylexFosApiStore = new SylexFosApiSettingsStore(System.IO.Path.Combine(dir, "sylex-fos-api.json"));
+        _sylexFosApi = _sylexFosApiStore.Load();
         ChamberViewModel.ProfileLogIntervalSeconds = _ui.ProfileLogIntervalSeconds;
         ChamberViewModel.SikaSoakToleranceC = _ui.SikaSoakToleranceC;
         ChamberViewModel.SikaSettling = BuildSikaSettling(_ui);
@@ -131,6 +136,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         MoveChamberDownCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, +1), c => c is not null);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
+        SaveSylexFosApiSettingsCommand = new RelayCommand(SaveSylexFosApiSettings);
+        TestSylexFosApiCommand = new AsyncRelayCommand(TestSylexFosApiAsync, onError: ex => SylexFosApiStatus = $"Chyba: {ex.Message}");
         AddUserCommand = new RelayCommand(AddUser,
             () => CanManage && !string.IsNullOrWhiteSpace(NewUserName) && !string.IsNullOrEmpty(NewUserPassword));
         DeleteUserCommand = new RelayCommand<User>(DeleteUser, u => CanManage && u is not null);
@@ -1328,6 +1335,64 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "..", "..", "..", "VotschVc3.Agent", "bin", "Release", "net8.0-windows", "VotschVc3.Agent.exe")),
         };
         return candidates.FirstOrDefault(System.IO.File.Exists);
+    }
+
+    #endregion
+
+    #region Sylex FOS API
+
+    public string SylexFosApiUrl
+    {
+        get => _sylexFosApi.BaseUrl;
+        set
+        {
+            if (_sylexFosApi.BaseUrl == value) return;
+            _sylexFosApi.BaseUrl = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string SylexFosApiKey
+    {
+        get => _sylexFosApi.ApiKey;
+        set
+        {
+            if (_sylexFosApi.ApiKey == value) return;
+            _sylexFosApi.ApiKey = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _sylexFosApiStatus = "Nastav hostname alebo URL počítača, na ktorom beží API.";
+    public string SylexFosApiStatus { get => _sylexFosApiStatus; private set => SetProperty(ref _sylexFosApiStatus, value); }
+
+    public RelayCommand SaveSylexFosApiSettingsCommand { get; }
+    public AsyncRelayCommand TestSylexFosApiCommand { get; }
+
+    private void SaveSylexFosApiSettings()
+    {
+        try
+        {
+            _sylexFosApiStore.Save(_sylexFosApi);
+            OnPropertyChanged(nameof(SylexFosApiUrl));
+            SylexFosApiStatus = "Nastavenie API uložené. Nové kalibračné okno ho použije automaticky.";
+        }
+        catch (Exception ex)
+        {
+            SylexFosApiStatus = $"Uloženie zlyhalo: {ex.Message}";
+        }
+    }
+
+    private async Task TestSylexFosApiAsync()
+    {
+        SylexFosApiStatus = "Kontrolujem spojenie…";
+        _sylexFosApi.BaseUrl = SylexFosApiSettingsStore.NormalizeBaseUrl(_sylexFosApi.BaseUrl);
+        OnPropertyChanged(nameof(SylexFosApiUrl));
+        using var client = new SylexFosApiClient(_sylexFosApi);
+        SylexFosApiHealth health = await client.CheckHealthAsync();
+        SylexFosApiStatus = health.IsReachable
+            ? $"Pripojené: {_sylexFosApi.BaseUrl}"
+            : $"API nie je dostupné: {health.Status}{(string.IsNullOrWhiteSpace(health.Detail) ? string.Empty : $" · {health.Detail}")}";
     }
 
     #endregion

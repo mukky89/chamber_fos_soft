@@ -10,12 +10,17 @@ public sealed class SylexFosApiSettings
     public const string DefaultApiKeyEnvironmentVariable = "SYLEX_FOS_API_KEY";
 
     public string BaseUrl { get; set; } = DefaultBaseUrl;
+    public string ApiKey { get; set; } = string.Empty;
     public string ApiKeyEnvironmentVariable { get; set; } = DefaultApiKeyEnvironmentVariable;
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
-    public string? ResolveApiKey() => string.IsNullOrWhiteSpace(ApiKeyEnvironmentVariable)
-        ? null
-        : Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariable);
+    public string? ResolveApiKey()
+    {
+        if (!string.IsNullOrWhiteSpace(ApiKey)) return ApiKey.Trim();
+        return string.IsNullOrWhiteSpace(ApiKeyEnvironmentVariable)
+            ? null
+            : Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariable)?.Trim();
+    }
 }
 
 public sealed record SylexFosApiHealth(bool IsReachable, string Status, DateTimeOffset CheckedAtUtc, string? Detail = null);

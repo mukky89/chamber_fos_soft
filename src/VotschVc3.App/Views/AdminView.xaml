@@ -45,6 +45,35 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===== Sylex FOS API ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Sylex FOS API" Style="{StaticResource Heading}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,10"
+                               Text="Centrálne API pre načítanie výrobných údajov pri FBG kalibrácii. Použi hostname namiesto číselnej IP adresy, napr. http://FOS-API-PC:5080." />
+                    <WrapPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="330">
+                            <TextBlock Text="API URL alebo hostname" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding SylexFosApiUrl, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Príklad: http://FOS-API-PC:5080. Ak protokol vynecháš, použije sa http://." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}" Width="260">
+                            <TextBlock Text="API kľúč" Style="{StaticResource Label}" />
+                            <TextBox Text="{Binding SylexFosApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Kľúč klienta chamber-fos so scope calibrations.read." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="Nastavenie sa uloží do Dokumenty\Lab Control\sylex-fos-api.json a načíta automaticky pri otvorení kalibrácie. Ak URL nie je uložená, zostáva kompatibilná premenná SYLEX_FOS_API_URL a predvolený localhost:5080." />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Uložiť API" Style="{StaticResource AccentButton}" Command="{Binding SaveSylexFosApiSettingsCommand}" />
+                        <Button Content="Otestovať spojenie" Command="{Binding TestSylexFosApiCommand}" />
+                        <TextBlock Text="{Binding SylexFosApiStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center"
+                                   Margin="10,0,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- ===== Add chamber ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel Orientation="Horizontal">

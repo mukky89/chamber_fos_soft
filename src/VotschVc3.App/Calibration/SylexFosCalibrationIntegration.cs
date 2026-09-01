@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Calibration;
@@ -25,8 +26,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     public SylexFosCalibrationIntegration(CalibrationViewModel viewModel)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
-        string baseUrl = Environment.GetEnvironmentVariable("SYLEX_FOS_API_URL") ?? SylexFosApiSettings.DefaultBaseUrl;
-        var settings = new SylexFosApiSettings { BaseUrl = baseUrl };
+        var settings = new SylexFosApiSettingsStore(Path.Combine(AppPaths.SettingsDir, "sylex-fos-api.json")).Load();
         _apiClient = new SylexFosApiClient(settings);
         _metadataProvider = new SylexFosApiProductionMetadataProvider(_apiClient);
 
@@ -170,7 +170,8 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private void Report(SylexFosLookupState state, string message) =>
         LookupStatusChanged?.Invoke(this, new SylexFosLookupStatus(state, message));
 
-    private static string ApiClientBaseUrl() => Environment.GetEnvironmentVariable("SYLEX_FOS_API_URL") ?? SylexFosApiSettings.DefaultBaseUrl;
+    private static string ApiClientBaseUrl() =>
+        new SylexFosApiSettingsStore(Path.Combine(AppPaths.SettingsDir, "sylex-fos-api.json")).Load().BaseUrl;
 
     public ValueTask DisposeAsync()
     {
