@@ -32,7 +32,10 @@ public sealed class F100Client : IAsyncDisposable
         _port = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
         {
             Handshake = Handshake.None,
-            ReadTimeout = 2000,
+            // CTH7000 needs about 2.1–2.3 s for a fresh channel conversion.
+            // Two seconds loses the response just before it arrives and shifts it to
+            // the next query, so keep a small but safe margin.
+            ReadTimeout = 3500,
             WriteTimeout = 2000,
             DtrEnable = true,
             RtsEnable = true,
@@ -71,6 +74,11 @@ public sealed class F100Client : IAsyncDisposable
                     _port.DiscardInBuffer();
                     _port.DiscardOutBuffer();
                 }, cancellationToken).ConfigureAwait(false);
+
+                // The CTH7000's FTDI interface resets when DTR/RTS and the COM handle
+                // are opened. Queries sent immediately after Open() are silently lost.
+                await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken).ConfigureAwait(false);
+                _port.DiscardInBuffer();
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -153,6 +161,7 @@ public sealed class F100Client : IAsyncDisposable
             if (_queryInstrumentIdentified)
             {
                 await SendAsync(F100Protocol.RemoteCommand, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(120), cancellationToken).ConfigureAwait(false);
                 _communicationMode = CommunicationMode.Query;
             }
         }
@@ -198,6 +207,7 @@ public sealed class F100Client : IAsyncDisposable
         if (queryCapable)
         {
             await SendAsync(F100Protocol.RemoteCommand, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(120), cancellationToken).ConfigureAwait(false);
         }
         _communicationMode = CommunicationMode.Query;
         string directCommand = F100Protocol.BuildMeasureChannelCommand(normalized);
