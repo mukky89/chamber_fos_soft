@@ -55,6 +55,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     public int BaudRate { get => _baudRate; set => SetProperty(ref _baudRate, value); }
 
     private string _selectedChannel = "A";
+    public bool ChannelAutoDetected { get; private set; }
     /// <summary>Physical F100 probe input used for readings (A or B).</summary>
     public string SelectedChannel
     {
@@ -120,6 +121,11 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private string _identity = "—";
     public string Identity { get => _identity; private set => SetProperty(ref _identity, value); }
+    public string Manufacturer => IdentityParts.ElementAtOrDefault(0) ?? "Teplomer";
+    public string Model => IdentityParts.ElementAtOrDefault(1) ?? "nezistený typ";
+    public string DeviceName => Identity == "—" ? "Referenčný teplomer" : $"{Manufacturer} {Model}";
+    public string DeviceTypeLabel => Identity == "—" ? "Typ sa zistí po pripojení" : $"Typ: {Model} · výrobca: {Manufacturer}";
+    private string[] IdentityParts => Identity.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     private DateTimeOffset? _lastUpdate;
     public DateTimeOffset? LastUpdate { get => _lastUpdate; private set => SetProperty(ref _lastUpdate, value); }
@@ -204,6 +210,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         if (!string.IsNullOrWhiteSpace(response))
         {
             Identity = response.Trim();
+            NotifyIdentityProperties();
             AppLog.Info($"F100 {PortName}", $"Identifikácia: {Identity}");
         }
     }
@@ -236,9 +243,32 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
 
         if (_client is null) return null;
-        ThermometerReading reading = await _client.ReadChannelAsync(SelectedChannel, ReadCommand, cancellationToken);
+        (string detectedChannel, ThermometerReading reading) =
+            await _client.ReadAvailableChannelAsync(SelectedChannel, ReadCommand, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(_client.InstrumentIdentity) && Identity != _client.InstrumentIdentity)
+        {
+            Identity = _client.InstrumentIdentity;
+            NotifyIdentityProperties();
+        }
+        if (reading.Temperature is not null && !string.Equals(SelectedChannel, detectedChannel, StringComparison.Ordinal))
+        {
+            SelectedChannel = detectedChannel;
+        }
+        if (reading.Temperature is not null)
+        {
+            ChannelAutoDetected = true;
+            OnPropertyChanged(nameof(ChannelAutoDetected));
+        }
         ApplyReading(reading);
         return reading.Temperature;
+    }
+
+    private void NotifyIdentityProperties()
+    {
+        OnPropertyChanged(nameof(Manufacturer));
+        OnPropertyChanged(nameof(Model));
+        OnPropertyChanged(nameof(DeviceName));
+        OnPropertyChanged(nameof(DeviceTypeLabel));
     }
 
     /// <summary>One operator "Kontrola" action: connect when needed and acquire one fresh value.</summary>
