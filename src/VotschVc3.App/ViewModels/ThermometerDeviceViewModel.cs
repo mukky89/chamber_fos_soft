@@ -175,7 +175,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
 
         IsConnected = true;
-        StatusMessage = "Pripojené · čakám na USB dáta F100.";
+        StatusMessage = "Pripojené · identifikujem USB teplomer.";
         AppLog.Info("F100", $"Teplomer {PortName} @ {BaudRate} bd pripojený.");
 
         if (PollingEnabled)
