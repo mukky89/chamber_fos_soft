@@ -74,9 +74,10 @@ public partial class CalibrationWindow : Window
     /// Customer and SensorName are distinct business fields. Customer keeps its original
     /// persisted meaning; SensorName is shown in a dedicated runtime column populated from FOS API.
     /// </summary>
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
+        await _viewModel.InitializeHardwareAsync();
         _wiringGrid = FindWiringGrid(this);
         if (_wiringGrid is null) return;
 
