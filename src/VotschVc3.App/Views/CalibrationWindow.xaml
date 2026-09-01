@@ -314,7 +314,7 @@
                         <Button DockPanel.Dock="Right" Content="Navrhnúť 1 peak / kanál" Style="{StaticResource GhostButton}"
                                 Margin="10,0,0,0" Command="{Binding SelectSuggestedPeaksCommand}"
                                 ToolTip="Za každý kanál označí jeden najsilnejší peak – rýchly štart, keď je na kanáli jeden senzor." />
-                        <TextBlock Text="PeakLogger deviceSN je SN interrogátora. Produkčné FBG SN zadaj alebo naskenuj samostatne; live identita je PeakLogger SN + kanál + PeakId."
+                        <TextBlock Text="Produkčné FBG SN zadaj alebo naskenuj samostatne. Peak ID, FBG index, aktuálna vlnová dĺžka a intenzita sa načítavajú priamo z PeakLoggera."
                                    Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap" />
                     </DockPanel>
 
@@ -389,18 +389,15 @@
                         </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <DataGridCheckBoxColumn Header="Kalibrovať" Binding="{Binding Selected, Mode=TwoWay}" Width="0.7*" />
-                            <DataGridTextColumn Header="PeakLogger SN" Binding="{Binding PeakLoggerDeviceSerialNumber}" IsReadOnly="True" Width="0.9*" />
                             <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" IsReadOnly="True" Width="0.5*" />
-                            <DataGridTextColumn Header="Snímač" Binding="{Binding SensorType}" IsReadOnly="True" Width="0.8*" />
-                            <DataGridTextColumn Header="Typ FBG" Binding="{Binding FbgType}" IsReadOnly="True" Width="0.65*" />
-                            <DataGridTextColumn Header="Žila 1" Binding="{Binding Core1, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.45*" />
-                            <DataGridTextColumn Header="Žila 2" Binding="{Binding Core2, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.45*" />
-                            <DataGridTextColumn Header="FBG sensor SN (kanál)" Binding="{Binding ChannelSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.15*" />
-                            <DataGridTextColumn Header="FBG sensor SN CHAIN" Binding="{Binding ChainSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.15*" />
                             <DataGridTextColumn Header="Peak ID" Binding="{Binding PeakId}" IsReadOnly="True" Width="0.55*" />
                             <DataGridTextColumn Header="FBG index" Binding="{Binding PeakIndex}" IsReadOnly="True" Width="0.55*" />
                             <DataGridTextColumn Header="Aktuálna λ [nm]" Binding="{Binding CurrentWavelengthNm, StringFormat=F6}" IsReadOnly="True" Width="0.9*" />
                             <DataGridTextColumn Header="Intenzita" Binding="{Binding Intensity, StringFormat=F2}" IsReadOnly="True" Width="0.65*" />
+                            <DataGridTextColumn Header="Snímač" Binding="{Binding SensorType}" IsReadOnly="True" Width="0.8*" />
+                            <DataGridTextColumn Header="Typ FBG" Binding="{Binding FbgType}" IsReadOnly="True" Width="0.65*" />
+                            <DataGridTextColumn Header="FBG sensor SN (kanál)" Binding="{Binding ChannelSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.15*" />
+                            <DataGridTextColumn Header="FBG sensor SN CHAIN" Binding="{Binding ChainSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.15*" />
                             <DataGridTextColumn Header="Timeout [min]" Binding="{Binding TimeoutMinutes, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.65*" />
                             <DataGridTextColumn Header="Poznámky" Binding="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.95*" />
                             <DataGridTextColumn Header="Popis produktu" Binding="{Binding ProductDescription, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.1*" />
