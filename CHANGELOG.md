@@ -2,8 +2,31 @@
 
 ## [Nezverejnené]
 
-## [1.76.6] – 2026-09-02
+## [1.76.8] – 2026-09-02
 
+### Opravené – USB / WIKA CTH7000
+- Pridaná procesovo-globálna ochrana COM portov, takže dve inštancie `F100Client` v jednej aplikácii už nemôžu súčasne otvoriť rovnaký port.
+- Diagnostický pasívny scan používa rovnakú ochranu a neotvára COM port, ktorý práve vlastní živé meranie.
+- `UnauthorizedAccessException` z `SerialPort.Open()` sa mapuje na jasný stav obsadeného portu namiesto falošného reconnect cyklu.
+- Manuálny výber `COMx` zostáva zachovaný; ak je port dočasne obsadený iným procesom, používateľ ho môže po uvoľnení znovu otvoriť.
+- Tiché prázdne odpovede z query komunikácie sa už nepovažujú za úspešné čítanie a vyvolajú timeout/retry.
+- Existujúci reconnect po skutočnom USB výpadku zostáva zachovaný.
+- Blokujúce `SerialPort` operácie zostávajú mimo UI threadu.
+
+### Dokumentácia
+- `SKILL.md` doplnené o povinnú procesovo-globálnu COM lease, pravidlá pre obsadené porty a regresné kontroly.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.7` na `1.76.8`.
+
+## [1.76.7] – 2026-09-02
+
+### USB / WIKA CTH7000
+- Vnútorná synchronizácia `F100Client` bola rozšírená tak, aby jeden klient nevedel zavrieť port počas vlastného aktívneho čítania/zápisu.
+- Reconnect po dočasnom USB výpadku bezpečne zatvorí a znovu otvorí port a vyčistí RX/TX buffre.
+- TX/RX diagnostika zapisuje komunikáciu WIKA CTH7000 s portom a číslom pokusu.
+
+## [1.76.6] – 2026-09-02
 
 ## USB / WIKA CTH7000
 - Zjednotená synchronizácia `SerialPort` proti súbehu skenovania, čítania a zatvárania portu.
@@ -21,7 +44,6 @@
 
 ## Verzia
 - Desktop aplikácia zvýšená z `1.76.5` na `1.76.6`.
-
 
 ## [1.76.5] – 2026-09-02
 
