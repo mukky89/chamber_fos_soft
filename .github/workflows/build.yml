@@ -12,10 +12,30 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Sync 1.76.6 changelog
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $content = Get-Content -Raw -Encoding UTF8 CHANGELOG.md
+          if ($content -notmatch '## \[1\.76\.6\]') {
+            $patch = Get-Content -Raw -Encoding UTF8 CHANGELOG_1.76.6.md
+            $patchBody = $patch -replace '^# Changelog — 1\.76\.6\r?\n\r?\n', ''
+            $entry = "## [1.76.6] – 2026-09-02`r`n`r`n" + $patchBody.Trim() + "`r`n"
+            $content = $content -replace '(## \[Nezverejnené\]\r?\n)', ('$1`r`n' + $entry)
+            [System.IO.File]::WriteAllText((Resolve-Path CHANGELOG.md), $content, [System.Text.UTF8Encoding]::new($false))
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add CHANGELOG.md
+            git commit -m 'Update CHANGELOG for 1.76.6'
+            git push
+          }
 
       - name: Validate PowerShell scripts
         shell: pwsh
