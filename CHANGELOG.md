@@ -2,6 +2,27 @@
 
 ## [Nezverejnené]
 
+## [1.76.5] – 2026-09-02
+
+### Opravené
+- Parser rozpoznáva reálny CSV rámec WIKA CTH7000
+  (`kanál,teplota,\"CEL\"`). Čiarka oddeľujúca kanál sa už nepovažuje za
+  desatinnú čiarku: `2,24.559,\"CEL\"` sa načíta ako `24.559 °C`, nie `559`.
+- Pridané regresné testy s rámcami nameranými na COM4 a COM7.
+
+## [1.76.4] – 2026-09-01
+
+### Zmenené
+- Aktuálne používateľské označenia ASL F100 boli v navigácii, správe
+  teplomerov, kalibrácii a stavových hláškach nahradené názvom `WIKA CTH7000`.
+
+### Opravené
+- Príkaz `*IDN?` pre WIKA CTH7000 sa odošle ako jeden atómový USB rámec namiesto
+  samostatného zápisu každého znaku. Rovnaký spôsob sa po identifikácii používa
+  aj pre prepnutie režimu, meranie kanála a návrat do lokálneho režimu.
+- Jednorazové čítanie vždy odošle `SYSTEM:LOCAL` aj pri chybe alebo timeoute,
+  takže prístroj nezostane zamknutý v režime Remote.
+
 ## [1.76.3] – 2026-09-01
 
 ### Opravené
