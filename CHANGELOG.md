@@ -8,6 +8,12 @@
 - Identifikácia už nepoužíva rýchly jednorazový `_port.Write(frame)`, ktorý sa odlišoval od úspešného hardvérového testu.
 - Zachované zostávajú COM lease, retry/reconnect, čistenie RX/TX bufferov, A/B kanály a TX/RX diagnostika.
 
+### Upratané – pomenovanie CTH7000
+- Fyzický klient aplikácie je v `src/VotschVc3.App/Thermometers/CTH7000Client.cs` namiesto historického názvu `F100Client.cs`.
+- Zdieľaný protokol je v `src/VotschVc3.Core/Thermometers/CTH7000Protocol.cs` namiesto historického názvu `F100Protocol.cs`.
+- Bridge klient a regresné testy používajú názvy súborov `CTH7000Client.cs` a `CTH7000ProtocolTests.cs`.
+- Historické `F100Client` / `F100Protocol` symboly zostávajú v týchto súboroch iba kvôli zdrojovej kompatibilite existujúcej architektúry.
+
 ### Verzia
 - Desktop aplikácia zvýšená z `1.76.10` na `1.76.11`.
 
