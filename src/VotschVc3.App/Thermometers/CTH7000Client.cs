@@ -27,12 +27,13 @@ public sealed class F100Client : IAsyncDisposable
         _port = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
         {
             Handshake = Handshake.None,
-            ReadTimeout = 3500,
+            ReadTimeout = 8000,
             WriteTimeout = 2000,
             DtrEnable = true,
             RtsEnable = true,
+            Encoding = Encoding.ASCII,
         };
-        AppLog.Info("CTH7000 USB", $"Client vytvorený: {portName} @ {baudRate} bd, 8N1, Handshake=None, DTR=True, RTS=True, ReadTimeout=3500 ms, WriteTimeout=2000 ms.");
+        AppLog.Info("CTH7000 USB", $"Client vytvorený: {portName} @ {baudRate} bd, 8N1, Handshake=None, DTR=True, RTS=True, ASCII, ReadTimeout=8000 ms, WriteTimeout=2000 ms.");
     }
 
     public bool IsOpen => _port.IsOpen;
@@ -282,17 +283,17 @@ public sealed class F100Client : IAsyncDisposable
         _communicationMode = CommunicationMode.Query;
 
         string measureCommand = F100Protocol.BuildMeasureChannelCommand(normalized);
-        AppLog.Info("CTH7000 USB", $"{PortName}: meriam kanál {normalized} → '{measureCommand}'. Čakám na odpoveď do 3.5 s.");
+        AppLog.Info("CTH7000 USB", $"{PortName}: meriam kanál {normalized} → '{measureCommand}'. Čakám na odpoveď do 8 s.");
         string response = await SendReceiveAsync(measureCommand, cancellationToken).ConfigureAwait(false);
         ThermometerReading direct = F100Protocol.ParseReading(response);
         AppLog.Info("CTH7000 USB", $"{PortName}: výsledok kanál {normalized} → temperature={direct.Temperature?.ToString() ?? "null"}, unit='{direct.Unit}', raw='{FormatLog(response)}'.");
         if (!F100Protocol.IsErrorResponse(response) && direct.Temperature is not null) return direct;
         if (_queryInstrumentIdentified) return direct;
 
-        AppLog.Warn("CTH7000 USB", $"{PortName}: priame meranie kanála {normalized} nevrátilo platnú teplotu, skúšam fallback konfiguráciu.");
-        await SendAsync(F100Protocol.BuildConfigureChannelCommand(normalized), cancellationToken).ConfigureAwait(false);
-        await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-        return await ReadAsync(fallbackReadCommand, cancellationToken).ConfigureAwait(false);
+        // The WIKA CTH7000 manual documents only MEASURE:CHANNEL?, not a generic READ?/CONFIGURE fallback.
+        // Keep the old arguments for source compatibility, but never send undocumented commands to a CTH7000.
+        AppLog.Warn("CTH7000 USB", $"{PortName}: priame meranie kanála {normalized} nevrátilo platnú teplotu; fallback na nedokumentované príkazy je zámerne vypnutý.");
+        return direct;
     }
 
     public async Task<(string Channel, ThermometerReading Reading)> ReadAvailableChannelAsync(string preferredChannel, string fallbackReadCommand = F100Protocol.DefaultReadCommand, CancellationToken cancellationToken = default)
@@ -359,133 +360,96 @@ public sealed class F100Client : IAsyncDisposable
                 _port.DiscardInBuffer();
                 _port.DiscardOutBuffer();
             }).ConfigureAwait(false);
-            AppLog.Info("CTH7000 USB", $"{PortName}: reconnect Open OK; RX/TX buffre vyčistené.");
-            await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken).ConfigureAwait(false);
-            if (_port.IsOpen) _port.DiscardInBuffer();
             AppLog.Info("CTH7000 USB", $"{PortName}: reconnect DONE.");
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
-            AppLog.Error("CTH7000 USB", $"{PortName}: reconnect FAILED – COM port obsadený. {ex.Message}");
-            throw new SerialPortBusyException(_port.PortName, ex);
-        }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException)
-        {
-            AppLog.Error("CTH7000 USB", $"{PortName}: reconnect FAILED – {ex.GetType().Name}: {ex.Message}");
+            AppLog.Error("CTH7000 USB", $"{PortName}: reconnect FAILED → {ex.GetType().Name}: {ex.Message}");
             throw;
         }
     }
 
-    private static bool IsSupportedQueryInstrument(string identity) =>
-        !string.IsNullOrWhiteSpace(identity) && !F100Protocol.IsErrorResponse(identity) &&
-        identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase);
-
-    private async Task<ThermometerReading> ReadTalkOnlyAsync(string channel, TimeSpan timeout, CancellationToken cancellationToken)
+    private void WriteCommand(string frame)
     {
-        AppLog.Warn("CTH7000 USB", $"{PortName}: legacy talk-only branch invoked unexpectedly; channel={channel}.");
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            ThrowIfDisposing();
-            EnsurePortOpen();
-            return await Task.Run(() =>
-            {
-                var clock = Stopwatch.StartNew();
-                string lastRaw = string.Empty;
-                while (clock.Elapsed < timeout)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    string raw = ReadLine(cancellationToken);
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
-                    lastRaw = raw;
-                    AppLog.Info("Legacy USB RX", $"{PortName} [talk-only]: {FormatLog(raw)}");
-                    ThermometerReading reading = F100Protocol.ParseReading(raw);
-                    string? frameChannel = F100Protocol.DetectTalkOnlyChannel(raw);
-                    if (reading.Temperature is not null && (frameChannel is null || string.Equals(frameChannel, channel, StringComparison.Ordinal))) return reading;
-                }
-                return new ThermometerReading(DateTimeOffset.Now, null, string.Empty, lastRaw);
-            }).ConfigureAwait(false);
-        }
-        finally { _gate.Release(); }
-    }
-
-    private void WriteCommand(string text)
-    {
-        EnsurePortOpen();
-        foreach (char c in text)
+        foreach (char c in frame)
         {
             EnsurePortOpen();
             _port.Write(c.ToString());
-            if (F100Protocol.InterCharacterDelayMs > 0) Thread.Sleep(F100Protocol.InterCharacterDelayMs);
+            if (F100Protocol.InterCharacterDelayMs > 0)
+                Thread.Sleep(F100Protocol.InterCharacterDelayMs);
         }
     }
 
     private string ReadLine(CancellationToken cancellationToken)
     {
-        var sb = new StringBuilder();
-        var clock = Stopwatch.StartNew();
-        while (clock.ElapsedMilliseconds <= _port.ReadTimeout)
+        var builder = new StringBuilder();
+        var stopwatch = Stopwatch.StartNew();
+        const int pollDelayMs = 25;
+        const int overallTimeoutMs = 8000;
+
+        while (stopwatch.ElapsedMilliseconds < overallTimeoutMs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            int b;
-            try { b = _port.ReadByte(); }
-            catch (TimeoutException) { break; }
-            if (b < 0) break;
-            char c = (char)b;
-            if (c is '\r' or '\n')
+            EnsurePortOpen();
+
+            string chunk = _port.ReadExisting();
+            if (!string.IsNullOrEmpty(chunk))
             {
-                if (sb.Length > 0) break;
-                continue;
+                builder.Append(chunk);
+                if (builder.ToString().Contains('\r') || builder.ToString().Contains('\n'))
+                    break;
             }
-            sb.Append(c);
+
+            Thread.Sleep(pollDelayMs);
         }
-        return sb.ToString();
+
+        string result = builder.ToString().TrimEnd('\r', '\n');
+        AppLog.Info("CTH7000 USB RX", $"{PortName}: ReadExisting dokončené po {stopwatch.ElapsedMilliseconds} ms, bytes={Encoding.ASCII.GetByteCount(result)}, raw='{FormatLog(result)}'.");
+        return result;
     }
 
-    private static string FormatLog(string value)
-    {
-        if (string.IsNullOrEmpty(value)) return "<EMPTY>";
-        string normalized = value.Replace("\r", "<CR>", StringComparison.Ordinal).Replace("\n", "<LF>", StringComparison.Ordinal);
-        return normalized.Length > 300 ? normalized[..300] + "…" : normalized;
-    }
+    private static string FormatLog(string value) => value
+        .Replace("\r", "<CR>", StringComparison.Ordinal)
+        .Replace("\n", "<LF>", StringComparison.Ordinal);
+
+    private static bool IsSupportedQueryInstrument(string identity) =>
+        identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase);
 
     private void EnsurePortOpen()
     {
-        if (!_port.IsOpen) throw new IOException($"USB COM port {_port.PortName} je zatvorený alebo bol odpojený.");
+        if (!_port.IsOpen)
+            throw new IOException($"COM port {PortName} nie je otvorený.");
+    }
+
+    private async Task<ThermometerReading> ReadTalkOnlyAsync(string channel, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        await Task.Yield();
+        cancellationToken.ThrowIfCancellationRequested();
+        return new ThermometerReading(DateTimeOffset.Now, null, string.Empty, $"{PortName}: legacy talk-only cesta nie je podporovaná pre WIKA CTH7000.");
     }
 
     private void ThrowIfDisposing()
     {
-        if (Volatile.Read(ref _disposeStarted) != 0) throw new ObjectDisposedException(nameof(F100Client), "Komunikácia s WIKA CTH7000 sa zatvára.");
+        if (Volatile.Read(ref _disposeStarted) != 0)
+            throw new ObjectDisposedException(nameof(F100Client));
     }
 
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposeStarted, 1) != 0) return;
-
-        await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            AppLog.Info("CTH7000 USB", $"{PortName}: Dispose START.");
-            await Task.Run(() =>
-            {
-                try
-                {
-                    if (_port.IsOpen) _port.Close();
-                }
-                catch (Exception ex)
-                {
-                    AppLog.Error("CTH7000 USB", $"{PortName}: Close počas Dispose zlyhal – {ex.GetType().Name}: {ex.Message}");
-                }
-                _port.Dispose();
-            }).ConfigureAwait(false);
-
+            AppLog.Info("CTH7000 USB", $"{PortName}: DisposeAsync START.");
+            try { await ReturnToLocalIfSupportedAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+            try { _port.Close(); } catch { }
+            _port.Dispose();
             _portLease?.Dispose();
-            _portLease = null;
-            AppLog.Info("CTH7000 USB", $"{PortName}: Dispose DONE.");
+            _gate.Dispose();
+            AppLog.Info("CTH7000 USB", $"{PortName}: DisposeAsync DONE.");
         }
-        finally { _gate.Release(); }
-
-        _gate.Dispose();
+        catch (Exception ex)
+        {
+            AppLog.Error("CTH7000 USB", $"{PortName}: DisposeAsync FAILED → {ex.GetType().Name}: {ex.Message}");
+        }
     }
 }
