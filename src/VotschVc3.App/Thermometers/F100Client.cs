@@ -187,7 +187,9 @@ public sealed class F100Client : IAsyncDisposable
             {
                 ThrowIfDisposing();
                 EnsurePortOpen();
-                _port.Write(frame);
+                // The proven bench test sends every command character separately with the
+                // CTH7000-required inter-character gap. Keep identification on the same path.
+                WriteCommand(frame);
                 return ReadLine(cancellationToken);
             }).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(response))
@@ -353,11 +355,10 @@ public sealed class F100Client : IAsyncDisposable
     private void WriteCommand(string text)
     {
         EnsurePortOpen();
-        if (_queryInstrumentIdentified)
-        {
-            _port.Write(text);
-            return;
-        }
+
+        // WIKA CTH7000 was verified on the bench with a 2 ms gap between characters.
+        // Do not collapse this into one SerialPort.Write call: the instrument can miss
+        // a fast SCPI frame even though the same command works from the paced test script.
         foreach (char c in text)
         {
             EnsurePortOpen();
