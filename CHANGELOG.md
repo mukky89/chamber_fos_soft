@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.17] – 2026-09-02
+
+### Opravené – kompilácia USB teplomera
+- Obnovený `using VotschVc3.Core.Thermometers;` v `SerialPortEnumerator`, ktorý používa typ `SerialDeviceInfo`.
+- Tým sa odstránila chyba kompilátora `The type or namespace name 'SerialDeviceInfo' could not be found`.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.16` na `1.76.17`.
+
 ## [1.76.16] – 2026-09-02
 
 ### Opravené – WIKA CTH7000 identifikácia vs. meranie
