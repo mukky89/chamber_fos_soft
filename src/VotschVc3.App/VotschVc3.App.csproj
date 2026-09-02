@@ -4,7 +4,6 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <!-- WinForms only for NotifyIcon (tray balloon notifications). -->
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -13,41 +12,27 @@
     <AssemblyName>VotschVc3.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <!-- WPF handles DPI via the app.manifest; the WinForms analyzer (enabled by
-         UseWindowsForms for NotifyIcon) flags this as WFAC010, which does not apply
-         to this WPF-first app. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.76.5</Version>
+    <Version>1.76.6</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- UseWindowsForms injects implicit global usings for System.Windows.Forms and
-         System.Drawing, which make WPF types (UserControl, Brush, Point, …)
-         ambiguous. Remove them – WinForms is referenced only for NotifyIcon and
-         DesktopNotifier qualifies those types explicitly. -->
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\VotschVc3.Core\VotschVc3.Core.csproj" />
-    <!-- F5/build of the desktop app must also produce the separate Bridge Agent. -->
     <ProjectReference Include="..\VotschVc3.Agent\VotschVc3.Agent.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <!-- Bridge Agent beží ako samostatný proces na pozadí, takže si drží zamknutý
-       vlastný EXE/DLL v LabBridge. Pred kopírovaním ukonči iba tú inštanciu, ktorá
-       beží presne z tohto build výstupu; agenta nainštalovaného inde nechaj bežať. -->
   <Target Name="StopRunningBridgeAgent" BeforeTargets="CopyBridgeAgent"
           Condition="'$(OS)' == 'Windows_NT' AND Exists('$(OutDir)LabBridge\VotschVc3.Agent.exe')">
     <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\build\Stop-BridgeAgent.ps1&quot; -Path &quot;$(OutDir)LabBridge\VotschVc3.Agent.exe&quot;"
           ContinueOnError="true" StandardOutputImportance="high" />
   </Target>
 
-  <!-- ProjectReference makes sure the Agent is built. Copy its complete output
-       (DLL, host EXE, runtimeconfig, deps and package files) into an isolated
-       folder; copying only the EXE produces a process that exits before Main. -->
   <Target Name="CopyBridgeAgent" AfterTargets="Build">
     <ItemGroup>
       <BridgeAgentFiles Include="..\VotschVc3.Agent\bin\$(Configuration)\net8.0-windows\**\*" />
@@ -58,24 +43,17 @@
   </Target>
 
   <ItemGroup>
-    <!-- Embed the changelog so it can be shown inside the app. -->
     <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
-    <!-- Default profiles bundled with the build; imported once on first run.
-         Raw Weiss/Vötsch BEdit files (parsed by the tested importer) + a manifest
-         with the corrected name, original name, sensors and tags per file. -->
     <EmbeddedResource Include="seed-profiles.zip" LogicalName="seed-profiles.zip" />
     <EmbeddedResource Include="seed-profiles-manifest.json" LogicalName="seed-profiles-manifest.json" />
-    <!-- The desktop app creates bridge.json itself before starting the separate agent. -->
     <EmbeddedResource Include="..\VotschVc3.Agent\bridge.example.json" LogicalName="bridge.example.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Sylex logo (branding), shown on the login screen and the sidebar. -->
     <Resource Include="..\..\assets\sylex-logo-red.png" Link="Assets\sylex-logo-red.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- ASL F100 thermometers: serial comms + USB serial-number enumeration (Windows). -->
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
