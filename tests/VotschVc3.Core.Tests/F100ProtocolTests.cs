@@ -84,4 +84,16 @@ public class F100ProtocolTests
         Assert.True(F100Protocol.IsErrorResponse(raw));
         Assert.Null(F100Protocol.ParseReading(raw).Temperature);
     }
+
+    [Theory]
+    [InlineData("2,24.559,\"CEL\"", 24.559)]
+    [InlineData("1,25.103,\"CEL\"", 25.103)]
+    public void ParseReading_handles_real_cth7000_channel_frames(string raw, double expected)
+    {
+        ThermometerReading reading = F100Protocol.ParseReading(raw);
+
+        Assert.NotNull(reading.Temperature);
+        Assert.Equal(expected, reading.Temperature!.Value, 3);
+        Assert.Equal("°C", reading.Unit);
+    }
 }
