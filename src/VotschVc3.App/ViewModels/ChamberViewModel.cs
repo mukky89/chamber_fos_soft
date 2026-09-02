@@ -2498,6 +2498,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         double startTemp = MeasuredTemperature ?? profile.Segments[0].TargetTemperature;
         double? startHum = SupportsHumidity ? MeasuredHumidity : null;
+        TimeSpan currentPlannedDuration = profile.TotalDuration + SettlingModel.ForProfile(profile, startTemp);
 
         // SIKA thermal baths settle on a new set point on their own – ramping the
         // set point from the PC gains nothing. Every step (ramp or hold) is driven
@@ -2528,6 +2529,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             // The runner reports an absolute fraction across intro + all cycles + outro.
             double profileFraction = e.OverallFraction;
             ProfileProgress = Math.Clamp((indexInQueue + profileFraction) / queueCount * 100d, 0, 100);
+            UpdateEstimatedEndFromProgress(currentPlannedDuration, allProfiles, indexInQueue, profileFraction);
 
             // Only a plateau can be skipped (on SIKA every step is a jump-and-settle hold).
             IsOnHoldSegment = !e.Segment.IsRamp || IsSika;
@@ -2576,6 +2578,35 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         });
 
         await runner.RunAsync(profile, startTemp, startHum, token, resumeFrom);
+    }
+
+    /// <summary>
+    /// Keeps the displayed finish time tied to the runner's real position. A guaranteed-soak
+    /// wait happens before the configured plateau clock starts; using only start + planned
+    /// duration made that wait consume plateau time and caused a large correction when the
+    /// target was finally reached.
+    /// </summary>
+    private void UpdateEstimatedEndFromProgress(
+        TimeSpan currentPlannedDuration,
+        IReadOnlyList<TestProfile> queue,
+        int currentIndex,
+        double overallFraction)
+    {
+        double fraction = Math.Clamp(overallFraction, 0d, 1d);
+        long currentTicks = (long)Math.Round(currentPlannedDuration.Ticks * (1d - fraction));
+        long queuedTicks = queue
+            .Skip(currentIndex + 1)
+            .Sum(profile => PlannedDurationOf(profile).Ticks);
+        TimeSpan remaining = TimeSpan.FromTicks(Math.Max(0, currentTicks + queuedTicks));
+
+        _profileEstimatedEnd = DateTime.Now + remaining;
+        if (_profileActualStart is { } start)
+        {
+            DateTime end = _profileEstimatedEnd.Value;
+            ProfileScheduleText = $"Spustené {start:HH:mm:ss} · koniec ~ {DayFull(end)} {end:dd.MM.yyyy} {end:HH:mm:ss}";
+        }
+        RaiseGanttTimes();
+        UpdateCountdown();
     }
 
     private async Task WaitForScheduledStartAsync(CancellationToken token)
