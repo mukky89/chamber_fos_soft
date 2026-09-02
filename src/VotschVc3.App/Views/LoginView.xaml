@@ -49,7 +49,7 @@
                     <StackPanel Grid.Row="2">
                         <TextBlock Text="Riadenie laboratórnych zariadení" FontSize="26" FontFamily="Segoe UI Light"
                                    Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
-                        <TextBlock Text="Profily · grafy · alarmy · teplomery ASL F100 · audit · reporty"
+                        <TextBlock Text="Profily · grafy · alarmy · teplomery WIKA CTH7000 · audit · reporty"
                                    Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                 </Grid>
