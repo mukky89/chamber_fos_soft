@@ -23,6 +23,7 @@ public sealed class F100Client : IAsyncDisposable
     private CommunicationMode _communicationMode;
     private bool _queryInstrumentIdentified;
     private bool _remoteActive;
+    private SerialPortLease? _portLease;
     private int _disposeStarted;
 
     public F100Client(string portName, int baudRate = F100Protocol.DefaultBaudRate, bool allowQueryFallback = false)
@@ -49,10 +50,17 @@ public sealed class F100Client : IAsyncDisposable
         try
         {
             ThrowIfDisposing();
-            if (_port.IsOpen) return;
+            if (_port.IsOpen)
+            {
+                return;
+            }
 
+            SerialPortLease? lease = null;
             try
             {
+                // This lease is process-wide: a second F100Client or the diagnostic scanner
+                // cannot open/probe the same COM port while this client owns it.
+                lease = await SerialPortLease.AcquireAsync(_port.PortName, cancellationToken).ConfigureAwait(false);
                 await Task.Run(() =>
                 {
                     ThrowIfDisposing();
@@ -64,10 +72,16 @@ public sealed class F100Client : IAsyncDisposable
                 await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken).ConfigureAwait(false);
                 ThrowIfDisposing();
                 if (_port.IsOpen) _port.DiscardInBuffer();
+                _portLease = lease;
+                lease = null;
             }
             catch (UnauthorizedAccessException ex)
             {
-                throw new IOException($"Port {_port.PortName} je obsadený. Zatvor FOS4X, inú inštanciu aplikácie alebo inú diagnostiku, ktorá používa tento port, a skús pripojenie znova.", ex);
+                throw new SerialPortBusyException(_port.PortName, ex);
+            }
+            finally
+            {
+                lease?.Dispose();
             }
         }
         finally { _gate.Release(); }
@@ -121,6 +135,10 @@ public sealed class F100Client : IAsyncDisposable
                         WriteCommand(frame);
                         return ReadLine(cancellationToken);
                     }).ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(response))
+                    {
+                        throw new TimeoutException($"WIKA CTH7000 na {PortName} neposlal odpoveď v časovom limite.");
+                    }
                     AppLog.Info("CTH7000 USB RX", $"{PortName} [pokus {attempt}/2]: {FormatLog(response)}");
                     return response;
                 }
@@ -131,6 +149,10 @@ public sealed class F100Client : IAsyncDisposable
                 catch (TimeoutException ex)
                 {
                     last = ex;
+                }
+                catch (SerialPortBusyException)
+                {
+                    throw;
                 }
                 catch (IOException ex)
                 {
@@ -168,6 +190,10 @@ public sealed class F100Client : IAsyncDisposable
                 _port.Write(frame);
                 return ReadLine(cancellationToken);
             }).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                throw new TimeoutException($"WIKA CTH7000 na {PortName} neposlal odpoveď na {command}.");
+            }
             AppLog.Info("CTH7000 USB RX", $"{PortName} [scan]: {FormatLog(response)}");
             return response;
         }
@@ -286,7 +312,7 @@ public sealed class F100Client : IAsyncDisposable
         }
         catch (UnauthorizedAccessException ex)
         {
-            throw new IOException($"Port {_port.PortName} je po USB výpadku obsadený.", ex);
+            throw new SerialPortBusyException(_port.PortName, ex);
         }
     }
 
@@ -395,6 +421,9 @@ public sealed class F100Client : IAsyncDisposable
                 catch { }
                 _port.Dispose();
             }).ConfigureAwait(false);
+
+            _portLease?.Dispose();
+            _portLease = null;
         }
         finally { _gate.Release(); }
 
