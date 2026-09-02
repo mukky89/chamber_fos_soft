@@ -14,7 +14,7 @@
             <StackPanel Orientation="Horizontal">
                 <Button Content="← Domov" Command="{Binding DataContext.GoHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                 <StackPanel VerticalAlignment="Center" Margin="6,0,0,0">
-                    <TextBlock Text="Teplomery ASL F100" FontSize="17" FontFamily="Segoe UI Semibold" />
+                    <TextBlock Text="Teplomery WIKA CTH7000" FontSize="17" FontFamily="Segoe UI Semibold" />
                     <TextBlock Text="Pripojené cez USB (virtuálny COM port). Viacero kusov sa rozlíši podľa portu / sériového čísla."
                                Style="{StaticResource Caption}" />
                 </StackPanel>
@@ -40,7 +40,7 @@
                     <TextBlock Grid.Row="0" Text="Nájdené zariadenia" Style="{StaticResource Heading}" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
                              Style="{StaticResource ListWithEmptyHint}"
-                             Tag="Žiadne teplomery. Pripoj ASL F100 cez USB a klikni na „Vyhľadať zariadenia“.">
+                             Tag="Žiadne teplomery. Pripoj WIKA CTH7000 cez USB a klikni na „Vyhľadať zariadenia“.">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
