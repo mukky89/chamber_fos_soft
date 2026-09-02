@@ -227,13 +227,16 @@
                     <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
                         <Button Content="{Binding PauseResumeGlyph}" Style="{StaticResource IconActionButton}" Width="36" Height="32"
                                 Foreground="{StaticResource WarnBrush}" Command="{Binding PauseResumeProfileCommand}"
-                                ToolTip="Pozastaviť / pokračovať" />
+                                ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
+                                ToolTip="{Binding PauseResumeToolTip}" />
                         <Button Content="⏭" Style="{StaticResource IconActionButton}" Width="36" Height="32"
                                 Foreground="{StaticResource AccentBrush}" Command="{Binding SkipHoldCommand}"
-                                ToolTip="Ukončiť aktuálne plato a pokračovať na ďalší nábeh a plato." />
+                                ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
+                                ToolTip="Ukončiť aktuálne plato po potvrdení a pokračovať na ďalší krok. Počas nábehu je tlačidlo neaktívne." />
                         <Button Content="⏹" Style="{StaticResource IconActionButton}" Width="36" Height="32" Margin="0"
                                 Foreground="{StaticResource ErrorBrush}" Click="StopProfile_Click"
-                                ToolTip="Zastaviť profil" />
+                                ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
+                                ToolTip="Zastaviť celý profil a vypnúť výkon komory. Beh bude treba spustiť odznova." />
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -301,7 +304,8 @@
                                                  ToolTip="Vyber uložený profil, potom spusti ▶. V zozname sú len profily pre tento typ zariadenia (Vötsch / SIKA). Rad profilov, oneskorený štart a knižnica sú v Detail →." />
                             <Button Grid.Column="1" Content="▶" Style="{StaticResource IconActionButton}" Width="36" Height="32" Margin="8,0,0,0"
                                     Foreground="{StaticResource OkBrush}" Click="StartProfile_Click"
-                                    ToolTip="Spustiť vybraný profil" />
+                                    ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
+                                    ToolTip="Spustiť vybraný profil od prvého kroku. Tlačidlo je aktívne po výbere profilu, pripojení a odomknutí zariadenia." />
                         </Grid>
                     </StackPanel>
                 </Border>

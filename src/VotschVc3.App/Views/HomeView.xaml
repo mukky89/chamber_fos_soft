@@ -791,12 +791,14 @@
                                                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                                                     <Button Style="{StaticResource TransportButton}"
                                                             Foreground="{StaticResource OkBrush}" Command="{Binding StartSelectedProfileCommand}"
-                                                            ToolTip="Spustiť vybraný profil">
+                                                            ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
+                                                            ToolTip="Spustiť vybraný profil od prvého kroku s počtom cyklov nastaveným vpravo. Tlačidlo je aktívne po výbere profilu, pripojení a odomknutí zariadenia.">
                                                         <Path Style="{StaticResource TransportIcon}" Data="{StaticResource Icon.Play}" />
                                                     </Button>
                                                     <Button Style="{StaticResource TransportButton}"
                                                             Foreground="{StaticResource WarnBrush}" Command="{Binding PauseResumeProfileCommand}"
-                                                            ToolTip="Pozastaviť / pokračovať">
+                                                            ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
+                                                            ToolTip="{Binding PauseResumeToolTip}">
                                                         <Path>
                                                             <Path.Style>
                                                                 <Style TargetType="Path" BasedOn="{StaticResource TransportIcon}">
@@ -812,12 +814,14 @@
                                                     </Button>
                                                     <Button Style="{StaticResource TransportButton}"
                                                             Foreground="{StaticResource AccentBrush}" Command="{Binding SkipHoldCommand}"
+                                                            ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
                                                             ToolTip="Ukončiť aktuálne plato a pokračovať na ďalší nábeh a plato. Zvyšok profilu zostáva nezmenený; počas nábehu je tlačidlo neaktívne.">
                                                         <Path Style="{StaticResource TransportIcon}" Data="{StaticResource Icon.SkipNext}" />
                                                     </Button>
                                                     <Button Style="{StaticResource TransportButton}" Margin="0"
                                                             Foreground="{StaticResource ErrorBrush}" Command="{Binding StopProfileCommand}"
-                                                            ToolTip="Zastaviť profil – čas aj graf sa vynulujú">
+                                                            ToolTipService.ShowOnDisabled="True" ToolTipService.InitialShowDelay="250"
+                                                            ToolTip="Zastaviť celý profil a vypnúť výkon komory. Čas aj graf sa vynulujú a profil bude treba spustiť odznova.">
                                                         <Path Style="{StaticResource TransportIcon}" Data="{StaticResource Icon.Stop}" />
                                                     </Button>
                                                 </StackPanel>

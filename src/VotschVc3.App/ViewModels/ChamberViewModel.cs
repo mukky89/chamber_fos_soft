@@ -1340,11 +1340,22 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public bool IsProfilePaused
     {
         get => _isProfilePaused;
-        private set { if (SetProperty(ref _isProfilePaused, value)) OnPropertyChanged(nameof(PauseResumeGlyph)); }
+        private set
+        {
+            if (SetProperty(ref _isProfilePaused, value))
+            {
+                OnPropertyChanged(nameof(PauseResumeGlyph));
+                OnPropertyChanged(nameof(PauseResumeToolTip));
+            }
+        }
     }
 
     /// <summary>Glyph for the single pause/resume button (▶ when paused, ⏸ while running).</summary>
     public string PauseResumeGlyph => IsProfilePaused ? "▶" : "⏸";
+
+    public string PauseResumeToolTip => IsProfilePaused
+        ? "Pokračovať v pozastavenom profile od aktuálneho kroku."
+        : "Pozastaviť profil. Komora zostane držať aktuálny setpoint a celkový čas sa predĺži o dobu pauzy.";
 
     private bool _manualStarted;
 
