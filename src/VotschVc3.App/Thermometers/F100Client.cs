@@ -24,10 +24,7 @@ public sealed class F100Client : IAsyncDisposable
     private bool _remoteActive;
     private int _disposeStarted;
 
-    public F100Client(
-        string portName,
-        int baudRate = F100Protocol.DefaultBaudRate,
-        bool allowQueryFallback = false)
+    public F100Client(string portName, int baudRate = F100Protocol.DefaultBaudRate, bool allowQueryFallback = false)
     {
         _allowQueryFallback = allowQueryFallback;
         _port = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
@@ -40,7 +37,7 @@ public sealed class F100Client : IAsyncDisposable
         };
     }
 
-    public bool IsOpen => !_port.IsDisposed && _port.IsOpen;
+    public bool IsOpen => _port.IsOpen;
     public string InstrumentIdentity { get; private set; } = string.Empty;
     public string PortName => _port.PortName;
 
@@ -55,8 +52,6 @@ public sealed class F100Client : IAsyncDisposable
 
             try
             {
-                // Do the open and buffer reset while holding the same gate used by every
-                // read/write. Dispose cannot close the handle until this operation finishes.
                 await Task.Run(() =>
                 {
                     ThrowIfDisposing();
@@ -71,8 +66,7 @@ public sealed class F100Client : IAsyncDisposable
             }
             catch (UnauthorizedAccessException ex)
             {
-                throw new IOException(
-                    $"Port {_port.PortName} je obsadený. Zatvor FOS4X, inú inštanciu aplikácie alebo inú diagnostiku, ktorá používa tento port, a skús pripojenie znova.", ex);
+                throw new IOException($"Port {_port.PortName} je obsadený. Zatvor FOS4X, inú inštanciu aplikácie alebo inú diagnostiku, ktorá používa tento port, a skús pripojenie znova.", ex);
             }
         }
         finally
@@ -99,13 +93,9 @@ public sealed class F100Client : IAsyncDisposable
         {
             ThrowIfDisposing();
             EnsurePortOpen();
-            // Keep the gate until the actual synchronous write has completed.
             await Task.Run(() => WriteCommand(F100Protocol.Frame(command))).ConfigureAwait(false);
         }
-        finally
-        {
-            _gate.Release();
-        }
+        finally { _gate.Release(); }
     }
 
     public async Task<string> SendReceiveAsync(string command, CancellationToken cancellationToken = default)
@@ -117,9 +107,6 @@ public sealed class F100Client : IAsyncDisposable
         {
             ThrowIfDisposing();
             EnsurePortOpen();
-            // Do not pass the cancellation token to Task.Run. If the token cancels, the
-            // operation must still finish before the gate is released; otherwise DisposeAsync
-            // could close SerialPort while this worker is still inside ReadByte/Write.
             return await Task.Run(() =>
             {
                 ThrowIfDisposing();
@@ -128,10 +115,7 @@ public sealed class F100Client : IAsyncDisposable
                 return ReadLine(cancellationToken);
             }).ConfigureAwait(false);
         }
-        finally
-        {
-            _gate.Release();
-        }
+        finally { _gate.Release(); }
     }
 
     private async Task<string> SendReceiveAtomicAsync(string command, CancellationToken cancellationToken)
@@ -144,18 +128,15 @@ public sealed class F100Client : IAsyncDisposable
             EnsurePortOpen();
             return await Task.Run(() =>
             {
-                // This is the critical race fix: a scan can no longer write to a SerialPort
-                // whose DisposeAsync has already started or completed. Dispose waits on _gate.
+                // Critical race fix: scan/identify and DisposeAsync cannot use/close the
+                // SerialPort simultaneously because both operations own the same gate.
                 ThrowIfDisposing();
                 EnsurePortOpen();
                 _port.Write(F100Protocol.Frame(command));
                 return ReadLine(cancellationToken);
             }).ConfigureAwait(false);
         }
-        finally
-        {
-            _gate.Release();
-        }
+        finally { _gate.Release(); }
     }
 
     public async Task<ThermometerReading> ReadAsync(string readCommand, CancellationToken cancellationToken = default)
@@ -164,10 +145,7 @@ public sealed class F100Client : IAsyncDisposable
         return F100Protocol.ParseReading(response);
     }
 
-    public async Task<ThermometerReading> ReadChannelAsync(
-        string channel,
-        string fallbackReadCommand = F100Protocol.DefaultReadCommand,
-        CancellationToken cancellationToken = default)
+    public async Task<ThermometerReading> ReadChannelAsync(string channel, string fallbackReadCommand = F100Protocol.DefaultReadCommand, CancellationToken cancellationToken = default)
     {
         string normalized = F100Protocol.NormalizeChannel(channel);
 
@@ -183,8 +161,7 @@ public sealed class F100Client : IAsyncDisposable
             }
             else
             {
-                return new ThermometerReading(DateTimeOffset.Now, null, string.Empty,
-                    $"{PortName}: WIKA CTH7000 neodpovedal na *IDN?.");
+                return new ThermometerReading(DateTimeOffset.Now, null, string.Empty, $"{PortName}: WIKA CTH7000 neodpovedal na *IDN?.");
             }
         }
 
@@ -202,15 +179,13 @@ public sealed class F100Client : IAsyncDisposable
         bool queryCapable = _queryInstrumentIdentified;
         if (!_allowQueryFallback && !queryCapable)
         {
-            return new ThermometerReading(DateTimeOffset.Now, null, string.Empty,
-                $"{PortName}: zariadenie neodpovedalo na *IDN?. Skontroluj USB spojenie a WIKA CTH7000.");
+            return new ThermometerReading(DateTimeOffset.Now, null, string.Empty, $"{PortName}: zariadenie neodpovedalo na *IDN?. Skontroluj USB spojenie a WIKA CTH7000.");
         }
 
         if (queryCapable) await EnsureRemoteAsync(cancellationToken).ConfigureAwait(false);
         _communicationMode = CommunicationMode.Query;
 
-        string response = await SendReceiveAsync(
-            F100Protocol.BuildMeasureChannelCommand(normalized), cancellationToken).ConfigureAwait(false);
+        string response = await SendReceiveAsync(F100Protocol.BuildMeasureChannelCommand(normalized), cancellationToken).ConfigureAwait(false);
         ThermometerReading direct = F100Protocol.ParseReading(response);
         if (!F100Protocol.IsErrorResponse(response) && direct.Temperature is not null) return direct;
         if (_queryInstrumentIdentified) return direct;
@@ -220,17 +195,13 @@ public sealed class F100Client : IAsyncDisposable
         return await ReadAsync(fallbackReadCommand, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<(string Channel, ThermometerReading Reading)> ReadAvailableChannelAsync(
-        string preferredChannel,
-        string fallbackReadCommand = F100Protocol.DefaultReadCommand,
-        CancellationToken cancellationToken = default)
+    public async Task<(string Channel, ThermometerReading Reading)> ReadAvailableChannelAsync(string preferredChannel, string fallbackReadCommand = F100Protocol.DefaultReadCommand, CancellationToken cancellationToken = default)
     {
         try
         {
             string preferred = F100Protocol.NormalizeChannel(preferredChannel) == "B" ? "B" : "A";
             ThermometerReading first = await ReadChannelAsync(preferred, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
-            if (first.Temperature is not null || _communicationMode != CommunicationMode.Query)
-                return (preferred, first);
+            if (first.Temperature is not null || _communicationMode != CommunicationMode.Query) return (preferred, first);
 
             string alternate = preferred == "A" ? "B" : "A";
             ThermometerReading second = await ReadChannelAsync(alternate, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
@@ -245,14 +216,8 @@ public sealed class F100Client : IAsyncDisposable
     public async Task ReturnToLocalIfSupportedAsync(CancellationToken cancellationToken = default)
     {
         if (_communicationMode != CommunicationMode.Query || !_remoteActive) return;
-        try
-        {
-            await SendAsync(F100Protocol.LocalCommand, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _remoteActive = false;
-        }
+        try { await SendAsync(F100Protocol.LocalCommand, cancellationToken).ConfigureAwait(false); }
+        finally { _remoteActive = false; }
     }
 
     private async Task EnsureRemoteAsync(CancellationToken cancellationToken)
@@ -264,8 +229,7 @@ public sealed class F100Client : IAsyncDisposable
     }
 
     private static bool IsSupportedQueryInstrument(string identity) =>
-        !string.IsNullOrWhiteSpace(identity) &&
-        !F100Protocol.IsErrorResponse(identity) &&
+        !string.IsNullOrWhiteSpace(identity) && !F100Protocol.IsErrorResponse(identity) &&
         (identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase) ||
          identity.Contains("F150", StringComparison.OrdinalIgnoreCase) ||
          identity.Contains("F250", StringComparison.OrdinalIgnoreCase));
@@ -289,17 +253,12 @@ public sealed class F100Client : IAsyncDisposable
                     lastRaw = raw;
                     ThermometerReading reading = F100Protocol.ParseReading(raw);
                     string? frameChannel = F100Protocol.DetectTalkOnlyChannel(raw);
-                    if (reading.Temperature is not null &&
-                        (frameChannel is null || string.Equals(frameChannel, channel, StringComparison.Ordinal)))
-                        return reading;
+                    if (reading.Temperature is not null && (frameChannel is null || string.Equals(frameChannel, channel, StringComparison.Ordinal))) return reading;
                 }
                 return new ThermometerReading(DateTimeOffset.Now, null, string.Empty, lastRaw);
             }).ConfigureAwait(false);
         }
-        finally
-        {
-            _gate.Release();
-        }
+        finally { _gate.Release(); }
     }
 
     private void WriteCommand(string text)
@@ -310,7 +269,6 @@ public sealed class F100Client : IAsyncDisposable
             _port.Write(text);
             return;
         }
-
         foreach (char c in text)
         {
             EnsurePortOpen();
@@ -343,22 +301,18 @@ public sealed class F100Client : IAsyncDisposable
 
     private void EnsurePortOpen()
     {
-        if (!_port.IsOpen)
-            throw new IOException($"USB COM port {_port.PortName} je zatvorený alebo bol odpojený.");
+        if (!_port.IsOpen) throw new IOException($"USB COM port {_port.PortName} je zatvorený alebo bol odpojený.");
     }
 
     private void ThrowIfDisposing()
     {
-        if (Volatile.Read(ref _disposeStarted) != 0)
-            throw new ObjectDisposedException(nameof(F100Client), "Komunikácia s WIKA CTH7000 sa zatvára.");
+        if (Volatile.Read(ref _disposeStarted) != 0) throw new ObjectDisposedException(nameof(F100Client), "Komunikácia s WIKA CTH7000 sa zatvára.");
     }
 
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposeStarted, 1) != 0) return;
 
-        // Every read/write owns _gate for its entire synchronous SerialPort operation.
-        // Therefore the port cannot be closed underneath SendReceiveAtomicAsync anymore.
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -372,10 +326,7 @@ public sealed class F100Client : IAsyncDisposable
                 _port.Dispose();
             }).ConfigureAwait(false);
         }
-        finally
-        {
-            _gate.Release();
-        }
+        finally { _gate.Release(); }
 
         _gate.Dispose();
     }
