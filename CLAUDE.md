@@ -1,6 +1,6 @@
 # CLAUDE.md — chamber_fos_soft (VotschVc3)
 
-Riadiaci softvér pre klimatické komory Vötsch/Weiss (kontrolér S!MPAC/SIMPAC, protokol ASCII-2) a PolEko, používaný pri kalibrácii/testovaní FBG senzorov v SYLEX. Číta aj presné teplomery ASL F100 cez USB.
+Riadiaci softvér pre klimatické komory Vötsch/Weiss (kontrolér S!MPAC/SIMPAC, protokol ASCII-2) a PolEko, používaný pri kalibrácii/testovaní FBG senzorov v SYLEX. Číta aj presné teplomery WIKA CTH7000 cez USB.
 
 ## Stack
 - .NET 8, WPF (`net8.0-windows`), MVVM, tmavá téma
@@ -14,7 +14,7 @@ Riadiaci softvér pre klimatické komory Vötsch/Weiss (kontrolér S!MPAC/SIMPAC
   - `Profiles/` — TestProfile, ProfileSegment, ProfileRunner, ProfileStore, ChamberConfig
   - `Recording/` — CsvRecorder, RecordingReader
   - `Security/` — User, UserStore, AuditLog
-  - `Thermometers/` — F100Protocol
+  - `Thermometers/` — CTH7000Protocol
   - `Notifications/` — EmailNotifier, EmailSettings
   - `Calibration/` — FBG calibration orchestration, PeakLogger, production metadata abstraction and Sylex FOS API client
 - `src/VotschVc3.App/` — WPF UI
@@ -54,7 +54,7 @@ Produkčné SN obsahuje `/`, preto sa prenáša ako query parameter, nie route s
 - ⚠️ Softvér ovláda reálne zariadenie dosahujúce extrémne teploty. Zmeny v setpointoch, mapovaní kanálov, alarm limitoch alebo watchdogu rob opatrne a over na bezpečných hodnotách.
 - Komora 1 = VC3 (teplota + vlhkosť), Komora 2 = VT3 (len teplota) — nezamieňaj.
 - Konfigurácia a heslá sa **neukladajú do repa** — persistujú do `Dokumenty/VotschVc3/` alebo bezpečného workstation secret mechanizmu. Necommituj testovacie IP adresy, API keys ani heslá zákazníkov.
-- Po významnej zmene: záznam do `CHANGELOG.md` (Keep a Changelog, slovenčina) + zváž bump verzie (zobrazuje sa v README aj v appke).
+- Po významnej zmene: záznam do `CHANGELOG.md` (Keep a Changelog, slovenčina) + bump verzie podľa `.claude/skills/release`.
 - README a CHANGELOG sú po slovensky — drž sa toho aj v texte smerom k používateľovi.
 
 ## Časté príkazy
