@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Management;
 using System.Text.RegularExpressions;
+using VotschVc3.Core.Thermometers;
 
 namespace VotschVc3.App.Thermometers;
 
