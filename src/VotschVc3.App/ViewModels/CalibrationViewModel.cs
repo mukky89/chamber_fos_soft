@@ -34,6 +34,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private CancellationTokenSource? _setupAutosaveCts;
     private CalibrationRunRecord? _activeRun;
     private CalibrationRunWriter? _activeWriter;
+    private readonly SemaphoreSlim _wavelengthTraceGate = new(1, 1);
+    private DateTimeOffset _nextWavelengthTraceAt = DateTimeOffset.MinValue;
     private CalibrationSetup _setup = new();
     private bool _stopRequested;
     private double? _lastChamberTemperatureC;
@@ -371,6 +373,30 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         get => _setup.Settings.RequiredStableSamples;
         set { _setup.Settings.RequiredStableSamples = Math.Clamp(value, 2, 10000); OnPropertyChanged(); }
+    }
+
+    public bool EnableWavelengthAveraging
+    {
+        get => _setup.Settings.EnableWavelengthAveraging;
+        set { _setup.Settings.EnableWavelengthAveraging = value; OnPropertyChanged(); }
+    }
+
+    public int WavelengthAveragingSamples
+    {
+        get => _setup.Settings.WavelengthAveragingSamples;
+        set { _setup.Settings.WavelengthAveragingSamples = Math.Clamp(value, 1, 1000); OnPropertyChanged(); }
+    }
+
+    public bool EnableWavelengthTraceLogging
+    {
+        get => _setup.Settings.EnableWavelengthTraceLogging;
+        set { _setup.Settings.EnableWavelengthTraceLogging = value; OnPropertyChanged(); }
+    }
+
+    public int WavelengthTraceIntervalSeconds
+    {
+        get => _setup.Settings.WavelengthTraceIntervalSeconds;
+        set { _setup.Settings.WavelengthTraceIntervalSeconds = Math.Clamp(value, 1, 86400); OnPropertyChanged(); }
     }
 
     public double MaxRangePm
@@ -803,16 +829,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                     IReadOnlyList<PeakLoggerMeasurement> measurements = await _peakLogger.ReadMeasurementsAsync(token);
                     await Application.Current.Dispatcher.InvokeAsync(() => ApplyLivePeakMeasurements(measurements));
 
-                    CalibrationRunWriter? writer = _activeWriter;
-                    CalibrationRunRecord? run = _activeRun;
-                    if (writer is not null && run is not null && IsRunning)
-                    {
-                        List<CalibrationWavelengthTraceSample> trace = BuildTraceSamples(run, measurements);
-                        if (trace.Count > 0)
-                        {
-                            await writer.AppendWavelengthTraceAsync(trace, token);
-                        }
-                    }
+                    await AppendWavelengthTraceIfDueAsync(measurements, force: false, token);
                 }
             }
             catch (OperationCanceledException)
@@ -832,6 +849,33 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             {
                 break;
             }
+        }
+    }
+
+    private async Task AppendWavelengthTraceIfDueAsync(
+        IReadOnlyList<PeakLoggerMeasurement> measurements,
+        bool force,
+        CancellationToken token)
+    {
+        if (!_setup.Settings.EnableWavelengthTraceLogging || !IsRunning) return;
+
+        await _wavelengthTraceGate.WaitAsync(token);
+        try
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (!force && now < _nextWavelengthTraceAt) return;
+            CalibrationRunWriter? writer = _activeWriter;
+            CalibrationRunRecord? run = _activeRun;
+            if (writer is null || run is null) return;
+
+            List<CalibrationWavelengthTraceSample> trace = BuildTraceSamples(run, measurements);
+            if (trace.Count == 0) return;
+            await writer.AppendWavelengthTraceAsync(trace, token);
+            _nextWavelengthTraceAt = now.AddSeconds(Math.Clamp(_setup.Settings.WavelengthTraceIntervalSeconds, 1, 86400));
+        }
+        finally
+        {
+            _wavelengthTraceGate.Release();
         }
     }
 
@@ -1258,8 +1302,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 ReferenceThermometerChannel = SelectedF100 is null ? string.Empty : SelectedF100Channel,
             };
 
+            _nextWavelengthTraceAt = DateTimeOffset.MaxValue;
             await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun);
             _activeWriter = writer;
+            if (_setup.Settings.EnableWavelengthTraceLogging)
+            {
+                IReadOnlyList<PeakLoggerMeasurement> firstMeasurements = await _peakLogger.ReadMeasurementsAsync(_runCts.Token);
+                await Application.Current.Dispatcher.InvokeAsync(() => ApplyLivePeakMeasurements(firstMeasurements));
+                await AppendWavelengthTraceIfDueAsync(firstMeasurements, force: true, _runCts.Token);
+            }
             var orchestrator = new CalibrationOrchestrator(_peakLogger);
             orchestrator.WarningRaised += warning =>
             {
@@ -1484,6 +1535,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private void RefreshSettingsBindings()
     {
+        OnPropertyChanged(nameof(EnableWavelengthAveraging));
+        OnPropertyChanged(nameof(WavelengthAveragingSamples));
+        OnPropertyChanged(nameof(EnableWavelengthTraceLogging));
+        OnPropertyChanged(nameof(WavelengthTraceIntervalSeconds));
         OnPropertyChanged(nameof(RequiredStableSamples));
         OnPropertyChanged(nameof(MaxRangePm));
         OnPropertyChanged(nameof(MaxStdDevPm));

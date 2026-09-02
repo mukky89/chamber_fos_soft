@@ -67,6 +67,11 @@ public sealed class PeakLoggerSettings
 
 public sealed class CalibrationProfileSettings
 {
+    public bool EnableWavelengthAveraging { get; set; }
+    public int WavelengthAveragingSamples { get; set; } = 1;
+    public bool EnableWavelengthTraceLogging { get; set; } = true;
+    public int WavelengthTraceIntervalSeconds { get; set; } = 30;
+
     public int RequiredStableSamples { get; set; } = 50;
 
     /// <summary>0 disables the criterion. Unit: pm.</summary>

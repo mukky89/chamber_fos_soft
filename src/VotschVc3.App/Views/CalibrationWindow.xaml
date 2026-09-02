@@ -488,6 +488,13 @@
             <TabItem Header="Nastavenia stability">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Meranie a priebežný log" Style="{StaticResource Heading}" Margin="0,0,0,8" />
+                        <WrapPanel Margin="0,0,0,12">
+                            <CheckBox Content="Priemerovať wavelength vzorky" IsChecked="{Binding EnableWavelengthAveraging}" VerticalAlignment="Center" Margin="0,0,18,12" />
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Počet vzoriek na priemer" Style="{StaticResource Label}"/><TextBox Width="160" Text="{Binding WavelengthAveragingSamples, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                            <CheckBox Content="Zapisovať samostatný wavelength log" IsChecked="{Binding EnableWavelengthTraceLogging}" VerticalAlignment="Center" Margin="0,0,18,12" />
+                            <StackPanel Margin="0,0,18,12"><TextBlock Text="Interval logu [s]" Style="{StaticResource Label}"/><TextBox Width="140" Text="{Binding WavelengthTraceIntervalSeconds, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                        </WrapPanel>
                         <TextBlock Text="Stabilita wavelength" Style="{StaticResource Heading}" Margin="0,0,0,8" />
                         <WrapPanel>
                             <StackPanel Margin="0,0,18,12"><TextBlock Text="Počet stabilných samples" Style="{StaticResource Label}"/><TextBox Width="150" Text="{Binding RequiredStableSamples, UpdateSourceTrigger=LostFocus}"/></StackPanel>

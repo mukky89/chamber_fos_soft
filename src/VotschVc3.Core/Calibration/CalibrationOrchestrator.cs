@@ -241,6 +241,7 @@ public sealed class CalibrationOrchestrator
                     continue;
                 }
 
+                measurement = tracker.ApplyAveraging(measurement);
                 tracker.MarkMeasurement(measurement);
                 CalibrationRawSample raw = CreateRawSample(
                     run,
@@ -459,10 +460,15 @@ public sealed class CalibrationOrchestrator
     {
         private DateTimeOffset? _missingSince;
         private readonly Stopwatch _clock = Stopwatch.StartNew();
+        private readonly int _averagingSamples;
+        private readonly Queue<PeakLoggerMeasurement> _averagingWindow = new();
 
         public TargetTracker(CalibrationSensorMapping mapping, CalibrationProfileSettings settings)
         {
             Mapping = mapping;
+            _averagingSamples = settings.EnableWavelengthAveraging
+                ? Math.Clamp(settings.WavelengthAveragingSamples, 1, 1000)
+                : 1;
             Detector = new RollingStabilityDetector(
                 settings.RequiredStableSamples,
                 settings.MaxWavelengthRangePm,
@@ -488,6 +494,23 @@ public sealed class CalibrationOrchestrator
                      CalibrationTargetState.Disconnected or
                      CalibrationTargetState.Overridden or
                      CalibrationTargetState.Failed;
+
+        public PeakLoggerMeasurement ApplyAveraging(PeakLoggerMeasurement measurement)
+        {
+            if (_averagingSamples <= 1) return measurement;
+
+            _averagingWindow.Enqueue(measurement);
+            while (_averagingWindow.Count > _averagingSamples) _averagingWindow.Dequeue();
+
+            double? intensity = _averagingWindow.Any(sample => sample.Intensity.HasValue)
+                ? _averagingWindow.Where(sample => sample.Intensity.HasValue).Average(sample => sample.Intensity!.Value)
+                : null;
+            return measurement with
+            {
+                WavelengthNm = _averagingWindow.Average(sample => sample.WavelengthNm),
+                Intensity = intensity,
+            };
+        }
 
         public void MarkMeasurement(PeakLoggerMeasurement measurement)
         {
