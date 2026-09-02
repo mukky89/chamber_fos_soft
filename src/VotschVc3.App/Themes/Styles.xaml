@@ -181,6 +181,12 @@
         <Setter Property="Margin" Value="0,0,8,0" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+        <Setter Property="RenderTransform">
+            <Setter.Value>
+                <ScaleTransform ScaleX="1" ScaleY="1" />
+            </Setter.Value>
+        </Setter>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -188,11 +194,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8" SnapsToDevicePixels="True"
-                            RenderTransformOrigin="0.5,0.5">
-                        <Border.RenderTransform>
-                            <ScaleTransform x:Name="Sc" ScaleX="1" ScaleY="1" />
-                        </Border.RenderTransform>
+                            CornerRadius="8" SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}" TextElement.FontFamily="Segoe UI" />
                     </Border>
@@ -200,22 +202,6 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource BorderBrush}" />
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                            <Trigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1.035" Duration="0:0:0.11" />
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1.035" Duration="0:0:0.11" />
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.EnterActions>
-                            <Trigger.ExitActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.11" />
-                                        <DoubleAnimation Storyboard.TargetName="Sc" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.11" />
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.ExitActions>
                         </Trigger>
                         <!-- Keyboard focus must be visible (operators tab through forms). -->
                         <Trigger Property="IsKeyboardFocused" Value="True">
@@ -232,6 +218,30 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="IsMouseOver" Value="True" />
+                    <Condition Property="IsEnabled" Value="True" />
+                </MultiTrigger.Conditions>
+                <MultiTrigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1.035" Duration="0:0:0.11" />
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1.035" Duration="0:0:0.11" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </MultiTrigger.EnterActions>
+                <MultiTrigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.11" />
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.11" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </MultiTrigger.ExitActions>
+            </MultiTrigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Primary / accent button with soft glow -->
