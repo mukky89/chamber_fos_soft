@@ -32,17 +32,21 @@ For **every code change** in this repository:
 4. If a change is significant, also add/update a dedicated `CHANGELOG_<version>.md` release note.
 5. Verify the version and changelog are on `main` before reporting completion.
 
-Current baseline at the time this guide was created: `1.76.6`.
+Current baseline at the time of this change: `1.76.8`.
 
 ## USB / WIKA CTH7000 rules
 
 Serial communication is safety- and reliability-sensitive.
 
-### Concurrency
+### Concurrency and COM ownership
 
 - All physical `SerialPort` operations must be serialized.
 - Never allow scan, identify, read, reconnect, or dispose to close/write the same port concurrently.
-- Keep the port lifecycle under one synchronization gate.
+- Keep each client's port lifecycle under its own synchronization gate.
+- In addition, use the process-wide `SerialPortLease` so two `F100Client` instances or diagnostics cannot open/probe the same COM port concurrently.
+- A live client keeps its COM lease for the complete open lifetime and releases it only after the physical port is closed/disposed.
+- Diagnostic probing must acquire the same lease and skip a port already owned by the live application.
+- `UnauthorizedAccessException` from `SerialPort.Open()` means the COM port is externally busy; report it as an occupied port rather than pretending it is a normal transient read failure.
 - Disposal must wait for an in-flight operation before closing the port.
 - Check the disposing state before scheduling work and again inside the worker operation.
 
@@ -53,6 +57,7 @@ Serial communication is safety- and reliability-sensitive.
 - Opening a port should clear stale RX/TX state before communication.
 - Reconnect after a temporary USB/COM failure should close safely, reopen, and clear stale RX data before retrying.
 - Do not assume a COM number remains present after a USB disconnect/reconnect.
+- A port held by another process must not crash the application or cause a reconnect loop; the operator should get a clear busy/occupied state.
 
 ### Timeouts and UI
 
@@ -76,8 +81,11 @@ Serial communication is safety- and reliability-sensitive.
 
 - `src/VotschVc3.App/Thermometers/F100Client.cs`
   - Owns physical CTH7000 serial communication.
-  - Uses synchronization around the `SerialPort` lifecycle.
+  - Uses per-client synchronization plus process-wide COM ownership.
   - Contains retry/reconnect and TX/RX diagnostics.
+- `src/VotschVc3.App/Thermometers/SerialPortLease.cs`
+  - Provides process-wide ownership of physical COM ports.
+  - Shared by live thermometer clients and diagnostic probes.
 - `src/VotschVc3.App/Thermometers/SerialPortEnumerator.cs`
   - Enumerates COM ports and supports automatic/manual selection and device probing.
 - `src/VotschVc3.App/ViewModels/ThermometersViewModel.cs`
@@ -121,6 +129,9 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] Automatic COM scan works.
 - [ ] Manual COM selection still works.
 - [ ] Opening an already-present CTH7000 succeeds.
+- [ ] Two clients in one process cannot open the same COM port concurrently.
+- [ ] Diagnostic scanning cannot steal a COM port from a live thermometer client.
+- [ ] A COM port held by another process is reported as OBSADENÝ instead of crashing the app.
 - [ ] Disconnect/reconnect does not race with an in-flight write/read.
 - [ ] RX/TX buffers are cleared at the correct lifecycle points.
 - [ ] Query timeout cannot freeze the UI.
