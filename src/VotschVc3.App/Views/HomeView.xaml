@@ -206,7 +206,7 @@
                     <Button Style="{StaticResource NavButton}" Command="{Binding OpenThermometersCommand}">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Thermometer}" />
-                            <TextBlock Text="Teplomery ASL F100" Style="{StaticResource IconLabel}" />
+                            <TextBlock Text="Teplomery WIKA CTH7000" Style="{StaticResource IconLabel}" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource NavButton}" Command="{Binding OpenRecordingViewerCommand}">
