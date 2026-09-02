@@ -129,7 +129,7 @@ public sealed class QuickProfileViewModel : ObservableObject
     {
         Guid? previously = SelectedLibraryProfile?.Id;
         LibraryProfiles.Clear();
-        foreach (TestProfile p in _store.LoadAll().OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
+        foreach (TestProfile p in _store.LoadActive().OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
         {
             LibraryProfiles.Add(p);
         }
@@ -1892,7 +1892,7 @@ public sealed class QuickProfileViewModel : ObservableObject
     }
 
     /// <summary>Delete button caption reflecting the confirmation state.</summary>
-    public string DeleteButtonText => IsDeleteArmed ? "Naozaj vymazať?" : "Vymazať z knižnice";
+    public string DeleteButtonText => IsDeleteArmed ? "Naozaj archivovať?" : "Archivovať profil";
 
     private void DisarmDelete()
     {
@@ -1905,28 +1905,28 @@ public sealed class QuickProfileViewModel : ObservableObject
     private void DeleteFromLibrary()
     {
         string name = (ProfileName ?? string.Empty).Trim();
-        TestProfile? existing = _store.LoadAll()
+        TestProfile? existing = _store.LoadActive()
             .FirstOrDefault(p => string.Equals(p.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
         if (existing is null)
         {
             IsSaveSuccess = false;
-            Status = $"Profil „{name}“ nie je v knižnici – niet čo vymazať.";
+            Status = $"Profil „{name}“ nie je v aktívnej knižnici – niet čo archivovať.";
             return;
         }
 
         bool confirmed = Views.ConfirmDialog.Ask(
-            $"Naozaj vymazať profil „{existing.Name}“ z knižnice? Túto akciu nie je možné vrátiť.",
-            "Vymazať profil",
-            "Vymazať");
+            $"Archivovať profil „{existing.Name}“? Zmizne z bežných zoznamov a neskôr ho môžeš obnoviť v Zozname profilov.",
+            "Archivovať profil",
+            "Archivovať");
         if (!confirmed)
         {
-            Status = "Mazanie zrušené.";
+            Status = "Archivácia zrušená.";
             return;
         }
 
-        _store.Delete(existing.Id);
+        _store.SetArchived(existing, true);
         RefreshLibraryProfiles();
         IsSaveSuccess = false;
-        Status = $"Profil „{existing.Name}“ vymazaný z knižnice.";
+        Status = $"Profil „{existing.Name}“ presunutý do archívu.";
     }
 }

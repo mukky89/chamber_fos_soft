@@ -98,6 +98,12 @@ public sealed class ProfileStore
         }
     }
 
+    /// <summary>Loads profiles available for normal selection and execution.</summary>
+    public List<TestProfile> LoadActive() => LoadAll().Where(profile => !profile.IsArchived).ToList();
+
+    /// <summary>Loads profiles moved out of normal selection.</summary>
+    public List<TestProfile> LoadArchived() => LoadAll().Where(profile => profile.IsArchived).ToList();
+
     /// <summary>
     /// Persists only the picker pin state without making the profile appear newly edited.
     /// </summary>
@@ -105,6 +111,24 @@ public sealed class ProfileStore
     {
         ArgumentNullException.ThrowIfNull(profile);
         profile.IsFavorite = isFavorite;
+        lock (_sync)
+        {
+            MigrateLegacyNoLock();
+            List<TestProfile> all = LoadAllNoLock();
+            List<TestProfile> others = all.Where(p => p.Id != profile.Id).ToList();
+            EnsureCode(profile, others);
+            string? previous = FindFileNoLock(profile.Id);
+            string target = WriteOneNoLock(profile, others);
+            if (previous is not null && !PathsEqual(previous, target)) TryDelete(previous);
+            InvalidateNoLock();
+        }
+    }
+
+    /// <summary>Archives or restores a profile without changing its edit timestamp.</summary>
+    public void SetArchived(TestProfile profile, bool isArchived)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        profile.IsArchived = isArchived;
         lock (_sync)
         {
             MigrateLegacyNoLock();

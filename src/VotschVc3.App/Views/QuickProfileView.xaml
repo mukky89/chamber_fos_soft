@@ -537,9 +537,9 @@
                     <Button Margin="0" HorizontalAlignment="Stretch" Content="↺ Nový / začať odznova"
                             Style="{StaticResource GhostButton}" Command="{Binding NewCommand}"
                             ToolTip="Vynuluje všetky parametre na predvolené hodnoty." />
-                    <Button Margin="0,8,0,0" HorizontalAlignment="Stretch" Content="Vymazať z knižnice"
+                    <Button Margin="0,8,0,0" HorizontalAlignment="Stretch" Content="{Binding DeleteButtonText}"
                             Style="{StaticResource DangerButton}" Command="{Binding DeleteFromLibraryCommand}"
-                            ToolTip="Vymaže z knižnice profil s aktuálnym názvom (s potvrdením)." />
+                            ToolTip="Presunie profil do archívu. V bežných zoznamoch sa prestane zobrazovať; obnoviť ho možno v Zozname profilov." />
 
                     <!-- Prominent confirmation after a successful save. -->
                     <Border Margin="0,4,0,0" CornerRadius="8" Padding="10,8"

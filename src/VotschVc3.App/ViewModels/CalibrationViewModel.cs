@@ -184,7 +184,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
         Guid? previous = SelectedProfile?.Id;
         Profiles.Clear();
-        foreach (TestProfile profile in _profileStore.LoadAll().Where(p => p.DeviceKind.CanRunOn(deviceKind)))
+        foreach (TestProfile profile in _profileStore.LoadActive().Where(p => p.DeviceKind.CanRunOn(deviceKind)))
         {
             Profiles.Add(profile);
         }

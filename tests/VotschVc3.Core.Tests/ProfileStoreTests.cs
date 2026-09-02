@@ -79,6 +79,27 @@ public class ProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void Archived_profile_is_hidden_from_active_list_and_can_be_restored()
+    {
+        var store = new ProfileStore(_dir);
+        var profile = new TestProfile { Name = "Profil do archívu" };
+        store.Save(profile);
+        DateTimeOffset? editedAt = profile.UpdatedAt;
+
+        store.SetArchived(profile, true);
+
+        Assert.Empty(store.LoadActive());
+        TestProfile archived = Assert.Single(store.LoadArchived());
+        Assert.True(archived.IsArchived);
+        Assert.Equal(editedAt, archived.UpdatedAt);
+        Assert.True(archived.Clone().IsArchived);
+
+        store.SetArchived(archived, false);
+        Assert.Empty(store.LoadArchived());
+        Assert.Equal(profile.Id, Assert.Single(store.LoadActive()).Id);
+    }
+
+    [Fact]
     public void Profile_note_round_trips_with_the_profile()
     {
         var store = new ProfileStore(_dir);

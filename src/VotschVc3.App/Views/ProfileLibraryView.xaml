@@ -98,6 +98,9 @@
                             <Button DockPanel.Dock="Left" Content="⏶ Zbaliť všetko" Style="{StaticResource GhostButton}"
                                     Padding="8,3" Margin="6,0,0,0" Command="{Binding CollapseAllCommand}" />
                         </DockPanel>
+                        <CheckBox Content="Zobraziť archív profilov" IsChecked="{Binding ShowArchived}"
+                                  Margin="0,7,0,2"
+                                  ToolTip="Prepne zoznam medzi aktívnymi a archivovanými profilmi. Archivovaný profil možno vybrať a obnoviť." />
                     </StackPanel>
 
                     <TreeView Grid.Row="1" ItemsSource="{Binding ProfileTree}" Margin="0,4,0,0"
@@ -120,6 +123,22 @@
                             <DataTemplate DataType="{x:Type core:TestProfile}">
                                 <StackPanel ToolTip="Klik zobrazí náhľad profilu vpravo. Upraviť sa dá tlačidlom „✎ Upraviť v rýchlom profile“.">
                                     <DockPanel LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Margin="7,0,0,0" Padding="6,1"
+                                                Command="{Binding DataContext.ArchiveProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                                    <Setter Property="Content" Value="▣" />
+                                                    <Setter Property="ToolTip" Value="Archivovať profil – prestane sa zobrazovať v bežných zoznamoch." />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsArchived}" Value="True">
+                                                            <Setter Property="Content" Value="↩" />
+                                                            <Setter Property="ToolTip" Value="Obnoviť profil z archívu." />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                         <Border DockPanel.Dock="Left" CornerRadius="5" Padding="6,1" Margin="0,0,7,0"
                                                 BorderThickness="1"
                                                 BorderBrush="{Binding ValidationStatus, Converter={StaticResource ProfileStatusToBrush}}"
@@ -265,9 +284,9 @@
                                         ToolTip="Vytvorí kópiu vybraného profilu s príponou „COPY“ v názve." />
                                 <Button Content="⇄ Previesť na SIKA profil" Command="{Binding ConvertToSikaCommand}" Margin="0,0,8,0"
                                         ToolTip="Z vybraného Vötsch profilu spraví SIKA profil: teploty a doby výdrže zostanú, rampy medzi nimi sa vynechajú (kúpeľ si na setpoint nabehne sám). Uloží sa ako nový profil, pôvodný zostane nezmenený." />
-                                <Button Content="Zmazať" Style="{StaticResource DangerButton}" Margin="0,0,8,0"
+                                <Button Content="{Binding ArchiveButtonText}" Style="{StaticResource DangerButton}" Margin="0,0,8,0"
                                         Command="{Binding DeleteFromHistoryCommand}"
-                                        ToolTip="Vymaže vybraný profil z knižnice (s potvrdením)." />
+                                        ToolTip="Aktívny profil presunie do archívu; archivovaný profil obnoví späť do bežných zoznamov." />
                                 <Button Content="🗑 Vymazať všetky profily (admin)" Style="{StaticResource DangerButton}"
                                         Command="{Binding DeleteAllProfilesCommand}"
                                         Visibility="{Binding IsAdmin, Converter={StaticResource BoolToVisibility}}"

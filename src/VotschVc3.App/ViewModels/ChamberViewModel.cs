@@ -3010,7 +3010,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         // profile says, so each device only offers its own family (plus the universal
         // profiles saved before the distinction existed).
         ProfileDeviceKind deviceKind = Protocol.ToDeviceKind();
-        foreach (TestProfile profile in _store.LoadAll()
+        foreach (TestProfile profile in _store.LoadActive()
                      .Where(p => p.Kind == Kind || p.Kind == ChamberKind.TemperatureOnly)
                      .Where(p => p.DeviceKind.CanRunOn(deviceKind)))
         {

@@ -27,6 +27,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         NewProfileCommand = new RelayCommand(() => NewInQuickProfile?.Invoke());
         EditProfileCommand = new RelayCommand(EditProfile, () => SelectedHistoryProfile is not null);
         DeleteFromHistoryCommand = new RelayCommand(DeleteFromHistory, () => SelectedHistoryProfile is not null);
+        ArchiveProfileCommand = new RelayCommand<TestProfile>(ArchiveProfile);
         DuplicateProfileCommand = new RelayCommand(DuplicateProfile, () => SelectedHistoryProfile is not null);
         ConvertToSikaCommand = new RelayCommand(ConvertToSika,
             () => SelectedHistoryProfile is { DeviceKind: not ProfileDeviceKind.Sika });
@@ -225,6 +226,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             {
                 EditProfileCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(ArchiveButtonText));
                 DuplicateProfileCommand.RaiseCanExecuteChanged();
                 ConvertToSikaCommand.RaiseCanExecuteChanged();
                 ShowPreview(value);
@@ -239,6 +241,16 @@ public sealed class ProfileLibraryViewModel : ObservableObject
     public RelayCommand EditProfileCommand { get; }
 
     public RelayCommand DeleteFromHistoryCommand { get; }
+    public RelayCommand<TestProfile> ArchiveProfileCommand { get; }
+
+    public string ArchiveButtonText => SelectedHistoryProfile?.IsArchived == true ? "↩ Obnoviť z archívu" : "Archivovať profil";
+
+    private bool _showArchived;
+    public bool ShowArchived
+    {
+        get => _showArchived;
+        set { if (SetProperty(ref _showArchived, value)) { SelectedHistoryProfile = null; RebuildTree(); } }
+    }
 
     /// <summary>Duplicates the selected saved profile (name suffixed with " COPY").</summary>
     public RelayCommand DuplicateProfileCommand { get; }
@@ -427,19 +439,31 @@ public sealed class ProfileLibraryViewModel : ObservableObject
             return;
         }
 
+        ArchiveProfile(profile);
+    }
+
+    private void ArchiveProfile(TestProfile? profile)
+    {
+        if (profile is null) return;
+
+        bool restoring = profile.IsArchived;
         bool confirmed = Views.ConfirmDialog.Ask(
-            $"Naozaj vymazať profil „{profile.Name}“ z knižnice? Túto akciu nie je možné vrátiť.",
-            "Vymazať profil",
-            "Vymazať");
+            restoring
+                ? $"Obnoviť profil „{profile.Name}“ späť do aktívnych zoznamov?"
+                : $"Archivovať profil „{profile.Name}“? Prestane sa zobrazovať v bežných zoznamoch, ale zostane uložený.",
+            restoring ? "Obnoviť profil" : "Archivovať profil",
+            restoring ? "Obnoviť" : "Archivovať");
         if (!confirmed)
         {
-            StatusMessage = "Mazanie zrušené.";
+            StatusMessage = restoring ? "Obnovenie zrušené." : "Archivácia zrušená.";
             return;
         }
 
-        _store.Delete(profile.Id);
+        _store.SetArchived(profile, !restoring);
         RefreshHistory();
-        StatusMessage = $"Profil „{profile.Name}“ odstránený.";
+        StatusMessage = restoring
+            ? $"Profil „{profile.Name}“ obnovený z archívu."
+            : $"Profil „{profile.Name}“ presunutý do archívu.";
     }
 
     private void RefreshHistory()
@@ -492,6 +516,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         bool tagFilter = SelectedTag != AllTagsOption;
 
         IEnumerable<TestProfile> matches = History
+            .Where(p => p.IsArchived == ShowArchived)
             .Where(p => p.DeviceKind.CanRunOn(DeviceKindFilter))
             .Where(p => Matches(p, needle, tagFilter ? SelectedTag : null));
 
@@ -526,9 +551,10 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         string kindNote = DeviceKindFilter == ProfileDeviceKind.Any
             ? string.Empty
             : $" · filter: {DeviceKindFilter.Label()}";
+        string archiveNote = ShowArchived ? " · archív" : string.Empty;
         TreeSummary = groups.Count == 0
-            ? "Žiadny profil nevyhovuje filtru." + kindNote
-            : $"{distinctProfiles} {ProfileWord(distinctProfiles)} · {groups.Count} {SensorWord(groups.Count)}{kindNote}";
+            ? (ShowArchived ? "Archív je prázdny alebo nič nevyhovuje filtru." : "Žiadny profil nevyhovuje filtru.") + kindNote
+            : $"{distinctProfiles} {ProfileWord(distinctProfiles)} · {groups.Count} {SensorWord(groups.Count)}{kindNote}{archiveNote}";
     }
 
     private static bool Matches(TestProfile p, string needle, string? tag)
@@ -586,6 +612,7 @@ public sealed class ProfileLibraryViewModel : ObservableObject
         TestProfile copy = source.Clone();
         copy.Id = Guid.NewGuid();
         copy.Code = string.Empty; // the duplicate is its own library entry, with its own code
+        copy.IsArchived = false;
         copy.Name = $"{source.Name} COPY";
         copy.CreatedAt = DateTimeOffset.Now;
 
