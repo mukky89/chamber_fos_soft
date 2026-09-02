@@ -19,7 +19,7 @@ This file is the working guide for AI agents and developers modifying this repos
 
 - The current thermometer is **WIKA CTH7000**.
 - Do **not** describe the current device as “ASL F100”.
-- `F100Client` is intentionally retained as a source-compatible class name; its user-facing and diagnostic terminology should refer to WIKA CTH7000.
+- `F100Client` and `F100Protocol` are retained only as source-compatible code symbols in the renamed CTH7000 files; user-facing and diagnostic terminology refers to WIKA CTH7000.
 - Legacy ASL F100 detection may remain only where compatibility requires it.
 
 ## Versioning and changelog — mandatory
@@ -46,20 +46,12 @@ Current baseline at the time of this change: `1.76.11`.
 
 Serial communication is safety- and reliability-sensitive.
 
-### Proven physical transport — do not regress
-
-- The WIKA CTH7000 USB communication was verified against real hardware using **9600 baud, 8N1, no flow control, DTR/RTS enabled**.
-- The verified working test sends **each character separately with a 2 ms inter-character delay**, including the terminating CR. Do not replace this with one fast `_port.Write(frame)` call for CTH7000.
-- Use the same paced transport for `*IDN?`, `SYSTEM:REMOTE`, `MEASURE:CHANNEL? 1/2`, `SYSTEM:LOCAL` and other SCPI commands.
-- The verified real responses included `WIKA,CTH7000,000000,V1.0,01/05/2013` and measurement frames such as `2,24.332,"CEL"` and `1,25.061,"CEL"`.
-- This transport rule is based on an actual successful hardware test, not a theoretical protocol assumption.
-
 ### Concurrency and COM ownership
 
 - All physical `SerialPort` operations must be serialized.
 - Never allow scan, identify, read, reconnect, or dispose to close/write the same port concurrently.
 - Keep each client's port lifecycle under its own synchronization gate.
-- In addition, use the process-wide `SerialPortLease` so two `F100Client` instances or diagnostics cannot open/probe the same COM port concurrently.
+- In addition, use the process-wide `SerialPortLease` so two thermometer clients or diagnostics cannot open/probe the same COM port concurrently.
 - A live client keeps its COM lease for the complete open lifetime and releases it only after the physical port is closed/disposed.
 - Diagnostic probing must acquire the same lease and skip a port already owned by the live application.
 - `UnauthorizedAccessException` from `SerialPort.Open()` means the COM port is externally busy; report it as an occupied port rather than pretending it is a normal transient read failure.
@@ -100,24 +92,24 @@ Serial communication is safety- and reliability-sensitive.
 
 ## Protocol / diagnostics
 
-- CTH7000 uses serial communication compatible with the existing protocol implementation: 9600 8N1, no flow control, CR-terminated commands, with the configured 2 ms inter-character delay.
-- Keep `*IDN?`, `SYSTEM:REMOTE`, `SYSTEM:LOCAL`, and `READ?` behavior compatible with the existing protocol layer.
+- CTH7000 uses serial communication compatible with the existing protocol implementation: 9600 8N1, no flow control, CR-terminated commands, with the configured inter-character delay.
+- The verified bench communication sends every command character separately with a 2 ms gap; do not replace this with one bulk `SerialPort.Write` call.
+- Keep `*IDN?`, `SYSTEM:REMOTE`, `SYSTEM:LOCAL`, and `MEASURE:CHANNEL? 1/2` behavior compatible with the existing protocol layer.
 - Preserve A/B channel support.
 - TX and RX diagnostic logging should include device/port context and attempt information, while avoiding excessive log spam.
-- Preserve robust error-response detection (`ERR`, probe errors, over/under range, and supported numeric error forms).
+- Preserve robust error-response detection (`ERR`, `NoProbe`, over/under range, and supported numeric error forms).
 
 ## Existing architecture
 
 ### App thermometer path
 
-- `src/VotschVc3.App/Thermometers/F100Client.cs`
+- `src/VotschVc3.App/Thermometers/CTH7000Client.cs`
   - Owns physical CTH7000 serial communication.
+  - File was renamed from the historical `F100Client.cs`; the `F100Client` class name remains only for source compatibility.
   - Uses per-client synchronization plus process-wide COM ownership.
   - Contains retry/reconnect and TX/RX diagnostics.
-  - Uses the verified 2 ms character-paced command transport.
-- `src/VotschVc3.App/Thermometers/SerialPortLease.cs`
-  - Provides process-wide ownership of physical COM ports.
-  - Shared by live thermometer clients and diagnostic probes.
+- `src/VotschVc3.App/Thermometers/CTH7000Client.cs`
+  - `SerialPortLease` remains a shared helper in `SerialPortLease.cs` for process-wide COM ownership.
 - `src/VotschVc3.App/Thermometers/SerialPortEnumerator.cs`
   - Enumerates COM ports and supports automatic/manual selection and device probing.
 - `src/VotschVc3.App/ViewModels/ThermometersViewModel.cs`
@@ -127,15 +119,24 @@ Serial communication is safety- and reliability-sensitive.
 - `src/VotschVc3.App/ViewModels/CalibrationViewModel.cs`
   - Calibration-related thermometer behavior.
 
+### Core protocol path
+
+- `src/VotschVc3.Core/Thermometers/CTH7000Protocol.cs`
+  - Shared CTH7000 protocol encoding/parsing.
+  - The historical `F100Protocol` symbol remains in this file for source compatibility.
+- `tests/VotschVc3.Core.Tests/CTH7000ProtocolTests.cs`
+  - Protocol/parser regression coverage for WIKA CTH7000 and compatible legacy frames.
+
 ### Bridge path
 
 - `src/VotschVc3.Agent/BridgeClient.cs`
   - Bridge command handling and device communication entry point.
 - `src/VotschVc3.Agent/DeviceManager.cs`
   - Owns configured device runtimes and polling.
-- `src/VotschVc3.Agent/F100Client.cs`
-  - Legacy/bridge-side serial implementation; changes here must be kept compatible with the App-side protocol and device configuration.
-- `src/VotschVc3.Core/Thermometers/F100Protocol.cs`
+- `src/VotschVc3.Agent/CTH7000Client.cs`
+  - Bridge-side thermometer serial implementation; renamed from the historical `F100Client.cs`.
+  - The `F100Client` class name remains for compatibility with existing bridge code.
+- `src/VotschVc3.Core/Thermometers/CTH7000Protocol.cs`
   - Shared protocol definitions and parsing.
 
 ## Authentication / navigation rule
@@ -161,8 +162,6 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] Automatic COM scan works.
 - [ ] Manual COM selection still works.
 - [ ] Opening an already-present CTH7000 succeeds.
-- [ ] CTH7000 commands use the verified 2 ms inter-character pacing.
-- [ ] `*IDN?` is sent through the same paced transport as measurement commands.
 - [ ] Two clients in one process cannot open the same COM port concurrently.
 - [ ] Diagnostic scanning cannot steal a COM port from a live thermometer client.
 - [ ] A COM port held by another process is reported as OBSADENÝ instead of crashing the app.
@@ -174,6 +173,7 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] A and B channels remain functional.
 - [ ] TX/RX diagnostics are available.
 - [ ] Silent query responses do not become false successful readings.
+- [ ] Verified CTH7000 2 ms inter-character transmit gap remains intact.
 - [ ] Dashboard button hover has no blur/glow effect.
 - [ ] FBG calibration button hover has no blur/glow effect.
 - [ ] Button hover remains visually consistent with the main menu.
@@ -191,5 +191,5 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - Do not silently drop changelog/version updates.
 - Do not rewrite the historical changelog just to add a new entry.
 - Do not create duplicate per-version `CHANGELOG_<version>.md` files.
+- Do not rename the shared CTH7000 files back to the historical F100 filenames.
 - Do not reintroduce button blur/glow effects when fixing hover styling.
-- Do not replace the verified 2 ms CTH7000 character pacing with an unpaced whole-frame write without a new successful hardware test proving it safe.
