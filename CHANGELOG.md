@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.14] – 2026-09-02
+
+### UI – čitateľnosť tlačidiel
+- Opravené `IconLabel` texty v tlačidlách: popis teraz preberá `Button.Foreground`, takže napríklad `FBG kalibrácia`, `Upraviť zariadenie` a ďalšie ikonové tlačidlá zostávajú kontrastné na akcentovom pozadí aj pri hover/pressed stave.
+- Zachovaný ostrý rendering bez blur efektov.
+
+### Upratané – starý pasívny test teplomera
+- Pasívny test starého teplomera už nie je vo FBG kalibrácii používateľsky dostupný; jeho tlačidlo je skryté, aby sa nepoužívala vyradená Talk Only cesta.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.13` na `1.76.14`.
+
 ## [1.76.13] – 2026-09-02
 
 ### Diagnostika – USB / WIKA CTH7000
