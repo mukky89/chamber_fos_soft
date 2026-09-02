@@ -6,6 +6,8 @@
         Deliberately no DropShadowEffect: WPF renders effects through an intermediate
         surface and the resulting text/icon edges look blurred. Hover communicates state
         with the same outline/fill treatment used by the main menu instead.
+        The template also forwards Button.Foreground to ContentPresenter so the label/icon
+        remains readable when the control template replaces the default Button template.
     -->
 
     <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -25,7 +27,8 @@
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
-                                          TextElement.FontFamily="Segoe UI" />
+                                          TextElement.FontFamily="Segoe UI"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -67,7 +70,8 @@
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
-                                          TextElement.FontFamily="Segoe UI" />
+                                          TextElement.FontFamily="Segoe UI"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -108,7 +112,8 @@
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}" />
+                                          Margin="{TemplateBinding Padding}"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
