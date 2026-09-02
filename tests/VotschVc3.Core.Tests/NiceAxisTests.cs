@@ -6,6 +6,26 @@ namespace VotschVc3.Core.Tests;
 /// <summary>Rounded bounds of the chart value axis – round labels, no wobble while panning.</summary>
 public class NiceAxisTests
 {
+    [Fact]
+    public void Exact_axis_keeps_profile_minimum_and_maximum_without_padding()
+    {
+        ValueAxis axis = NiceAxis.Exact(-20, 60);
+
+        Assert.Equal(-20, axis.Min);
+        Assert.Equal(60, axis.Max);
+        Assert.Equal(20, axis.Step);
+        Assert.Equal(4, axis.Intervals);
+    }
+
+    [Fact]
+    public void Exact_axis_gives_a_flat_profile_visible_height()
+    {
+        ValueAxis axis = NiceAxis.Exact(25, 25);
+
+        Assert.Equal(24, axis.Min);
+        Assert.Equal(26, axis.Max);
+    }
+
     [Theory]
     [InlineData(0.8, 1d)]
     [InlineData(1d, 1d)]

@@ -27,6 +27,29 @@ public readonly record struct ValueAxis(double Min, double Max, double Step, int
 public static class NiceAxis
 {
     /// <summary>
+    /// An axis whose bounds are exactly the supplied data bounds. Use for planned
+    /// profile charts where the operator expects the scale to state the configured
+    /// minimum and maximum without visual padding beyond either limit.
+    /// </summary>
+    public static ValueAxis Exact(double min, double max, int intervals = 4)
+    {
+        if (!double.IsFinite(min) || !double.IsFinite(max))
+        {
+            return new ValueAxis(min, max, 1, 1);
+        }
+
+        if (max < min) (min, max) = (max, min);
+        if (max - min <= 0)
+        {
+            min -= 1;
+            max += 1;
+        }
+
+        intervals = Math.Max(1, intervals);
+        return new ValueAxis(min, max, (max - min) / intervals, intervals);
+    }
+
+    /// <summary>
     /// Bounds for exactly <paramref name="intervals"/> equal gridline steps covering
     /// <paramref name="min"/>..<paramref name="max"/>. Prefer <see cref="Scale"/>, which
     /// is free to pick the number of steps and therefore crops much closer to the data.

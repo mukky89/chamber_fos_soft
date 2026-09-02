@@ -299,12 +299,11 @@ public partial class ProfileEditorChart : UserControl
         var allTemps = new List<double> { startTemp };
         allTemps.AddRange(segments.Select(s => s.TargetTemperature));
 
-        // Rounded bounds cropped close to the data: fixing the axis at four steps used to
-        // put a -40…120 °C profile on a -100…300 °C axis with the curve in the bottom
-        // third. NiceAxis.Scale picks the step *and* the number of gridlines.
-        // Scale already widens a flat profile, so the bounds and the gridline labels can
-        // never drift apart here.
-        _yAxis = NiceAxis.Scale(allTemps.Min(), allTemps.Max());
+        // A planned profile must show its real minimum and maximum as the axis bounds.
+        // Rounded auto-scaling used to add visual padding (for example a -20 °C profile
+        // minimum appeared on an axis extending to -30 °C), which suggested that the
+        // profile would command a temperature it never actually contains.
+        _yAxis = NiceAxis.Exact(allTemps.Min(), allTemps.Max());
         _minY = _yAxis.Min;
         _maxY = _yAxis.Max;
 
