@@ -75,6 +75,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="White" />
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}" />
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
                             <Setter TargetName="Cp" Property="TextElement.Foreground" Value="White" />
@@ -83,6 +84,7 @@
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Foreground" Value="White" />
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentPressedBrush}" />
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentPressedBrush}" />
                             <Setter TargetName="Cp" Property="TextElement.Foreground" Value="White" />
