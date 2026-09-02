@@ -241,7 +241,7 @@
                                 <Button DockPanel.Dock="Right" Content="{Binding F100ChartButtonText}" Style="{StaticResource GhostButton}"
                                         VerticalAlignment="Bottom" Margin="0"
                                         Command="{Binding ToggleF100ChartCommand}"
-                                        ToolTip="Zobrazí/skryje priebeh teploty nameranej F100 v čase." />
+                                        ToolTip="Zobrazí/skryje priebeh teploty nameranej WIKA CTH7000 v čase." />
                             </DockPanel>
 
                             <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="9" Margin="0,9,0,0"
@@ -250,12 +250,12 @@
                                     <WrapPanel Margin="0,0,0,7">
                                         <Button Content="Znovu analyzovať" Style="{StaticResource GhostButton}" Margin="0,0,6,0"
                                                 Command="{Binding AnalyzeUsbCommand}" />
-                                        <Button Content="Pasívny test starého F100" Style="{StaticResource AccentOutlineButton}" Margin="0,0,6,0"
+                                        <Button Content="Pasívny test starého teplomera" Style="{StaticResource AccentOutlineButton}" Margin="0,0,6,0"
                                                 Command="{Binding DiagnoseF100TalkOnlyCommand}"
                                                 ToolTip="Nanovo načíta USB/COM porty a iba počúva talk-only dáta pri 4800/9600/19200 bd. Do F100 neodošle ani jeden príkaz. Test môže trvať približne 10 sekúnd." />
                                         <Button Content="Vynútiť pripojenie" Style="{StaticResource AccentOutlineButton}" Margin="0,0,10,0"
                                                 Command="{Binding ForceReconnectF100Command}"
-                                                ToolTip="Zatvorí spojenie tejto aplikácie, znovu otvorí vybraný COM port a skúsi načítať F100." />
+                                                ToolTip="Zatvorí spojenie tejto aplikácie, znovu otvorí vybraný COM port a skúsi načítať WIKA CTH7000." />
                                         <TextBox Width="72" Text="{Binding ManualF100Port, UpdateSourceTrigger=PropertyChanged}"
                                                  VerticalContentAlignment="Center" ToolTip="Ručný COM port, napríklad COM4." />
                                         <Button Content="Pridať port" Style="{StaticResource GhostButton}" Margin="6,0,0,0"
@@ -276,7 +276,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <TextBlock Text="WIKA CTH7000: aplikácia automaticky identifikuje zariadenie a nájde sondu na vstupe A alebo B. Ak je port obsadený, zatvor inú aplikáciu používajúcu rovnaký COM port. Pasívny Talk Only test je určený iba pre starší ASL F100."
+                                    <TextBlock Text="WIKA CTH7000: aplikácia automaticky identifikuje zariadenie a nájde sondu na vstupe A alebo B. Ak je port obsadený, zatvor inú aplikáciu používajúcu rovnaký COM port. Pasívny Talk Only test je určený iba pre staršie pasívne teplomery."
                                                Style="{StaticResource Caption}" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>
@@ -536,8 +536,8 @@
                             <DataGridTextColumn Header="RunId" Binding="{Binding RunId}" Width="220" />
                             <DataGridTextColumn Header="Profil" Binding="{Binding ProfileName}" Width="*" />
                             <DataGridTextColumn Header="Komora" Binding="{Binding ChamberName}" Width="180" />
-                            <DataGridTextColumn Header="F100 port" Binding="{Binding ReferenceThermometerPort}" Width="90" />
-                            <DataGridTextColumn Header="F100 kanál" Binding="{Binding ReferenceThermometerChannel}" Width="90" />
+                            <DataGridTextColumn Header="CTH7000 port" Binding="{Binding ReferenceThermometerPort}" Width="90" />
+                            <DataGridTextColumn Header="CTH7000 kanál" Binding="{Binding ReferenceThermometerChannel}" Width="100" />
                             <DataGridTextColumn Header="Stav" Binding="{Binding State}" Width="160" />
                             <DataGridTextColumn Header="Plata" Binding="{Binding Plateaus.Count}" Width="70" />
                             <DataGridTextColumn Header="Warnings" Binding="{Binding Warnings.Count}" Width="80" />
