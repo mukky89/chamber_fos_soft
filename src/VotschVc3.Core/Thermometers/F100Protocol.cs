@@ -54,6 +54,9 @@ public static class F100Protocol
     private static readonly Regex TalkOnlyChannel =
         new(@"^\s*(?:(?:CH|CHANNEL)\s*)?(?<channel>A|B|1|2)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    private static readonly Regex Cth7000Measurement =
+        new(@"^\s*[12]\s*,\s*(?<value>[-+]?\d+(?:\.\d+)?)\s*,", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     /// <summary>
     /// ASL SCPI-family command that selects an input without initiating a measurement.
     /// F100 firmware variants that do not expose it are handled by the client's READ? fallback.
@@ -128,11 +131,14 @@ public static class F100Protocol
         // Talk-only F100 frames can start with a channel number (for example
         // "2 23.456 C"). The measurement is therefore the last numeric token,
         // not necessarily the first one.
+        Match cth7000 = Cth7000Measurement.Match(trimmed);
         MatchCollection matches = NumberToken.Matches(trimmed);
-        if (matches.Count > 0)
+        string? measurement = cth7000.Success
+            ? cth7000.Groups["value"].Value
+            : matches.Count > 0 ? matches[^1].Value : null;
+        if (measurement is not null)
         {
-            Match m = matches[^1];
-            string number = m.Value.Replace(',', '.');
+            string number = measurement.Replace(',', '.');
             if (double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double v))
             {
                 value = v;
@@ -170,7 +176,7 @@ public static class F100Protocol
         }
 
         // Look at a trailing unit letter (avoid matching letters inside "READ" etc.).
-        if (upper.EndsWith('C') || upper.Contains(" C") || upper.Contains("DEG C"))
+        if (upper.EndsWith('C') || upper.Contains(" C") || upper.Contains("DEG C") || upper.Contains("CEL"))
         {
             return "°C";
         }
