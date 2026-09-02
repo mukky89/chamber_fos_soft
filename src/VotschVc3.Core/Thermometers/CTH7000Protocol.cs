@@ -6,9 +6,9 @@ namespace VotschVc3.Core.Thermometers;
 /// <summary>
 /// Encoder / decoder for the WIKA CTH7000 USB-serial interface.
 /// <para>
-/// The CTH7000 uses a USB virtual COM port. Default line settings are
-/// <b>9600 baud, 8 data bits, no parity, 1 stop bit, no flow control</b>; commands are
-/// SCPI style and terminated with a carriage return, with a 1–2 ms gap between characters.
+/// The CTH7000 uses a USB virtual COM port. The WIKA operating instructions specify
+/// 9600 baud, 8 data bits, no parity, 1 stop bit, no flow control, with a 1–2 ms gap
+/// between transmitted characters. Commands are SCPI style and terminated with CR.
 /// </para>
 /// </summary>
 public static class F100Protocol
@@ -16,15 +16,23 @@ public static class F100Protocol
     public const int DefaultBaudRate = 9600;
     public const string Terminator = "\r";
     public const int InterCharacterDelayMs = 2;
+
+    // Commands explicitly documented by WIKA CTH7000 operating instructions, chapter 11.
     public const string IdentifyCommand = "*IDN?";
     public const string RemoteCommand = "SYSTEM:REMOTE";
     public const string LocalCommand = "SYSTEM:LOCAL";
+
+    // Kept as a compatibility value for older callers. It is NOT a documented CTH7000 command
+    // and the active CTH7000 path never sends it.
+    [Obsolete("READ? is not documented by WIKA for CTH7000 and is not used by the active protocol path.")]
     public const string DefaultReadCommand = "READ?";
 
-    public static IReadOnlyList<string> Units { get; } = new[] { "C", "F", "K", "Ohms" };
+    public static IReadOnlyList<string> Units { get; } = new[] { "C", "F", "K", "R" };
     public static IReadOnlyList<string> Channels { get; } = new[] { "A", "B", "A-B" };
     public static IReadOnlyList<string> ProbeChannels { get; } = new[] { "A", "B" };
-    public static IReadOnlyList<int> BaudRates { get; } = new[] { 4800, 9600, 19200 };
+
+    // WIKA documents only one USB interface speed for CTH7000.
+    public static IReadOnlyList<int> BaudRates { get; } = new[] { DefaultBaudRate };
 
     private static readonly Regex NumberToken =
         new(@"[-+]?\d+(?:[.,]\d+)?", RegexOptions.Compiled);
@@ -33,14 +41,21 @@ public static class F100Protocol
         new(@"^\s*[12]\s*,\s*(?<value>[-+]?\d+(?:\.\d+)?)\s*,", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex Cth7000Identification =
-        new(@"^\s*WIKA\s*,\s*CTH7000\s*,", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        new(@"^\s*(?:WIKA|ASL)\s*,\s*CTH7000\s*,", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex TalkOnlyChannel =
         new(@"^\s*(?:(?:CH|CHANNEL)\s*)?(?<channel>A|B|1|2)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    // Not part of the documented USB command set; retained only for source compatibility
+    // with legacy callers. The active CTH7000 query path does not call this method.
+    [Obsolete("CONFIGURE:CHANNEL is not documented in the WIKA CTH7000 USB command set and is not used.")]
     public static string BuildConfigureChannelCommand(string channel) =>
         $"CONFIGURE:CHANNEL {NormalizeChannel(channel)}";
 
+    /// <summary>
+    /// Builds the documented WIKA CTH7000 measurement command.
+    /// A = channel 1, B = channel 2, A-B = differential mode (-).
+    /// </summary>
     public static string BuildMeasureChannelCommand(string channel) =>
         $"MEASURE:CHANNEL? {ChannelNumber(channel)}";
 
@@ -88,7 +103,7 @@ public static class F100Protocol
 
     /// <summary>
     /// Decodes a CTH7000 measurement response. Identification frames are explicitly rejected
-    /// so the date token in "WIKA,CTH7000,...,01/05/2013" can never become a fake temperature.
+    /// so the date token in the identification response can never become a fake temperature.
     /// </summary>
     public static ThermometerReading ParseReading(string raw)
     {
@@ -105,8 +120,8 @@ public static class F100Protocol
             return new ThermometerReading(DateTimeOffset.Now, null, string.Empty, raw);
         }
 
-        // CTH7000 query responses have a strict channel/value/unit structure, for example:
-        // 2,24.332,"CEL"
+        // WIKA CTH7000 returns: <channel>,<measurement>,<units>
+        // e.g. 2,24.332,"CEL"
         Match cth7000 = Cth7000Measurement.Match(trimmed);
         if (cth7000.Success)
         {
@@ -139,6 +154,7 @@ public static class F100Protocol
     }
 
     /// <summary>Source-compatibility parser for legacy talk-only frames; not used by the CTH7000 UI.</summary>
+    [Obsolete("Legacy talk-only thermometer protocol is retired; the CTH7000 uses documented SCPI query commands.")]
     public static string? DetectTalkOnlyChannel(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;
@@ -155,9 +171,9 @@ public static class F100Protocol
     private static string DetectUnit(string text)
     {
         string upper = text.ToUpperInvariant();
-        if (upper.Contains("OHM") || text.Contains('Ω')) return "Ω";
+        if (upper.Contains("OHM") || upper.Contains("\"R\"") || text.Contains('Ω')) return "Ω";
         if (upper.EndsWith('C') || upper.Contains(" C") || upper.Contains("DEG C") || upper.Contains("CEL")) return "°C";
-        if (upper.EndsWith('F') || upper.Contains(" F") || upper.Contains("DEG F")) return "°F";
+        if (upper.EndsWith('F') || upper.Contains(" F") || upper.Contains("DEG F") || upper.Contains("FAR")) return "°F";
         if (upper.EndsWith('K') || upper.Contains(" K")) return "K";
         return string.Empty;
     }
