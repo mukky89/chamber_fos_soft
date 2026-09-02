@@ -4,9 +4,7 @@ namespace VotschVc3.Core.Notifications;
 public sealed record EmailResult(bool Sent, bool Skipped, string? Error)
 {
     public static EmailResult Ok() => new(true, false, null);
-
     public static EmailResult Fail(string error) => new(false, false, error);
-
     public static readonly EmailResult SkippedResult = new(false, true, null);
 }
 
@@ -36,7 +34,13 @@ public sealed class EmailNotifier
             return Task.FromResult(EmailResult.SkippedResult);
         }
 
-        return DeliverAsync(Settings.Recipient, subject, body, htmlBody, attachments, cancellationToken);
+        return DeliverAsync(
+            Settings.Recipient,
+            RenameLegacyReferenceThermometer(subject),
+            RenameLegacyReferenceThermometer(body),
+            htmlBody is null ? null : RenameLegacyReferenceThermometer(htmlBody),
+            attachments,
+            cancellationToken);
     }
 
     /// <summary>Sends a test message, ignoring the enabled flag (recipient still required).</summary>
@@ -53,6 +57,9 @@ public sealed class EmailNotifier
             "Toto je testovací e-mail z aplikácie na riadenie laboratórnych zariadení.",
             null, null, cancellationToken);
     }
+
+    private static string RenameLegacyReferenceThermometer(string text) =>
+        text.Replace("F100", "WIKA CTH7000 Temp. reference", StringComparison.OrdinalIgnoreCase);
 
     private async Task<EmailResult> DeliverAsync(
         string to, string subject, string body, string? htmlBody,
