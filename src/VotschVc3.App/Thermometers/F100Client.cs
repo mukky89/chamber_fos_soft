@@ -21,6 +21,7 @@ public sealed class F100Client : IAsyncDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private CommunicationMode _communicationMode;
     private bool _queryInstrumentIdentified;
+    private bool _remoteActive;
     private int _disposeStarted;
 
     public F100Client(
@@ -47,12 +48,32 @@ public sealed class F100Client : IAsyncDisposable
 
     /// <summary>Returns a confirmed query-capable instrument to local control. The original
     /// talk-only F100 must never receive speculative SCPI commands.</summary>
-    public Task ReturnToLocalIfSupportedAsync(CancellationToken cancellationToken = default) =>
-        _communicationMode == CommunicationMode.Query
-            ? SendAsync(F100Protocol.LocalCommand, cancellationToken)
-            : Task.CompletedTask;
+    public async Task ReturnToLocalIfSupportedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_communicationMode != CommunicationMode.Query || !_remoteActive) return;
+        try
+        {
+            await SendAsync(F100Protocol.LocalCommand, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _remoteActive = false;
+        }
+    }
 
     public string PortName => _port.PortName;
+
+    public async Task<string> IdentifyInstrumentAsync(CancellationToken cancellationToken = default)
+    {
+        string identity = await SendReceiveAtomicAsync(F100Protocol.IdentifyCommand, cancellationToken).ConfigureAwait(false);
+        InstrumentIdentity = identity.Trim();
+        _queryInstrumentIdentified = IsSupportedQueryInstrument(identity);
+        if (_queryInstrumentIdentified)
+        {
+            _communicationMode = CommunicationMode.Query;
+        }
+        return identity;
+    }
 
     public async Task OpenAsync(CancellationToken cancellationToken = default)
     {
@@ -121,7 +142,7 @@ public sealed class F100Client : IAsyncDisposable
             ThrowIfDisposing();
             return await Task.Run(() =>
             {
-                WriteWithDelay(F100Protocol.Frame(command));
+                WriteCommand(F100Protocol.Frame(command));
                 return ReadLine(cancellationToken);
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -155,14 +176,24 @@ public sealed class F100Client : IAsyncDisposable
         // does not wait four seconds for a talk-only stream that this model never emits.
         if (_communicationMode == CommunicationMode.Unknown)
         {
-            string initialIdentity = await SendReceiveAsync(F100Protocol.IdentifyCommand, cancellationToken).ConfigureAwait(false);
-            InstrumentIdentity = initialIdentity.Trim();
-            _queryInstrumentIdentified = IsSupportedQueryInstrument(initialIdentity);
+            // CTH7000 uses normal SCPI framing. Sending each character as a separate
+            // SerialPort.Write call can leave its parser waiting for an incomplete frame;
+            // the same command succeeds reliably as one atomic USB write.
+            string initialIdentity = await IdentifyInstrumentAsync(cancellationToken).ConfigureAwait(false);
             if (_queryInstrumentIdentified)
             {
                 await SendAsync(F100Protocol.RemoteCommand, cancellationToken).ConfigureAwait(false);
                 await Task.Delay(TimeSpan.FromMilliseconds(120), cancellationToken).ConfigureAwait(false);
+                _remoteActive = true;
                 _communicationMode = CommunicationMode.Query;
+            }
+            else
+            {
+                return new ThermometerReading(
+                    DateTimeOffset.Now,
+                    null,
+                    string.Empty,
+                    $"{PortName}: WIKA CTH7000 neodpovedal na atómový *IDN? rámec.");
             }
         }
 
@@ -191,23 +222,19 @@ public sealed class F100Client : IAsyncDisposable
         // Both instruments use an FTDI virtual COM port. Identify the query-capable
         // CTH7000 before sending its numeric-channel measurement command; a silent
         // original F100 continues to require Talk Only and receives no further command.
-        string identity = _queryInstrumentIdentified
-            ? string.Empty
-            : await SendReceiveAsync(F100Protocol.IdentifyCommand, cancellationToken).ConfigureAwait(false);
-        bool queryCapable = _queryInstrumentIdentified || IsSupportedQueryInstrument(identity);
+        bool queryCapable = _queryInstrumentIdentified;
         if (!_allowQueryFallback && !queryCapable)
         {
             return new ThermometerReading(
                 DateTimeOffset.Now,
                 null,
                 string.Empty,
-                $"{PortName}: bez talk-only dát. Na ASL F100 zapni Menu → Options → Talk Only → On.");
+                $"{PortName}: zariadenie neodpovedalo na identifikáciu *IDN?. Skontroluj USB spojenie a reštartuj WIKA CTH7000.");
         }
 
         if (queryCapable)
         {
-            await SendAsync(F100Protocol.RemoteCommand, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(TimeSpan.FromMilliseconds(120), cancellationToken).ConfigureAwait(false);
+            await EnsureRemoteAsync(cancellationToken).ConfigureAwait(false);
         }
         _communicationMode = CommunicationMode.Query;
         string directCommand = F100Protocol.BuildMeasureChannelCommand(normalized);
@@ -237,16 +264,50 @@ public sealed class F100Client : IAsyncDisposable
         string fallbackReadCommand = F100Protocol.DefaultReadCommand,
         CancellationToken cancellationToken = default)
     {
-        string preferred = F100Protocol.NormalizeChannel(preferredChannel) == "B" ? "B" : "A";
-        ThermometerReading first = await ReadChannelAsync(preferred, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
-        if (first.Temperature is not null || _communicationMode != CommunicationMode.Query)
+        try
         {
-            return (preferred, first);
-        }
+            string preferred = F100Protocol.NormalizeChannel(preferredChannel) == "B" ? "B" : "A";
+            ThermometerReading first = await ReadChannelAsync(preferred, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
+            if (first.Temperature is not null || _communicationMode != CommunicationMode.Query)
+            {
+                return (preferred, first);
+            }
 
-        string alternate = preferred == "A" ? "B" : "A";
-        ThermometerReading second = await ReadChannelAsync(alternate, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
-        return second.Temperature is not null ? (alternate, second) : (preferred, first);
+            string alternate = preferred == "A" ? "B" : "A";
+            ThermometerReading second = await ReadChannelAsync(alternate, fallbackReadCommand, cancellationToken).ConfigureAwait(false);
+            return second.Temperature is not null ? (alternate, second) : (preferred, first);
+        }
+        finally
+        {
+            // A calibration button performs a one-shot read. Never leave the physical
+            // instrument's front panel locked in REMOTE, including after timeout/error.
+            await ReturnToLocalIfSupportedAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    private async Task EnsureRemoteAsync(CancellationToken cancellationToken)
+    {
+        if (_remoteActive) return;
+        await SendAsync(F100Protocol.RemoteCommand, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromMilliseconds(120), cancellationToken).ConfigureAwait(false);
+        _remoteActive = true;
+    }
+
+    private async Task<string> SendReceiveAtomicAsync(string command, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() =>
+            {
+                _port.Write(F100Protocol.Frame(command));
+                return ReadLine(cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private static bool IsSupportedQueryInstrument(string identity) =>
@@ -304,6 +365,17 @@ public sealed class F100Client : IAsyncDisposable
                 Thread.Sleep(F100Protocol.InterCharacterDelayMs);
             }
         }
+    }
+
+    private void WriteCommand(string text)
+    {
+        if (_queryInstrumentIdentified)
+        {
+            _port.Write(text);
+            return;
+        }
+
+        WriteWithDelay(text);
     }
 
     private string ReadLine(CancellationToken cancellationToken)
