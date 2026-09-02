@@ -6,13 +6,20 @@ namespace VotschVc3.App.Charting;
 /// <summary>One line series rendered by <see cref="Views.ChartView"/>.</summary>
 public sealed class ChartSeries
 {
-    public ChartSeries(string name, Brush stroke, IReadOnlyList<Point> points, bool dashed = false, string? pointLabel = null)
+    public ChartSeries(
+        string name,
+        Brush stroke,
+        IReadOnlyList<Point> points,
+        bool dashed = false,
+        string? pointLabel = null,
+        double strokeThickness = 2)
     {
         Name = name;
         Stroke = stroke;
         Points = points;
         Dashed = dashed;
         PointLabel = pointLabel;
+        StrokeThickness = strokeThickness;
     }
 
     /// <summary>Legend label.</summary>
@@ -29,4 +36,6 @@ public sealed class ChartSeries
 
     /// <summary>Optional label for a single live point rendered directly in the plot.</summary>
     public string? PointLabel { get; }
+
+    public double StrokeThickness { get; }
 }

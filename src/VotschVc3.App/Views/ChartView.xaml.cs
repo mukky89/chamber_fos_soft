@@ -404,14 +404,16 @@ public partial class ChartView : UserControl
             var poly = new Polyline
             {
                 Stroke = s.Stroke,
-                StrokeThickness = 2,
+                StrokeThickness = s.StrokeThickness,
                 StrokeLineJoin = PenLineJoin.Round,
                 Points = new PointCollection(s.Points.Select(p => new Point(ToPx(p.X), ToPy(p.Y)))),
                 IsHitTestVisible = false,
             };
             if (s.Dashed)
             {
-                poly.StrokeDashArray = new DoubleCollection { 4, 3 };
+                poly.StrokeDashArray = s.StrokeThickness > 2
+                    ? new DoubleCollection { 6, 2.5 }
+                    : new DoubleCollection { 4, 3 };
             }
 
             PlotCanvas.Children.Add(poly);

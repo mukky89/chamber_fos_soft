@@ -4121,7 +4121,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             double nowX = Math.Clamp(_profileNowFraction, 0, 1) * t;
             double minY = pts.Min(p => p.Y);
             double maxY = pts.Max(p => p.Y);
-            series.Add(new ChartSeries("Teraz", TempSpBrush, new List<Point> { new(nowX, minY), new(nowX, maxY) }, dashed: true));
+            series.Add(new ChartSeries(
+                "Teraz",
+                TempSpBrush,
+                new List<Point> { new(nowX, minY), new(nowX, maxY) },
+                dashed: true,
+                strokeThickness: 3.5));
             if (!double.IsNaN(_profileCurrentSetpoint))
             {
                 series.Add(new ChartSeries(
