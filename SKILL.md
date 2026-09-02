@@ -29,10 +29,18 @@ For **every code change** in this repository:
 1. Bump the application version in `src/VotschVc3.App/VotschVc3.App.csproj`.
 2. Add a dated entry to the root `CHANGELOG.md`.
 3. Keep the changelog history; never replace it with a shortened version.
-4. If a change is significant, also add/update a dedicated `CHANGELOG_<version>.md` release note.
-5. Verify the version and changelog are on `main` before reporting completion.
+4. `CHANGELOG.md` is the **single canonical changelog** used by the application and release workflow.
+5. Do **not** create `CHANGELOG_<version>.md` files for individual releases; keep release history in the root changelog only.
+6. Verify the version and root changelog are on `main` before reporting completion.
 
-Current baseline at the time of this change: `1.76.9`.
+Current baseline at the time of this change: `1.76.10`.
+
+## Changelog format
+
+- Use `## [x.y.z] – YYYY-MM-DD` for release headings.
+- Keep the language Slovak and the existing Keep-a-Changelog structure.
+- An optional `## [Nezverejnené]` / `## [Unreleased]` heading may exist in the source markdown, but the application parser must ignore it and must never render it as a version.
+- Do not use per-version changelog files as a second source of truth.
 
 ## USB / WIKA CTH7000 rules
 
@@ -74,7 +82,15 @@ Serial communication is safety- and reliability-sensitive.
 - Hover feedback should be communicated by border/background/foreground changes, not by a blur/glow effect on the button content.
 - Preserve keyboard focus visibility and disabled-state contrast when changing button templates.
 
-### Protocol / diagnostics
+## Changelog UI architecture
+
+- `src/VotschVc3.App/Changelog/ChangelogParser.cs` parses the root `CHANGELOG.md`.
+- `src/VotschVc3.App/ViewModels/ChangelogViewModel.cs` loads the embedded root `CHANGELOG.md` resource from the application assembly.
+- `src/VotschVc3.App/Views/ChangelogView.xaml` renders parsed releases as version cards.
+- `src/VotschVc3.App/Changelog/ChangelogHtmlWriter.cs` renders the same parsed releases for HTML export.
+- The parser must accept real three-part numeric versions such as `1.76.10` and ignore non-release headings such as `[Nezverejnené]`.
+
+## Protocol / diagnostics
 
 - CTH7000 uses serial communication compatible with the existing protocol implementation: 9600 8N1, no flow control, CR-terminated commands, with the configured inter-character delay.
 - Keep `*IDN?`, `SYSTEM:REMOTE`, `SYSTEM:LOCAL`, and `READ?` behavior compatible with the existing protocol layer.
@@ -150,6 +166,8 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] Dashboard button hover has no blur/glow effect.
 - [ ] FBG calibration button hover has no blur/glow effect.
 - [ ] Button hover remains visually consistent with the main menu.
+- [ ] Changelog UI does not render `[Nezverejnené]` as a fake version.
+- [ ] Changelog UI reads the root `CHANGELOG.md` as its only source.
 - [ ] Login/changelog navigation cannot bypass authentication.
 - [ ] Version is bumped and `CHANGELOG.md` is updated.
 
@@ -161,4 +179,5 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - Do not put blocking serial I/O directly on the WPF UI thread.
 - Do not silently drop changelog/version updates.
 - Do not rewrite the historical changelog just to add a new entry.
+- Do not create duplicate per-version `CHANGELOG_<version>.md` files.
 - Do not reintroduce button blur/glow effects when fixing hover styling.
