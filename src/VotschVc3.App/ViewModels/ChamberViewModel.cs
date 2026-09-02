@@ -1643,6 +1643,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         ProfileProgress = 0;
         _profileNowFraction = 0;
+        _profileCurrentSetpoint = double.NaN;
         _profileActualStart = null;
         _profileEstimatedEnd = null;
         _stepIsSoaking = false;
@@ -2373,6 +2374,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         IsProfileRunning = true;
         ProfileProgress = 0;
         _profileNowFraction = 0; // fresh run: the preview "now" marker starts at the beginning
+        _profileCurrentSetpoint = double.NaN;
 
         // Safety: lock the device the moment a test/quick profile starts.
         AutoLockOnRun(profiles.Count > 1 ? "spustená fronta profilov" : "spustený profil");
@@ -2551,6 +2553,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             // spans intro + all cycles + outro, matching the now-always-fully-cycled
             // preview curve built below.
             _profileNowFraction = Math.Clamp(e.OverallFraction, 0d, 1d);
+            _profileCurrentSetpoint = e.TemperatureSetpoint;
             BuildProfilePreview();
 
             // Per-profile temperature record (set point vs measured chamber
@@ -4030,6 +4033,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>0..1 position of the "now" marker within a single pass of the profile.</summary>
     private double _profileNowFraction;
+    private double _profileCurrentSetpoint = double.NaN;
 
     private double _previewCycleStartX = double.NaN;
     /// <summary>X (minutes) where the cycled body starts on the dashboard preview; NaN = no band.</summary>
@@ -4118,6 +4122,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             double minY = pts.Min(p => p.Y);
             double maxY = pts.Max(p => p.Y);
             series.Add(new ChartSeries("Teraz", TempSpBrush, new List<Point> { new(nowX, minY), new(nowX, maxY) }, dashed: true));
+            if (!double.IsNaN(_profileCurrentSetpoint))
+            {
+                series.Add(new ChartSeries(
+                    "Aktuálny setpoint",
+                    TempSpBrush,
+                    new List<Point> { new(nowX, _profileCurrentSetpoint) },
+                    pointLabel: $"Setpoint {_profileCurrentSetpoint:0.0} °C"));
+            }
         }
 
         ProfilePreview = series;

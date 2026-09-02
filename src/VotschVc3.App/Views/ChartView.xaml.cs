@@ -415,6 +415,25 @@ public partial class ChartView : UserControl
             }
 
             PlotCanvas.Children.Add(poly);
+
+            if (!string.IsNullOrWhiteSpace(s.PointLabel) && s.Points.Count == 1)
+            {
+                Point marker = s.Points[0];
+                double markerX = ToPx(marker.X);
+                double markerY = ToPy(marker.Y);
+                var dot = new Ellipse
+                {
+                    Width = 10, Height = 10, Fill = s.Stroke, Stroke = Brushes.White,
+                    StrokeThickness = 2, IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(dot, markerX - 5);
+                Canvas.SetTop(dot, markerY - 5);
+                PlotCanvas.Children.Add(dot);
+
+                double labelLeft = Math.Min(markerX + 8, PadLeft + plotW - 118);
+                double labelTop = Math.Max(PadTop + 2, markerY - 24);
+                AddText(s.PointLabel, labelLeft, labelTop, s.Stroke, 11, 112, TextAlignment.Left);
+            }
         }
 
         // Breakpoint dots on the profile curve – one per segment boundary.
@@ -442,7 +461,7 @@ public partial class ChartView : UserControl
         // Legend, top-left: the top-right corner now holds the zoom bar, and the bottom
         // corners are taken by the axis labels and the zoom chip.
         double legendY = PadTop + 2;
-        foreach (ChartSeries s in series)
+        foreach (ChartSeries s in series.Where(item => string.IsNullOrWhiteSpace(item.PointLabel)))
         {
             var swatch = new Rectangle { Width = 14, Height = 3, Fill = s.Stroke, IsHitTestVisible = false };
             Canvas.SetLeft(swatch, PadLeft + 4);
