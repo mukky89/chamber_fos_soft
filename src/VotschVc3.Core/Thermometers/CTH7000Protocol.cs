@@ -35,6 +35,9 @@ public static class F100Protocol
     private static readonly Regex Cth7000Identification =
         new(@"^\s*WIKA\s*,\s*CTH7000\s*,", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    private static readonly Regex TalkOnlyChannel =
+        new(@"^\s*(?:(?:CH|CHANNEL)\s*)?(?<channel>A|B|1|2)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     public static string BuildConfigureChannelCommand(string channel) =>
         $"CONFIGURE:CHANNEL {NormalizeChannel(channel)}";
 
@@ -133,6 +136,20 @@ public static class F100Protocol
         }
 
         return new ThermometerReading(DateTimeOffset.Now, null, DetectUnit(trimmed), raw);
+    }
+
+    /// <summary>Source-compatibility parser for legacy talk-only frames; not used by the CTH7000 UI.</summary>
+    public static string? DetectTalkOnlyChannel(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        Match match = TalkOnlyChannel.Match(raw);
+        if (!match.Success) return null;
+        return match.Groups["channel"].Value.ToUpperInvariant() switch
+        {
+            "A" or "1" => "A",
+            "B" or "2" => "B",
+            _ => null,
+        };
     }
 
     private static string DetectUnit(string text)
