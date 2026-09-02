@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
 using System.Text;
+using VotschVc3.Core.Diagnostics;
 using VotschVc3.Core.Thermometers;
 
 namespace VotschVc3.App.Thermometers;
@@ -69,10 +70,7 @@ public sealed class F100Client : IAsyncDisposable
                 throw new IOException($"Port {_port.PortName} je obsadený. Zatvor FOS4X, inú inštanciu aplikácie alebo inú diagnostiku, ktorá používa tento port, a skús pripojenie znova.", ex);
             }
         }
-        finally
-        {
-            _gate.Release();
-        }
+        finally { _gate.Release(); }
     }
 
     public async Task<string> IdentifyInstrumentAsync(CancellationToken cancellationToken = default)
@@ -93,7 +91,9 @@ public sealed class F100Client : IAsyncDisposable
         {
             ThrowIfDisposing();
             EnsurePortOpen();
-            await Task.Run(() => WriteCommand(F100Protocol.Frame(command))).ConfigureAwait(false);
+            string frame = F100Protocol.Frame(command);
+            AppLog.Info("CTH7000 USB TX", $"{PortName}: {FormatLog(frame)}");
+            await Task.Run(() => WriteCommand(frame)).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
     }
@@ -105,15 +105,48 @@ public sealed class F100Client : IAsyncDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            ThrowIfDisposing();
-            EnsurePortOpen();
-            return await Task.Run(() =>
+            Exception? last = null;
+            for (int attempt = 1; attempt <= 2; attempt++)
             {
-                ThrowIfDisposing();
-                EnsurePortOpen();
-                WriteCommand(F100Protocol.Frame(command));
-                return ReadLine(cancellationToken);
-            }).ConfigureAwait(false);
+                try
+                {
+                    ThrowIfDisposing();
+                    EnsurePortOpen();
+                    string frame = F100Protocol.Frame(command);
+                    AppLog.Info("CTH7000 USB TX", $"{PortName} [pokus {attempt}/2]: {FormatLog(frame)}");
+                    string response = await Task.Run(() =>
+                    {
+                        ThrowIfDisposing();
+                        EnsurePortOpen();
+                        WriteCommand(frame);
+                        return ReadLine(cancellationToken);
+                    }).ConfigureAwait(false);
+                    AppLog.Info("CTH7000 USB RX", $"{PortName} [pokus {attempt}/2]: {FormatLog(response)}");
+                    return response;
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    last = new IOException($"USB čítanie {PortName} bolo prerušené.");
+                }
+                catch (TimeoutException ex)
+                {
+                    last = ex;
+                }
+                catch (IOException ex)
+                {
+                    last = ex;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    last = ex;
+                }
+
+                if (attempt == 2) break;
+                AppLog.Warn("CTH7000 USB", $"{PortName}: dočasný výpadok ({last?.Message}), skúšam bezpečný reconnect.");
+                await ReopenUnderGateAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            throw last ?? new IOException($"USB čítanie {PortName} zlyhalo.");
         }
         finally { _gate.Release(); }
     }
@@ -126,15 +159,17 @@ public sealed class F100Client : IAsyncDisposable
         {
             ThrowIfDisposing();
             EnsurePortOpen();
-            return await Task.Run(() =>
+            string frame = F100Protocol.Frame(command);
+            AppLog.Info("CTH7000 USB TX", $"{PortName} [scan]: {FormatLog(frame)}");
+            string response = await Task.Run(() =>
             {
-                // Critical race fix: scan/identify and DisposeAsync cannot use/close the
-                // SerialPort simultaneously because both operations own the same gate.
                 ThrowIfDisposing();
                 EnsurePortOpen();
-                _port.Write(F100Protocol.Frame(command));
+                _port.Write(frame);
                 return ReadLine(cancellationToken);
             }).ConfigureAwait(false);
+            AppLog.Info("CTH7000 USB RX", $"{PortName} [scan]: {FormatLog(response)}");
+            return response;
         }
         finally { _gate.Release(); }
     }
@@ -228,6 +263,33 @@ public sealed class F100Client : IAsyncDisposable
         _remoteActive = true;
     }
 
+    private async Task ReopenUnderGateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_port.IsOpen)
+            {
+                try { _port.DiscardInBuffer(); } catch { }
+                try { _port.DiscardOutBuffer(); } catch { }
+                try { _port.Close(); } catch { }
+            }
+
+            await Task.Run(() =>
+            {
+                ThrowIfDisposing();
+                _port.Open();
+                _port.DiscardInBuffer();
+                _port.DiscardOutBuffer();
+            }).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken).ConfigureAwait(false);
+            if (_port.IsOpen) _port.DiscardInBuffer();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new IOException($"Port {_port.PortName} je po USB výpadku obsadený.", ex);
+        }
+    }
+
     private static bool IsSupportedQueryInstrument(string identity) =>
         !string.IsNullOrWhiteSpace(identity) && !F100Protocol.IsErrorResponse(identity) &&
         (identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase) ||
@@ -251,6 +313,7 @@ public sealed class F100Client : IAsyncDisposable
                     string raw = ReadLine(cancellationToken);
                     if (string.IsNullOrWhiteSpace(raw)) continue;
                     lastRaw = raw;
+                    AppLog.Info("Legacy USB RX", $"{PortName} [talk-only]: {FormatLog(raw)}");
                     ThermometerReading reading = F100Protocol.ParseReading(raw);
                     string? frameChannel = F100Protocol.DetectTalkOnlyChannel(raw);
                     if (reading.Temperature is not null && (frameChannel is null || string.Equals(frameChannel, channel, StringComparison.Ordinal))) return reading;
@@ -297,6 +360,13 @@ public sealed class F100Client : IAsyncDisposable
             sb.Append(c);
         }
         return sb.ToString();
+    }
+
+    private static string FormatLog(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "<EMPTY>";
+        string normalized = value.Replace("\r", "<CR>", StringComparison.Ordinal).Replace("\n", "<LF>", StringComparison.Ordinal);
+        return normalized.Length > 300 ? normalized[..300] + "…" : normalized;
     }
 
     private void EnsurePortOpen()
