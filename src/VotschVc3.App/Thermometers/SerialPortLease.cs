@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO;
 
 namespace VotschVc3.App.Thermometers;
 
