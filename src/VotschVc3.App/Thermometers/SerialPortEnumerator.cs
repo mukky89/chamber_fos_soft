@@ -31,7 +31,6 @@ public static class SerialPortEnumerator
     private static List<SerialDeviceInfo> EnumerateViaWmi()
     {
         var result = new List<SerialDeviceInfo>();
-
         using var searcher = new ManagementObjectSearcher(
             "SELECT Name, DeviceID, PNPDeviceID FROM Win32_PnPEntity WHERE Name LIKE '%(COM%'");
 
@@ -65,7 +64,6 @@ public static class SerialPortEnumerator
     private static string? ExtractSerial(string? pnpDeviceId)
     {
         if (string.IsNullOrWhiteSpace(pnpDeviceId)) return null;
-
         string[] segments = pnpDeviceId.Split('\\', StringSplitOptions.RemoveEmptyEntries);
         string last = segments.LastOrDefault() ?? string.Empty;
 
@@ -82,6 +80,22 @@ public static class SerialPortEnumerator
 
         if (last.Length == 0 || last.Contains('&')) return null;
         return last;
+    }
+
+    /// <summary>
+    /// Kept only as a source-compatibility stub for older view-model code. The legacy
+    /// talk-only diagnostic has been retired and never opens or probes a COM port.
+    /// </summary>
+    [Obsolete("Legacy talk-only thermometer diagnostic is retired; this method performs no probe.")]
+    public static Task<IReadOnlyList<string>> DiagnoseTalkOnlyAsync(
+        IEnumerable<SerialDeviceInfo> devices,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<string>>(new[]
+        {
+            "Pasívny test starého teplomera bol odstránený. WIKA CTH7000 používa aktívne SCPI čítanie."
+        });
     }
 
     public static IReadOnlyList<string> DiagnoseUsb()
