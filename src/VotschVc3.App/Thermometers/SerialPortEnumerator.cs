@@ -7,10 +7,8 @@ using VotschVc3.Core.Thermometers;
 namespace VotschVc3.App.Thermometers;
 
 /// <summary>
-/// Enumerates serial / USB COM ports together with their USB serial number, so
-/// several identical ASL F100 units can be told apart. Uses WMI
-/// (<c>Win32_PnPEntity</c>); falls back to a plain port list when WMI is
-/// unavailable.
+/// Enumerates serial / USB COM ports together with their USB serial number.
+/// Uses WMI (<c>Win32_PnPEntity</c>); falls back to a plain port list when WMI is unavailable.
 /// </summary>
 public static class SerialPortEnumerator
 {
@@ -24,7 +22,6 @@ public static class SerialPortEnumerator
         }
         catch
         {
-            // WMI can be disabled or unavailable – degrade gracefully.
             return SerialPort.GetPortNames()
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                 .Select(p => new SerialDeviceInfo(p, null, null))
@@ -43,23 +40,16 @@ public static class SerialPortEnumerator
         {
             string? name = device["Name"] as string;
             string? pnpId = device["PNPDeviceID"] as string ?? device["DeviceID"] as string;
-            if (name is null)
-            {
-                continue;
-            }
+            if (name is null) continue;
 
             Match m = ComInName.Match(name);
-            if (!m.Success)
-            {
-                continue;
-            }
+            if (!m.Success) continue;
 
             string port = m.Groups[1].Value;
             string description = name.Replace($"({port})", string.Empty).Trim();
             result.Add(new SerialDeviceInfo(port, ExtractSerial(pnpId), description));
         }
 
-        // Make sure ports without a friendly PnP entry are still listed.
         foreach (string port in SerialPort.GetPortNames())
         {
             if (!result.Any(d => string.Equals(d.PortName, port, StringComparison.OrdinalIgnoreCase)))
@@ -73,24 +63,13 @@ public static class SerialPortEnumerator
             .ToList();
     }
 
-    /// <summary>
-    /// Pulls the device serial number out of a USB PnP id such as
-    /// <c>USB\VID_0403&amp;PID_6001\FT3AB12X</c> – the last path segment.
-    /// </summary>
     private static string? ExtractSerial(string? pnpDeviceId)
     {
-        if (string.IsNullOrWhiteSpace(pnpDeviceId))
-        {
-            return null;
-        }
+        if (string.IsNullOrWhiteSpace(pnpDeviceId)) return null;
 
         string[] segments = pnpDeviceId.Split('\\', StringSplitOptions.RemoveEmptyEntries);
         string last = segments.LastOrDefault() ?? string.Empty;
 
-        // FTDI exposes the COM interface as ...\0000. That suffix is identical for every
-        // converter and must not be shown as its identity. The parent segment encodes the
-        // FTDI serial (or, for chips without a programmed serial, Windows' unique instance
-        // location), e.g. VID_0403+PID_6001+FTABC123 or ...+6&20EF229&0&4.
         if (last.All(char.IsDigit) && last.All(c => c == '0') && segments.Length >= 2)
         {
             string parent = segments[^2];
@@ -98,27 +77,18 @@ public static class SerialPortEnumerator
             if (separator >= 0 && separator + 1 < parent.Length)
             {
                 string parentIdentity = parent[(separator + 1)..].Trim();
-                if (parentIdentity.Length > 0)
-                {
-                    return parentIdentity;
-                }
+                if (parentIdentity.Length > 0) return parentIdentity;
             }
         }
 
-        // Composite-device entries use "&" (e.g. "6&1abc&0&2"); those are not real
-        // serial numbers, so ignore them.
-        if (last.Length == 0 || last.Contains('&'))
-        {
-            return null;
-        }
-
+        if (last.Length == 0 || last.Contains('&')) return null;
         return last;
     }
 
     /// <summary>
-    /// Opens candidate F100 USB serial ports without writing anything and listens for a
-    /// talk-only frame at the supported baud rates. Safe for the original F100: no SCPI,
-    /// terminator or other byte is transmitted.
+    /// Opens candidate USB serial ports without transmitting anything and listens for
+    /// a legacy talk-only frame at supported baud rates. A port already owned by an
+    /// active F100Client is skipped instead of racing the live measurement connection.
     /// </summary>
     public static async Task<IReadOnlyList<string>> DiagnoseTalkOnlyAsync(
         IEnumerable<SerialDeviceInfo> devices,
@@ -144,64 +114,74 @@ public static class SerialPortEnumerator
     private static IReadOnlyList<string> ProbeTalkOnly(SerialDeviceInfo device, CancellationToken token)
     {
         var lines = new List<string>();
-        foreach (int baudRate in F100Protocol.BaudRates)
+
+        // Never open a port that the live application connection already owns.
+        if (!SerialPortLease.TryAcquire(device.PortName, out SerialPortLease? lease))
         {
-            token.ThrowIfCancellationRequested();
-            using var port = new SerialPort(device.PortName, baudRate, Parity.None, 8, StopBits.One)
-            {
-                Handshake = Handshake.None,
-                DtrEnable = true,
-                RtsEnable = true,
-                ReadTimeout = 500,
-                WriteTimeout = 500,
-            };
-            try
-            {
-                port.Open();
-                var received = new System.Text.StringBuilder();
-                var clock = System.Diagnostics.Stopwatch.StartNew();
-                while (clock.Elapsed < TimeSpan.FromSeconds(3))
-                {
-                    token.ThrowIfCancellationRequested();
-                    string chunk = port.ReadExisting();
-                    if (chunk.Length > 0) received.Append(chunk);
-                    if (received.ToString().IndexOfAny(new[] { '\r', '\n' }) >= 0) break;
-                    Thread.Sleep(100);
-                }
+            return new[] { $"{device.PortName}: OBSADENÝ aplikáciou – pasívna diagnostika ho neotvára." };
+        }
 
-                if (received.Length == 0)
+        using (lease)
+        {
+            foreach (int baudRate in F100Protocol.BaudRates)
+            {
+                token.ThrowIfCancellationRequested();
+                using var port = new SerialPort(device.PortName, baudRate, Parity.None, 8, StopBits.One)
                 {
-                    lines.Add($"{device.PortName} @ {baudRate}: port otvorený, talk-only dáta neprišli.");
-                    continue;
-                }
+                    Handshake = Handshake.None,
+                    DtrEnable = true,
+                    RtsEnable = true,
+                    ReadTimeout = 500,
+                    WriteTimeout = 500,
+                };
+                try
+                {
+                    port.Open();
+                    var received = new System.Text.StringBuilder();
+                    var clock = System.Diagnostics.Stopwatch.StartNew();
+                    while (clock.Elapsed < TimeSpan.FromSeconds(3))
+                    {
+                        token.ThrowIfCancellationRequested();
+                        string chunk = port.ReadExisting();
+                        if (chunk.Length > 0) received.Append(chunk);
+                        if (received.ToString().IndexOfAny(new[] { '\r', '\n' }) >= 0) break;
+                        Thread.Sleep(100);
+                    }
 
-                string sample = received.ToString()
-                    .Replace("\r", "<CR>", StringComparison.Ordinal)
-                    .Replace("\n", "<LF>", StringComparison.Ordinal);
-                if (sample.Length > 160) sample = sample[..160] + "…";
-                lines.Add($"{device.PortName} @ {baudRate}: DATA OK · {sample}");
-                break;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                lines.Add($"{device.PortName}: OBSADENÝ – port drží iná aplikácia alebo služba.");
-                break;
-            }
-            catch (Exception ex) when (ex is IOException or InvalidOperationException)
-            {
-                lines.Add($"{device.PortName} @ {baudRate}: chyba portu – {ex.Message}");
-                break;
+                    if (received.Length == 0)
+                    {
+                        lines.Add($"{device.PortName} @ {baudRate}: port otvorený, talk-only dáta neprišli.");
+                        continue;
+                    }
+
+                    string sample = received.ToString()
+                        .Replace("\r", "<CR>", StringComparison.Ordinal)
+                        .Replace("\n", "<LF>", StringComparison.Ordinal);
+                    if (sample.Length > 160) sample = sample[..160] + "…";
+                    lines.Add($"{device.PortName} @ {baudRate}: DATA OK · {sample}");
+                    break;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    lines.Add($"{device.PortName}: OBSADENÝ – port drží iná aplikácia alebo služba.");
+                    break;
+                }
+                catch (Exception ex) when (ex is IOException or InvalidOperationException)
+                {
+                    lines.Add($"{device.PortName} @ {baudRate}: chyba portu – {ex.Message}");
+                    break;
+                }
             }
         }
 
-        if (!lines.Any(line => line.Contains("DATA OK", StringComparison.Ordinal)))
+        if (!lines.Any(line => line.Contains("DATA OK", StringComparison.Ordinal)) &&
+            !lines.Any(line => line.Contains("OBSADENÝ", StringComparison.Ordinal)))
         {
-            lines.Add($"{device.PortName}: žiadne pasívne dáta. Na F100 skontroluj Menu → Options → Talk Only → On; nastavenie zostáva uložené aj po vypnutí.");
+            lines.Add($"{device.PortName}: žiadne pasívne dáta. Na staršom ASL F100 skontroluj Menu → Options → Talk Only → On.");
         }
         return lines;
     }
 
-    /// <summary>Returns operator-readable Windows PnP diagnostics for USB serial devices.</summary>
     public static IReadOnlyList<string> DiagnoseUsb()
     {
         var lines = new List<string>();
@@ -219,6 +199,7 @@ public static class SerialPortEnumerator
                 string service = device["Service"] as string ?? "—";
                 uint error = device["ConfigManagerErrorCode"] is uint code ? code : 0;
                 bool relevant = ComInName.IsMatch(name) ||
+                    name.Contains("CTH7000", StringComparison.OrdinalIgnoreCase) ||
                     name.Contains("F100", StringComparison.OrdinalIgnoreCase) ||
                     name.Contains("USB Serial", StringComparison.OrdinalIgnoreCase) ||
                     name.Contains("FTDI", StringComparison.OrdinalIgnoreCase) ||
@@ -238,7 +219,7 @@ public static class SerialPortEnumerator
         lines.Insert(0, ports.Length == 0
             ? "SerialPort API: žiadny COM port"
             : $"SerialPort API: {string.Join(", ", ports)}");
-        if (lines.Count == 1) lines.Add("Windows nenašiel žiadny relevantný USB sériový adaptér ani ASL F100.");
+        if (lines.Count == 1) lines.Add("Windows nenašiel žiadny relevantný USB sériový adaptér.");
         return lines;
     }
 
