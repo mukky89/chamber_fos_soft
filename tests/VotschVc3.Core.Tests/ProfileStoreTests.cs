@@ -60,6 +60,25 @@ public class ProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void Favorite_pin_round_trips_without_marking_profile_as_recently_edited()
+    {
+        var store = new ProfileStore(_dir);
+        var profile = new TestProfile { Name = "Obľúbený profil" };
+        store.Save(profile);
+        DateTimeOffset? editedAt = profile.UpdatedAt;
+
+        store.SetFavorite(profile, true);
+        TestProfile loaded = Assert.Single(store.LoadAll());
+
+        Assert.True(loaded.IsFavorite);
+        Assert.Equal(editedAt, loaded.UpdatedAt);
+        Assert.True(loaded.Clone().IsFavorite);
+
+        store.SetFavorite(loaded, false);
+        Assert.False(Assert.Single(store.LoadAll()).IsFavorite);
+    }
+
+    [Fact]
     public void Profile_note_round_trips_with_the_profile()
     {
         var store = new ProfileStore(_dir);

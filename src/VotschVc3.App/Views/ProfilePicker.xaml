@@ -124,10 +124,25 @@
                                                Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
                                 </HierarchicalDataTemplate>
                                 <DataTemplate DataType="{x:Type core:TestProfile}">
-                                    <StackPanel Margin="0,2" MouseEnter="OnProfileMouseEnter"
-                                                ToolTip="Prejdi myšou = náhľad · klik = vybrať profil.">
-                                        <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
-                                        <StackPanel Orientation="Horizontal">
+                                    <DockPanel Margin="0,2" MouseEnter="OnProfileMouseEnter"
+                                               ToolTip="Prejdi myšou = náhľad · klik = vybrať profil.">
+                                        <Button DockPanel.Dock="Right" Content="📌" Width="30" Height="30" Padding="0" Margin="5,0,0,0"
+                                                Click="OnFavoriteClick" ToolTip="Pripnúť alebo odopnúť profil medzi obľúbené">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                                    <Setter Property="Opacity" Value="0.35" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                            <Setter Property="Opacity" Value="1" />
+                                                            <Setter Property="Background" Value="{StaticResource SurfaceAltBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextTrimming="CharacterEllipsis" />
+                                            <StackPanel Orientation="Horizontal">
                                             <Border CornerRadius="5" Padding="6,1" Margin="0,1,7,0" VerticalAlignment="Center"
                                                     BorderThickness="1"
                                                     BorderBrush="{Binding ValidationStatus, Converter={StaticResource ProfileStatusToBrush}}"
@@ -148,8 +163,9 @@
                                             </Border>
                                             <TextBlock Text="{Binding PickerCaption}" Style="{StaticResource Caption}"
                                                        TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
                                         </StackPanel>
-                                    </StackPanel>
+                                    </DockPanel>
                                 </DataTemplate>
                             </TreeView.Resources>
                         </TreeView>

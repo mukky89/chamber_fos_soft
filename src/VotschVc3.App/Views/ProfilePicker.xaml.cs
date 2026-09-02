@@ -158,6 +158,15 @@ public partial class ProfilePicker : UserControl
             .Where(p => Matches(p, filter))
             .ToList();
 
+        List<TestProfile> favorites = matched
+            .Where(p => p.IsFavorite)
+            .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+        if (favorites.Count > 0)
+        {
+            Groups.Add(new ProfileTreeGroupViewModel("📌 Obľúbené", favorites) { IsExpanded = true });
+        }
+
         List<TestProfile> recent = matched
             .OrderByDescending(p => p.LastChangedAt)
             .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -246,14 +255,39 @@ public partial class ProfilePicker : UserControl
         }
     }
 
+    private void OnFavoriteClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: TestProfile profile }) return;
+
+        new ProfileStore(AppPaths.ProfilesDir).SetFavorite(profile, !profile.IsFavorite);
+        RebuildTree();
+        UpdatePreview(profile);
+        e.Handled = true;
+    }
+
     /// <summary>Single click on a leaf confirms it; group clicks still only expand/collapse.</summary>
     private void OnTreeMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        // A pin is an inline action, not profile selection. TreeView receives the
+        // preview event before the Button.Click event, so explicitly leave it alone.
+        if (IsInsideButton(e.OriginalSource as DependencyObject)) return;
+
         if (Tree.SelectedItem is TestProfile profile)
         {
             CommitProfile(profile);
             e.Handled = true;
         }
+    }
+
+    private static bool IsInsideButton(DependencyObject? element)
+    {
+        while (element is not null)
+        {
+            if (element is Button) return true;
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return false;
     }
 
     /// <summary>Enter confirms the currently highlighted profile; Escape closes without changing it.</summary>

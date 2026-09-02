@@ -62,6 +62,9 @@ public sealed class TestProfile
     /// </summary>
     public DateTimeOffset? UpdatedAt { get; set; }
 
+    /// <summary>Operator pin: favourite profiles are shown at the top of profile pickers.</summary>
+    public bool IsFavorite { get; set; }
+
     /// <summary>When the profile was last created or edited – the sort key of the
     /// "Najnovšie" group in the profile picker.</summary>
     [JsonIgnore]
@@ -213,6 +216,7 @@ public sealed class TestProfile
         ExecutionMode = ExecutionMode,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt,
+        IsFavorite = IsFavorite,
         Cycles = Cycles,
         CycleStartIndex = CycleStartIndex,
         CycleEndIndex = CycleEndIndex,

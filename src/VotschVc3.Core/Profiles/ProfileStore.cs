@@ -99,6 +99,26 @@ public sealed class ProfileStore
     }
 
     /// <summary>
+    /// Persists only the picker pin state without making the profile appear newly edited.
+    /// </summary>
+    public void SetFavorite(TestProfile profile, bool isFavorite)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        profile.IsFavorite = isFavorite;
+        lock (_sync)
+        {
+            MigrateLegacyNoLock();
+            List<TestProfile> all = LoadAllNoLock();
+            List<TestProfile> others = all.Where(p => p.Id != profile.Id).ToList();
+            EnsureCode(profile, others);
+            string? previous = FindFileNoLock(profile.Id);
+            string target = WriteOneNoLock(profile, others);
+            if (previous is not null && !PathsEqual(previous, target)) TryDelete(previous);
+            InvalidateNoLock();
+        }
+    }
+
+    /// <summary>
     /// Adds every profile that is not already present (matched by id or, case-insensitively,
     /// by name). Returns the number actually added.
     /// </summary>
