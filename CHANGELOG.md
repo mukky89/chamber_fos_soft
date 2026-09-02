@@ -1,6 +1,16 @@
 # Changelog
 
-## [Nezverejnené]
+## [1.76.10] – 2026-09-02
+
+### Opravené
+- Changelog parser už ignoruje hlavičku `[Nezverejnené]`, takže sa v aplikácii nezobrazuje falošná verzia `vNezverejnené`.
+- Zjednotený zdroj histórie verzií: aplikácia načítava iba koreňový `CHANGELOG.md`, ktorý zostáva jediným kanonickým changelogom.
+
+### Upratané
+- Odstránené duplicitné súbory `CHANGELOG_<verzia>.md`; ich obsah je vedený v koreňovom `CHANGELOG.md`.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.9` na `1.76.10`.
 
 ## [1.76.9] – 2026-09-02
 
