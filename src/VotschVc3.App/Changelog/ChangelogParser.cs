@@ -58,7 +58,12 @@ public static class ChangelogParser
             if (trimmed.StartsWith("## ", StringComparison.Ordinal))
             {
                 FlushRelease();
-                (version, date) = ParseReleaseHeader(trimmed[3..]);
+
+                if (TryParseReleaseHeader(trimmed[3..], out string parsedVersion, out string parsedDate))
+                {
+                    version = parsedVersion;
+                    date = parsedDate;
+                }
             }
             else if (trimmed.StartsWith("### ", StringComparison.Ordinal))
             {
@@ -83,22 +88,50 @@ public static class ChangelogParser
         return releases;
     }
 
-    private static (string version, string date) ParseReleaseHeader(string header)
+    private static bool TryParseReleaseHeader(string header, out string version, out string date)
     {
         // Expected: "[1.26.0] – 2026-07-21" (en dash or hyphen separator).
-        string version = header.Trim();
-        string date = string.Empty;
+        version = string.Empty;
+        date = string.Empty;
 
         int open = header.IndexOf('[');
         int close = header.IndexOf(']');
-        if (open >= 0 && close > open)
+        if (open < 0 || close <= open)
         {
-            version = header[(open + 1)..close].Trim();
-            string rest = header[(close + 1)..].Trim();
-            date = rest.TrimStart('–', '-', ' ').Trim();
+            return false;
         }
 
-        return (version, ReformatDate(date));
+        string candidate = header[(open + 1)..close].Trim();
+        if (!LooksLikeVersion(candidate))
+        {
+            // Keep-a-Changelog commonly uses an [Unreleased]/[Nezverejnené]
+            // heading. It is not a release and must not render as "vNezverejnené".
+            return false;
+        }
+
+        version = candidate;
+        string rest = header[(close + 1)..].Trim();
+        date = ReformatDate(rest.TrimStart('–', '-', ' ').Trim());
+        return true;
+    }
+
+    private static bool LooksLikeVersion(string value)
+    {
+        string[] parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 3)
+        {
+            return false;
+        }
+
+        foreach (string part in parts)
+        {
+            if (!int.TryParse(part, System.Globalization.CultureInfo.InvariantCulture, out _))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Turns an ISO date (2026-07-21) into the Slovak dd.MM.yyyy form; passes others through.</summary>
