@@ -167,7 +167,8 @@
             <Border Style="{StaticResource ProSection}">
                 <WrapPanel>
                     <StackPanel Margin="0,0,20,0">
-                        <TextBlock Text="Teplota" Style="{StaticResource Caption}" />
+                        <TextBlock Text="Teplota zariadenia" Style="{StaticResource Caption}"
+                                   ToolTip="Teplota meraná interným snímačom zariadenia, nie referenčnou kalibračnou sondou." />
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource MetricSmall}"
                                        Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
