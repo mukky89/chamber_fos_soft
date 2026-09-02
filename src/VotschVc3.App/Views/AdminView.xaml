@@ -356,7 +356,7 @@
                             BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,10,0,0">
                         <StackPanel>
                             <DockPanel LastChildFill="False">
-                                <TextBlock Text="Kontrola F100 vs. komora" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                                <TextBlock Text="Kontrola WIKA CTH7000 vs. komora" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
                                 <CheckBox Content="Kontrola zapnutá"
                                           IsChecked="{Binding Email.ReferenceTemperatureMismatchAlertsEnabled}"
                                           DockPanel.Dock="Right" />
