@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.76.16] – 2026-09-02
+
+### Opravené – WIKA CTH7000 identifikácia vs. meranie
+- Odpoveď z `*IDN?`, napríklad `WIKA,CTH7000,000000,V1.0,01/05/2013`, sa už nikdy neinterpretuje ako teplota.
+- Parser CTH7000 teraz akceptuje ako teplotu iba platný merací rámec s kanálom a hodnotou, napríklad `2,24.332,"CEL"`.
+- Tým sa odstránila chyba, pri ktorej dátum vo výrobnej/identifikačnej odpovedi vytvoril falošnú hodnotu `2013.000 °C`.
+- Zachovaná bola zdrojová kompatibilita starších parserových volaní.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.15` na `1.76.16`.
+
 ## [1.76.15] – 2026-09-02
 
 ### Opravené – názov referenčného teplomera v e-mailoch
