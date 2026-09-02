@@ -2,7 +2,6 @@ using System.IO;
 using System.IO.Ports;
 using System.Management;
 using System.Text.RegularExpressions;
-using VotschVc3.Core.Thermometers;
 
 namespace VotschVc3.App.Thermometers;
 
@@ -85,103 +84,6 @@ public static class SerialPortEnumerator
         return last;
     }
 
-    /// <summary>
-    /// Opens candidate USB serial ports without transmitting anything and listens for
-    /// a legacy talk-only frame at supported baud rates. A port already owned by an
-    /// active F100Client is skipped instead of racing the live measurement connection.
-    /// </summary>
-    public static async Task<IReadOnlyList<string>> DiagnoseTalkOnlyAsync(
-        IEnumerable<SerialDeviceInfo> devices,
-        CancellationToken cancellationToken = default)
-    {
-        SerialDeviceInfo[] candidates = devices
-            .Where(device => !string.IsNullOrWhiteSpace(device.PortName))
-            .GroupBy(device => device.PortName, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
-        if (candidates.Length == 0)
-        {
-            return new[] { "Pasívny test: nie je dostupný žiadny kandidátsky COM port." };
-        }
-
-        Task<IReadOnlyList<string>>[] probes = candidates
-            .Select(device => Task.Run(() => ProbeTalkOnly(device, cancellationToken), cancellationToken))
-            .ToArray();
-        IReadOnlyList<string>[] results = await Task.WhenAll(probes).ConfigureAwait(false);
-        return results.SelectMany(lines => lines).ToList();
-    }
-
-    private static IReadOnlyList<string> ProbeTalkOnly(SerialDeviceInfo device, CancellationToken token)
-    {
-        var lines = new List<string>();
-
-        // Never open a port that the live application connection already owns.
-        if (!SerialPortLease.TryAcquire(device.PortName, out SerialPortLease? lease))
-        {
-            return new[] { $"{device.PortName}: OBSADENÝ aplikáciou – pasívna diagnostika ho neotvára." };
-        }
-
-        using (lease)
-        {
-            foreach (int baudRate in F100Protocol.BaudRates)
-            {
-                token.ThrowIfCancellationRequested();
-                using var port = new SerialPort(device.PortName, baudRate, Parity.None, 8, StopBits.One)
-                {
-                    Handshake = Handshake.None,
-                    DtrEnable = true,
-                    RtsEnable = true,
-                    ReadTimeout = 500,
-                    WriteTimeout = 500,
-                };
-                try
-                {
-                    port.Open();
-                    var received = new System.Text.StringBuilder();
-                    var clock = System.Diagnostics.Stopwatch.StartNew();
-                    while (clock.Elapsed < TimeSpan.FromSeconds(3))
-                    {
-                        token.ThrowIfCancellationRequested();
-                        string chunk = port.ReadExisting();
-                        if (chunk.Length > 0) received.Append(chunk);
-                        if (received.ToString().IndexOfAny(new[] { '\r', '\n' }) >= 0) break;
-                        Thread.Sleep(100);
-                    }
-
-                    if (received.Length == 0)
-                    {
-                        lines.Add($"{device.PortName} @ {baudRate}: port otvorený, talk-only dáta neprišli.");
-                        continue;
-                    }
-
-                    string sample = received.ToString()
-                        .Replace("\r", "<CR>", StringComparison.Ordinal)
-                        .Replace("\n", "<LF>", StringComparison.Ordinal);
-                    if (sample.Length > 160) sample = sample[..160] + "…";
-                    lines.Add($"{device.PortName} @ {baudRate}: DATA OK · {sample}");
-                    break;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    lines.Add($"{device.PortName}: OBSADENÝ – port drží iná aplikácia alebo služba.");
-                    break;
-                }
-                catch (Exception ex) when (ex is IOException or InvalidOperationException)
-                {
-                    lines.Add($"{device.PortName} @ {baudRate}: chyba portu – {ex.Message}");
-                    break;
-                }
-            }
-        }
-
-        if (!lines.Any(line => line.Contains("DATA OK", StringComparison.Ordinal)) &&
-            !lines.Any(line => line.Contains("OBSADENÝ", StringComparison.Ordinal)))
-        {
-            lines.Add($"{device.PortName}: žiadne pasívne dáta. Na staršom ASL F100 skontroluj Menu → Options → Talk Only → On.");
-        }
-        return lines;
-    }
-
     public static IReadOnlyList<string> DiagnoseUsb()
     {
         var lines = new List<string>();
@@ -200,7 +102,6 @@ public static class SerialPortEnumerator
                 uint error = device["ConfigManagerErrorCode"] is uint code ? code : 0;
                 bool relevant = ComInName.IsMatch(name) ||
                     name.Contains("CTH7000", StringComparison.OrdinalIgnoreCase) ||
-                    name.Contains("F100", StringComparison.OrdinalIgnoreCase) ||
                     name.Contains("USB Serial", StringComparison.OrdinalIgnoreCase) ||
                     name.Contains("FTDI", StringComparison.OrdinalIgnoreCase) ||
                     manufacturer.Contains("FTDI", StringComparison.OrdinalIgnoreCase);
