@@ -205,7 +205,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
             return;
         }
 
-        string response = await _client.SendReceiveAsync(F100Protocol.IdentifyCommand);
+        string response = await _client.IdentifyInstrumentAsync();
         LogTerminal(F100Protocol.IdentifyCommand, response);
         if (!string.IsNullOrWhiteSpace(response))
         {
@@ -227,7 +227,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         ApplyReading(reading);
         if (reading.Temperature is null)
         {
-            throw new InvalidOperationException($"F100 {PortName}, kanál {SelectedChannel}: zariadenie nevrátilo platnú teplotu. RAW: {reading.Raw}");
+            throw new InvalidOperationException($"WIKA CTH7000 {PortName}, kanál {SelectedChannel}: zariadenie nevrátilo platnú teplotu. RAW: {reading.Raw}");
         }
     }
 
@@ -382,7 +382,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         var points = _live
             .Select(s => new Point((s.time - t0).TotalMinutes, s.value))
             .ToList();
-        LiveSeries = new[] { new ChartSeries($"F100 · {SelectedChannel}", TempBrush, points) };
+        LiveSeries = new[] { new ChartSeries($"WIKA CTH7000 · {SelectedChannel}", TempBrush, points) };
     }
 
     private async Task SendTerminalAsync()
