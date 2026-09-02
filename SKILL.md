@@ -33,7 +33,7 @@ For **every code change** in this repository:
 5. Do **not** create `CHANGELOG_<version>.md` files for individual releases; keep release history in the root changelog only.
 6. Verify the version and root changelog are on `main` before reporting completion.
 
-Current baseline at the time of this change: `1.76.10`.
+Current baseline at the time of this change: `1.76.11`.
 
 ## Changelog format
 
@@ -45,6 +45,14 @@ Current baseline at the time of this change: `1.76.10`.
 ## USB / WIKA CTH7000 rules
 
 Serial communication is safety- and reliability-sensitive.
+
+### Proven physical transport — do not regress
+
+- The WIKA CTH7000 USB communication was verified against real hardware using **9600 baud, 8N1, no flow control, DTR/RTS enabled**.
+- The verified working test sends **each character separately with a 2 ms inter-character delay**, including the terminating CR. Do not replace this with one fast `_port.Write(frame)` call for CTH7000.
+- Use the same paced transport for `*IDN?`, `SYSTEM:REMOTE`, `MEASURE:CHANNEL? 1/2`, `SYSTEM:LOCAL` and other SCPI commands.
+- The verified real responses included `WIKA,CTH7000,000000,V1.0,01/05/2013` and measurement frames such as `2,24.332,"CEL"` and `1,25.061,"CEL"`.
+- This transport rule is based on an actual successful hardware test, not a theoretical protocol assumption.
 
 ### Concurrency and COM ownership
 
@@ -88,11 +96,11 @@ Serial communication is safety- and reliability-sensitive.
 - `src/VotschVc3.App/ViewModels/ChangelogViewModel.cs` loads the embedded root `CHANGELOG.md` resource from the application assembly.
 - `src/VotschVc3.App/Views/ChangelogView.xaml` renders parsed releases as version cards.
 - `src/VotschVc3.App/Changelog/ChangelogHtmlWriter.cs` renders the same parsed releases for HTML export.
-- The parser must accept real three-part numeric versions such as `1.76.10` and ignore non-release headings such as `[Nezverejnené]`.
+- The parser must accept real three-part numeric versions such as `1.76.11` and ignore non-release headings such as `[Nezverejnené]`.
 
 ## Protocol / diagnostics
 
-- CTH7000 uses serial communication compatible with the existing protocol implementation: 9600 8N1, no flow control, CR-terminated commands, with the configured inter-character delay.
+- CTH7000 uses serial communication compatible with the existing protocol implementation: 9600 8N1, no flow control, CR-terminated commands, with the configured 2 ms inter-character delay.
 - Keep `*IDN?`, `SYSTEM:REMOTE`, `SYSTEM:LOCAL`, and `READ?` behavior compatible with the existing protocol layer.
 - Preserve A/B channel support.
 - TX and RX diagnostic logging should include device/port context and attempt information, while avoiding excessive log spam.
@@ -106,6 +114,7 @@ Serial communication is safety- and reliability-sensitive.
   - Owns physical CTH7000 serial communication.
   - Uses per-client synchronization plus process-wide COM ownership.
   - Contains retry/reconnect and TX/RX diagnostics.
+  - Uses the verified 2 ms character-paced command transport.
 - `src/VotschVc3.App/Thermometers/SerialPortLease.cs`
   - Provides process-wide ownership of physical COM ports.
   - Shared by live thermometer clients and diagnostic probes.
@@ -152,6 +161,8 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] Automatic COM scan works.
 - [ ] Manual COM selection still works.
 - [ ] Opening an already-present CTH7000 succeeds.
+- [ ] CTH7000 commands use the verified 2 ms inter-character pacing.
+- [ ] `*IDN?` is sent through the same paced transport as measurement commands.
 - [ ] Two clients in one process cannot open the same COM port concurrently.
 - [ ] Diagnostic scanning cannot steal a COM port from a live thermometer client.
 - [ ] A COM port held by another process is reported as OBSADENÝ instead of crashing the app.
@@ -181,3 +192,4 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - Do not rewrite the historical changelog just to add a new entry.
 - Do not create duplicate per-version `CHANGELOG_<version>.md` files.
 - Do not reintroduce button blur/glow effects when fixing hover styling.
+- Do not replace the verified 2 ms CTH7000 character pacing with an unpaced whole-frame write without a new successful hardware test proving it safe.
