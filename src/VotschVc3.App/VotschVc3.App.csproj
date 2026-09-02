@@ -13,7 +13,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.76.18</Version>
+    <Version>1.76.19</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -48,14 +48,4 @@
     <EmbeddedResource Include="seed-profiles-manifest.json" LogicalName="seed-profiles-manifest.json" />
     <EmbeddedResource Include="..\VotschVc3.Agent\bridge.example.json" LogicalName="bridge.example.json" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Resource Include="..\..\assets\sylex-logo-red.png" Link="Assets\sylex-logo-red.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
-    <PackageReference Include="System.Management" Version="8.0.0" />
-  </ItemGroup>
-
 </Project>
