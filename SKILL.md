@@ -32,7 +32,7 @@ For **every code change** in this repository:
 4. If a change is significant, also add/update a dedicated `CHANGELOG_<version>.md` release note.
 5. Verify the version and changelog are on `main` before reporting completion.
 
-Current baseline at the time of this change: `1.76.8`.
+Current baseline at the time of this change: `1.76.9`.
 
 ## USB / WIKA CTH7000 rules
 
@@ -66,6 +66,13 @@ Serial communication is safety- and reliability-sensitive.
 - Temporary failures should not freeze the UI.
 - Retry transient `TimeoutException`, `IOException`, and closed-port failures where safe.
 - A silent device/query timeout should be treated as a communication failure, not as a successful empty measurement.
+
+### UI buttons and hover effects
+
+- Do not use `DropShadowEffect` on interactive buttons where it causes text or icons to render through a blurred intermediate bitmap.
+- Dashboard and FBG calibration buttons should use crisp outline/fill hover states consistent with the main menu.
+- Hover feedback should be communicated by border/background/foreground changes, not by a blur/glow effect on the button content.
+- Preserve keyboard focus visibility and disabled-state contrast when changing button templates.
 
 ### Protocol / diagnostics
 
@@ -140,6 +147,9 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] A and B channels remain functional.
 - [ ] TX/RX diagnostics are available.
 - [ ] Silent query responses do not become false successful readings.
+- [ ] Dashboard button hover has no blur/glow effect.
+- [ ] FBG calibration button hover has no blur/glow effect.
+- [ ] Button hover remains visually consistent with the main menu.
 - [ ] Login/changelog navigation cannot bypass authentication.
 - [ ] Version is bumped and `CHANGELOG.md` is updated.
 
@@ -151,3 +161,4 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - Do not put blocking serial I/O directly on the WPF UI thread.
 - Do not silently drop changelog/version updates.
 - Do not rewrite the historical changelog just to add a new entry.
+- Do not reintroduce button blur/glow effects when fixing hover styling.
