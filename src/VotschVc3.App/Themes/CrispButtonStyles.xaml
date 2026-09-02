@@ -91,6 +91,10 @@
                             <Setter Property="Opacity" Value="0.4" />
                             <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
+                        <!-- Legacy passive thermometer test is retired and must not be exposed. -->
+                        <Trigger Property="Content" Value="Pasívny test starého teplomera">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
