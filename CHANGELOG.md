@@ -2,6 +2,19 @@
 
 ## [Nezverejnené]
 
+## [1.76.9] – 2026-09-02
+
+### UI / tlačidlá
+- Odstránené `DropShadowEffect`/blur z tlačidiel používaných na kartách zariadení a vo FBG kalibrácii.
+- Hover stav `GhostButton`, `AccentOutlineButton` a `AccentButton` je teraz ostrý a používa rovnaký outline/fill princíp ako hlavné menu.
+- Texty a ikonky tlačidiel sa pri hoveri už nerenderujú cez rozmazanú efektovú bitmapu.
+
+### Opravené
+- Doplnený `System.IO` namespace pre `IOException` v COM lease vrstve, aby projekt opäť korektne kompiloval.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.8` na `1.76.9`.
+
 ## [1.76.8] – 2026-09-02
 
 ### Opravené – USB / WIKA CTH7000
