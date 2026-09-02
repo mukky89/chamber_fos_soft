@@ -9,6 +9,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/Styles.xaml" />
                 <ResourceDictionary Source="Themes/Icons.xaml" />
+                <ResourceDictionary Source="Themes/CrispButtonStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <conv:ValueOrDashConverter x:Key="ValueOrDash" />
