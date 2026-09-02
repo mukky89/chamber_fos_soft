@@ -11,7 +11,7 @@
 
              <StackPanel Orientation="Horizontal">
                  <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}" />
-                 <TextBlock Text="Upraviť" Style="{StaticResource IconLabel}" />
+                 <TextBlock Style="{StaticResource IconLabel}" Text="Upraviť" />
              </StackPanel>
 
          The stroke follows the owning Button's Foreground, so icons recolour
@@ -51,8 +51,11 @@
         <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
     </Style>
 
-    <!-- Label sitting next to an icon inside a button. -->
+    <!-- Label sitting next to an icon inside a button.  The explicit binding is
+         important: the global TextBlock style sets its own Foreground, which otherwise
+         wins over WPF property inheritance and made labels on accent buttons unreadable. -->
     <Style x:Key="IconLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Margin" Value="10,0,0,0" />
     </Style>
@@ -67,7 +70,7 @@
     <Geometry x:Key="Icon.List">M8.5 6H21M8.5 12H21M8.5 18H21M3.5 6h.4M3.5 12h.4M3.5 18h.4</Geometry>
     <Geometry x:Key="Icon.Document">M14 2.5H6.5A2 2 0 0 0 4.5 4.5v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8zM14 2.5V8h5.5M9 13.5h6M9 17h6</Geometry>
     <Geometry x:Key="Icon.Folder">M20 20.5a2 2 0 0 0 2-2V8.5a2 2 0 0 0-2-2h-7.6a2 2 0 0 1-1.7-.9L9.7 4.4a2 2 0 0 0-1.7-.9H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z</Geometry>
-    <Geometry x:Key="Icon.Book">M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 1 0-5H20</Geometry>
+    <Geometry x:Key="Icon.Book">M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 0 0-5H20</Geometry>
     <Geometry x:Key="Icon.Gear">M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z</Geometry>
     <Geometry x:Key="Icon.Logout">M9.5 21H5.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 16.5l4.5-4.5L16 7.5M20.5 12H9.5</Geometry>
     <Geometry x:Key="Icon.Power">M12 2.5v9M18.4 6.1a9 9 0 1 1-12.8 0</Geometry>
