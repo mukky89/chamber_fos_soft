@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.76.11] – 2026-09-02
+
+### Opravené – USB / WIKA CTH7000
+- Aplikácia sa vrátila k overenému spôsobu USB prenosu z lokálneho testu: každý znak SCPI príkazu sa odosiela samostatne s 2 ms medzerou.
+- Rovnaký transport sa teraz používa pre `*IDN?`, `SYSTEM:REMOTE`, `MEASURE:CHANNEL? 1/2`, `SYSTEM:LOCAL` aj ostatné príkazy.
+- Identifikácia už nepoužíva rýchly jednorazový `_port.Write(frame)`, ktorý sa odlišoval od úspešného hardvérového testu.
+- Zachované zostávajú COM lease, retry/reconnect, čistenie RX/TX bufferov, A/B kanály a TX/RX diagnostika.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.10` na `1.76.11`.
+
 ## [1.76.10] – 2026-09-02
 
 ### Opravené
