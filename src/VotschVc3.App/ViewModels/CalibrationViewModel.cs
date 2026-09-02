@@ -263,7 +263,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public string F100TemperatureLabel => SelectedF100?.Temperature is { } t ? $"{t:F3} {SelectedF100.Unit}" : "—";
     public string ReferenceThermometerTitle => SelectedF100?.DeviceName ?? "Referenčný teplomer";
     public string F100ConnectionLabel => SelectedF100 is null
-        ? "Žiadny ASL F100"
+        ? "Žiadny WIKA CTH7000"
         : $"{SelectedF100.PortName} · kanál {SelectedF100Channel} · {SelectedF100.ConnectionState}";
 
     private bool _useSimulator;
@@ -1095,8 +1095,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(F100TemperatureLabel));
         OnPropertyChanged(nameof(F100ConnectionLabel));
         StatusMessage = value is { } t
-            ? $"ASL F100 znovu pripojený · {SelectedF100.PortName} · {t:F3} °C"
-            : $"Port {SelectedF100.PortName} sa otvoril, ale F100 neposlal platnú teplotu.";
+            ? $"WIKA CTH7000 znovu pripojený · {SelectedF100.PortName} · {t:F3} °C"
+            : $"Port {SelectedF100.PortName} sa otvoril, ale WIKA CTH7000 neposlal platnú teplotu.";
     }
 
     private async Task CheckF100Async()
@@ -1197,7 +1197,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        string message = $"CHYBA TEPLOTY: F100 {referenceTemperature:F3} °C sa nezhoduje s komorou " +
+        string message = $"CHYBA TEPLOTY: WIKA CTH7000 {referenceTemperature:F3} °C sa nezhoduje s komorou " +
                          $"{chamberTemperature:F3} °C. Rozdiel {difference:F3} °C prekročil povolených ±{limit:F1} °C.";
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
@@ -1321,8 +1321,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _runner.Progress += snapshot => _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
 
             StatusMessage = SelectedF100 is null
-                ? "Kalibrácia spustená bez externého F100. Najskôr prebehne preflight a kontrola PeakLoggera."
-                : $"Kalibrácia spustená · referencia F100 {SelectedF100.PortName}/{SelectedF100Channel}. Najskôr prebehne preflight.";
+                ? "Kalibrácia spustená bez externého WIKA CTH7000. Najskôr prebehne preflight a kontrola PeakLoggera."
+                : $"Kalibrácia spustená · referencia WIKA CTH7000 {SelectedF100.PortName}/{SelectedF100Channel}. Najskôr prebehne preflight.";
             await _runner.RunAsync(
                 SelectedProfile,
                 _setup,
@@ -1456,7 +1456,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (!CalibrationResourceRegistry.TryAcquire(key, _workspaceChamberId, WorkspaceName, out string occupiedBy))
         {
             throw new InvalidOperationException(
-                $"Port {SelectedF100.PortName} / ASL F100 je obsadený kalibráciou zariadenia „{occupiedBy}“. Vyber iný F100 alebo ho najprv uvoľni v pôvodnom okne.");
+                $"Port {SelectedF100.PortName} / WIKA CTH7000 je obsadený kalibráciou zariadenia „{occupiedBy}“. Vyber iný CTH7000 alebo ho najprv uvoľni v pôvodnom okne.");
         }
 
         if (_reservedF100Key is { } oldKey)
