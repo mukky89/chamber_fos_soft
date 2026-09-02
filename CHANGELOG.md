@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.76.18] – 2026-09-02
+
+### Overené a opravené – WIKA CTH7000 USB príkazy
+- Podľa oficiálneho WIKA manuálu je USB rozhranie `9600 8N1`, bez flow control a s odstupom `1–2 ms` medzi znakmi.
+- Aktívna sekvencia aplikácie používa dokumentované príkazy `*IDN?` → `SYSTEM:REMOTE` → `MEASURE:CHANNEL? 1/2` → `SYSTEM:LOCAL`.
+- `MEASURE:CHANNEL? 1` je kanál A, `MEASURE:CHANNEL? 2` je kanál B a `MEASURE:CHANNEL? -` je diferenciálne meranie A-B.
+- Nedokumentované `READ?` a `CONFIGURE:CHANNEL ...` sa už pri CTH7000 fallbacke neposielajú; staré API symboly zostali iba kvôli zdrojovej kompatibilite.
+- Zoznam baud rate bol zúžený na dokumentovaných `9600 Bd`.
+- Jednotka odporu bola zosúladená s dokumentáciou na `R` (UI môže naďalej zobrazovať `Ω`).
+- Čítanie odpovede používa polling `ReadExisting()` s celkovým limitom 8 s, aby lepšie zodpovedalo overenej komunikácii s reálnym CTH7000.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.17` na `1.76.18`.
+
 ## [1.76.17] – 2026-09-02
 
 ### Opravené – kompilácia USB teplomera
