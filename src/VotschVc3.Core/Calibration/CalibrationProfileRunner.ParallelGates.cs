@@ -164,18 +164,24 @@ public sealed class CalibrationProfileRunner
                 });
             }
 
-            run.State = CalibrationRunState.CalculatingResults;
-            var calculator = new TemperatureCalibrationCalculator();
-            run.CalculationResults = calculator.CalculateRun(run, setup).ToList();
-            foreach (TemperatureCalibrationResult failed in run.CalculationResults.Where(result => !result.OverallPassed))
+            // Polynomial TEMP/FBGS calibration requires at least three completed points. One/two
+            // point production checks remain valid measurement workflows and must not be converted
+            // into an artificial calibration-result failure.
+            if (run.Plateaus.Count >= 3)
             {
-                run.Warnings.Add(new CalibrationWarning
+                run.State = CalibrationRunState.CalculatingResults;
+                var calculator = new TemperatureCalibrationCalculator();
+                run.CalculationResults = calculator.CalculateRun(run, setup).ToList();
+                foreach (TemperatureCalibrationResult failed in run.CalculationResults.Where(result => !result.OverallPassed))
                 {
-                    Code = "CALIBRATION_RESULT_FAIL",
-                    Message = $"FBG SN {failed.SerialNumber}, peak {failed.PeakId}: {failed.StatusMessage}",
-                    SerialNumber = failed.SerialNumber,
-                    PeakId = failed.PeakId,
-                });
+                    run.Warnings.Add(new CalibrationWarning
+                    {
+                        Code = "CALIBRATION_RESULT_FAIL",
+                        Message = $"FBG SN {failed.SerialNumber}, peak {failed.PeakId}: {failed.StatusMessage}",
+                        SerialNumber = failed.SerialNumber,
+                        PeakId = failed.PeakId,
+                    });
+                }
             }
 
             run.CompletedAt = DateTimeOffset.Now;
