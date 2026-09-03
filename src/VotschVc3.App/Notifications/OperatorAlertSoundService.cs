@@ -10,6 +10,7 @@ public static class OperatorAlertSoundService
     private static readonly object Gate = new();
     private static readonly string FilePath = Path.Combine(AppPaths.SettingsDir, "operator-alert-sound.json");
     private static readonly Dictionary<string, DateTimeOffset> LastPlayed = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> SessionOncePlayed = new(StringComparer.OrdinalIgnoreCase);
     private static bool _enabled = LoadEnabled();
 
     public static event EventHandler? EnabledChanged;
@@ -35,14 +36,29 @@ public static class OperatorAlertSoundService
         lock (Gate)
         {
             if (!_enabled) return;
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            if (LastPlayed.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(3)) return;
-            LastPlayed[key] = now;
+
+            // Bad-SN and Sylex probe-mismatch keys are deterministic and may be revalidated every
+            // few seconds. Sound once for that concrete fault during this app session instead of
+            // making the PC beep continuously while the operator is entering wiring data.
+            if (IsSessionOnceKey(key))
+            {
+                if (!SessionOncePlayed.Add(key)) return;
+            }
+            else
+            {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                if (LastPlayed.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(3)) return;
+                LastPlayed[key] = now;
+            }
         }
 
         try { SystemSounds.Exclamation.Play(); }
         catch { /* sound is optional and must never affect calibration */ }
     }
+
+    private static bool IsSessionOnceKey(string key) =>
+        key.StartsWith("serial-warning:", StringComparison.OrdinalIgnoreCase) ||
+        key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase);
 
     private static bool LoadEnabled()
     {
