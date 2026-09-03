@@ -2,7 +2,7 @@ using VotschVc3.App.Mvvm;
 
 namespace VotschVc3.App.ViewModels;
 
-/// <summary>Application-wide snapshot shown on the dashboard while the calibration window is hidden.</summary>
+/// <summary>Application-wide snapshots shown on the dashboard while calibration workspaces are hidden.</summary>
 public sealed class CalibrationStatusViewModel : ObservableObject
 {
     public static CalibrationStatusViewModel Instance { get; } = new();
@@ -35,8 +35,42 @@ public sealed class CalibrationStatusViewModel : ObservableObject
         DetailText = active.Length == 0
             ? "FBG kalibrácia nie je spustená."
             : string.Join(" · ", active.Select(status => $"{status.ChamberName}: {status.ProfileName}, {status.Plateau}"));
+
+        // Per-device cards listen to PropertyChanged and need a pulse even when the aggregate
+        // text happens to remain unchanged between two progress updates.
+        OnPropertyChanged(nameof(WorkspaceRevision));
+    }
+
+    public long WorkspaceRevision => DateTimeOffset.UtcNow.Ticks;
+
+    public CalibrationWorkspaceStatusSnapshot GetWorkspace(Guid chamberId)
+    {
+        if (!_workspaces.TryGetValue(chamberId, out WorkspaceStatus? status))
+            return new(chamberId, string.Empty, false, string.Empty, "Idle", string.Empty, 0);
+        return new(
+            chamberId,
+            status.ChamberName,
+            status.IsRunning,
+            status.ProfileName,
+            status.RunState,
+            status.Plateau,
+            status.ProgressPercent);
     }
 
     private sealed record WorkspaceStatus(
-        string ChamberName, bool IsRunning, string ProfileName, string RunState, string Plateau, double ProgressPercent);
+        string ChamberName,
+        bool IsRunning,
+        string ProfileName,
+        string RunState,
+        string Plateau,
+        double ProgressPercent);
 }
+
+public sealed record CalibrationWorkspaceStatusSnapshot(
+    Guid ChamberId,
+    string ChamberName,
+    bool IsRunning,
+    string ProfileName,
+    string RunState,
+    string Plateau,
+    double ProgressPercent);
