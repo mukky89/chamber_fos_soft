@@ -72,7 +72,12 @@ public sealed class CalibrationStore
         string dir = RunDirectory(run.RunId);
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "summary.json"), JsonSerializer.Serialize(run, JsonOptions));
+        File.WriteAllText(
+            Path.Combine(dir, "calibration-result.json"),
+            JsonSerializer.Serialize(run.CalculationResults, JsonOptions));
         ExportSummaryCsv(run, Path.Combine(dir, "summary.csv"));
+        ExportCalculationResultsCsv(run, Path.Combine(dir, "calibration-result.csv"));
+        ExportCalibrationPointsCsv(run, Path.Combine(dir, "calibration-points.csv"));
     }
 
     public List<CalibrationRunRecord> LoadHistory()
@@ -125,7 +130,7 @@ public sealed class CalibrationStore
     public static void ExportSummaryCsv(CalibrationRunRecord run, string path)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Profile;RunId;ReferenceF100Port;ReferenceF100Serial;ReferenceF100Channel;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;MeanWavelengthNm;MedianWavelengthNm;StdDevPm;MinNm;MaxNm;RangePm;DriftPmPerMinute;StabilizationSeconds;Status;Problem");
+        sb.AppendLine("Profile;RunId;ReferenceF100Port;ReferenceF100Serial;ReferenceF100Channel;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;MeanWavelengthNm;MedianWavelengthNm;MeanMeasurementChamberC;MeanMeasurementReferenceC;StdDevPm;MinNm;MaxNm;RangePm;DriftPmPerMinute;StabilizationSeconds;Status;Problem");
         foreach (CalibrationPlateauResult plateau in run.Plateaus)
         {
             foreach (CalibrationMeasurementResult target in plateau.Targets)
@@ -146,6 +151,8 @@ public sealed class CalibrationStore
                   .Append(target.PeakIndex).Append(';')
                   .Append(F(target.MeanWavelengthNm)).Append(';')
                   .Append(F(target.MedianWavelengthNm)).Append(';')
+                  .Append(target.MeanChamberTemperatureC is { } mtc ? F(mtc) : string.Empty).Append(';')
+                  .Append(target.MeanReferenceTemperatureC is { } mtr ? F(mtr) : string.Empty).Append(';')
                   .Append(F(target.StandardDeviationPm)).Append(';')
                   .Append(F(target.MinWavelengthNm)).Append(';')
                   .Append(F(target.MaxWavelengthNm)).Append(';')
@@ -157,6 +164,79 @@ public sealed class CalibrationStore
             }
         }
 
+        WriteCsv(path, sb);
+    }
+
+    public static void ExportCalculationResultsCsv(CalibrationRunRecord run, string path)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("RunId;Profile;SensorSerialNumber;ProductDescription;Channel;PeakId;PeakIndex;Recipe;CalculationType;A;B;C;D;S1;S2;SensitivityPmPerC;TRefNm;MaxErrorC;ErrorToleranceC;TemperatureConstantC;R2;SensitivityPass;ErrorPass;R2Pass;OverallPass;StatusMessage;Operator;StartedAt;CompletedAt;Chamber;ReferenceDevice;ReferenceChannel");
+        foreach (TemperatureCalibrationResult result in run.CalculationResults)
+        {
+            sb.Append(run.RunId).Append(';')
+              .Append(E(run.ProfileName)).Append(';')
+              .Append(E(result.SerialNumber)).Append(';')
+              .Append(E(result.ProductDescription)).Append(';')
+              .Append(E(result.Channel)).Append(';')
+              .Append(E(result.PeakId)).Append(';')
+              .Append(result.PeakIndex).Append(';')
+              .Append(E(result.RecipeKey)).Append(';')
+              .Append(result.CalculationType).Append(';')
+              .Append(N(result.A)).Append(';')
+              .Append(N(result.B)).Append(';')
+              .Append(N(result.C)).Append(';')
+              .Append(N(result.D)).Append(';')
+              .Append(N(result.S1)).Append(';')
+              .Append(N(result.S2)).Append(';')
+              .Append(F(result.SensitivityPmPerC)).Append(';')
+              .Append(F(result.TRefNm)).Append(';')
+              .Append(F(result.MaxErrorC)).Append(';')
+              .Append(F(result.ErrorToleranceC)).Append(';')
+              .Append(F(result.TemperatureConstantC)).Append(';')
+              .Append(F(result.R2)).Append(';')
+              .Append(result.SensitivityPassed ? "PASS" : "FAIL").Append(';')
+              .Append(result.ErrorPassed ? "PASS" : "FAIL").Append(';')
+              .Append(result.R2Passed ? "PASS" : "FAIL").Append(';')
+              .Append(result.OverallPassed ? "PASS" : "FAIL").Append(';')
+              .Append(E(result.StatusMessage)).Append(';')
+              .Append(E(run.Operator)).Append(';')
+              .Append(run.StartedAt.ToString("O")).Append(';')
+              .Append(run.CompletedAt?.ToString("O") ?? string.Empty).Append(';')
+              .Append(E(run.ChamberName)).Append(';')
+              .Append(E(run.ReferenceThermometerSerialNumber)).Append(';')
+              .Append(E(run.ReferenceThermometerChannel)).AppendLine();
+        }
+        WriteCsv(path, sb);
+    }
+
+    public static void ExportCalibrationPointsCsv(CalibrationRunRecord run, string path)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("RunId;SensorSerialNumber;Channel;PeakId;Recipe;CalculationType;Plateau;TargetTemperatureC;ReferenceTemperatureC;ChamberTemperatureC;MeanWavelengthNm;PredictedTemperatureC;ErrorC");
+        foreach (TemperatureCalibrationResult result in run.CalculationResults)
+        {
+            foreach (TemperatureCalibrationPointResult point in result.Points)
+            {
+                sb.Append(run.RunId).Append(';')
+                  .Append(E(result.SerialNumber)).Append(';')
+                  .Append(E(result.Channel)).Append(';')
+                  .Append(E(result.PeakId)).Append(';')
+                  .Append(E(result.RecipeKey)).Append(';')
+                  .Append(result.CalculationType).Append(';')
+                  .Append(point.PlateauIndex).Append(';')
+                  .Append(F(point.TargetTemperatureC)).Append(';')
+                  .Append(F(point.ReferenceTemperatureC)).Append(';')
+                  .Append(F(point.ChamberTemperatureC)).Append(';')
+                  .Append(F(point.MeanWavelengthNm)).Append(';')
+                  .Append(F(point.PredictedTemperatureC)).Append(';')
+                  .Append(F(point.ErrorC)).AppendLine();
+            }
+        }
+        WriteCsv(path, sb);
+    }
+
+    private static void WriteCsv(string path, StringBuilder sb)
+    {
         string? dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
@@ -169,6 +249,7 @@ public sealed class CalibrationStore
     private string CheckpointPath(Guid chamberId) => Path.Combine(CheckpointsDirectory, $"{chamberId:N}.json");
 
     private static string F(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
+    private static string N(double? value) => value is { } number ? F(number) : string.Empty;
     private static string E(string value) => value.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
 }
 
