@@ -32,7 +32,7 @@ public sealed class CalibrationReferenceTraceStore
         CalibrationReferenceSnapshot snapshot = CalibrationReferenceStatusStore.Instance.GetSnapshot(e.ChamberId);
         if (!snapshot.IsConnected || snapshot.TemperatureC is not { } temperature || !double.IsFinite(temperature)) return;
 
-        DateTimeOffset timestamp = snapshot.LastUpdated ?? DateTimeOffset.Now;
+        DateTimeOffset timestamp = snapshot.UpdatedAt ?? DateTimeOffset.Now;
         lock (_gate)
         {
             if (!_traces.TryGetValue(e.ChamberId, out List<CalibrationReferenceTracePoint>? trace))
@@ -44,8 +44,6 @@ public sealed class CalibrationReferenceTraceStore
             if (trace.Count > 0)
             {
                 CalibrationReferenceTracePoint last = trace[^1];
-                // The status bus may publish the same sample more than once while connection labels
-                // change. Keep one physical sample only.
                 if (last.Timestamp == timestamp && Math.Abs(last.TemperatureC - temperature) < 0.000001) return;
             }
 
@@ -57,8 +55,6 @@ public sealed class CalibrationReferenceTraceStore
 
             if (trace.Count > MaxPointsPerChamber)
             {
-                // Keep the newest half at full resolution and decimate the older half. This keeps
-                // the graph responsive during very long calibrations without losing the trend.
                 int oldCount = trace.Count / 2;
                 var compact = trace.Take(oldCount).Where((_, index) => index % 2 == 0)
                     .Concat(trace.Skip(oldCount))
