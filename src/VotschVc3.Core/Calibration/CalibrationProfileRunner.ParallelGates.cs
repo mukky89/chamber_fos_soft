@@ -126,6 +126,12 @@ public sealed class CalibrationProfileRunner
                     snapshot => Progress?.Invoke(snapshot),
                     cancellationToken).ConfigureAwait(false);
 
+                // The orchestrator aggregates final-sample reference temperatures. When no external
+                // reference delegate exists, keep ReferenceTemperatureC genuinely null so response
+                // validation and final TEMP/FBGS calculation fall back to the measured chamber
+                // temperature instead of interpreting an empty reference sequence as 0 °C.
+                if (readReferenceTemperatureAsync is null) plateau.ReferenceTemperatureC = null;
+
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
 
