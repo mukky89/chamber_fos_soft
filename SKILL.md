@@ -33,7 +33,7 @@ For **every code change** in this repository:
 5. Do **not** create `CHANGELOG_<version>.md` files for individual releases; keep release history in the root changelog only.
 6. Verify the version and root changelog are on `main` before reporting completion.
 
-Current baseline at the time of this change: `1.76.27`.
+Current baseline at the time of this change: `1.76.28`.
 
 ## Changelog format
 
@@ -76,6 +76,28 @@ The following settings were validated on the real production reference thermomet
 - Switching a chamber deliberately to another reference may free that chamber's previous assignment, but a reference owned by another chamber must be rejected with a clear operator message naming the owner.
 - Persistent assignments are stored in `fbg-reference-thermometers.json` under the application settings directory.
 - Dashboard reference readouts must remain compact and stable: show reference temperature plus COM port when live; when disconnected keep the assigned port and show `—` instead of a stale temperature.
+
+### FBG calibration execution — stable-temperature gate
+
+- `CalibrationSetup.CalibrationSegmentIndices` is the source of truth for which non-ramp profile segments are calibration plateaus. `ProfileSegment.IsCalibrationPoint` is only a backward-compatible fallback when an older setup has no explicit saved indices.
+- Never silently calibrate a plateau the operator did not select in the FBG workspace.
+- When a WIKA CTH7000 reference is assigned and available, peak/wavelength stability evaluation must start only after **both** chamber temperature and WIKA reference temperature satisfy the configured target tolerance, stable duration, and maximum drift.
+- A missing, invalid, or unstable WIKA reference must not be treated as a stable calibration temperature. After the configured stability timeout, require operator action rather than recording a nominally valid plateau.
+- Do not wait the configured stable-duration window twice: a combined chamber+WIKA stability gate may be followed by an instantaneous chamber safety re-check, but not by another full stability dwell.
+- Each selected PeakLogger peak has its own independent rolling stability tracker and its own terminal result. One stable peak must never make another peak stable.
+- The operator may select one suggested peak per channel or explicitly select all peaks. `Vybrať všetky peaky` means every discovered peak is independently evaluated and recorded.
+- Default peak stability remains 50 samples, 5 pm max range, 1.5 pm max standard deviation, and 1 pm/min max drift unless the saved setup explicitly changes these values.
+
+### FBG workspace persistence / restore
+
+- Detailed wiring is persisted per chamber+profile through `CalibrationStore`: selected peaks, production FBG SN, channel SN, CHAIN override SN, core metadata, notes, product/customer/order fields, per-peak timeout, stability settings, and selected calibration segment indices.
+- Closing/hiding the FBG calibration window must force a final setup save when the run is not active; do not rely only on the debounce autosave.
+- `CalibrationWorkspaceStateStore` stores the last selected calibration profile and exact PeakLogger host/port per chamber in `fbg-calibration-workspaces.json`.
+- Reopening the FBG workspace or restarting the application must restore the last profile for that chamber.
+- After the first UI render, the app may reconnect only to the **exact previously saved PeakLogger endpoint** to rebuild the wiring table. Do not reintroduce broad PeakLogger discovery into the initial render path.
+- When PeakLogger reconnects, restore saved mappings by stable source identity `PeakLoggerDeviceSerialNumber|Channel|PeakId`; wavelength is measurement data, not identity.
+- A failed automatic reconnect must leave the FBG window responsive and editable and must not clear the saved wiring.
+- Persistent WIKA assignment is separate from workspace/profile persistence and remains governed by `CalibrationReferenceStatusStore`.
 
 ### Concurrency and COM ownership
 
@@ -158,8 +180,23 @@ The following settings were validated on the real production reference thermomet
   - Calibration-related thermometer behavior.
 - `src/VotschVc3.App/ViewModels/CalibrationReferenceStatusStore.cs`
   - Persistent one-reference-per-chamber assignment plus dashboard snapshot state.
+- `src/VotschVc3.App/ViewModels/CalibrationWorkspaceStateStore.cs`
+  - Persists the last FBG profile and exact PeakLogger endpoint per chamber for reopen/restart recovery.
 - `src/VotschVc3.App/Views/CalibrationWindow.ReferenceAssignment.cs`
   - Enforces selection-time exclusivity and reconnect restoration for the assigned reference.
+- `src/VotschVc3.App/Views/CalibrationWindow.WorkflowEnhancements.cs`
+  - Forces close-time setup persistence, restores the saved workspace and exposes select-all-peaks.
+
+### Core calibration path
+
+- `src/VotschVc3.Core/Calibration/CalibrationProfileRunner.cs`
+  - Executes only explicitly selected calibration plateaus and owns the combined chamber+WIKA stable-temperature gate.
+- `src/VotschVc3.Core/Calibration/CalibrationOrchestrator.cs`
+  - Owns per-peak independent wavelength stability tracking, raw samples, failure policies, and plateau results.
+- `src/VotschVc3.Core/Calibration/StabilityDetectors.cs`
+  - Temperature and rolling wavelength stability criteria.
+- `tests/VotschVc3.Core.Tests/CalibrationWorkflowRegressionTests.cs`
+  - Regression coverage for explicit plateau selection and WIKA stability gating.
 
 ### Core protocol path
 
@@ -199,7 +236,7 @@ The following settings were validated on the real production reference thermomet
 
 ## Regression checklist
 
-Before declaring a USB/thermometer fix complete, verify conceptually or with tests:
+Before declaring a USB/thermometer or FBG calibration fix complete, verify conceptually or with tests:
 
 - [ ] Automatic COM scan works.
 - [ ] Manual COM selection still works.
@@ -222,6 +259,12 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] One physical CTH7000 cannot be persistently assigned to two different FBG calibration workspaces.
 - [ ] USB disconnect/window close does not silently release a persistent FBG reference assignment.
 - [ ] A disconnected assigned reference never leaves a stale live temperature on the dashboard.
+- [ ] Explicit UI-selected calibration plateaus are the plateaus actually executed for FBG measurement.
+- [ ] With WIKA assigned, both chamber and WIKA must be stable before any peak starts accumulating final stability samples.
+- [ ] Each selected peak is tracked independently and produces its own result/raw samples.
+- [ ] `Vybrať všetky peaky` truly selects every discovered PeakLogger peak.
+- [ ] Closing/reopening the FBG workspace restores the last profile, wiring, selected peaks, SN/CHAIN, timeouts, plateau selection and exact PeakLogger endpoint.
+- [ ] Automatic workspace restore uses only the known PeakLogger endpoint and does not reintroduce broad startup discovery.
 - [ ] FBG page remains vertically scrollable when the reference-temperature chart is expanded.
 - [ ] `Zapojenie` table retains usable vertical/horizontal scrolling and readable column widths.
 - [ ] Dashboard button hover has no blur/glow effect.
@@ -245,3 +288,6 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - Do not reintroduce button blur/glow effects when fixing hover styling.
 - Do not revert the validated CTH7000 V1.0 timing/command order to the old 2 ms + pre-REMOTE `*IDN?` sequence without a new physical-device validation.
 - Do not auto-release or auto-steal a persistent CTH7000 assignment merely because its COM port temporarily disappears.
+- Do not use wavelength as a persistent PeakLogger mapping identity.
+- Do not record a calibration plateau as stable solely because the chamber controller is stable when a configured WIKA reference is missing or unstable.
+- Do not clear saved FBG wiring when a background PeakLogger reconnect fails.
