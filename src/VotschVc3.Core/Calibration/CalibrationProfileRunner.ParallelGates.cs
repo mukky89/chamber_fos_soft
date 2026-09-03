@@ -6,10 +6,10 @@ using VotschVc3.Core.Protocol;
 namespace VotschVc3.Core.Calibration;
 
 /// <summary>
-/// Temperature-calibration profile runner with parallel plateau gates. A selected hold segment's
-/// Duration is a minimum time before the point may be stored, not a blind delay before stability
-/// evaluation begins. WIKA and FBG rolling windows therefore start immediately when the plateau
-/// setpoint is commanded.
+/// Temperature-calibration profile runner. For selected FBG calibration points the profile hold
+/// Duration is intentionally ignored: progression is controlled only by measured temperature
+/// stability and then by independent per-FBG stability/measurement completion. Profile Duration
+/// still applies to ordinary non-calibration segments and ramps.
 /// </summary>
 public sealed class CalibrationProfileRunner
 {
@@ -101,8 +101,9 @@ public sealed class CalibrationProfileRunner
                     continue;
                 }
 
-                // A calibration plateau starts now. Command the target immediately, then start all
-                // three observers together: minimum elapsed time, WIKA stability and FBG stability.
+                // For an FBG calibration point, the profile's hold Duration is only descriptive data
+                // from the source profile. It must never delay the calibration workflow. Command the
+                // target and let real measured stability decide when the point can proceed.
                 double? targetHumidity = step.Segment.TargetHumidity ?? previousHumidity;
                 await WriteSetpointAsync(step.Segment.TargetTemperature, targetHumidity, cancellationToken).ConfigureAwait(false);
                 previousTemperature = step.Segment.TargetTemperature;
@@ -118,7 +119,7 @@ public sealed class CalibrationProfileRunner
                     currentPlateau,
                     calibrationSteps.Count,
                     step.Segment.TargetTemperature,
-                    step.Segment.Duration > TimeSpan.Zero ? step.Segment.Duration : TimeSpan.Zero,
+                    TimeSpan.Zero,
                     ReadTemperatureAsync,
                     readReferenceTemperatureAsync,
                     referenceControl,
