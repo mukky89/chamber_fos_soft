@@ -17,23 +17,30 @@ public sealed class TemperatureCalibrationCalculator
         ArgumentNullException.ThrowIfNull(setup);
         recipes ??= TemperatureCalibrationRecipeCatalog.Defaults;
 
-        List<CalibrationSensorMapping> selectedMappings = setup.Mappings
-            .Where(m => m.Selected)
-            .ToList();
         var results = new List<TemperatureCalibrationResult>();
 
-        foreach (IGrouping<string, CalibrationSensorMapping> sensorGroup in selectedMappings
+        // Recipe peak masks describe the physical peak order of the sensor, not merely the subset
+        // selected by the operator. Therefore index all mappings first and only then skip unselected
+        // rows. This keeps e.g. SC-01/T peaks:[true,false] deterministic.
+        foreach (IGrouping<string, CalibrationSensorMapping> sensorGroup in setup.Mappings
+                     .Where(m => !string.IsNullOrWhiteSpace(m.SerialNumber))
                      .GroupBy(m => m.SerialNumber, StringComparer.OrdinalIgnoreCase))
         {
-            List<CalibrationSensorMapping> ordered = sensorGroup.OrderBy(m => m.PeakIndex).ThenBy(m => m.PeakId).ToList();
-            for (int sensorPeakOrder = 0; sensorPeakOrder < ordered.Count; sensorPeakOrder++)
+            List<CalibrationSensorMapping> ordered = sensorGroup
+                .OrderBy(m => m.PeakIndex)
+                .ThenBy(m => m.PeakId, StringComparer.Ordinal)
+                .ToList();
+
+            for (int physicalPeakOrder = 0; physicalPeakOrder < ordered.Count; physicalPeakOrder++)
             {
-                CalibrationSensorMapping mapping = ordered[sensorPeakOrder];
+                CalibrationSensorMapping mapping = ordered[physicalPeakOrder];
+                if (!mapping.Selected) continue;
+
                 TemperatureCalibrationRecipe recipe =
                     TemperatureCalibrationRecipeCatalog.Resolve(mapping, recipes)
                     ?? TemperatureCalibrationRecipeCatalog.GenericTemp();
 
-                if (!recipe.AppliesToPeakIndex(sensorPeakOrder)) continue;
+                if (!recipe.AppliesToPeakIndex(physicalPeakOrder)) continue;
 
                 List<CalibrationPointData> points = BuildPoints(run, mapping);
                 TemperatureCalibrationResult result = recipe.CalculationType switch
@@ -64,6 +71,8 @@ public sealed class TemperatureCalibrationCalculator
         double tempConst = ResolveTemperatureConstant(recipe.TemperatureConstantC, temp);
         int degree = temp.Max() > 100d ? 3 : 2;
 
+        // Pali temp_calc first approximates wavelength as a polynomial of temperature in order to
+        // evaluate the wavelength at TempConst. It then fits temperature against normalized Δλ.
         double[] wavelengthVsTemp = FitPolynomial(temp, wl, degree);
         double tRef = EvaluatePolynomial(wavelengthVsTemp, tempConst);
         if (!double.IsFinite(tRef) || Math.Abs(tRef) < 1e-12)
@@ -84,16 +93,7 @@ public sealed class TemperatureCalibrationCalculator
         result.ErrorToleranceC = (temp.Max() - temp.Min()) * recipe.ErrorTolerancePercentOfRange / 100d;
         result.R2 = R2(temp, predicted);
         ApplyValidation(result, recipe);
-        result.Points = points.Select((point, index) => new TemperatureCalibrationPointResult
-        {
-            PlateauIndex = point.PlateauIndex,
-            TargetTemperatureC = point.TargetTemperatureC,
-            ReferenceTemperatureC = point.ReferenceTemperatureC,
-            ChamberTemperatureC = point.ChamberTemperatureC,
-            MeanWavelengthNm = point.MeanWavelengthNm,
-            PredictedTemperatureC = predicted[index],
-            ErrorC = predicted[index] - point.ReferenceTemperatureC,
-        }).ToList();
+        result.Points = BuildPointResults(points, predicted);
         result.StatusMessage = BuildStatus(result, recipe);
         return result;
     }
@@ -112,7 +112,10 @@ public sealed class TemperatureCalibrationCalculator
         double[] wl = points.Select(p => p.MeanWavelengthNm).ToArray();
         double tempConst = ResolveTemperatureConstant(recipe.TemperatureConstantC, temp, adjustLikeLegacyTemp: false);
 
-        // Legacy FBGS_calc: fit T = A*wl^2 + B*wl + C and solve the wavelength root at TempConst.
+        // Legacy Pali FBGS_calc:
+        //   T = A*lambda^2 + B*lambda + C
+        // and then solve T(lambda)=TempConst. The exact Python branch simplifies algebraically to
+        // (-B + sqrt(B^2 - 4*A*(C-TempConst))) / (2*A), also when A is negative.
         double[] tFromWl = FitPolynomial(wl, temp, 2);
         double qa = tFromWl[2];
         double qb = tFromWl[1];
@@ -125,32 +128,28 @@ public sealed class TemperatureCalibrationCalculator
         double[] deltaT2 = deltaT.Select(t => t * t).ToArray();
         double[] logWl = wl.Select(value => Math.Log(value / tRef)).ToArray();
         double[] regression = FitTwoPredictors(deltaT, deltaT2, logWl); // c0 + s1*dT + s2*dT^2
+        double intercept = regression[0];
         double s1 = regression[1];
         double s2 = regression[2];
 
-        double[] predicted = wl.Select(value => InvertFbgs(value, tRef, tempConst, s1, s2)).ToArray();
+        // In ideal legacy data the fitted intercept is zero. Real least-squares data can leave a
+        // tiny offset. Folding it into TRef preserves Pali's two reported coefficients while making
+        // the inverse model numerically self-consistent: log(lambda/TRef') = s1*dT+s2*dT^2.
+        double effectiveTRef = tRef * Math.Exp(intercept);
+        double[] predicted = wl.Select(value => InvertFbgs(value, effectiveTRef, tempConst, s1, s2)).ToArray();
         if (predicted.Any(v => !double.IsFinite(v)))
             return Fail(result, "FBGS inverzný model vytvoril neplatnú hodnotu teploty.");
 
         result.S1 = s1;
         result.S2 = s2;
         result.SensitivityPmPerC = LinearSlope(temp, wl) * 1000d;
-        result.TRefNm = tRef;
+        result.TRefNm = effectiveTRef;
         result.TemperatureConstantC = tempConst;
         result.MaxErrorC = temp.Zip(predicted, (actual, calc) => Math.Abs(calc - actual)).Max();
         result.ErrorToleranceC = (temp.Max() - temp.Min()) * recipe.ErrorTolerancePercentOfRange / 100d;
         result.R2 = R2(temp, predicted);
         ApplyValidation(result, recipe);
-        result.Points = points.Select((point, index) => new TemperatureCalibrationPointResult
-        {
-            PlateauIndex = point.PlateauIndex,
-            TargetTemperatureC = point.TargetTemperatureC,
-            ReferenceTemperatureC = point.ReferenceTemperatureC,
-            ChamberTemperatureC = point.ChamberTemperatureC,
-            MeanWavelengthNm = point.MeanWavelengthNm,
-            PredictedTemperatureC = predicted[index],
-            ErrorC = predicted[index] - point.ReferenceTemperatureC,
-        }).ToList();
+        result.Points = BuildPointResults(points, predicted);
         result.StatusMessage = BuildStatus(result, recipe);
         return result;
     }
@@ -188,6 +187,19 @@ public sealed class TemperatureCalibrationCalculator
         }).ToList();
         return result;
     }
+
+    private static List<TemperatureCalibrationPointResult> BuildPointResults(
+        IReadOnlyList<CalibrationPointData> points,
+        IReadOnlyList<double> predicted) => points.Select((point, index) => new TemperatureCalibrationPointResult
+    {
+        PlateauIndex = point.PlateauIndex,
+        TargetTemperatureC = point.TargetTemperatureC,
+        ReferenceTemperatureC = point.ReferenceTemperatureC,
+        ChamberTemperatureC = point.ChamberTemperatureC,
+        MeanWavelengthNm = point.MeanWavelengthNm,
+        PredictedTemperatureC = predicted[index],
+        ErrorC = predicted[index] - point.ReferenceTemperatureC,
+    }).ToList();
 
     private static List<CalibrationPointData> BuildPoints(CalibrationRunRecord run, CalibrationSensorMapping mapping)
     {
@@ -285,22 +297,34 @@ public sealed class TemperatureCalibrationCalculator
     {
         if (Math.Abs(a) < 1e-18)
             return Math.Abs(b) < 1e-18 ? double.NaN : -c / b;
+
         double discriminant = b * b - 4d * a * c;
+        double scale = Math.Max(1d, b * b + Math.Abs(4d * a * c));
+        if (discriminant < 0 && discriminant > -1e-12 * scale) discriminant = 0;
         if (discriminant < 0) return double.NaN;
+
         double root = Math.Sqrt(discriminant);
-        // Same branch choice as the Python implementation: negative quadratic coefficient uses
-        // the lower root, positive coefficient uses the upper root.
-        return a < 0 ? (-b - root) / (2d * a) : (-b + root) / (2d * a);
+        // Exact algebraic equivalent of Pali:
+        // -B/(2*A) - sqrt(B^2/(4*A^2)-C/A+TempConst/A) when A<0,
+        // +sqrt(...) when A>=0. Both reduce to the '+' numerator root below.
+        return (-b + root) / (2d * a);
     }
 
     private static double InvertFbgs(double wavelengthNm, double tRefNm, double tempConst, double s1, double s2)
     {
+        if (!double.IsFinite(wavelengthNm) || !double.IsFinite(tRefNm) || wavelengthNm <= 0 || tRefNm <= 0)
+            return double.NaN;
+
         double log = Math.Log(wavelengthNm / tRefNm);
         if (Math.Abs(s2) < 1e-18)
             return Math.Abs(s1) < 1e-18 ? double.NaN : tempConst + log / s1;
+
         double half = s1 / (2d * s2);
         double discriminant = half * half + log / s2;
+        double scale = Math.Max(1d, half * half + Math.Abs(log / s2));
+        if (discriminant < 0 && discriminant > -1e-12 * scale) discriminant = 0;
         if (discriminant < 0) return double.NaN;
+
         double root = Math.Sqrt(discriminant);
         double delta = s2 > 0 ? -half + root : -half - root;
         return tempConst + delta;
@@ -310,6 +334,7 @@ public sealed class TemperatureCalibrationCalculator
     {
         if (x.Count != y.Count || x.Count < degree + 1)
             throw new InvalidOperationException("Nedostatok bodov pre polynomial least-squares fit.");
+
         int n = degree + 1;
         var matrix = new double[n, n];
         var rhs = new double[n];
@@ -326,6 +351,7 @@ public sealed class TemperatureCalibrationCalculator
     {
         if (x1.Count != x2.Count || x1.Count != y.Count || x1.Count < 3)
             throw new InvalidOperationException("Nedostatok bodov pre FBGS least-squares fit.");
+
         var matrix = new double[3, 3];
         var rhs = new double[3];
         for (int i = 0; i < y.Count; i++)
@@ -345,21 +371,27 @@ public sealed class TemperatureCalibrationCalculator
         int n = rhs.Length;
         var a = (double[,])matrix.Clone();
         var b = (double[])rhs.Clone();
+
         for (int pivot = 0; pivot < n; pivot++)
         {
             int best = pivot;
             for (int row = pivot + 1; row < n; row++)
                 if (Math.Abs(a[row, pivot]) > Math.Abs(a[best, pivot])) best = row;
+
             if (Math.Abs(a[best, pivot]) < 1e-20)
                 throw new InvalidOperationException("Kalibračný least-squares systém je singulárny.");
+
             if (best != pivot)
             {
-                for (int col = pivot; col < n; col++) (a[pivot, col], a[best, col]) = (a[best, col], a[pivot, col]);
+                for (int col = pivot; col < n; col++)
+                    (a[pivot, col], a[best, col]) = (a[best, col], a[pivot, col]);
                 (b[pivot], b[best]) = (b[best], b[pivot]);
             }
+
             double divisor = a[pivot, pivot];
             for (int col = pivot; col < n; col++) a[pivot, col] /= divisor;
             b[pivot] /= divisor;
+
             for (int row = 0; row < n; row++)
             {
                 if (row == pivot) continue;
@@ -369,6 +401,7 @@ public sealed class TemperatureCalibrationCalculator
                 b[row] -= factor * b[pivot];
             }
         }
+
         return b;
     }
 
