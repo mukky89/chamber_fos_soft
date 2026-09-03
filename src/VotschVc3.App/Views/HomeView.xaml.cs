@@ -11,6 +11,7 @@ public partial class HomeView : UserControl
         InitializeComponent();
         AttachReferenceDashboard();
         AttachCalibrationStatusDashboard();
+        AttachOperationalNotifications();
     }
 
     /// <summary>Exit button: routes to the window's confirmed-exit flow (the only real way out).</summary>
