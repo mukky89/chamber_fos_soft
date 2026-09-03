@@ -136,7 +136,12 @@ public static class TemperatureCalibrationRecipeCatalog
         IReadOnlyList<TemperatureCalibrationRecipe>? recipes = null)
     {
         ArgumentNullException.ThrowIfNull(mapping);
-        recipes ??= Defaults;
+
+        // TemperatureCalibrationCalculator passes the built-in catalog when the caller did not
+        // provide an explicit catalog. Treat that as the production-default path so the editable
+        // JSON override is actually used during normal application runs.
+        if (recipes is null || ReferenceEquals(recipes, Defaults))
+            recipes = LoadProductionCatalog();
 
         if (!string.IsNullOrWhiteSpace(mapping.CalibrationRecipeKey))
         {
