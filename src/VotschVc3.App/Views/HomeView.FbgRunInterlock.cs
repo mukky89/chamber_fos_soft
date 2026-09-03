@@ -41,7 +41,7 @@ public partial class HomeView
     private readonly Dictionary<Border, Brush?> _fbgModeBackgrounds = new();
     private readonly Dictionary<Button, FbgPulseState> _fbgPulseStates = new();
 
-    private void AttachFbgRunInterlock()
+    internal void AttachFbgRunInterlock()
     {
         if (_fbgRunInterlockAttached) return;
         _fbgRunInterlockAttached = true;
