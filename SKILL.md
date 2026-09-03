@@ -33,7 +33,7 @@ For **every code change** in this repository:
 5. Do **not** create `CHANGELOG_<version>.md` files for individual releases; keep release history in the root changelog only.
 6. Verify the version and root changelog are on `main` before reporting completion.
 
-Current baseline at the time of this change: `1.76.30`.
+Current baseline at the time of this change: `1.76.31`.
 
 ## Changelog format
 
@@ -156,6 +156,16 @@ The following settings were validated on the real production reference thermomet
 - Preserve keyboard focus visibility and disabled-state contrast when changing button templates.
 - The FBG run indicator is an explicit exception to the static hover rule: a **slow red color/opacity pulse** is allowed while a calibration is actively running, but must not blur the text/icon or flash rapidly.
 
+### Application notification UX
+
+- `src/VotschVc3.App/Notifications/AppNotificationService.cs` is the single in-app pipeline for **transient** operator notifications (`Info`, `Success`, `Warning`, `Error`).
+- Do not add new temporary orange/red explanatory TextBlocks inside device cards when the information is an event or action result; route it through `AppNotificationService` so card geometry stays stable.
+- Persistent state belongs inline: connection status, alarm badge, lock state, active `FBG CALIBRATION` ownership, temperatures and similar current-state indicators must remain visible on the relevant card/workspace.
+- Popup notifications must be non-activating, must not steal keyboard focus, and must be de-duplicated/queued so background polling cannot spam the operator.
+- When the application is hidden/minimized to tray, do not open a floating top-most WPF popup over another program. `DesktopNotifier` owns Windows tray balloon/sound/taskbar behavior in that state.
+- Existing `DesktopNotifier.Notify(...)` events should mirror to the central in-app popup while a desktop window is visible, while preserving tray/background behavior.
+- Overall Sylex FOS API health may use a central popup; **per-symbol/SN metadata lookups remain quiet** and must not produce one popup per scanned/typed sensor.
+
 ### FBG calibration layout
 
 - The FBG calibration workspace must remain usable on common 1080p operator displays.
@@ -164,6 +174,8 @@ The following settings were validated on the real production reference thermomet
 - The `Zapojenie` workspace should provide enough vertical space to see approximately **16 production rows** at once when the operator scrolls to that section; extra rows remain independently scrollable.
 - Do not compress production table columns until headers/text overlap; prefer column minimum widths plus horizontal scrolling.
 - Dynamic status/port text must not visually collide with section headings.
+- The dashboard FBG run card must be a separate sibling **above the entire `Rýchle ovládanie` section**. Never inject it into the Quick-control header/DockPanel where it can overlap `Rýchle ovládanie` or `Upraviť predvoľby`.
+- The FBG run card should remain collapsed while no FBG run is active; the FBG button/control-mode badge already communicate inactive availability without consuming vertical space.
 
 ## Changelog UI architecture
 
@@ -212,6 +224,12 @@ The following settings were validated on the real production reference thermomet
   - Owns edit-safe wiring refresh, silent 5 s reference refresh, page/16-row workspace sizing, and explicit plan/current-step/wait telemetry.
 - `src/VotschVc3.App/Views/HomeView.FbgRunInterlock.cs`
   - Dashboard per-chamber FBG run interlock, `FBG CALIBRATION` badge, and slow red FBG-button pulse.
+- `src/VotschVc3.App/Notifications/AppNotificationService.cs`
+  - Central non-activating in-app popup queue for transient operator notifications.
+- `src/VotschVc3.App/Views/HomeView.AppNotifications.cs`
+  - Routes dashboard manual/profile conflict events to the central popup system and hides legacy inline warning rows.
+- `src/VotschVc3.App/Views/CalibrationWindow.AppNotifications.cs`
+  - Routes overall Sylex FOS API health to the same central popup system while keeping per-SN metadata lookup quiet.
 
 ### Core calibration path
 
@@ -298,6 +316,11 @@ Before declaring a USB/thermometer or FBG calibration fix complete, verify conce
 - [ ] Live monitor shows the planned plateaus before start and current step / wait reason / WIKA / active peak samples during a run.
 - [ ] While FBG calibration is running, manual quick control and Testovací profil are disabled on that chamber.
 - [ ] During an FBG run the device mode badge reads `FBG CALIBRATION` and the FBG button uses a slow red pulse only for that chamber.
+- [ ] FBG status card is inserted above the complete `Rýchle ovládanie` section and never overlaps its title/action header.
+- [ ] Inactive FBG status cards remain collapsed.
+- [ ] Transient manual/profile/API warnings use the central in-app popup instead of changing device-card layout.
+- [ ] Central popup notifications do not steal focus and repeated background events are de-duplicated/queued.
+- [ ] Per-symbol Sylex FOS API metadata lookup does not create popup spam.
 - [ ] Dashboard button hover has no blur/glow effect.
 - [ ] FBG calibration button hover has no blur/glow effect.
 - [ ] Button hover remains visually consistent with the main menu.
@@ -324,4 +347,6 @@ Before declaring a USB/thermometer or FBG calibration fix complete, verify conce
 - Do not make chamber temperature a blocking stability condition when WIKA reference is available and configured for the FBG run.
 - Do not call DataGrid/CollectionView refresh or rebuild PeakLogger rows while the operator is editing a wiring cell.
 - Do not route background WIKA polling through foreground UI commands.
+- Do not add transient warning text blocks into dashboard cards when a central popup can convey the event without changing layout.
+- Do not show one in-app popup per Sylex FOS symbol lookup.
 - Do not clear saved FBG wiring when a background PeakLogger reconnect fails.
