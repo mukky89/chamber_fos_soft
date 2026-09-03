@@ -1,4 +1,5 @@
 <UserControl x:Class="VotschVc3.App.Views.CalibrationStabilitySettingsView"
+             x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
@@ -34,81 +35,143 @@
             <Border Background="#222B3B52" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
                     CornerRadius="9" Padding="13,10" Margin="0,0,0,14">
                 <StackPanel>
-                    <TextBlock Text="Ako aplikácia rozhoduje o kalibračnom bode" FontSize="16" FontFamily="Segoe UI Semibold" />
+                    <TextBlock Text="Automatická teplotná kalibrácia · Pali parity" FontSize="16" FontFamily="Segoe UI Semibold" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
-                               Text="1. Najprv čaká na stabilnú referenčnú teplotu (WIKA; bez WIKA interná sonda komory). 2. Potom vyhodnocuje všetky označené FBG paralelne. 3. Každý FBG, ktorý splní počet samples + range + StdDev + drift, začne vlastné finálne meranie. 4. Plato skončí až keď sú hotové všetky vybrané FBG. Čas hold segmentu profilu FBG kalibráciu neblokuje." />
+                               Text="Poradie je pevné: 1. cieľ/rampa, 2. stabilná interná teplota komory, 3. stabilná WIKA/CTH7000, 4. stabilita každého FBG peaku, 5. nové finálne samples, 6. výpočet TEMP/FBGS koeficientov a PASS/FAIL. Ak sa teplota počas FBG fázy rozladí, nedokončené stability a meracie okná sa resetujú." />
                 </StackPanel>
             </Border>
 
-            <TextBlock Text="1 · Stabilita referenčnej teploty" Style="{StaticResource Heading}" Margin="0,0,0,8" />
+            <TextBlock Text="1 · Stabilita komory" Style="{StaticResource Heading}" Margin="0,0,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
-                       Text="Tieto podmienky rozhodujú, kedy sa vôbec môže začať stabilizácia FBG. Ak je priradená WIKA CTH7000, rozhoduje WIKA; interná teplota komory je iba fallback bez WIKA." />
+                       Text="Komora musí najprv sama dosiahnuť cieľ a stabilný interval. WIKA gate sa začne vyhodnocovať až potom." />
             <WrapPanel>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Absolútny rozdiel medzi cieľom plata a referenciou musí byť menší alebo rovný tejto hodnote. Príklad: cieľ -40 °C a tolerancia 0,5 °C znamená akceptované pásmo -40,5 až -39,5 °C.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
-                        <TextBlock Text="Teplotná tolerancia [°C]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Povolené pásmo okolo cieľovej teploty. Mimo pásma sa FBG stabilizácia nespustí alebo sa nedokončené FBG vrátia späť do čakania." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Komora · tolerancia [°C]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Povolené pásmo internej sondy komory okolo cieľovej teploty." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding ChamberToleranceC, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Referencia musí byť bez prerušenia stabilná aspoň tento čas. Krátke prekročenie tolerancie alebo driftu stabilný interval resetuje.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
-                        <TextBlock Text="Požadovaný stabilný čas [min]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Ako dlho musí referencia súvisle spĺňať stabilitu. Až potom aplikácia otvorí FBG fázu." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Komora · stabilný čas [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Ako dlho musí interná sonda bez prerušenia spĺňať toleranciu a drift." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding ChamberStableMinutes, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="Komora · max drift [°C/min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Maximálny absolútny lineárny trend teploty komory. 0 = nekontrolovať drift." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding ChamberMaxDriftCPerMinute, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="Komora · timeout [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Maximálny čas na dosiahnutie stabilnej komory po uplynutí minimálneho kalibračného hold času." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding ChamberStabilityTimeoutMinutes, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="Min. calibration hold [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Minimálny čas od nastavenia kalibračného bodu. 0 = rozhoduje iba meraná stabilita. Toto nie je obyčajný profile hold." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding MinimumCalibrationPointMinutes, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
             </WrapPanel>
 
-            <TextBlock Text="2 · Stabilita jednotlivých FBG peakov" Style="{StaticResource Heading}" Margin="0,12,0,8" />
+            <TextBlock Text="2 · Stabilita referencie WIKA / CTH7000" Style="{StaticResource Heading}" Margin="0,12,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
-                       Text="Každý označený peak má vlastné rolling okno a vyhodnocuje sa nezávisle. Jeden senzor už môže merať finálne samples, zatiaľ čo druhý sa ešte stabilizuje." />
+                       Text="Ak je referencia priradená, je povinná. Chýbajúca WIKA sa nenahrádza internou sondou komory. Bez priradenej WIKA sa ako referencia použije komora." />
             <WrapPanel>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Počet posledných wavelength vzoriek v rolling okne. Všetky ostatné stability kritériá sa počítajú z tohto okna. Počet musí byť dosiahnutý ešte pred prechodom do finálneho merania.">
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="WIKA · tolerancia [°C]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Samostatné akceptované pásmo referenčného teplomera okolo cieľovej teploty." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding ReferenceToleranceC, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="WIKA · stabilný čas [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Ako dlho musí WIKA súvisle spĺňať toleranciu a drift po stabilizácii komory." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding ReferenceStableMinutes, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="WIKA · max drift [°C/min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Maximálny absolútny trend referenčnej teploty. 0 = nekontrolovať drift." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding ReferenceMaxDriftCPerMinute, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="WIKA · stability timeout [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Maximálny čas na stabilizáciu WIKA po stabilizovaní komory." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding ReferenceStabilityTimeoutMinutes, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <TextBlock Text="3 · Stabilita jednotlivých FBG peakov" Style="{StaticResource Heading}" Margin="0,12,0,8" />
+            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                       Text="Každý označený peak má vlastné rolling okno. Jeden peak už môže zbierať finálne samples, zatiaľ čo druhý sa ešte stabilizuje." />
+            <WrapPanel>
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Počet samples pre stabilitu" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Koľko posledných λ vzoriek musí mať peak k dispozícii, aby sa vôbec mohol vyhodnotiť ako stabilný. Live monitor ukazuje x/N aj počet chýbajúcich samples." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Počet posledných λ vzoriek potrebných na vyhodnotenie range + StdDev + drift." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding RequiredStableSamples, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Range = maximum λ - minimum λ v aktuálnom rolling okne. Limit 0 vypne toto kritérium.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Max. range [pm]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Maximálny rozptyl medzi najvyššou a najnižšou wavelength v stability okne. Čím nižšie číslo, tým prísnejšia stabilita. 0 = nevynucovať." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Maximum λ - minimum λ v rolling okne. 0 = nevynucovať." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxRangePm, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Smerodajná odchýlka všetkých wavelength samples v rolling okne. Limit 0 vypne toto kritérium.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Max. StdDev [pm]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Štatistická rozkolísanosť wavelength samples. Vysoká StdDev znamená šum alebo nestabilný senzor. 0 = nevynucovať." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Smerodajná odchýlka wavelength vzoriek. 0 = nevynucovať." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxStdDevPm, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Lineárny trend wavelength v čase vyjadrený v pm/min. Používa absolútnu hodnotu driftu. Limit 0 vypne toto kritérium.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Max. drift [pm/min]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Kontroluje, či wavelength stále pomaly neuteká jedným smerom. Peak môže mať malý range, ale stále driftovať. 0 = nevynucovať." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Absolútny lineárny trend wavelength. 0 = nevynucovať." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxDriftPmPerMinute, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Maximálny čas aktívnej FBG fázy pre jeden peak. Riadok v Zapojení môže mať vlastný override. Po prekročení sa použije nakonfigurovaná failure policy.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
-                        <TextBlock Text="Default FBG peak timeout [min]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Bezpečnostný limit, aby jeden nestabilný peak neblokoval kalibráciu donekonečna. Začína sa počítať až po stabilizácii teploty." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="FBG peak timeout [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Bezpečnostný limit aktívnej FBG fázy. Počíta sa iba počas otvoreného teplotného gate." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding SensorTimeoutMinutes, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
             </WrapPanel>
 
-            <TextBlock Text="3 · Finálne meranie a logovanie" Style="{StaticResource Heading}" Margin="0,12,0,8" />
+            <TextBlock Text="4 · Finálne meranie a logovanie" Style="{StaticResource Heading}" Margin="0,12,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
-                       Text="Stabilizačné samples sa nikdy nepoužijú ako finálny kalibračný priemer. Po potvrdení stability začne pre konkrétny peak nové meracie okno. V aktuálnej produkčnej logike používa rovnaký počet N ako pole „Počet samples pre stabilitu“; Live monitor zobrazuje stabilizačné a meracie počítadlo oddelene." />
+                       Text="Stabilizačné samples sa nikdy nepoužijú ako finálny kalibračný priemer. Po potvrdení stability sa pre daný peak začne úplne nové meracie okno." />
             <WrapPanel>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Pred ďalším spracovaním sa každý live wavelength bod môže spriemerovať z posledných N raw čítaní. Znižuje šum, ale spomaľuje reakciu na skutočnú zmenu.">
+                <Border Style="{StaticResource SettingCard}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="Počet finálnych measurement samples" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Samostatné N pre finálny kalibračný priemer. Zodpovedá Paliho measured_samples a je nezávislé od stability samples." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding RequiredMeasurementSamples, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Priemerovanie wavelength" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Voliteľný pre-filter pred stability detektorom. Použi opatrne: veľké N môže opticky zlepšiť stabilitu, ale vytvorí oneskorenie." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Voliteľný pre-filter pred stability detektorom. Veľké N pridáva oneskorenie." Style="{StaticResource SettingHelp}" />
                         <CheckBox Content="Priemerovať wavelength vzorky" IsChecked="{Binding EnableWavelengthAveraging}" Margin="0,2,0,8" />
                         <DockPanel LastChildFill="False">
                             <TextBlock Text="N =" Style="{StaticResource Label}" Margin="0,0,8,0" />
@@ -116,10 +179,10 @@
                         </DockPanel>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Samostatný časový trace wavelength umožňuje spätne vidieť celý nábeh, stabilizáciu aj meranie. Interval určuje frekvenciu zápisu do trace súboru, nie frekvenciu stability detektora.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Wavelength trace log" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Ukladá priebežný λ záznam pre audit a grafy. Odporúčané nechať zapnuté pri debugovaní kalibrácie." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Priebežný λ záznam pre audit a spätné grafy počas celého runu." Style="{StaticResource SettingHelp}" />
                         <CheckBox Content="Zapisovať samostatný wavelength log" IsChecked="{Binding EnableWavelengthTraceLogging}" Margin="0,2,0,8" />
                         <DockPanel LastChildFill="False">
                             <TextBlock Text="Interval [s]" Style="{StaticResource Label}" Margin="0,0,8,0" />
@@ -129,40 +192,58 @@
                 </Border>
             </WrapPanel>
 
-            <TextBlock Text="4 · Kontrola správnej odozvy FBG na teplotu" Style="{StaticResource Heading}" Margin="0,12,0,8" />
+            <TextBlock Text="5 · Recovery pri výpadku zariadenia" Style="{StaticResource Heading}" Margin="0,12,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
-                       Text="Po aspoň dvoch kalibračných bodoch aplikácia kontroluje, či sa wavelength pri zmene teploty reálne zmenila. Táto kontrola chráni pred nesprávnym peakom, SN alebo fyzicky nefunkčným snímačom." />
+                       Text="PeakLogger používa produkčne WaitAndRecover. Pri chýbajúcej WIKA alebo dočasnom PeakLogger výpadku sa nedokončené FBG okná zahodia a kalibrácia skúša zariadenie znovu až do recovery timeoutu." />
             <WrapPanel>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Teplotný rozdiel medzi dvoma hotovými platami musí byť aspoň táto hodnota, inak sa validačný test ešte nevykoná.">
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="Device recovery timeout [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Ako dlho môže kalibrácia čakať na návrat WIKA/PeakLogger pred zásahom operátora." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding DeviceRecoveryTimeoutMinutes, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}">
+                    <StackPanel>
+                        <TextBlock Text="Recovery polling [s]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Interval medzi ďalšími pokusmi počas recovery režimu." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding DeviceRecoveryPollSeconds, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <TextBlock Text="6 · Kontrola správnej odozvy FBG na teplotu" Style="{StaticResource Heading}" Margin="0,12,0,8" />
+            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                       Text="Po minimálne dvoch vhodne vzdialených bodoch aplikácia kontroluje, či zvolený peak reálne reaguje na zmenu referenčnej teploty. Po skončení celého profilu nasleduje product-specific TEMP/FBGS fit, sensitivity, MaxError, R² a PASS/FAIL." />
+            <WrapPanel>
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Minimálna ΔT [°C]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Najmenšia zmena referenčnej teploty potrebná na zmysluplné overenie temperature-response." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Najmenšia zmena referenčnej teploty pre temperature-response kontrolu." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding ValidationMinimumDeltaTemperatureC, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Absolútna zmena wavelength medzi validačnými bodmi musí byť aspoň táto hodnota. Menšia odozva sa vyhodnotí ako podozrivá.">
+                <Border Style="{StaticResource SettingCard}">
                     <StackPanel>
                         <TextBlock Text="Minimálna Δλ [pm]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Najmenšia očakávaná wavelength odozva pri dostatočnej zmene teploty. Pomáha odhaliť zlý peak alebo nesprávne priradenie SN." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Najmenšia očakávaná wavelength odozva pri dostatočnej zmene teploty." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding ValidationMinimumResponsePm, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
             </WrapPanel>
 
-            <Border Background="#2A392A34" BorderBrush="{StaticResource WarnBrush}" BorderThickness="1" CornerRadius="9" Padding="13,10" Margin="0,3,0,4">
+            <Border Background="#2A392A34" BorderBrush="{StaticResource WarnBrush}" BorderThickness="1"
+                    CornerRadius="9" Padding="13,10" Margin="0,3,0,4">
                 <StackPanel>
                     <CheckBox Content="Povoliť override pri zlyhaní temperature-response validácie"
                               IsChecked="{Binding AllowValidationOverride}" FontFamily="Segoe UI Semibold" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,9"
-                               Text="Override nepovažuje chybu za normálny výsledok. Použi ho iba po fyzickom overení SN, zapojenia a správneho peaku. Dôvod sa uloží do warningu kalibračného runu." />
-                    <TextBlock Text="Povinný dôvod override" Style="{StaticResource SettingName}" />
-                    <TextBox Text="{Binding ValidationOverrideReason, UpdateSourceTrigger=PropertyChanged}" Width="720" MaxWidth="900"
-                             MinHeight="58" HorizontalAlignment="Left" TextWrapping="Wrap" AcceptsReturn="True" />
+                               Text="Override musí zostať auditovateľný. Product-specific finálny PASS/FAIL sa počíta samostatne z recipe limitov." />
+                    <TextBlock Text="Dôvod override" Style="{StaticResource Label}" />
+                    <TextBox Text="{Binding ValidationOverrideReason, UpdateSourceTrigger=LostFocus}"
+                             MinWidth="420" MinHeight="31" Margin="0,4,0,0" />
                 </StackPanel>
             </Border>
-
-            <TextBlock Style="{StaticResource Caption}" Margin="2,12,0,0" TextWrapping="Wrap"
-                       Text="Počas spustenej kalibrácie sú tieto nastavenia zamknuté. Zmena limitov počas runu by zmenila rozhodovaciu logiku uprostred merania a výsledok by nebol auditovateľný." />
         </StackPanel>
     </ScrollViewer>
 </UserControl>
