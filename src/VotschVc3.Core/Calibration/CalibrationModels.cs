@@ -11,7 +11,10 @@ public enum CalibrationRunState
     TemperatureResponseValidation,
     MovingToPlateau,
     WaitingForChamberStability,
+    WaitingForReferenceStability,
+    RecoveringDevice,
     StabilizingSensors,
+    CalculatingResults,
     PlateauCompleted,
     MovingToNextPlateau,
     Paused,
@@ -41,6 +44,7 @@ public enum CalibrationTargetState
 public enum CalibrationFailurePolicy
 {
     ContinueAndFlag,
+    WaitAndRecover,
     PauseForOperator,
     AbortCalibration,
 }
@@ -50,6 +54,13 @@ public enum ExpectedResponseDirection
     Any,
     Positive,
     Negative,
+}
+
+public enum TemperatureCalibrationCalculationType
+{
+    TEMP,
+    FBGS,
+    D0X,
 }
 
 public sealed class PeakLoggerSettings
@@ -73,13 +84,13 @@ public sealed class CalibrationProfileSettings
     public int WavelengthTraceIntervalSeconds { get; set; } = 30;
 
     /// <summary>Rolling sample window used only to prove wavelength stability.</summary>
-    public int RequiredStableSamples { get; set; } = 50;
+    public int RequiredStableSamples { get; set; } = 20;
 
     /// <summary>
     /// Fresh samples collected after a peak has passed the stability gate. Stabilization samples are
     /// never reused as final calibration samples.
     /// </summary>
-    public int RequiredMeasurementSamples { get; set; } = 50;
+    public int RequiredMeasurementSamples { get; set; } = 30;
 
     /// <summary>0 disables the criterion. Unit: pm.</summary>
     public double MaxWavelengthRangePm { get; set; } = 5.0;
@@ -90,15 +101,24 @@ public sealed class CalibrationProfileSettings
     /// <summary>0 disables the criterion. Unit: pm/min.</summary>
     public double MaxWavelengthDriftPmPerMinute { get; set; } = 1.0;
 
+    // Chamber gate. The chamber must first reach and hold its own stable state before an
+    // external reference is allowed to qualify the calibration point.
     public double ChamberToleranceC { get; set; } = 0.5;
     public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(1);
     public double MaxChamberDriftCPerMinute { get; set; } = 0.1;
     public TimeSpan ChamberStabilityTimeout { get; set; } = TimeSpan.FromMinutes(30);
 
+    // Reference gate. When WIKA/CTH7000 is configured both gates are required: chamber stable
+    // first, then reference stable. These values intentionally do not alias the chamber values.
+    public double ReferenceToleranceC { get; set; } = 0.5;
+    public TimeSpan ReferenceStableDuration { get; set; } = TimeSpan.FromMinutes(1);
+    public double MaxReferenceDriftCPerMinute { get; set; } = 0.1;
+    public TimeSpan ReferenceStabilityTimeout { get; set; } = TimeSpan.FromMinutes(30);
+
     public TimeSpan DefaultSensorStabilizationTimeout { get; set; } = TimeSpan.FromMinutes(60);
     public CalibrationFailurePolicy SensorTimeoutPolicy { get; set; } = CalibrationFailurePolicy.ContinueAndFlag;
     public CalibrationFailurePolicy PeakLostPolicy { get; set; } = CalibrationFailurePolicy.PauseForOperator;
-    public CalibrationFailurePolicy PeakLoggerDisconnectPolicy { get; set; } = CalibrationFailurePolicy.PauseForOperator;
+    public CalibrationFailurePolicy PeakLoggerDisconnectPolicy { get; set; } = CalibrationFailurePolicy.WaitAndRecover;
 
     public double ValidationMinimumDeltaTemperatureC { get; set; } = 5.0;
     public double ValidationMinimumWavelengthResponsePm { get; set; } = 5.0;
@@ -108,6 +128,36 @@ public sealed class CalibrationProfileSettings
     public string ValidationOverrideReason { get; set; } = string.Empty;
 
     public TimeSpan PeakLostGracePeriod { get; set; } = TimeSpan.FromMinutes(2);
+    public TimeSpan DeviceRecoveryTimeout { get; set; } = TimeSpan.FromMinutes(15);
+    public TimeSpan DeviceRecoveryPollInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Optional minimum time at a calibration point after the target setpoint is commanded.
+    /// Unlike a normal profile hold this is a calibration safety gate and is combined with
+    /// measured stability. Zero means stability alone controls progression.
+    /// </summary>
+    public TimeSpan MinimumCalibrationPointDuration { get; set; } = TimeSpan.Zero;
+}
+
+public sealed class TemperatureCalibrationRecipe
+{
+    public string Key { get; set; } = string.Empty;
+    public string ProductCode { get; set; } = string.Empty;
+    public List<string> Aliases { get; set; } = new();
+    public TemperatureCalibrationCalculationType CalculationType { get; set; } = TemperatureCalibrationCalculationType.TEMP;
+    public List<bool> Peaks { get; set; } = new();
+    public double? SensitivityMinPmPerC { get; set; }
+    public double? SensitivityMaxPmPerC { get; set; }
+    public bool CheckErrorTolerance { get; set; }
+    public double ErrorTolerancePercentOfRange { get; set; } = 1.0;
+    public double TemperatureConstantC { get; set; } = 22.5;
+    public double? MinimumR2 { get; set; }
+
+    [JsonIgnore]
+    public string EffectiveKey => string.IsNullOrWhiteSpace(Key) ? ProductCode : Key;
+
+    public bool AppliesToPeakIndex(int zeroBasedIndex) =>
+        Peaks.Count == 0 || zeroBasedIndex < 0 || zeroBasedIndex >= Peaks.Count || Peaks[zeroBasedIndex];
 }
 
 public sealed class CalibrationSensorMapping
@@ -143,6 +193,7 @@ public sealed class CalibrationSensorMapping
     public string ProductDescription { get; set; } = string.Empty;
     public string Customer { get; set; } = string.Empty;
     public string Order { get; set; } = string.Empty;
+    public string CalibrationRecipeKey { get; set; } = string.Empty;
     public TimeSpan? StabilizationTimeoutOverride { get; set; }
 
     [JsonIgnore]
@@ -237,6 +288,8 @@ public sealed class CalibrationMeasurementResult
     public double RangePm { get; set; }
     public double StandardDeviationPm { get; set; }
     public double DriftPmPerMinute { get; set; }
+    public double? MeanReferenceTemperatureC { get; set; }
+    public double? MeanChamberTemperatureC { get; set; }
     public TimeSpan StabilizationTime { get; set; }
     public string? Problem { get; set; }
     public List<CalibrationRawSample> StableSamples { get; set; } = new();
@@ -254,6 +307,48 @@ public sealed class CalibrationPlateauResult
     public DateTimeOffset StartedAt { get; set; }
     public DateTimeOffset CompletedAt { get; set; }
     public List<CalibrationMeasurementResult> Targets { get; set; } = new();
+}
+
+public sealed class TemperatureCalibrationPointResult
+{
+    public int PlateauIndex { get; set; }
+    public double TargetTemperatureC { get; set; }
+    public double ReferenceTemperatureC { get; set; }
+    public double ChamberTemperatureC { get; set; }
+    public double MeanWavelengthNm { get; set; }
+    public double PredictedTemperatureC { get; set; }
+    public double ErrorC { get; set; }
+}
+
+public sealed class TemperatureCalibrationResult
+{
+    public string SerialNumber { get; set; } = string.Empty;
+    public string PeakId { get; set; } = string.Empty;
+    public int PeakIndex { get; set; }
+    public string Channel { get; set; } = string.Empty;
+    public string ProductDescription { get; set; } = string.Empty;
+    public string RecipeKey { get; set; } = string.Empty;
+    public TemperatureCalibrationCalculationType CalculationType { get; set; }
+
+    public double? A { get; set; }
+    public double? B { get; set; }
+    public double? C { get; set; }
+    public double? D { get; set; }
+    public double? S1 { get; set; }
+    public double? S2 { get; set; }
+    public double SensitivityPmPerC { get; set; }
+    public double TRefNm { get; set; }
+    public double MaxErrorC { get; set; }
+    public double ErrorToleranceC { get; set; }
+    public double TemperatureConstantC { get; set; }
+    public double R2 { get; set; }
+
+    public bool SensitivityPassed { get; set; } = true;
+    public bool ErrorPassed { get; set; } = true;
+    public bool R2Passed { get; set; } = true;
+    public bool OverallPassed { get; set; }
+    public string StatusMessage { get; set; } = string.Empty;
+    public List<TemperatureCalibrationPointResult> Points { get; set; } = new();
 }
 
 public sealed class CalibrationWarning
@@ -283,7 +378,11 @@ public sealed class CalibrationRunRecord
     public string ReferenceThermometerSerialNumber { get; set; } = string.Empty;
     public string ReferenceThermometerChannel { get; set; } = string.Empty;
     public List<CalibrationPlateauResult> Plateaus { get; set; } = new();
+    public List<TemperatureCalibrationResult> CalculationResults { get; set; } = new();
     public List<CalibrationWarning> Warnings { get; set; } = new();
+
+    [JsonIgnore]
+    public bool? OverallPassed => CalculationResults.Count == 0 ? null : CalculationResults.All(x => x.OverallPassed);
 }
 
 public sealed class CalibrationCheckpoint
