@@ -33,14 +33,30 @@ public partial class HomeView
         foreach (TextBlock text in FindNotificationDescendants<TextBlock>(this))
         {
             string value = text.Text ?? string.Empty;
-            if (!value.StartsWith("Zariadenie je ovládané manuálne.", StringComparison.Ordinal) &&
-                !value.StartsWith("Manuálne ovládanie je vypnuté, kým beží profil.", StringComparison.Ordinal))
+            if (value.StartsWith("Zariadenie je ovládané manuálne.", StringComparison.Ordinal) ||
+                value.StartsWith("Manuálne ovládanie je vypnuté, kým beží profil.", StringComparison.Ordinal))
+            {
+                // A popup notification now carries these messages. Keep them out of the card layout
+                // even when their old Visibility binding changes state later.
+                BindingOperations.ClearBinding(text, UIElement.VisibilityProperty);
+                text.Visibility = Visibility.Collapsed;
                 continue;
+            }
 
-            // A popup notification now carries these messages. Keep them out of the card layout
-            // even when their old Visibility binding changes state later.
-            BindingOperations.ClearBinding(text, UIElement.VisibilityProperty);
-            text.Visibility = Visibility.Collapsed;
+            // The old ActionInfo box was itself a transient notification rendered inside the
+            // card. Hide its containing border and route future ActionInfo changes to the central
+            // popup pipeline so manual actions do not resize the device card.
+            BindingBase? textBinding = BindingOperations.GetBindingBase(text, TextBlock.TextProperty);
+            if (textBinding is Binding binding &&
+                string.Equals(binding.Path?.Path, nameof(ChamberViewModel.ActionInfo), StringComparison.Ordinal))
+            {
+                Border? banner = FindNotificationAncestor<Border>(text);
+                if (banner is not null)
+                {
+                    BindingOperations.ClearBinding(banner, UIElement.VisibilityProperty);
+                    banner.Visibility = Visibility.Collapsed;
+                }
+            }
         }
     }
 
@@ -57,7 +73,10 @@ public partial class HomeView
         {
             if (_notificationChambers.ContainsKey(chamber.Id)) continue;
             _notificationChambers[chamber.Id] = chamber;
-            _notificationStates[chamber.Id] = new ChamberNotificationState(chamber.IsManualActive, chamber.IsProfileRunning);
+            _notificationStates[chamber.Id] = new ChamberNotificationState(
+                chamber.IsManualActive,
+                chamber.IsProfileRunning,
+                chamber.ActionInfo ?? string.Empty);
             chamber.PropertyChanged += OnNotificationChamberPropertyChanged;
         }
     }
@@ -65,7 +84,10 @@ public partial class HomeView
     private void OnNotificationChamberPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is not ChamberViewModel chamber) return;
-        if (e.PropertyName is not nameof(ChamberViewModel.IsManualActive) and not nameof(ChamberViewModel.IsProfileRunning)) return;
+        if (e.PropertyName is not nameof(ChamberViewModel.IsManualActive)
+            and not nameof(ChamberViewModel.IsProfileRunning)
+            and not nameof(ChamberViewModel.ActionInfo))
+            return;
 
         if (!Dispatcher.CheckAccess())
         {
@@ -75,7 +97,7 @@ public partial class HomeView
 
         ChamberNotificationState previous = _notificationStates.TryGetValue(chamber.Id, out ChamberNotificationState? state)
             ? state
-            : new ChamberNotificationState(false, false);
+            : new ChamberNotificationState(false, false, string.Empty);
 
         if (!previous.IsManualActive && chamber.IsManualActive)
         {
@@ -93,7 +115,39 @@ public partial class HomeView
                 $"profile-running:{chamber.Id}");
         }
 
-        _notificationStates[chamber.Id] = new ChamberNotificationState(chamber.IsManualActive, chamber.IsProfileRunning);
+        string actionInfo = chamber.ActionInfo?.Trim() ?? string.Empty;
+        if (e.PropertyName == nameof(ChamberViewModel.ActionInfo) &&
+            !string.IsNullOrWhiteSpace(actionInfo) &&
+            !string.Equals(previous.LastActionInfo, actionInfo, StringComparison.Ordinal))
+        {
+            AppNotificationKind kind = ClassifyActionInfo(actionInfo);
+            AppNotificationService.Show(
+                chamber.Name,
+                actionInfo,
+                kind,
+                dedupeKey: $"action-info:{chamber.Id}:{actionInfo}");
+        }
+
+        _notificationStates[chamber.Id] = new ChamberNotificationState(
+            chamber.IsManualActive,
+            chamber.IsProfileRunning,
+            actionInfo);
+    }
+
+    private static AppNotificationKind ClassifyActionInfo(string message)
+    {
+        if (message.Contains("chyba", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("nepodar", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("zlyh", StringComparison.OrdinalIgnoreCase))
+            return AppNotificationKind.Warning;
+
+        if (message.Contains("nastav", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("spusten", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("zastaven", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("uložen", StringComparison.OrdinalIgnoreCase))
+            return AppNotificationKind.Success;
+
+        return AppNotificationKind.Info;
     }
 
     private void OnOperationalNotificationsUnloaded(object sender, RoutedEventArgs e)
@@ -116,5 +170,16 @@ public partial class HomeView
         }
     }
 
-    private sealed record ChamberNotificationState(bool IsManualActive, bool IsProfileRunning);
+    private static T? FindNotificationAncestor<T>(DependencyObject start) where T : DependencyObject
+    {
+        DependencyObject? current = VisualTreeHelper.GetParent(start);
+        while (current is not null)
+        {
+            if (current is T match) return match;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
+    }
+
+    private sealed record ChamberNotificationState(bool IsManualActive, bool IsProfileRunning, string LastActionInfo);
 }
