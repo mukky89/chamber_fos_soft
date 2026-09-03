@@ -5,11 +5,14 @@ namespace VotschVc3.Core.Calibration;
 
 /// <summary>
 /// Product calibration recipes migrated from Auto_calibrator_Pali/preset_temp_cal.yaml.
-/// The catalog can also load a JSON override file, so production limits can be changed without
-/// recompiling the calibration mathematics.
+/// Production can override them in Documents\Lab Control\temperature-calibration-recipes.json
+/// without recompiling the application. An environment variable can point to another file.
 /// </summary>
 public static class TemperatureCalibrationRecipeCatalog
 {
+    public const string OverrideEnvironmentVariable = "SYLEX_TEMPERATURE_CALIBRATION_RECIPES";
+    public const string DefaultOverrideFileName = "temperature-calibration-recipes.json";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -66,6 +69,35 @@ public static class TemperatureCalibrationRecipeCatalog
         },
     };
 
+    public static string ProductionOverridePath
+    {
+        get
+        {
+            string? configured = Environment.GetEnvironmentVariable(OverrideEnvironmentVariable);
+            if (!string.IsNullOrWhiteSpace(configured)) return Path.GetFullPath(configured.Trim());
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            return Path.Combine(documents, "Lab Control", DefaultOverrideFileName);
+        }
+    }
+
+    /// <summary>
+    /// Loads the production catalog and creates a human-editable template on first use. Failure to
+    /// create/read the override never blocks calibration; built-in Pali recipes remain available.
+    /// </summary>
+    public static IReadOnlyList<TemperatureCalibrationRecipe> LoadProductionCatalog()
+    {
+        string path = ProductionOverridePath;
+        try
+        {
+            SaveTemplate(path);
+        }
+        catch
+        {
+            // A read-only Documents folder must not block calibration.
+        }
+        return LoadWithDefaults(path);
+    }
+
     public static IReadOnlyList<TemperatureCalibrationRecipe> LoadWithDefaults(string? jsonPath)
     {
         if (string.IsNullOrWhiteSpace(jsonPath) || !File.Exists(jsonPath))
@@ -84,7 +116,7 @@ public static class TemperatureCalibrationRecipeCatalog
                 merged[recipe.EffectiveKey] = recipe;
             return merged.Values.OrderBy(x => x.EffectiveKey, StringComparer.OrdinalIgnoreCase).ToArray();
         }
-        catch (Exception ex) when (ex is IOException or JsonException)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
             return Defaults.Select(Clone).ToArray();
         }
