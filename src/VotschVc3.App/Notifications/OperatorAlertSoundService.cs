@@ -37,12 +37,13 @@ public static class OperatorAlertSoundService
         {
             if (!_enabled) return;
 
-            // Bad-SN and Sylex probe-mismatch keys are deterministic and may be revalidated every
-            // few seconds. Sound once for that concrete fault during this app session instead of
-            // making the PC beep continuously while the operator is entering wiring data.
-            if (IsSessionOnceKey(key))
+            // Bad-SN validation runs repeatedly while the operator types. Normalize serial warning
+            // keys to the warning category (the suffix after the last ':') so A -> AB -> ABC does
+            // not beep on every keystroke. Sylex mismatch keys remain once per concrete probe/key.
+            string? sessionKey = GetSessionOnceKey(key);
+            if (sessionKey is not null)
             {
-                if (!SessionOncePlayed.Add(key)) return;
+                if (!SessionOncePlayed.Add(sessionKey)) return;
             }
             else
             {
@@ -56,9 +57,18 @@ public static class OperatorAlertSoundService
         catch { /* sound is optional and must never affect calibration */ }
     }
 
-    private static bool IsSessionOnceKey(string key) =>
-        key.StartsWith("serial-warning:", StringComparison.OrdinalIgnoreCase) ||
-        key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase);
+    private static string? GetSessionOnceKey(string key)
+    {
+        if (key.StartsWith("serial-warning:", StringComparison.OrdinalIgnoreCase))
+        {
+            int separator = key.LastIndexOf(':');
+            string category = separator >= 0 && separator + 1 < key.Length ? key[(separator + 1)..] : "warning";
+            return $"serial-warning|{category}";
+        }
+        if (key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase))
+            return key;
+        return null;
+    }
 
     private static bool LoadEnabled()
     {
