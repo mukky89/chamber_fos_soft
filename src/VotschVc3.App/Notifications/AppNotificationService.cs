@@ -18,8 +18,8 @@ public enum AppNotificationKind
 /// <summary>
 /// Single in-app notification pipeline for operator-facing transient messages.
 /// Notifications are queued, de-duplicated and rendered as a small non-activating
-/// popup above the currently active application window. This keeps warnings out of
-/// permanent card layouts and gives the whole desktop app one consistent UX.
+/// popup above the currently visible application window. Background/tray alerts remain
+/// the responsibility of DesktopNotifier and are not duplicated by a floating WPF window.
 /// </summary>
 public static class AppNotificationService
 {
@@ -85,8 +85,20 @@ public static class AppNotificationService
             next = Queue.Dequeue();
         }
 
-        Window? owner = Application.Current?.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive && w.IsVisible)
-            ?? Application.Current?.MainWindow;
+        Window? owner = Application.Current?.Windows
+            .OfType<Window>()
+            .FirstOrDefault(window => window.IsActive && window.IsVisible)
+            ?? (Application.Current?.MainWindow is { IsVisible: true } main ? main : null);
+
+        // If the app is hidden/minimized to tray, DesktopNotifier owns the background
+        // notification UX. Do not open a separate top-most WPF popup over other programs.
+        if (owner is null)
+        {
+            lock (Gate) _active = null;
+            if (Queue.Count > 0)
+                _ = Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(ShowNextOnUi));
+            return;
+        }
 
         var popup = new AppNotificationWindow(next, owner);
         popup.Closed += (_, _) =>
@@ -112,14 +124,12 @@ public static class AppNotificationService
 
     private sealed class AppNotificationWindow : Window
     {
-        private readonly AppNotification _notification;
         private readonly DispatcherTimer _closeTimer;
         private bool _closingAnimated;
 
-        public AppNotificationWindow(AppNotification notification, Window? owner)
+        public AppNotificationWindow(AppNotification notification, Window owner)
         {
-            _notification = notification;
-            Owner = owner is { IsVisible: true } ? owner : null;
+            Owner = owner;
             Width = 520;
             MaxWidth = 720;
             SizeToContent = SizeToContent.Height;
@@ -129,7 +139,6 @@ public static class AppNotificationService
             Background = Brushes.Transparent;
             ShowInTaskbar = false;
             ShowActivated = false;
-            Topmost = Owner is null;
             Focusable = false;
             Opacity = 0;
             Content = BuildContent(notification);
@@ -229,20 +238,10 @@ public static class AppNotificationService
 
         private void PositionNearOwner()
         {
-            Window? owner = Owner;
-            if (owner is { IsVisible: true })
-            {
-                double width = ActualWidth > 0 ? ActualWidth : Width;
-                Left = owner.Left + Math.Max(12, (owner.ActualWidth - width) / 2);
-                Top = owner.Top + 48;
-                return;
-            }
-
-            SystemParameters.WorkArea.ToString(); // force WorkArea initialization on UI thread
-            Rect work = SystemParameters.WorkArea;
-            double popupWidth = ActualWidth > 0 ? ActualWidth : Width;
-            Left = work.Left + (work.Width - popupWidth) / 2;
-            Top = work.Top + 48;
+            Window owner = Owner;
+            double width = ActualWidth > 0 ? ActualWidth : Width;
+            Left = owner.Left + Math.Max(12, (owner.ActualWidth - width) / 2);
+            Top = owner.Top + 48;
         }
 
         private void BeginClose()
