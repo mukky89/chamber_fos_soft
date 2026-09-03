@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.34] – 2026-09-03
+
+### UI – tiché úspešné pripojenie zariadení
+- Bežné modré in-app popupy pri úspešnom pripojení zariadenia, napríklad `SIKA PolyTech · Pripojené na 10.88.6.28:80`, sa už nezobrazujú.
+- Stav pripojenia zostáva viditeľný priamo na karte zariadenia; chybové, alarmové a varovné upozornenia zostávajú zachované.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.33` na `1.76.34`.
+
 ## [1.76.33] – 2026-09-03
 
 ### FBG workspace – úplná obnova po reštarte
