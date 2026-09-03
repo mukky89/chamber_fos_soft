@@ -86,7 +86,7 @@ public partial class CalibrationWindow
                 out string occupiedBy))
         {
             ThermometerDeviceViewModel? restore = FindAssignedReference(previous);
-            SetReferenceSelectionInternal(restore);
+            SetReferenceSelectionInternal(restore, previous.Channel);
             ObserveReference(restore);
             if (restore is null)
             {
@@ -148,7 +148,11 @@ public partial class CalibrationWindow
         }
 
         ThermometerDeviceViewModel? match = FindAssignedReference(assignment);
-        SetReferenceSelectionInternal(match);
+
+        // Restore the persisted channel BEFORE assigning the device. SelectedF100's setter copies
+        // SelectedF100Channel into the device, so doing this in the opposite order silently reset
+        // a saved channel B back to the VM default A after an application restart.
+        SetReferenceSelectionInternal(match, assignment.Channel);
         _acceptedReference = match;
         ObserveReference(match);
 
@@ -178,13 +182,22 @@ public partial class CalibrationWindow
             string.Equals(device.PortName, assignment.PortName, StringComparison.OrdinalIgnoreCase));
     }
 
-    private void SetReferenceSelectionInternal(ThermometerDeviceViewModel? device)
+    private void SetReferenceSelectionInternal(ThermometerDeviceViewModel? device, string? channel = null)
     {
-        if (ReferenceEquals(_viewModel.SelectedF100, device)) return;
         _referenceSelectionInternal = true;
         try
         {
-            _viewModel.SelectedF100 = device;
+            if (!string.IsNullOrWhiteSpace(channel))
+            {
+                string restoredChannel = string.Equals(channel, "B", StringComparison.OrdinalIgnoreCase) ? "B" : "A";
+                _viewModel.SelectedF100Channel = restoredChannel;
+                if (device is not null) device.SelectedChannel = restoredChannel;
+            }
+
+            if (!ReferenceEquals(_viewModel.SelectedF100, device))
+            {
+                _viewModel.SelectedF100 = device;
+            }
         }
         finally
         {
