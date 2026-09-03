@@ -114,7 +114,7 @@ public sealed class ReferenceTemperatureChartWindow : Window
         }
 
         string temperature = snapshot.TemperatureC is { } value ? $"{value:F3} °C" : "—";
-        string updated = snapshot.LastUpdated is { } time ? time.ToLocalTime().ToString("HH:mm:ss") : "—";
+        string updated = snapshot.UpdatedAt is { } time ? time.ToLocalTime().ToString("HH:mm:ss") : "—";
         _status.Text = $"Aktuálne: {temperature} · {snapshot.PortName} / kanál {snapshot.Channel} · posledná vzorka {updated} · vzoriek {trace.Count}";
     }
 }
