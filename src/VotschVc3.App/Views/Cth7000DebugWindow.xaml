@@ -35,13 +35,14 @@
         <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="110" />
-                    <ColumnDefinition Width="95" />
-                    <ColumnDefinition Width="95" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="130" />
-                    <ColumnDefinition Width="145" />
+                    <ColumnDefinition Width="100" />
+                    <ColumnDefinition Width="90" />
+                    <ColumnDefinition Width="90" />
+                    <ColumnDefinition Width="115" />
+                    <ColumnDefinition Width="125" />
+                    <ColumnDefinition Width="135" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Margin="0,0,10,0">
@@ -76,6 +77,8 @@
                         <ComboBoxItem Content="2" />
                         <ComboBoxItem Content="5" />
                         <ComboBoxItem Content="10" />
+                        <ComboBoxItem Content="25" />
+                        <ComboBoxItem Content="50" />
                     </ComboBox>
                 </StackPanel>
                 <StackPanel Grid.Column="5" Margin="0,0,10,0">
@@ -89,11 +92,14 @@
                         <ComboBoxItem Content="12000" />
                     </ComboBox>
                 </StackPanel>
-                <StackPanel Grid.Column="6" VerticalAlignment="Bottom">
+                <StackPanel Grid.Column="6" VerticalAlignment="Bottom" Margin="0,0,10,0">
                     <CheckBox x:Name="PurgeBeforeSendCheck" Content="Pred query zahodiť staré RX dáta" IsChecked="True" />
                     <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"
                                Text="8 data bits · parity none · 1 stop bit · flow control none" />
                 </StackPanel>
+                <Button x:Name="PaliPresetButton" Grid.Column="7" VerticalAlignment="Bottom"
+                        Content="Pali / AutoOptical preset" Click="PaliPreset_Click" Padding="10,6" Margin="4,0,0,0"
+                        ToolTip="Nastaví parametre podľa pôvodného AutoOptical WikaTempProbe.py: 9600, CR, 25 ms medzi bajtmi. DTR/RTS zostanú aktívne, hardware flow control je vypnutý." />
             </Grid>
         </Border>
 
@@ -127,7 +133,9 @@
                 </WrapPanel>
 
                 <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
-                           Text="Odporúčaný test: Open → *IDN? → až keď IDN odpovie, SYSTEM:REMOTE → Measure A → SYSTEM:LOCAL. Po každom kroku sleduj displej a tlačidlá CTH7000. Ak sa prístroj zablokuje, použi LOCAL + zavrieť COM." />
+                           Text="Bežný RAW test: Open → *IDN? → až keď IDN odpovie, SYSTEM:REMOTE → Measure A → SYSTEM:LOCAL." />
+                <TextBlock Style="{StaticResource Caption}" Margin="0,3,0,0" TextWrapping="Wrap" Foreground="#FFF6C56B"
+                           Text="AutoOptical/Pali porovnávací test po fyzickom resete: klikni Pali preset → Open → SYSTEM:REMOTE → počkaj aspoň 1 s → Measure A → SYSTEM:LOCAL. V pôvodnom kóde sa pri bežnom meraní *IDN? neposielalo." />
             </StackPanel>
         </Border>
 

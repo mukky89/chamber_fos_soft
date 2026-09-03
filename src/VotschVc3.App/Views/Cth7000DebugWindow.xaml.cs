@@ -35,7 +35,7 @@ public partial class Cth7000DebugWindow : Window
             Cth7000RawSerialSettings settings = ReadSettings();
             Append("INFO", $"OPEN {settings.Describe()}");
             await _session.OpenAsync(settings);
-            Append("OK", $"{_session.PortName} otvorený. 0 automatických TX bajtov. Teraz skús iba *IDN?.");
+            Append("OK", $"{_session.PortName} otvorený. 0 automatických TX bajtov.");
             StatusText.Text = $"RAW COM otvorený · {settings.Describe()}";
             UpdateOpenState();
         });
@@ -65,6 +65,23 @@ public partial class Cth7000DebugWindow : Window
         // Let SerialPort.Dispose/process lease complete before the dedicated raw client acquires it.
         await Task.Delay(150);
         Append("OK", "Normálny klient odpojený; RAW debug môže vlastniť port exkluzívne.");
+    }
+
+    private void PaliPreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy || _session.IsOpen) return;
+
+        SelectComboValue(BaudCombo, "9600");
+        DtrCheck.IsChecked = true;
+        RtsCheck.IsChecked = true;
+        SelectComboValue(TerminatorCombo, "CR");
+        SelectComboValue(InterDelayCombo, "25");
+        SelectComboValue(TimeoutCombo, "8000");
+        PurgeBeforeSendCheck.IsChecked = true;
+
+        Append("PRESET", "AutoOptical/Pali: 9600 bd, 8N1, flow=None, CR, 25 ms medzi každým bajtom. Pôvodný driver po open posielal SYSTEM:REMOTE a až potom MEASURE:CHANNEL?.");
+        Append("INFO", "Pre porovnávací test po fyzickom resete: Open → SYSTEM:REMOTE → počkaj aspoň 1 s → MEASURE:CHANNEL? 1 → SYSTEM:LOCAL. Pred týmto testom neposielaj *IDN?.");
+        StatusText.Text = "Pali / AutoOptical preset nastavený · 25 ms pacing.";
     }
 
     private async void Purge_Click(object sender, RoutedEventArgs e) =>
@@ -185,6 +202,19 @@ public partial class Cth7000DebugWindow : Window
     private static string ReadComboText(ComboBox box, string fallback) =>
         box.SelectedItem is ComboBoxItem { Content: not null } item ? item.Content.ToString() ?? fallback : fallback;
 
+    private static void SelectComboValue(ComboBox box, string value)
+    {
+        foreach (object item in box.Items)
+        {
+            if (item is ComboBoxItem { Content: not null } comboItem &&
+                string.Equals(comboItem.Content.ToString(), value, StringComparison.OrdinalIgnoreCase))
+            {
+                box.SelectedItem = comboItem;
+                return;
+            }
+        }
+    }
+
     private void AppendExchange(Cth7000RawExchange exchange)
     {
         string elapsed = exchange.Elapsed == TimeSpan.Zero ? "" : $" · {exchange.Elapsed.TotalMilliseconds:F0} ms";
@@ -224,6 +254,7 @@ public partial class Cth7000DebugWindow : Window
     {
         bool open = _session.IsOpen;
         OpenButton.IsEnabled = !_busy && !open;
+        PaliPresetButton.IsEnabled = !_busy && !open;
         PurgeButton.IsEnabled = !_busy && open;
         ListenButton.IsEnabled = !_busy && open;
         IdnButton.IsEnabled = !_busy && open;
@@ -246,6 +277,7 @@ public partial class Cth7000DebugWindow : Window
     private void UpdateEnabledState()
     {
         OpenButton.IsEnabled = false;
+        PaliPresetButton.IsEnabled = false;
         PurgeButton.IsEnabled = false;
         ListenButton.IsEnabled = false;
         IdnButton.IsEnabled = false;
