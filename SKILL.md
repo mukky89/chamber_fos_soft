@@ -33,7 +33,7 @@ For **every code change** in this repository:
 5. Do **not** create `CHANGELOG_<version>.md` files for individual releases; keep release history in the root changelog only.
 6. Verify the version and root changelog are on `main` before reporting completion.
 
-Current baseline at the time of this change: `1.76.28`.
+Current baseline at the time of this change: `1.76.30`.
 
 ## Changelog format
 
@@ -64,6 +64,7 @@ The following settings were validated on the real production reference thermomet
 - The RAW debug **Pali / AutoOptical preset** must continue to reproduce this exact compatibility setup for bench diagnostics.
 - Do **not** shorten the 25 ms pacing or 1000 ms REMOTE settle as a generic performance optimization without a physical-device regression test. Speed up UI/WMI/reuse overhead first.
 - Repeated one-shot reads should reuse the existing live COM client and cached identity instead of performing a fresh detailed Windows/WMI enumeration for every button click.
+- The automatic 5 s dashboard/workspace refresh must read the existing reference client directly in the background. It must **not** execute the foreground `Načítať teplotu` command or make that button appear to click itself.
 
 ### Persistent FBG reference assignment
 
@@ -77,27 +78,46 @@ The following settings were validated on the real production reference thermomet
 - Persistent assignments are stored in `fbg-reference-thermometers.json` under the application settings directory.
 - Dashboard reference readouts must remain compact and stable: show reference temperature plus COM port when live; when disconnected keep the assigned port and show `—` instead of a stale temperature.
 
-### FBG calibration execution — stable-temperature gate
+### FBG calibration execution — reference and peak stability
 
 - `CalibrationSetup.CalibrationSegmentIndices` is the source of truth for which non-ramp profile segments are calibration plateaus. `ProfileSegment.IsCalibrationPoint` is only a backward-compatible fallback when an older setup has no explicit saved indices.
 - Never silently calibrate a plateau the operator did not select in the FBG workspace.
-- When a WIKA CTH7000 reference is assigned and available, peak/wavelength stability evaluation must start only after **both** chamber temperature and WIKA reference temperature satisfy the configured target tolerance, stable duration, and maximum drift.
+- **WIKA CTH7000 is the authoritative calibration temperature.** When a WIKA reference is assigned, FBG wavelength stability evaluation may begin only after the **WIKA reference itself** satisfies the configured target tolerance, stable duration, and maximum drift.
+- **Chamber temperature is informational for FBG stability and must not block a calibration plateau.** It may still be displayed, logged and compared to WIKA for diagnostics/alerts, but the chamber controller reading is not the stable-temperature gate.
 - A missing, invalid, or unstable WIKA reference must not be treated as a stable calibration temperature. After the configured stability timeout, require operator action rather than recording a nominally valid plateau.
-- Do not wait the configured stable-duration window twice: a combined chamber+WIKA stability gate may be followed by an instantaneous chamber safety re-check, but not by another full stability dwell.
-- Each selected PeakLogger peak has its own independent rolling stability tracker and its own terminal result. One stable peak must never make another peak stable.
+- Do not introduce a second chamber-stability dwell after the WIKA reference becomes stable.
+- After reference stability is achieved, **each selected PeakLogger peak must independently satisfy its own wavelength stability criteria** before its result is accepted. One stable peak must never make another peak stable.
 - The operator may select one suggested peak per channel or explicitly select all peaks. `Vybrať všetky peaky` means every discovered peak is independently evaluated and recorded.
 - Default peak stability remains 50 samples, 5 pm max range, 1.5 pm max standard deviation, and 1 pm/min max drift unless the saved setup explicitly changes these values.
+- The operator-facing run monitor must show the planned plateau order before start and, during a run, the current step, what the runner is waiting for, current plateau, reference temperature, active peak/SN/channel, wavelength sample progress and stable-peak count.
 
 ### FBG workspace persistence / restore
 
 - Detailed wiring is persisted per chamber+profile through `CalibrationStore`: selected peaks, production FBG SN, channel SN, CHAIN override SN, core metadata, notes, product/customer/order fields, per-peak timeout, stability settings, and selected calibration segment indices.
 - Closing/hiding the FBG calibration window must force a final setup save when the run is not active; do not rely only on the debounce autosave.
+- Production SN/CHAIN editing must remain continuously protected by the existing short debounce autosave; a completed cell edit may additionally force a final setup save.
 - `CalibrationWorkspaceStateStore` stores the last selected calibration profile and exact PeakLogger host/port per chamber in `fbg-calibration-workspaces.json`.
 - Reopening the FBG workspace or restarting the application must restore the last profile for that chamber.
 - After the first UI render, the app may reconnect only to the **exact previously saved PeakLogger endpoint** to rebuild the wiring table. Do not reintroduce broad PeakLogger discovery into the initial render path.
 - When PeakLogger reconnects, restore saved mappings by stable source identity `PeakLoggerDeviceSerialNumber|Channel|PeakId`; wavelength is measurement data, not identity.
 - A failed automatic reconnect must leave the FBG window responsive and editable and must not clear the saved wiring.
 - Persistent WIKA assignment is separate from workspace/profile persistence and remains governed by `CalibrationReferenceStatusStore`.
+
+### FBG wiring edit transaction — never interrupt operator input
+
+- An operator editing `FBG sensor SN (kanál)`, `FBG sensor SN CHAIN` or another wiring cell owns the DataGrid until the edit is committed or cancelled.
+- Never call `Items.Refresh()`, `CollectionView.Refresh()`, clear/rebuild `Peaks`, or execute a topology-driven `RefreshSensorsCommand` while the DataGrid has an active `AddNew`/`EditItem` transaction or focused editor.
+- Sylex metadata refreshes and PeakLogger topology changes that arrive during an edit must be queued/deferred and applied only after the edit has ended.
+- A background timer must never move focus, change `CurrentCell`, cancel `BeginEdit`, or cause typed SN data to disappear.
+- The WPF exception `'Refresh' is not allowed during an AddNew or EditItem transaction` is a regression and must be treated as a release blocker.
+
+### FBG chamber ownership while a run is active
+
+- A running FBG calibration owns control of its chamber/device for the duration of the run.
+- On the device dashboard, manual quick control and Testovací profil controls must be disabled for that chamber while its FBG run is active.
+- The control-mode badge must show `FBG CALIBRATION` instead of `MANUÁL`/`PROFIL` while the FBG runner owns the chamber.
+- The active chamber's `FBG Kalibrácia` button should use a slow, smooth red pulse as a visible run indicator and return to its normal style immediately after the run ends.
+- These rules are per chamber: an FBG run on one chamber must not disable another chamber's independent controls.
 
 ### Concurrency and COM ownership
 
@@ -134,12 +154,14 @@ The following settings were validated on the real production reference thermomet
 - Dashboard and FBG calibration buttons should use crisp outline/fill hover states consistent with the main menu.
 - Hover feedback should be communicated by border/background/foreground changes, not by a blur/glow effect on the button content.
 - Preserve keyboard focus visibility and disabled-state contrast when changing button templates.
+- The FBG run indicator is an explicit exception to the static hover rule: a **slow red color/opacity pulse** is allowed while a calibration is actively running, but must not blur the text/icon or flash rapidly.
 
 ### FBG calibration layout
 
 - The FBG calibration workspace must remain usable on common 1080p operator displays.
 - Expanding the reference-temperature chart must never make the `Zapojenie` table unreachable.
 - Keep a page-level vertical scrollbar for content overflow and independent scrollbars for wide/long DataGrids.
+- The `Zapojenie` workspace should provide enough vertical space to see approximately **16 production rows** at once when the operator scrolls to that section; extra rows remain independently scrollable.
 - Do not compress production table columns until headers/text overlap; prefer column minimum widths plus horizontal scrolling.
 - Dynamic status/port text must not visually collide with section headings.
 
@@ -186,11 +208,15 @@ The following settings were validated on the real production reference thermomet
   - Enforces selection-time exclusivity and reconnect restoration for the assigned reference.
 - `src/VotschVc3.App/Views/CalibrationWindow.WorkflowEnhancements.cs`
   - Forces close-time setup persistence, restores the saved workspace and exposes select-all-peaks.
+- `src/VotschVc3.App/Views/CalibrationWindow.ProductionWorkspaceV3.cs`
+  - Owns edit-safe wiring refresh, silent 5 s reference refresh, page/16-row workspace sizing, and explicit plan/current-step/wait telemetry.
+- `src/VotschVc3.App/Views/HomeView.FbgRunInterlock.cs`
+  - Dashboard per-chamber FBG run interlock, `FBG CALIBRATION` badge, and slow red FBG-button pulse.
 
 ### Core calibration path
 
 - `src/VotschVc3.Core/Calibration/CalibrationProfileRunner.cs`
-  - Executes only explicitly selected calibration plateaus and owns the combined chamber+WIKA stable-temperature gate.
+  - Executes only explicitly selected calibration plateaus and owns the **WIKA reference stability gate**; chamber temperature is informational for FBG stability.
 - `src/VotschVc3.Core/Calibration/CalibrationOrchestrator.cs`
   - Owns per-peak independent wavelength stability tracking, raw samples, failure policies, and plateau results.
 - `src/VotschVc3.Core/Calibration/StabilityDetectors.cs`
@@ -255,18 +281,23 @@ Before declaring a USB/thermometer or FBG calibration fix complete, verify conce
 - [ ] Verified production 25 ms inter-character transmit pacing remains intact.
 - [ ] Fresh session enters `SYSTEM:REMOTE` before the first `*IDN?` and waits at least 1000 ms before querying.
 - [ ] `SYSTEM:LOCAL` is attempted after every measurement/failure/dispose path.
-- [ ] Repeated temperature-button reads do not require a fresh detailed WMI scan while the CTH7000 is already connected.
+- [ ] Repeated manual temperature-button reads do not require a fresh detailed WMI scan while the CTH7000 is already connected.
+- [ ] Automatic 5 s reference refresh does not execute or visually press the manual `Načítať teplotu` button.
 - [ ] One physical CTH7000 cannot be persistently assigned to two different FBG calibration workspaces.
 - [ ] USB disconnect/window close does not silently release a persistent FBG reference assignment.
 - [ ] A disconnected assigned reference never leaves a stale live temperature on the dashboard.
 - [ ] Explicit UI-selected calibration plateaus are the plateaus actually executed for FBG measurement.
-- [ ] With WIKA assigned, both chamber and WIKA must be stable before any peak starts accumulating final stability samples.
-- [ ] Each selected peak is tracked independently and produces its own result/raw samples.
+- [ ] With WIKA assigned, WIKA alone is the authoritative temperature stability gate; chamber temperature does not block peak stability.
+- [ ] Every selected FBG peak is tracked independently and produces its own result/raw samples only after its own stability criteria are met.
 - [ ] `Vybrať všetky peaky` truly selects every discovered PeakLogger peak.
 - [ ] Closing/reopening the FBG workspace restores the last profile, wiring, selected peaks, SN/CHAIN, timeouts, plateau selection and exact PeakLogger endpoint.
 - [ ] Automatic workspace restore uses only the known PeakLogger endpoint and does not reintroduce broad startup discovery.
+- [ ] Typing/editing an SN cannot be interrupted by `CollectionView.Refresh`, Sylex metadata refresh, or PeakLogger topology refresh.
 - [ ] FBG page remains vertically scrollable when the reference-temperature chart is expanded.
-- [ ] `Zapojenie` table retains usable vertical/horizontal scrolling and readable column widths.
+- [ ] `Zapojenie` table retains usable vertical/horizontal scrolling, readable column widths, and approximately 16 visible working rows.
+- [ ] Live monitor shows the planned plateaus before start and current step / wait reason / WIKA / active peak samples during a run.
+- [ ] While FBG calibration is running, manual quick control and Testovací profil are disabled on that chamber.
+- [ ] During an FBG run the device mode badge reads `FBG CALIBRATION` and the FBG button uses a slow red pulse only for that chamber.
 - [ ] Dashboard button hover has no blur/glow effect.
 - [ ] FBG calibration button hover has no blur/glow effect.
 - [ ] Button hover remains visually consistent with the main menu.
@@ -289,5 +320,8 @@ Before declaring a USB/thermometer or FBG calibration fix complete, verify conce
 - Do not revert the validated CTH7000 V1.0 timing/command order to the old 2 ms + pre-REMOTE `*IDN?` sequence without a new physical-device validation.
 - Do not auto-release or auto-steal a persistent CTH7000 assignment merely because its COM port temporarily disappears.
 - Do not use wavelength as a persistent PeakLogger mapping identity.
-- Do not record a calibration plateau as stable solely because the chamber controller is stable when a configured WIKA reference is missing or unstable.
+- Do not record a calibration plateau as stable solely because the chamber controller is stable; WIKA reference stability is authoritative.
+- Do not make chamber temperature a blocking stability condition when WIKA reference is available and configured for the FBG run.
+- Do not call DataGrid/CollectionView refresh or rebuild PeakLogger rows while the operator is editing a wiring cell.
+- Do not route background WIKA polling through foreground UI commands.
 - Do not clear saved FBG wiring when a background PeakLogger reconnect fails.
