@@ -9,8 +9,11 @@ namespace VotschVc3.Agent;
 /// <summary>
 /// Bridge-side WIKA CTH7000 USB client.
 /// The legacy bridge setting READ? is accepted only as a compatibility alias for channel A;
-/// READ? itself is never sent to a CTH7000. Each read uses the documented sequence
-/// *IDN? -> SYSTEM:REMOTE -> MEASURE:CHANNEL? 1/2 -> SYSTEM:LOCAL.
+/// READ? itself is never sent to a CTH7000.
+///
+/// Production sequence validated against the installed V1.0 unit:
+/// SYSTEM:REMOTE -> 1 s settle -> *IDN? (first session only)
+/// -> MEASURE:CHANNEL? 1/2 -> SYSTEM:LOCAL.
 /// </summary>
 public sealed class F100Client : IAsyncDisposable
 {
@@ -83,8 +86,10 @@ public sealed class F100Client : IAsyncDisposable
             {
                 try
                 {
-                    await EnsureIdentifiedUnderGateAsync(ct).ConfigureAwait(false);
+                    // Fresh-open IDN before REMOTE timed out with zero bytes on the production
+                    // V1.0 unit. Always establish REMOTE and let the instrument settle first.
                     await EnterRemoteUnderGateAsync(ct).ConfigureAwait(false);
+                    await EnsureIdentifiedUnderGateAsync(ct).ConfigureAwait(false);
 
                     string response = SendReceiveUnderGate(
                         F100Protocol.BuildMeasureChannelCommand(channel),
@@ -116,27 +121,32 @@ public sealed class F100Client : IAsyncDisposable
         }
     }
 
-    private async Task EnsureIdentifiedUnderGateAsync(CancellationToken ct)
+    private Task EnsureIdentifiedUnderGateAsync(CancellationToken ct)
     {
-        if (_identified) return;
+        if (_identified) return Task.CompletedTask;
+        ct.ThrowIfCancellationRequested();
 
         string identity = SendReceiveUnderGate(F100Protocol.IdentifyCommand, ct);
         if (F100Protocol.IsErrorResponse(identity) ||
             !identity.Contains("CTH7000", StringComparison.OrdinalIgnoreCase))
         {
             throw new IOException(
-                $"Zariadenie na {_port.PortName} sa neidentifikovalo ako WIKA CTH7000. IDN='{identity}'.");
+                $"Zariadenie na {_port.PortName} sa po SYSTEM:REMOTE neidentifikovalo ako WIKA CTH7000. IDN='{identity}'.");
         }
 
         _identified = true;
+        return Task.CompletedTask;
     }
 
     private async Task EnterRemoteUnderGateAsync(CancellationToken ct)
     {
         if (_remoteActive) return;
+        EnsureOpen();
         WriteCommand(F100Protocol.Frame(F100Protocol.RemoteCommand));
         _remoteActive = true;
-        await Task.Delay(TimeSpan.FromMilliseconds(120), ct).ConfigureAwait(false);
+        await Task.Delay(
+            TimeSpan.FromMilliseconds(F100Protocol.RemoteSettleDelayMs),
+            ct).ConfigureAwait(false);
     }
 
     private void TryReturnLocalUnderGate()
@@ -162,6 +172,7 @@ public sealed class F100Client : IAsyncDisposable
     private string SendReceiveUnderGate(string command, CancellationToken ct)
     {
         EnsureOpen();
+        ct.ThrowIfCancellationRequested();
         _port.DiscardInBuffer();
         WriteCommand(F100Protocol.Frame(command));
 
@@ -179,7 +190,8 @@ public sealed class F100Client : IAsyncDisposable
             if (!string.IsNullOrEmpty(chunk))
             {
                 response.Append(chunk);
-                if (response.ToString().Contains('\r') || response.ToString().Contains('\n'))
+                string current = response.ToString();
+                if (current.Contains('\r') || current.Contains('\n'))
                 {
                     break;
                 }
@@ -277,7 +289,6 @@ public sealed class F100Client : IAsyncDisposable
         await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            // Send LOCAL directly while the port and serial gate are still valid.
             TryReturnLocalUnderGate();
             try
             {

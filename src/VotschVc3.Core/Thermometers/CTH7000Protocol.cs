@@ -6,16 +6,31 @@ namespace VotschVc3.Core.Thermometers;
 /// <summary>
 /// Encoder / decoder for the WIKA CTH7000 USB-serial interface.
 /// <para>
-/// The CTH7000 uses a USB virtual COM port. The WIKA operating instructions specify
-/// 9600 baud, 8 data bits, no parity, 1 stop bit, no flow control, with a 1–2 ms gap
-/// between transmitted characters. Commands are SCPI style and terminated with CR.
+/// WIKA documents 9600 baud, 8 data bits, no parity, 1 stop bit and no flow control.
+/// The manual recommends a 1–2 ms inter-character gap. A production CTH7000 V1.0 unit,
+/// however, was validated on 2026-09-03 with the historical AutoOptical/Pali timing of
+/// 25 ms between transmitted characters. The production clients therefore use that
+/// compatibility timing and a 1 s REMOTE settle delay before the first query.
 /// </para>
 /// </summary>
 public static class F100Protocol
 {
     public const int DefaultBaudRate = 9600;
     public const string Terminator = "\r";
-    public const int InterCharacterDelayMs = 2;
+
+    /// <summary>Timing stated in the WIKA documentation.</summary>
+    public const int DocumentedInterCharacterDelayMs = 2;
+
+    /// <summary>
+    /// Production-compatible pacing validated against the installed CTH7000 V1.0.
+    /// The previous 2 ms production path produced fresh-open zero-byte timeouts.
+    /// </summary>
+    public const int InterCharacterDelayMs = 25;
+
+    /// <summary>
+    /// Minimum pause after SYSTEM:REMOTE before the first query in the validated Pali sequence.
+    /// </summary>
+    public const int RemoteSettleDelayMs = 1000;
 
     // Commands explicitly documented by WIKA CTH7000 operating instructions, chapter 11.
     public const string IdentifyCommand = "*IDN?";

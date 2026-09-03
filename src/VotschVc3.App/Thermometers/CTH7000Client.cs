@@ -9,19 +9,20 @@ namespace VotschVc3.App.Thermometers;
 
 /// <summary>
 /// Serial client for the WIKA CTH7000 on a USB virtual COM port.
-/// Every channel measurement is an atomic SCPI session:
-/// *IDN? (once) -> SYSTEM:REMOTE -> MEASURE:CHANNEL? -> SYSTEM:LOCAL.
-/// SYSTEM:LOCAL is attempted from a finally block so the front panel is not left locked
-/// after a timeout, cancellation, parser failure or disconnect.
+///
+/// Production sequence validated on the installed CTH7000 V1.0:
+/// Open -> SYSTEM:REMOTE -> 1 s settle -> *IDN? (first session only)
+/// -> MEASURE:CHANNEL? -> SYSTEM:LOCAL.
+///
+/// SYSTEM:LOCAL is always attempted from a finally block so the physical front panel
+/// is not intentionally left locked in REMOTE after a successful read, timeout,
+/// cancellation, reconnect or parser failure.
 /// </summary>
 public sealed class F100Client : IAsyncDisposable
 {
-    private enum CommunicationMode { Unknown, Query }
-
     private readonly SerialPort _port;
     private readonly bool _allowQueryFallback;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private CommunicationMode _communicationMode;
     private bool _queryInstrumentIdentified;
     private bool _remoteActive;
     private SerialPortLease? _portLease;
@@ -46,7 +47,8 @@ public sealed class F100Client : IAsyncDisposable
         AppLog.Info(
             "CTH7000 USB",
             $"Client vytvorený: {portName} @ {baudRate} bd, 8N1, Handshake=None, " +
-            "DTR=True, RTS=True, ASCII, ReadTimeout=8000 ms, WriteTimeout=2000 ms.");
+            $"DTR=True, RTS=True, ASCII, pacing={F100Protocol.InterCharacterDelayMs} ms/char, " +
+            $"REMOTE settle={F100Protocol.RemoteSettleDelayMs} ms, ReadTimeout=8000 ms, WriteTimeout=2000 ms.");
     }
 
     public bool IsOpen => _port.IsOpen;
@@ -84,7 +86,7 @@ public sealed class F100Client : IAsyncDisposable
                 AppLog.Info(
                     "CTH7000 USB",
                     $"{PortName}: SerialPort.Open OK; RX/TX buffre vyčistené. " +
-                    "Čakám 350 ms na inicializáciu WIKA.");
+                    "Čakám 350 ms na inicializáciu USB prevodníka.");
 
                 await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken)
                     .ConfigureAwait(false);
@@ -119,6 +121,11 @@ public sealed class F100Client : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Identifies the instrument using the production-safe REMOTE-first sequence.
+    /// A fresh-open *IDN? before SYSTEM:REMOTE timed out with zero received bytes on the
+    /// validated V1.0 unit, therefore identification is never the first wire command here.
+    /// </summary>
     public async Task<string> IdentifyInstrumentAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposing();
@@ -127,7 +134,16 @@ public sealed class F100Client : IAsyncDisposable
         {
             ThrowIfDisposing();
             EnsurePortOpen();
-            return await IdentifyUnderGateAsync(cancellationToken).ConfigureAwait(false);
+
+            await EnterRemoteUnderGateAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await IdentifyUnderGateAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                TryReturnToLocalUnderGate();
+            }
         }
         finally
         {
@@ -135,6 +151,9 @@ public sealed class F100Client : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Low-level diagnostic send. Production measurements should use ReadChannelAsync.
+    /// </summary>
     public async Task SendAsync(string command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -159,6 +178,10 @@ public sealed class F100Client : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Low-level diagnostic query. It intentionally does not inject REMOTE/LOCAL; production
+    /// temperature reads use ReadChannelAsync, which owns the complete device lifecycle.
+    /// </summary>
     public async Task<string> SendReceiveAsync(
         string command,
         CancellationToken cancellationToken = default)
@@ -183,7 +206,7 @@ public sealed class F100Client : IAsyncDisposable
         string readCommand,
         CancellationToken cancellationToken = default)
     {
-        AppLog.Info("CTH7000 USB", $"{PortName}: ReadAsync '{readCommand}'.");
+        AppLog.Info("CTH7000 USB", $"{PortName}: low-level ReadAsync '{readCommand}'.");
         string response = await SendReceiveAsync(readCommand, cancellationToken).ConfigureAwait(false);
         ThermometerReading reading = F100Protocol.ParseReading(response);
         AppLog.Info(
@@ -194,9 +217,8 @@ public sealed class F100Client : IAsyncDisposable
     }
 
     /// <summary>
-    /// Reads one CTH7000 input and guarantees a best-effort SYSTEM:LOCAL before returning.
-    /// This method is safe for continuous polling; it does not leave the physical front panel
-    /// in REMOTE between samples.
+    /// Reads one CTH7000 input with the validated Pali-compatible sequence and guarantees
+    /// a best-effort SYSTEM:LOCAL before returning.
     /// </summary>
     public async Task<ThermometerReading> ReadChannelAsync(
         string channel,
@@ -214,51 +236,44 @@ public sealed class F100Client : IAsyncDisposable
             EnsurePortOpen();
             AppLog.Info(
                 "CTH7000 USB",
-                $"{PortName}: ReadChannel START channel={normalized}, mode={_communicationMode}.");
-
-            if (!_queryInstrumentIdentified)
-            {
-                string identity = await IdentifyUnderGateAsync(cancellationToken).ConfigureAwait(false);
-                if (!_queryInstrumentIdentified && !_allowQueryFallback)
-                {
-                    AppLog.Error(
-                        "CTH7000 USB",
-                        $"{PortName}: *IDN? nevrátilo podporovaný CTH7000. Identity='{identity.Trim()}'.");
-                    return new ThermometerReading(
-                        DateTimeOffset.Now,
-                        null,
-                        string.Empty,
-                        $"{PortName}: WIKA CTH7000 neodpovedal na *IDN?.");
-                }
-            }
+                $"{PortName}: ReadChannel START channel={normalized}, identified={_queryInstrumentIdentified}. " +
+                "Sekvencia: REMOTE -> settle -> IDN(first only) -> MEASURE -> LOCAL.");
 
             Exception? last = null;
             for (int attempt = 1; attempt <= 2; attempt++)
             {
                 try
                 {
+                    // Critical ordering validated on the production CTH7000 V1.0.
+                    // Do NOT send *IDN? on a fresh/local session before SYSTEM:REMOTE.
+                    await EnterRemoteUnderGateAsync(cancellationToken).ConfigureAwait(false);
+
                     if (!_queryInstrumentIdentified)
                     {
-                        await IdentifyUnderGateAsync(cancellationToken).ConfigureAwait(false);
+                        string identity = await IdentifyUnderGateAsync(cancellationToken).ConfigureAwait(false);
+                        if (!_queryInstrumentIdentified && !_allowQueryFallback)
+                        {
+                            AppLog.Error(
+                                "CTH7000 USB",
+                                $"{PortName}: po REMOTE sa zariadenie neidentifikovalo ako CTH7000. " +
+                                $"Identity='{identity.Trim()}'.");
+                            return new ThermometerReading(
+                                DateTimeOffset.Now,
+                                null,
+                                string.Empty,
+                                $"{PortName}: zariadenie sa neidentifikovalo ako WIKA CTH7000.");
+                        }
                     }
-
-                    if (!_queryInstrumentIdentified && !_allowQueryFallback)
-                    {
-                        return new ThermometerReading(
-                            DateTimeOffset.Now,
-                            null,
-                            string.Empty,
-                            $"{PortName}: zariadenie neodpovedalo ako WIKA CTH7000.");
-                    }
-
-                    await EnterRemoteUnderGateAsync(cancellationToken).ConfigureAwait(false);
 
                     string measureCommand = F100Protocol.BuildMeasureChannelCommand(normalized);
                     AppLog.Info(
                         "CTH7000 USB",
                         $"{PortName}: meriam kanál {normalized} → '{measureCommand}' [pokus {attempt}/2].");
 
-                    string response = SendReceiveOnceUnderGate(measureCommand, cancellationToken, $"measure {attempt}/2");
+                    string response = SendReceiveOnceUnderGate(
+                        measureCommand,
+                        cancellationToken,
+                        $"measure {attempt}/2");
                     ThermometerReading reading = F100Protocol.ParseReading(response);
                     AppLog.Info(
                         "CTH7000 USB",
@@ -281,8 +296,6 @@ public sealed class F100Client : IAsyncDisposable
 
                     if (attempt == 2) break;
 
-                    // Release REMOTE before touching the COM handle. If the instrument has
-                    // already disappeared this is harmless and the reconnect continues.
                     TryReturnToLocalUnderGate();
                     AppLog.Warn(
                         "CTH7000 USB",
@@ -291,8 +304,6 @@ public sealed class F100Client : IAsyncDisposable
                 }
                 finally
                 {
-                    // Critical lifecycle guarantee: never intentionally keep the CTH7000
-                    // front panel in REMOTE after a measurement attempt.
                     TryReturnToLocalUnderGate();
                 }
             }
@@ -347,34 +358,34 @@ public sealed class F100Client : IAsyncDisposable
         }
     }
 
-    private async Task<string> IdentifyUnderGateAsync(CancellationToken cancellationToken)
+    private Task<string> IdentifyUnderGateAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         AppLog.Info(
             "CTH7000 USB",
-            $"{PortName}: identifikácia START (*IDN?, inter-character {F100Protocol.InterCharacterDelayMs} ms).");
+            $"{PortName}: identifikácia START po REMOTE (*IDN?, " +
+            $"inter-character {F100Protocol.InterCharacterDelayMs} ms).");
 
         try
         {
             string identity = SendReceiveOnceUnderGate(
                 F100Protocol.IdentifyCommand,
                 cancellationToken,
-                "identify");
+                "identify-after-remote");
             InstrumentIdentity = identity.Trim();
             _queryInstrumentIdentified = IsSupportedQueryInstrument(identity);
-            _communicationMode = _queryInstrumentIdentified
-                ? CommunicationMode.Query
-                : CommunicationMode.Unknown;
 
             AppLog.Info(
                 "CTH7000 USB",
-                $"{PortName}: identifikácia OK → '{InstrumentIdentity}', query={_queryInstrumentIdentified}.");
-            return identity;
+                $"{PortName}: identifikácia OK → '{InstrumentIdentity}', " +
+                $"supported={_queryInstrumentIdentified}.");
+            return Task.FromResult(identity);
         }
         catch (Exception ex) when (ex is TimeoutException or IOException or InvalidOperationException)
         {
             AppLog.Error(
                 "CTH7000 USB",
-                $"{PortName}: identifikácia FAILED → {ex.GetType().Name}: {ex.Message}");
+                $"{PortName}: identifikácia po REMOTE FAILED → {ex.GetType().Name}: {ex.Message}");
             throw;
         }
     }
@@ -383,10 +394,16 @@ public sealed class F100Client : IAsyncDisposable
     {
         if (_remoteActive) return;
         EnsurePortOpen();
-        AppLog.Info("CTH7000 USB", $"{PortName}: SYSTEM:REMOTE.");
+
+        AppLog.Info(
+            "CTH7000 USB",
+            $"{PortName}: SYSTEM:REMOTE; potom čakám {F100Protocol.RemoteSettleDelayMs} ms " +
+            "podľa overeného Pali postupu.");
         WriteCommandLogged(F100Protocol.RemoteCommand, "remote");
         _remoteActive = true;
-        await Task.Delay(TimeSpan.FromMilliseconds(120), cancellationToken).ConfigureAwait(false);
+        await Task.Delay(
+            TimeSpan.FromMilliseconds(F100Protocol.RemoteSettleDelayMs),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private void TryReturnToLocalUnderGate()
@@ -463,6 +480,7 @@ public sealed class F100Client : IAsyncDisposable
         string context)
     {
         EnsurePortOpen();
+        cancellationToken.ThrowIfCancellationRequested();
         _port.DiscardInBuffer();
         string frame = F100Protocol.Frame(command);
         AppLog.Info(
@@ -563,7 +581,8 @@ public sealed class F100Client : IAsyncDisposable
             if (!string.IsNullOrEmpty(chunk))
             {
                 builder.Append(chunk);
-                if (builder.ToString().Contains('\r') || builder.ToString().Contains('\n'))
+                string current = builder.ToString();
+                if (current.Contains('\r') || current.Contains('\n'))
                 {
                     break;
                 }
@@ -582,7 +601,6 @@ public sealed class F100Client : IAsyncDisposable
 
     private void ResetProtocolState()
     {
-        _communicationMode = CommunicationMode.Unknown;
         _queryInstrumentIdentified = false;
         _remoteActive = false;
         InstrumentIdentity = string.Empty;
@@ -622,8 +640,6 @@ public sealed class F100Client : IAsyncDisposable
         {
             AppLog.Info("CTH7000 USB", $"{PortName}: DisposeAsync START.");
 
-            // Do not call the public ReturnToLocalIfSupportedAsync here: disposal has already
-            // started. Send the command directly while we still own the serial gate.
             TryReturnToLocalUnderGate();
 
             try
