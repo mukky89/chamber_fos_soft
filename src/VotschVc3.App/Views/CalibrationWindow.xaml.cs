@@ -91,6 +91,14 @@ public partial class CalibrationWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
+
+        // Calibration uses explicit one-shot reference reads. Disable the device VM's generic
+        // auto-polling mode immediately, before the operator can click Načítať teplotu.
+        foreach (ThermometerDeviceViewModel thermometer in _viewModel.F100Devices)
+        {
+            thermometer.PollingEnabled = false;
+        }
+
         ConfigureWiringGrid();
 
         _startupStopwatch.Stop();
