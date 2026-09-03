@@ -9,7 +9,7 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationReferenceGateRegressionTests
 {
     [Fact]
-    public async Task Runner_DoesNotRequireChamberActualTemperatureToBeStable_WhenReferenceIsStable()
+    public async Task Runner_RequiresChamberStabilityBeforeReferenceEvenWhenWikaIsStable()
     {
         string root = Path.Combine(Path.GetTempPath(), "VotschVc3-reference-gate-" + Guid.NewGuid().ToString("N"));
         try
@@ -21,7 +21,7 @@ public sealed class CalibrationReferenceGateRegressionTests
 
             var profile = new TestProfile
             {
-                Name = "Reference only gate",
+                Name = "Sequential chamber plus reference gate",
                 ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
                 Segments =
                 {
@@ -42,13 +42,18 @@ public sealed class CalibrationReferenceGateRegressionTests
                 Settings = new CalibrationProfileSettings
                 {
                     RequiredStableSamples = 2,
+                    RequiredMeasurementSamples = 2,
                     MaxWavelengthRangePm = 0,
                     MaxWavelengthStdDevPm = 0,
                     MaxWavelengthDriftPmPerMinute = 0,
                     ChamberToleranceC = 0.5,
                     ChamberStableDuration = TimeSpan.Zero,
                     MaxChamberDriftCPerMinute = 0,
-                    ChamberStabilityTimeout = TimeSpan.FromSeconds(2),
+                    ChamberStabilityTimeout = TimeSpan.FromMilliseconds(250),
+                    ReferenceToleranceC = 0.5,
+                    ReferenceStableDuration = TimeSpan.Zero,
+                    MaxReferenceDriftCPerMinute = 0,
+                    ReferenceStabilityTimeout = TimeSpan.FromSeconds(2),
                     DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(5),
                     SensorTimeoutPolicy = CalibrationFailurePolicy.AbortCalibration,
                     PeakLostPolicy = CalibrationFailurePolicy.AbortCalibration,
@@ -79,21 +84,20 @@ public sealed class CalibrationReferenceGateRegressionTests
             await using CalibrationRunWriter writer = store.CreateRunWriter(run);
             var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
 
-            // WIKA sits exactly on the requested plateau while the chamber's own actual value
-            // deliberately remains far away. The run must proceed because WIKA is authoritative.
-            await runner.RunAsync(
-                profile,
-                setup,
-                run,
-                writer,
-                7.0,
-                null,
-                _ => Task.FromResult<double?>(20.0));
+            // Pali parity requires the chamber's own measured value to qualify first. A perfectly
+            // stable WIKA must not bypass a chamber that is still 13 °C away from the target.
+            CalibrationOperatorActionRequiredException ex = await Assert.ThrowsAsync<CalibrationOperatorActionRequiredException>(
+                () => runner.RunAsync(
+                    profile,
+                    setup,
+                    run,
+                    writer,
+                    7.0,
+                    null,
+                    _ => Task.FromResult<double?>(20.0)));
 
-            CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
-            Assert.Equal(7.0, plateau.ActualTemperatureC, 6);
-            Assert.Equal(20.0, Assert.IsType<double>(plateau.ReferenceTemperatureC), 6);
-            Assert.Equal(CalibrationTargetState.Stable, Assert.Single(plateau.Targets).Status);
+            Assert.Equal("CHAMBER_STABILITY_TIMEOUT", ex.Warning.Code);
+            Assert.Empty(run.Plateaus);
         }
         finally
         {
