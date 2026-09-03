@@ -11,6 +11,7 @@ namespace VotschVc3.App.Calibration;
 /// <summary>
 /// UI integration adapter that enriches FBG calibration rows from the central Sylex FOS API.
 /// The calibration remains usable when the API is unavailable; production fields stay editable.
+/// Per-symbol lookups are deliberately quiet in the UI; only overall API health is reported.
 /// </summary>
 public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 {
@@ -22,6 +23,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private bool _configurationWarningLogged;
 
     public event EventHandler<SylexFosLookupStatus>? LookupStatusChanged;
+    public event EventHandler<CalibrationPeakRowViewModel>? MetadataApplied;
 
     public SylexFosCalibrationIntegration(CalibrationViewModel viewModel)
     {
@@ -65,12 +67,14 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     {
         row.PropertyChanged -= OnRowPropertyChanged;
         row.PropertyChanged += OnRowPropertyChanged;
+        SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
     }
 
     private void DetachRow(CalibrationPeakRowViewModel row)
     {
         row.PropertyChanged -= OnRowPropertyChanged;
         SylexFosSensorNameStore.Remove(row);
+        SylexFosRowMetadataStore.Remove(row);
         if (_lookups.Remove(row, out CancellationTokenSource? cts))
         {
             cts.Cancel();
@@ -92,12 +96,15 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
             previous.Cancel();
             previous.Dispose();
         }
+
         SylexFosSensorNameStore.Remove(row);
-        if (string.IsNullOrWhiteSpace(row.SerialNumber)) return;
+        SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
+        string serialNumber = SylexFosRowMetadataStore.GetSerialNumber(row);
+        if (string.IsNullOrWhiteSpace(serialNumber)) return;
+
         var cts = new CancellationTokenSource();
         _lookups[row] = cts;
-        Report(SylexFosLookupState.Loading, $"FOS API · načítavam {row.SerialNumber}…");
-        _ = LookupAndApplyAsync(row, row.SerialNumber, cts.Token);
+        _ = LookupAndApplyAsync(row, serialNumber, cts.Token);
     }
 
     private async Task LookupAndApplyAsync(CalibrationPeakRowViewModel row, string serialNumber, CancellationToken cancellationToken)
@@ -110,27 +117,32 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
             if (metadata is null)
             {
-                Report(SylexFosLookupState.NotFound, $"FOS API · SN {serialNumber} sa nenašlo");
+                AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: záznam nebol nájdený.");
+                await Application.Current.Dispatcher.InvokeAsync(() => MetadataApplied?.Invoke(this, row));
                 return;
             }
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                if (!string.Equals(row.SerialNumber, serialNumber, StringComparison.OrdinalIgnoreCase)) return;
+                string currentParsed = SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber);
+                if (!string.Equals(currentParsed, serialNumber, StringComparison.OrdinalIgnoreCase)) return;
                 if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) row.ProductDescription = metadata.ProductDescription;
                 SylexFosSensorNameStore.Set(row, metadata.SensorName);
+                SylexFosRowMetadataStore.SetApiMetadata(row, metadata.SylexSerialNumber ?? serialNumber, metadata.FbgType);
                 if (!string.IsNullOrWhiteSpace(metadata.Order)) row.Order = metadata.Order;
                 if (!string.IsNullOrWhiteSpace(metadata.CustomerName)) row.Customer = metadata.CustomerName;
+                MetadataApplied?.Invoke(this, row);
             });
 
-            string suffix = string.IsNullOrWhiteSpace(metadata.Order) ? string.Empty : $" · Zakázka {metadata.Order}";
-            Report(SylexFosLookupState.Loaded, $"FOS API · načítané {serialNumber}{suffix}");
-            AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: doplnená zakázka, popis výrobku, názov snímača a zákazník.");
+            AppLog.Info(
+                "Sylex FOS API",
+                $"FBG SN {serialNumber}: doplnený Sylex SN, Typ FBG, zakázka, popis výrobku, názov snímača a zákazník.");
         }
         catch (OperationCanceledException) { }
         catch (InvalidOperationException ex)
         {
-            Report(SylexFosLookupState.ConfigurationError, "FOS API · chýba alebo je neplatná konfigurácia");
+            // Do not flash a warning for every scanned symbol. The health/configuration badge is
+            // managed separately and the detailed error remains available in AppLog.
             if (!_configurationWarningLogged)
             {
                 _configurationWarningLogged = true;
@@ -139,7 +151,6 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Report(SylexFosLookupState.ApiUnavailable, $"FOS API · nedostupné ({ex.Message})");
             AppLog.Warn("Sylex FOS API", $"FBG SN {serialNumber}: metadata sa nepodarilo načítať ({ex.Message}). Polia zostávajú editovateľné.");
         }
         finally
@@ -182,6 +193,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         {
             row.PropertyChanged -= OnRowPropertyChanged;
             SylexFosSensorNameStore.Remove(row);
+            SylexFosRowMetadataStore.Remove(row);
         }
         foreach (CancellationTokenSource cts in _lookups.Values)
         {
