@@ -92,7 +92,7 @@ public sealed class CalibrationReferenceGateRegressionTests
 
             CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
             Assert.Equal(7.0, plateau.ActualTemperatureC, 6);
-            Assert.Equal(20.0, plateau.ReferenceTemperatureC, 6);
+            Assert.Equal(20.0, Assert.IsType<double>(plateau.ReferenceTemperatureC), 6);
             Assert.Equal(CalibrationTargetState.Stable, Assert.Single(plateau.Targets).Status);
         }
         finally
