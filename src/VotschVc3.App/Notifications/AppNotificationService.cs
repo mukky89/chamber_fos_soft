@@ -38,6 +38,11 @@ public static class AppNotificationService
     {
         if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(message)) return;
 
+        // Successful device connection is persistent state already visible on the device card.
+        // Do not cover the workspace with a blue transient popup such as
+        // "SIKA PolyTech · Pripojené na 10.88.6.28:80". Warnings/errors remain untouched.
+        if (kind == AppNotificationKind.Info && IsRoutineConnectedInfo(message)) return;
+
         string key = dedupeKey ?? $"{kind}|{title}|{message}";
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
@@ -79,6 +84,12 @@ public static class AppNotificationService
 
     public static void Error(string title, string message, string? key = null) =>
         Show(title, message, AppNotificationKind.Error, dedupeKey: key);
+
+    private static bool IsRoutineConnectedInfo(string? message)
+    {
+        string value = message?.Trim() ?? string.Empty;
+        return value.StartsWith("Pripojené", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string? GetSessionOnceKey(string key, string message)
     {
