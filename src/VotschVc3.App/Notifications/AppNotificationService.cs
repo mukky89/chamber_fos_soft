@@ -38,10 +38,11 @@ public static class AppNotificationService
     {
         if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(message)) return;
 
-        // Successful device connection is persistent state already visible on the device card.
-        // Do not cover the workspace with a blue transient popup such as
-        // "SIKA PolyTech · Pripojené na 10.88.6.28:80". Warnings/errors remain untouched.
-        if (kind == AppNotificationKind.Info && IsRoutineConnectedInfo(message)) return;
+        // A successful device connection is persistent state already visible on the device card.
+        // Suppress routine transient connection toasts for chambers and all other devices, including
+        // messages prefixed by glyphs such as "🔌 Pripojené na 10.88.5.175:2049". Warning/error
+        // notifications are intentionally never filtered here.
+        if (kind is AppNotificationKind.Info or AppNotificationKind.Success && IsRoutineConnectedInfo(message)) return;
 
         string key = dedupeKey ?? $"{kind}|{title}|{message}";
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -88,7 +89,13 @@ public static class AppNotificationService
     private static bool IsRoutineConnectedInfo(string? message)
     {
         string value = message?.Trim() ?? string.Empty;
-        return value.StartsWith("Pripojené", StringComparison.OrdinalIgnoreCase);
+        if (value.Length == 0) return false;
+
+        return value.StartsWith("Pripojené", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("Pripojené na", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("Pripojené:", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("Connected", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("Connected to", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? GetSessionOnceKey(string key, string message)
