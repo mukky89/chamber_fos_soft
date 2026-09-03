@@ -42,11 +42,13 @@ public static class AppNotificationService
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
         // FBG identification validation is intentionally edge-like for the operator: a periodic
-        // PeakLogger/Sylex re-validation must not keep showing the same invalid-SN popup. The
-        // concrete key already contains SN/channel/message, so a different fault still appears.
-        if (IsSessionOnceKey(key))
+        // PeakLogger/Sylex re-validation must not keep showing the same invalid-SN popup. For FBG
+        // format/duplicate warnings the typed SN itself changes on every keystroke, therefore the
+        // session key is based on the warning TYPE/message, not the volatile current SN text.
+        string? sessionOnceKey = GetSessionOnceKey(key, message);
+        if (sessionOnceKey is not null)
         {
-            if (!SessionOnceShown.TryAdd(key, 0)) return;
+            if (!SessionOnceShown.TryAdd(sessionOnceKey, 0)) return;
         }
         else
         {
@@ -78,9 +80,14 @@ public static class AppNotificationService
     public static void Error(string title, string message, string? key = null) =>
         Show(title, message, AppNotificationKind.Error, dedupeKey: key);
 
-    private static bool IsSessionOnceKey(string key) =>
-        key.StartsWith("fbg-sn:", StringComparison.OrdinalIgnoreCase) ||
-        key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase);
+    private static string? GetSessionOnceKey(string key, string message)
+    {
+        if (key.StartsWith("fbg-sn:", StringComparison.OrdinalIgnoreCase))
+            return $"fbg-sn|{message.Trim()}";
+        if (key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase))
+            return $"sylex|{key}";
+        return null;
+    }
 
     private static void EnqueueOnUi(AppNotification notification)
     {
