@@ -33,7 +33,7 @@ public partial class CalibrationWindow
 {
     private bool _centralAppNotificationsAttached;
 
-    private void AttachCentralAppNotifications()
+    internal void AttachCentralAppNotifications()
     {
         if (_centralAppNotificationsAttached) return;
         _centralAppNotificationsAttached = true;
