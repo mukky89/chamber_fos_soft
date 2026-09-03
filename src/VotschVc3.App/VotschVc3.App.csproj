@@ -25,6 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\VotschVc3.Core\VotschVc3.Core.csproj" />
     <ProjectReference Include="..\VotschVc3.Agent\VotschVc3.Agent.csproj" ReferenceOutputAssembly="false" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
   <Target Name="StopRunningBridgeAgent" BeforeTargets="CopyBridgeAgent"
