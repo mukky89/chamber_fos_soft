@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 
 namespace VotschVc3.App.Views;
 
@@ -38,11 +39,22 @@ internal static class CalibrationWindowHideProfileDurationColumnBootstrap
 
     private static void RemoveDurationColumns(DependencyObject root)
     {
-        foreach (DataGrid grid in FindVisualChildren<DataGrid>(root)) RemoveDurationColumn(grid);
+        // Logical-tree objects such as RowDefinition/GridLength helpers are DependencyObjects but
+        // are not Visual/Visual3D. VisualTreeHelper throws InvalidOperationException when called on
+        // those objects, so visual traversal must be explicitly guarded.
+        if (root is Visual or Visual3D)
+        {
+            foreach (DataGrid grid in FindVisualChildren<DataGrid>(root))
+                RemoveDurationColumn(grid);
+        }
+
         foreach (object child in LogicalTreeHelper.GetChildren(root))
         {
-            if (child is DataGrid grid) RemoveDurationColumn(grid);
-            if (child is DependencyObject dependencyObject) RemoveDurationColumns(dependencyObject);
+            if (child is DataGrid grid)
+                RemoveDurationColumn(grid);
+
+            if (child is DependencyObject dependencyObject)
+                RemoveDurationColumns(dependencyObject);
         }
     }
 
@@ -68,12 +80,18 @@ internal static class CalibrationWindowHideProfileDurationColumnBootstrap
 
     private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T : DependencyObject
     {
+        if (root is not Visual && root is not Visual3D)
+            yield break;
+
         int count = VisualTreeHelper.GetChildrenCount(root);
         for (int i = 0; i < count; i++)
         {
             DependencyObject child = VisualTreeHelper.GetChild(root, i);
-            if (child is T typed) yield return typed;
-            foreach (T nested in FindVisualChildren<T>(child)) yield return nested;
+            if (child is T typed)
+                yield return typed;
+
+            foreach (T nested in FindVisualChildren<T>(child))
+                yield return nested;
         }
     }
 }
