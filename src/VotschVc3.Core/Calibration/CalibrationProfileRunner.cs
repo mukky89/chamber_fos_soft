@@ -111,13 +111,13 @@ public sealed class CalibrationProfileRunner
 
                 int currentPlateau = calibrationPlateauIndex++;
 
-                // When a physical WIKA reference is configured, peak stability must not start
-                // merely because the chamber controller reports a stable temperature. Require
-                // the chamber and the reference to be inside the same target tolerance, with
-                // acceptable drift, for the configured stability duration first.
+                // Production rule: the physical WIKA CTH7000 is the temperature reference.
+                // The chamber controller value is useful for control/logging only and must NOT
+                // gate the start of FBG peak stabilization. First require the WIKA reference to
+                // remain inside tolerance with acceptable drift for the configured duration.
                 if (readReferenceTemperatureAsync is not null)
                 {
-                    await WaitForCombinedTemperatureStabilityAsync(
+                    await WaitForReferenceStabilityAsync(
                         run,
                         setup,
                         currentPlateau,
@@ -127,14 +127,16 @@ public sealed class CalibrationProfileRunner
                         cancellationToken).ConfigureAwait(false);
                 }
 
-                // The combined gate above has already satisfied the configured chamber stable
-                // duration. Keep the orchestrator's existing safety check, but make it a fresh
-                // instantaneous in-tolerance verification so we do not wait the same minute twice.
-                TimeSpan originalChamberStableDuration = setup.Settings.ChamberStableDuration;
-                if (readReferenceTemperatureAsync is not null)
-                {
-                    setup.Settings.ChamberStableDuration = TimeSpan.Zero;
-                }
+                // CalibrationOrchestrator contains a historical chamber-temperature gate before
+                // its independent per-peak wavelength trackers. The WIKA gate above is now the
+                // authoritative temperature criterion, therefore disable that chamber criterion
+                // for this call while preserving the configured values immediately afterwards.
+                TimeSpan originalStableDuration = setup.Settings.ChamberStableDuration;
+                double originalTolerance = setup.Settings.ChamberToleranceC;
+                double originalDrift = setup.Settings.MaxChamberDriftCPerMinute;
+                setup.Settings.ChamberStableDuration = TimeSpan.Zero;
+                setup.Settings.ChamberToleranceC = double.MaxValue;
+                setup.Settings.MaxChamberDriftCPerMinute = 0;
 
                 CalibrationPlateauResult plateau;
                 try
@@ -153,9 +155,14 @@ public sealed class CalibrationProfileRunner
                 }
                 finally
                 {
-                    setup.Settings.ChamberStableDuration = originalChamberStableDuration;
+                    setup.Settings.ChamberStableDuration = originalStableDuration;
+                    setup.Settings.ChamberToleranceC = originalTolerance;
+                    setup.Settings.MaxChamberDriftCPerMinute = originalDrift;
                 }
 
+                // The orchestrator releases the plateau only after every selected FBG peak has
+                // independently reached its wavelength stability criteria or a configured
+                // terminal failure state. One stable peak never makes another peak stable.
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
 
@@ -224,7 +231,7 @@ public sealed class CalibrationProfileRunner
         }
     }
 
-    private async Task WaitForCombinedTemperatureStabilityAsync(
+    private async Task WaitForReferenceStabilityAsync(
         CalibrationRunRecord run,
         CalibrationSetup setup,
         int plateauIndex,
@@ -234,10 +241,6 @@ public sealed class CalibrationProfileRunner
         CancellationToken cancellationToken)
     {
         CalibrationProfileSettings settings = setup.Settings;
-        var chamberDetector = new TemperatureStabilityDetector(
-            settings.ChamberStableDuration,
-            settings.ChamberToleranceC,
-            settings.MaxChamberDriftCPerMinute);
         var referenceDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
@@ -253,21 +256,22 @@ public sealed class CalibrationProfileRunner
             cancellationToken.ThrowIfCancellationRequested();
             await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
 
+            // Chamber temperature is read only for progress/log context. It is deliberately not
+            // fed into a stability detector and cannot block measurement readiness.
             double chamberTemperature = await ReadTemperatureAsync(cancellationToken).ConfigureAwait(false);
             double? referenceTemperature = await readReferenceTemperatureAsync(cancellationToken).ConfigureAwait(false);
             lastReference = referenceTemperature ?? lastReference;
 
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            StabilityMetrics chamberMetrics = chamberDetector.Add(now, chamberTemperature, targetTemperatureC);
             StabilityMetrics? referenceMetrics = referenceTemperature is { } reference
-                ? referenceDetector.Add(now, reference, targetTemperatureC)
+                ? referenceDetector.Add(DateTimeOffset.UtcNow, reference, targetTemperatureC)
                 : null;
 
-            bool chamberStable = chamberMetrics.IsStable;
             bool referenceStable = referenceMetrics?.IsStable == true;
             string detail = referenceTemperature is null
                 ? "WIKA CTH7000 nevrátil platnú referenčnú teplotu."
-                : $"Komora {(chamberStable ? "stable" : "čaká")} · WIKA {(referenceStable ? "stable" : "čaká")}.";
+                : referenceStable
+                    ? $"WIKA stable · {referenceTemperature:F3} °C."
+                    : $"WIKA čaká · {referenceTemperature:F3} °C.";
 
             Progress?.Invoke(new CalibrationProgressSnapshot(
                 CalibrationRunState.WaitingForChamberStability,
@@ -279,10 +283,10 @@ public sealed class CalibrationProfileRunner
                 0,
                 setup.Mappings.Count(m => m.Selected),
                 plateauClock.Elapsed,
-                BuildTemperatureWaitingTargets(setup, detail),
-                $"Čaká sa na stabilnú teplotu komory aj WIKA CTH7000 · {detail}"));
+                BuildReferenceWaitingTargets(setup, detail),
+                $"Čaká sa iba na stabilnú referenciu WIKA CTH7000 · {detail}"));
 
-            if (chamberStable && referenceStable)
+            if (referenceStable)
             {
                 return;
             }
@@ -293,7 +297,7 @@ public sealed class CalibrationProfileRunner
                 var warning = new CalibrationWarning
                 {
                     Code = "REFERENCE_STABILITY_TIMEOUT",
-                    Message = $"Komora a referencia WIKA CTH7000 sa spolu neustálili na {targetTemperatureC:F1} °C do {settings.ChamberStabilityTimeout}. Posledná WIKA: {referenceText}.",
+                    Message = $"Referencia WIKA CTH7000 sa neustálila na {targetTemperatureC:F1} °C do {settings.ChamberStabilityTimeout}. Posledná WIKA: {referenceText}.",
                     PlateauIndex = plateauIndex,
                 };
                 run.Warnings.Add(warning);
@@ -304,7 +308,7 @@ public sealed class CalibrationProfileRunner
         }
     }
 
-    private static IReadOnlyList<CalibrationTargetProgress> BuildTemperatureWaitingTargets(
+    private static IReadOnlyList<CalibrationTargetProgress> BuildReferenceWaitingTargets(
         CalibrationSetup setup,
         string detail) => setup.Mappings
         .Where(m => m.Selected)
