@@ -36,16 +36,11 @@ public partial class HomeView
             if (value.StartsWith("Zariadenie je ovládané manuálne.", StringComparison.Ordinal) ||
                 value.StartsWith("Manuálne ovládanie je vypnuté, kým beží profil.", StringComparison.Ordinal))
             {
-                // A popup notification now carries these messages. Keep them out of the card layout
-                // even when their old Visibility binding changes state later.
                 BindingOperations.ClearBinding(text, UIElement.VisibilityProperty);
                 text.Visibility = Visibility.Collapsed;
                 continue;
             }
 
-            // The old ActionInfo box was itself a transient notification rendered inside the
-            // card. Hide its containing border and route future ActionInfo changes to the central
-            // popup pipeline so manual actions do not resize the device card.
             BindingBase? textBinding = BindingOperations.GetBindingBase(text, TextBlock.TextProperty);
             if (textBinding is Binding binding &&
                 string.Equals(binding.Path?.Path, nameof(ChamberViewModel.ActionInfo), StringComparison.Ordinal))
@@ -99,26 +94,15 @@ public partial class HomeView
             ? state
             : new ChamberNotificationState(false, false, string.Empty);
 
-        if (!previous.IsManualActive && chamber.IsManualActive)
-        {
-            AppNotificationService.Warning(
-                chamber.Name,
-                "Zariadenie je ovládané manuálne. Testovací profil je do zastavenia manuálneho behu zablokovaný.",
-                $"manual-active:{chamber.Id}");
-        }
-
-        if (!previous.IsProfileRunning && chamber.IsProfileRunning)
-        {
-            AppNotificationService.Info(
-                chamber.Name,
-                "Beží testovací profil. Manuálne rýchle ovládanie je do ukončenia profilu zablokované.",
-                $"profile-running:{chamber.Id}");
-        }
-
+        // Manual/profile-running state is already persistently visible on the chamber card. Do not
+        // show transient popups for routine mode transitions; they were obscuring the operator UI.
+        // Alarm/error notifications and meaningful action failures continue through the central
+        // AppNotificationService below.
         string actionInfo = chamber.ActionInfo?.Trim() ?? string.Empty;
         if (e.PropertyName == nameof(ChamberViewModel.ActionInfo) &&
             !string.IsNullOrWhiteSpace(actionInfo) &&
-            !string.Equals(previous.LastActionInfo, actionInfo, StringComparison.Ordinal))
+            !string.Equals(previous.LastActionInfo, actionInfo, StringComparison.Ordinal) &&
+            !IsRoutineModeMessage(actionInfo))
         {
             AppNotificationKind kind = ClassifyActionInfo(actionInfo);
             AppNotificationService.Show(
@@ -132,6 +116,16 @@ public partial class HomeView
             chamber.IsManualActive,
             chamber.IsProfileRunning,
             actionInfo);
+    }
+
+    private static bool IsRoutineModeMessage(string message)
+    {
+        string value = message.Trim();
+        return value.StartsWith("Zariadenie je ovládané manuálne", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("Testovací profil je", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("manuálneho behu zablokovaný", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("manuálne rýchle ovládanie", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("kým beží profil", StringComparison.OrdinalIgnoreCase);
     }
 
     private static AppNotificationKind ClassifyActionInfo(string message)
