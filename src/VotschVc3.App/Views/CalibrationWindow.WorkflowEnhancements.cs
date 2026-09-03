@@ -39,6 +39,7 @@ public partial class CalibrationWindow
 {
     private bool _workflowEnhancementsInitialized;
     private Button? _selectAllPeaksButton;
+    private CalibrationWorkspaceState? _restoredWorkspaceState;
 
     internal void InitializeWorkflowEnhancements()
     {
@@ -49,16 +50,22 @@ public partial class CalibrationWindow
         _viewModel.PropertyChanged += OnWorkflowViewModelPropertyChanged;
         Closing += OnWorkflowClosing;
 
-        // The wiring grid/header is created by XAML and the existing OnLoaded handler finishes
-        // its column configuration first. Add the convenience action on the next idle turn.
+        // The first frame stays UI-first. Convenience controls and the exact previously used
+        // PeakLogger endpoint are restored only after WPF has finished initial layout. No broad
+        // discovery scan is started here.
         _ = Dispatcher.BeginInvoke(
             DispatcherPriority.ContextIdle,
-            new Action(EnsureSelectAllPeaksButton));
+            new Action(() =>
+            {
+                EnsureSelectAllPeaksButton();
+                _ = RestoreKnownPeakLoggerConnectionAsync();
+            }));
     }
 
     private void RestorePersistedWorkspaceSelection()
     {
         CalibrationWorkspaceState? saved = CalibrationWorkspaceStateStore.Instance.Get(_chamberId);
+        _restoredWorkspaceState = saved;
         if (saved is null) return;
 
         if (!string.IsNullOrWhiteSpace(saved.PeakLoggerHost))
@@ -81,6 +88,37 @@ public partial class CalibrationWindow
             profile is null
                 ? $"Uložený profil {saved.ProfileId} už nie je dostupný; použije sa aktuálny profil."
                 : $"Obnovený workspace · profil „{profile.Name}“ · PeakLogger {saved.PeakLoggerHost}:{saved.PeakLoggerPort}. Zapojenie sa obnoví z uloženého setupu po načítaní PeakLogger peakov.");
+    }
+
+    private async Task RestoreKnownPeakLoggerConnectionAsync()
+    {
+        CalibrationWorkspaceState? saved = _restoredWorkspaceState;
+        if (saved is null || _disposing || _viewModel.PeakLoggerConnected || _viewModel.IsRunning)
+        {
+            return;
+        }
+
+        // Do not reintroduce the old slow startup discovery. This is a single exact endpoint
+        // remembered from the operator's previous successful workspace. AsyncRelayCommand keeps
+        // the connection attempt off the initial render path; a missing PeakLogger therefore
+        // leaves the window usable and merely reports the ordinary connection error.
+        await Task.Delay(150).ConfigureAwait(true);
+        if (_disposing || _viewModel.PeakLoggerConnected) return;
+
+        try
+        {
+            if (_viewModel.ConnectPeakLoggerCommand.CanExecute(null))
+            {
+                AppLog.Info(
+                    "FBG kalibrácia",
+                    $"Obnovujem posledný PeakLogger {saved.PeakLoggerHost}:{saved.PeakLoggerPort} bez discovery scanu…");
+                _viewModel.ConnectPeakLoggerCommand.Execute(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("FBG kalibrácia", $"Automatická obnova uloženého PeakLogger zapojenia: {ex.Message}");
+        }
     }
 
     private void OnWorkflowViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
