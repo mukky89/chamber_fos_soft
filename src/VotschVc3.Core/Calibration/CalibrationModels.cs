@@ -72,7 +72,14 @@ public sealed class CalibrationProfileSettings
     public bool EnableWavelengthTraceLogging { get; set; } = true;
     public int WavelengthTraceIntervalSeconds { get; set; } = 30;
 
+    /// <summary>Rolling sample window used only to prove wavelength stability.</summary>
     public int RequiredStableSamples { get; set; } = 50;
+
+    /// <summary>
+    /// Fresh samples collected after a peak has passed the stability gate. Stabilization samples are
+    /// never reused as final calibration samples.
+    /// </summary>
+    public int RequiredMeasurementSamples { get; set; } = 50;
 
     /// <summary>0 disables the criterion. Unit: pm.</summary>
     public double MaxWavelengthRangePm { get; set; } = 5.0;
@@ -138,11 +145,9 @@ public sealed class CalibrationSensorMapping
     public string Order { get; set; } = string.Empty;
     public TimeSpan? StabilizationTimeoutOverride { get; set; }
 
-    /// <summary>Production identity used in results and history.</summary>
     [JsonIgnore]
     public string Identity => $"{SerialNumber}|{Channel}|{PeakId}";
 
-    /// <summary>PeakLogger-side identity used to find the live measurement.</summary>
     [JsonIgnore]
     public string SourceDeviceSerialNumber => string.IsNullOrWhiteSpace(PeakLoggerDeviceSerialNumber)
         ? SerialNumber
@@ -161,10 +166,6 @@ public sealed class CalibrationSetup
     public CalibrationProfileSettings Settings { get; set; } = new();
 }
 
-/// <summary>
-/// One peak exposed by PeakLogger. <see cref="PeakLoggerSensor.SerialNumber"/> is the
-/// PeakLogger device/interrogator serial number, not the production FBG sensor SN.
-/// </summary>
 public sealed record PeakLoggerPeak(
     string PeakId,
     int PeakIndex,
@@ -178,10 +179,6 @@ public sealed record PeakLoggerSensor(
     string Channel,
     IReadOnlyList<PeakLoggerPeak> Peaks);
 
-/// <summary>
-/// Live PeakLogger measurement. <see cref="SerialNumber"/> is device.deviceSN from the
-/// API and is mapped to a production FBG SN by <see cref="CalibrationSensorMapping"/>.
-/// </summary>
 public sealed record PeakLoggerMeasurement(
     DateTimeOffset Timestamp,
     string SerialNumber,
@@ -209,11 +206,6 @@ public sealed class CalibrationRawSample
     public double? Intensity { get; set; }
 }
 
-/// <summary>
-/// Continuous live PeakLogger trace for every peak selected for calibration. Unlike
-/// <see cref="CalibrationRawSample"/>, this runs for the whole calibration, including ramps,
-/// so the wavelength response can later be audited against the complete temperature profile.
-/// </summary>
 public sealed class CalibrationWavelengthTraceSample
 {
     public Guid RunId { get; set; }
@@ -287,16 +279,9 @@ public sealed class CalibrationRunRecord
     public DateTimeOffset StartedAt { get; set; } = DateTimeOffset.Now;
     public DateTimeOffset? CompletedAt { get; set; }
     public CalibrationRunState State { get; set; } = CalibrationRunState.Idle;
-
-    /// <summary>ASL F100 USB COM port selected as calibration reference, if any.</summary>
     public string ReferenceThermometerPort { get; set; } = string.Empty;
-
-    /// <summary>USB serial number exposed by Windows for the selected F100, if available.</summary>
     public string ReferenceThermometerSerialNumber { get; set; } = string.Empty;
-
-    /// <summary>Physical F100 input used by the calibration (A or B).</summary>
     public string ReferenceThermometerChannel { get; set; } = string.Empty;
-
     public List<CalibrationPlateauResult> Plateaus { get; set; } = new();
     public List<CalibrationWarning> Warnings { get; set; } = new();
 }
@@ -314,6 +299,11 @@ public sealed class CalibrationCheckpoint
     public DateTimeOffset SavedAt { get; set; } = DateTimeOffset.Now;
 }
 
+/// <summary>
+/// Live diagnostic snapshot for one production FBG. The explicit counters/limits are intentionally
+/// carried alongside the human-readable Detail text so the UI can show why the runner is blocked
+/// without parsing localized strings.
+/// </summary>
 public sealed record CalibrationTargetProgress(
     string SerialNumber,
     string Channel,
@@ -327,7 +317,17 @@ public sealed record CalibrationTargetProgress(
     TimeSpan Elapsed,
     TimeSpan Timeout,
     CalibrationTargetState State,
-    string? Detail);
+    string? Detail,
+    int StabilitySamples = 0,
+    int RequiredStabilitySamples = 0,
+    int MeasurementSamples = 0,
+    int RequiredMeasurementSamples = 0,
+    double? RangePm = null,
+    double? RangeLimitPm = null,
+    double? StdDevLimitPm = null,
+    double? DriftLimitPmPerMinute = null,
+    string Phase = "",
+    string BlockingReason = "");
 
 public sealed record CalibrationProgressSnapshot(
     CalibrationRunState State,

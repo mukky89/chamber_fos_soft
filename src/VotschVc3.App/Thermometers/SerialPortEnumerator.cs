@@ -19,11 +19,6 @@ public static class SerialPortEnumerator
     private static Dictionary<string, SerialDeviceInfo> _metadataCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Very fast enumeration intended for constructors/UI startup. It never queries WMI.
-    /// If a previous detailed scan already knows USB metadata, that cached description and
-    /// serial number are reused for the matching live COM port.
-    /// </summary>
     public static IReadOnlyList<SerialDeviceInfo> EnumerateFast()
     {
         string[] ports;
@@ -51,9 +46,28 @@ public static class SerialPortEnumerator
     }
 
     /// <summary>
-    /// Detailed enumeration with WMI metadata. Call this from a worker thread (normally via
-    /// <c>Task.Run</c>), not from a WPF constructor or Loaded handler.
+    /// Returns the latest WMI-enriched label without touching the COM port. This is used by the FBG
+    /// picker so a connected WIKA can keep its serial handle while the UI still shows USB serial /
+    /// PnP description learned by a background scan.
     /// </summary>
+    public static bool TryGetCachedInfo(string? portName, out SerialDeviceInfo info)
+    {
+        if (!string.IsNullOrWhiteSpace(portName))
+        {
+            lock (CacheGate)
+            {
+                if (_metadataCache.TryGetValue(portName, out SerialDeviceInfo? cached))
+                {
+                    info = cached;
+                    return true;
+                }
+            }
+        }
+
+        info = new SerialDeviceInfo(portName ?? string.Empty, null, null);
+        return false;
+    }
+
     public static IReadOnlyList<SerialDeviceInfo> Enumerate()
     {
         try
@@ -102,9 +116,7 @@ public static class SerialPortEnumerator
         foreach (string port in SerialPort.GetPortNames())
         {
             if (!result.Any(d => string.Equals(d.PortName, port, StringComparison.OrdinalIgnoreCase)))
-            {
                 result.Add(new SerialDeviceInfo(port, null, null));
-            }
         }
 
         return result
@@ -133,10 +145,6 @@ public static class SerialPortEnumerator
         return last;
     }
 
-    /// <summary>
-    /// Kept only as a source-compatibility stub for older view-model code. The legacy
-    /// talk-only diagnostic has been retired and never opens or probes a COM port.
-    /// </summary>
     [Obsolete("Legacy talk-only thermometer diagnostic is retired; this method performs no probe.")]
     public static Task<IReadOnlyList<string>> DiagnoseTalkOnlyAsync(
         IEnumerable<SerialDeviceInfo> devices,
