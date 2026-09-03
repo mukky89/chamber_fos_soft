@@ -31,6 +31,11 @@ public partial class CalibrationWindow
     {
         if (sender is not CalibrationWindow window || window._responsiveLayoutApplied) return;
 
+        // Selection ownership is a business rule rather than a visual concern, but Loaded is the
+        // first point where the VM's initial COM enumeration is available and all calibration
+        // windows pass through this same class handler.
+        window.AttachReferenceAssignmentBehavior();
+
         // Do not mutate the visual tree while WPF is still routing Loaded. The existing instance
         // Loaded handler first configures the wiring grid/extra production columns; this pass then
         // sizes the final tree on the next dispatcher turn.
