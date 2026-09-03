@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using VotschVc3.App.Thermometers;
@@ -90,8 +91,6 @@ public partial class CalibrationWindow
         _comMetadataRefreshRunning = true;
         try
         {
-            // WMI only. SerialPortEnumerator never opens the COM port and therefore cannot disturb
-            // a connected CTH7000 session.
             await Task.Run(SerialPortEnumerator.Enumerate);
             if (_referencePortPicker is not null)
             {
@@ -102,7 +101,7 @@ public partial class CalibrationWindow
         }
         catch
         {
-            // The picker keeps the fast COM label if Windows WMI metadata is temporarily unavailable.
+            // Keep the fast COM label if Windows WMI metadata is temporarily unavailable.
         }
         finally
         {
