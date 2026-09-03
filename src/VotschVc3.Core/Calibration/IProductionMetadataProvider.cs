@@ -18,4 +18,6 @@ public sealed record ProductionMetadata(
     string SensorName,
     string Order,
     string? CustomerName = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? SylexSerialNumber = null,
+    string? FbgType = null);
