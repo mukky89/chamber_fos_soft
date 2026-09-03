@@ -1,5 +1,63 @@
 # Changelog
 
+## [1.76.26] – 2026-09-03
+
+### Opravené – FBG kalibrácia na menších obrazovkách
+- FBG kalibračná stránka má page-level vertikálny scrollbar, takže rozbalenie grafu referenčnej teploty už neschová spodnú časť pracovného priestoru.
+- Karta `Zapojenie` má stabilnú pracovnú výšku a jej DataGrid má explicitný vertikálny aj horizontálny scrollbar.
+- Minimálne šírky produkčných stĺpcov zabraňujú zbytočnému stláčaniu hlavičiek a textov.
+- Opravené prekrytie titulku `Priebeh USB referenčnej teploty` s textom `Port / kanál`.
+
+### Zrýchlené – načítanie referenčnej teploty
+- Opakované kliknutie na `Načítať teplotu` už pri pripojenom CTH7000 nespúšťa nový detailný WMI scan USB zariadení.
+- Čerstvý detailný scan sa krátko cacheuje; ľahké obnovenie portov používa `SerialPort.GetPortNames()`.
+- Overený fyzický CTH7000 timing 25 ms/znak a 1000 ms REMOTE settle zostáva nezmenený.
+
+### Dokumentácia
+- `SKILL.md` teraz obsahuje potvrdený produkčný baseline WIKA CTH7000 V1.0 vrátane Pali/AutoOptical timingov a príkazovej sekvencie.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.25` na `1.76.26`.
+
+## [1.76.25] – 2026-09-03
+
+### Opravené – zatváranie RAW debug okna
+- Odstránená WPF `InvalidOperationException` pri zatvorení `Cth7000DebugWindow` počas async cleanup-u.
+- Finálne zatvorenie okna sa vykoná až v ďalšom Dispatcher cykle po `SYSTEM:LOCAL`, close a dispose.
+
+## [1.76.24] – 2026-09-03
+
+### Opravené – produkčná komunikácia WIKA CTH7000 podľa fyzického testu
+- Produkčný desktop aj Bridge používajú overený 25 ms inter-character pacing.
+- Fresh session používa poradie `SYSTEM:REMOTE` → 1000 ms settle → `*IDN?` → `MEASURE:CHANNEL?` → `SYSTEM:LOCAL`.
+- Nastavenie bolo potvrdené na fyzickom WIKA CTH7000 V1.0; kanál A vrátil platný rámec a kanál B korektne `NoProbe`.
+
+## [1.76.23] – 2026-09-03
+
+### Výkon – otvorenie FBG kalibrácie
+- FBG okno sa otvára UI-first bez automatického aktívneho COM probe a širokého PeakLogger discovery.
+- Detailný WMI USB scan a voliteľné kontroly sa vykonávajú až po prvom renderi na pozadí.
+- Referenčný teplomer používa v kalibračnom workspaci one-shot režim bez konkurenčného pollingu.
+
+## [1.76.22] – 2026-09-03
+
+### Diagnostika – Pali / AutoOptical preset
+- RAW CTH7000 debug dostal preset 9600 8N1, CR, 25 ms medzi bajtmi a 8 s timeout na reprodukciu pôvodného AutoOptical/Pali drivera.
+- Preset umožnil na fyzickom zariadení izolovať rozdiel medzi nefunkčným 2 ms fresh-open dotazom a funkčným Pali timingom.
+
+## [1.76.21] – 2026-09-03
+
+### Diagnostika – RAW CTH7000 terminal
+- Pridaný samostatný RAW debug režim s manuálnym COM open/close, TX/RX ASCII a HEX logom, nastaviteľným timingom, terminátorom, DTR/RTS a timeoutom.
+- Debug režim neodosiela pri otvorení portu žiadny automatický príkaz a podporuje núdzové `SYSTEM:LOCAL + close`.
+
+## [1.76.20] – 2026-09-03
+
+### Opravené – CTH7000 lifecycle
+- Čítanie referenčného teplomera používa bezpečný REMOTE/MEASURE/LOCAL lifecycle a pokúša sa vrátiť panel do LOCAL aj pri chybe alebo dispose.
+- Desktop a Bridge boli zosúladené na dokumentované CTH7000 meracie príkazy namiesto starého `READ?`.
+- Doplnené priame `System.IO.Ports` a `System.Management` závislosti pre desktop build.
+
 ## [1.76.19] – 2026-09-02
 
 ### Opravené – hover farba tlačidiel
