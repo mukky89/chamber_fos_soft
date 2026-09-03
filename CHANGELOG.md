@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.76.28] – 2026-09-03
+
+### FBG kalibrácia – stabilita merania
+- Kalibračný runner používa ako zdroj pravdy kalibračné plata označené operátorom v `CalibrationSegmentIndices`; historický príznak `IsCalibrationPoint` zostáva iba ako spätná kompatibilita pre staré setupy bez uloženého výberu.
+- Ak je ku kalibrácii priradený WIKA CTH7000, meranie peakov začne až po súčasnom ustálení teploty komory aj referencie WIKA v nastavenej tolerancii, čase stability a limite driftu.
+- Pri neustálenej alebo chýbajúcej WIKA referencii sa kalibrácia neprepne do vyhodnocovania wavelength a po limite prejde do bezpečného stavu vyžadujúceho zásah operátora.
+- Každý vybraný peak naďalej používa vlastný rolling stability tracker a vlastný výsledok; pridané bolo tlačidlo `Vybrať všetky peaky` pre kalibráciu všetkých PeakLogger peakov.
+
+### Obnova zapojenia FBG workspace
+- Pri zatvorení FBG kalibrácie sa explicitne uloží aktuálne zapojenie: výber peakov, produkčné SN/CHAIN, timeouty, poznámky, vybrané kalibračné plata a nastavenia stability.
+- Pre každú komoru sa pamätá posledný zvolený kalibračný profil a posledný PeakLogger host/port v `fbg-calibration-workspaces.json`.
+- Po opätovnom otvorení alebo reštarte aplikácie sa obnoví posledný profil a po prvom vykreslení sa asynchrónne skúsi iba posledný známy PeakLogger endpoint; nevykonáva sa pomalý široký discovery scan.
+- Po úspešnom reconnecte PeakLoggera sa uložené mappingy obnovia podľa stabilnej identity interrogátor/kanál/peak, takže sa vrátia priradené SN/CHAIN, výber peakov a per-peak timeouty.
+- Persistentné priradenie WIKA CTH7000 ku komore zostáva nezávislé a zachované podľa pravidiel z verzie 1.76.27.
+
+### Testy
+- Pridaný regresný test, že explicitný UI výber plat má prednosť pred profilovým `IsCalibrationPoint`.
+- Pridaný regresný test, že nestabilná WIKA referencia zablokuje začiatok peak stability a skončí kontrolovaným `REFERENCE_STABILITY_TIMEOUT`.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.27` na `1.76.28`.
+
 ## [1.76.27] – 2026-09-03
 
 ### Pridané – exkluzívna referencia FBG kalibrácie
