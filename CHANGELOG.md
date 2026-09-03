@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.76.27] – 2026-09-03
+
+### Pridané – exkluzívna referencia FBG kalibrácie
+- WIKA CTH7000 sa po výbere trvalo priradí ku konkrétnemu zariadeniu/FBG kalibračnému workspace a ten istý fyzický teplomer nemožno súčasne priradiť inej FBG kalibrácii.
+- Fyzická referencia sa identifikuje primárne podľa USB sériového čísla a sekundárne podľa COM portu; odpojenie USB ani zatvorenie kalibračného okna priradenie automaticky neuvoľní.
+- Otvorenie ďalšej FBG kalibrácie už automaticky nepreberie prvý dostupný COM port. Pri pokuse použiť obsadenú referenciu aplikácia zobrazí zariadenie, ku ktorému je už priradená.
+- Priradenia sa ukladajú do `fbg-reference-thermometers.json`; živá teplota sa po reštarte neobnovuje ako stará hodnota.
+
+### Dashboard – referencia na karte zariadenia
+- Hlavná karta zariadenia v Classic aj Professional režime zobrazuje kompaktnú referenčnú teplotu WIKA CTH7000 a priradený COM port.
+- Ak referencia nie je fyzicky pripojená, miesto teploty zostáva `—`, ale uložený COM port a stabilný layout karty zostávajú zachované.
+- Metrické dlaždice boli zhutnené tak, aby sa referencia zmestila bez zbytočného zväčšovania karty.
+
+### Opravené
+- Opravený WPF lifecycle responsive layoutu FBG okna, ktorý v CI spôsoboval duplicitný konštruktor partial triedy.
+- Persistent reference store má explicitné `System.IO` závislosti pre `Path`, `File` a `Directory`.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.26` na `1.76.27`.
+
 ## [1.76.26] – 2026-09-03
 
 ### Opravené – FBG kalibrácia na menších obrazovkách
