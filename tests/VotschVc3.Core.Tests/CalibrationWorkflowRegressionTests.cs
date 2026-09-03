@@ -69,6 +69,60 @@ public sealed class CalibrationWorkflowRegressionTests
     }
 
     [Fact]
+    public async Task Runner_IgnoresProfileHoldDurationForSelectedFbgCalibrationPoint()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+
+            var profile = new TestProfile
+            {
+                Name = "Profile duration must not gate FBG calibration",
+                ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments =
+                {
+                    new ProfileSegment
+                    {
+                        Name = "20 C with intentionally huge profile hold",
+                        IsRamp = false,
+                        IsCalibrationPoint = true,
+                        TargetTemperature = 20,
+                        Duration = TimeSpan.FromHours(8),
+                    },
+                },
+            };
+            var setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.Add(0);
+
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord
+            {
+                ProfileId = profile.Id,
+                ProfileName = profile.Name,
+                ChamberId = Guid.NewGuid(),
+            };
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+
+            await runner.RunAsync(profile, setup, run, writer, 20, null, cancellationToken: timeout.Token);
+
+            CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
+            Assert.Equal(20, plateau.TargetTemperatureC, 6);
+            Assert.Equal(CalibrationTargetState.Stable, Assert.Single(plateau.Targets).Status);
+            Assert.Equal(CalibrationRunState.Completed, run.State);
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task Runner_WithReference_DoesNotStartPeakStabilityUntilWikaIsStable()
     {
         string root = TempDirectory();

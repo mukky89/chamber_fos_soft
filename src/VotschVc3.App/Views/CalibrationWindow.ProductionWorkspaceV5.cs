@@ -54,7 +54,7 @@ public partial class CalibrationWindow
 
         _ = Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
         {
-            RenamePlateauDurationColumnV5();
+            HideProfileDurationColumnV5();
             RenameStabilitySampleSettingV5();
             EnsureCalibrationDiagnosticsPanelV5();
             RefreshCalibrationDiagnosticsV5();
@@ -96,7 +96,7 @@ public partial class CalibrationWindow
         phaseCards.Children.Add(CreatePhaseCardV5(
             "1–2 · TEPLOTA",
             _temperaturePhaseV5,
-            "Komora dostane cieľ plata. Stabilitu určuje WIKA, ak je priradená; inak interná sonda. FBG stabilizácia sa ešte nezačína."));
+            "Komora dostane cieľ kalibračného bodu. Stabilitu určuje WIKA, ak je priradená; inak interná sonda. Čas hold segmentu z profilu sa pri FBG kalibrácii ignoruje."));
         phaseCards.Children.Add(CreatePhaseCardV5(
             "3 · STABILIZÁCIA FBG",
             _fbgPhaseV5,
@@ -124,7 +124,7 @@ public partial class CalibrationWindow
         });
         content.Children.Add(new TextBlock
         {
-            Text = "Stabilizačné samples sa nepoužijú do výsledku. Po stabilizácii každého FBG začne samostatné meracie okno 0/N. Ak sa FBG počas merania rozkolíše, jeho meracie samples sa zahodia a vracia sa do stabilizácie.",
+            Text = "FBG kalibrácia ignoruje čas hold segmentu z profilu. Prechod riadi iba reálna stabilita teploty a následne stabilita a meranie jednotlivých FBG peakov. Stabilizačné samples sa nepoužijú do výsledku.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.75,
             Margin = new Thickness(0, 2, 0, 0),
@@ -135,7 +135,7 @@ public partial class CalibrationWindow
         content.Children.Add(_nextStepV5);
         content.Children.Add(new TextBlock
         {
-            Text = "Timeline kalibračných plat",
+            Text = "Timeline kalibračných bodov",
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 5, 0, 2),
         });
@@ -227,7 +227,7 @@ public partial class CalibrationWindow
         if (!running)
             _decisionV5.Text = "Kalibrácia nie je spustená.";
         else if (waitingForTemperature)
-            _decisionV5.Text = "ČAKÁM NA: stabilnú referenčnú/internú teplotu a minimálny čas teplotného plata.";
+            _decisionV5.Text = "ČAKÁM NA: stabilnú referenčnú/internú teplotu.";
         else if (stabilizing > 0)
             _decisionV5.Text = $"ČAKÁM NA: stabilizáciu {stabilizing} FBG peak(ov). Stabilné peaky už môžu súčasne merať samples.";
         else if (measuring > 0)
@@ -237,7 +237,7 @@ public partial class CalibrationWindow
         else
             _decisionV5.Text = "Všetky FBG hotové ✓ · runner môže uložiť kalibračný bod a pokračovať.";
 
-        _nextStepV5.Text = "Aktuálny runner: " + _viewModel.StatusMessage;
+        _nextStepV5.Text = "Aktuálny runner: " + SanitizeRunnerStatusV5(_viewModel.StatusMessage);
         _etaV5.Text = BuildEtaTextV5(rows, waitingForTemperature, running);
         RefreshTimelineV5();
     }
@@ -260,7 +260,7 @@ public partial class CalibrationWindow
         string sampleEstimate = remainingSamples > 0
             ? $"min. ~{FormatTimeV5(TimeSpan.FromSeconds(remainingSamples))} pre už merajúce peaky pri ~1 Hz"
             : "žiadne rozbehnuté meracie samples";
-        return $"Odhad aktuálneho plata: {sampleEstimate}; {stabilizing} peak(ov) má ešte neurčitý čas stabilizácie.";
+        return $"Odhad aktuálneho bodu: {sampleEstimate}; {stabilizing} peak(ov) má ešte neurčitý čas stabilizácie.";
     }
 
     private void RefreshTimelineV5()
@@ -278,7 +278,7 @@ public partial class CalibrationWindow
             string state = isDone ? "✓ hotovo" : isCurrent ? "▶ aktuálne" : "○ čaká";
             var text = new TextBlock
             {
-                Text = $"{index + 1}. {point.Name}\n{point.TemperatureC:F1} °C · min {FormatTimeV5(point.Duration)}\n{state}",
+                Text = $"{index + 1}. {point.Name}\n{point.TemperatureC:F1} °C\n{state}",
                 TextWrapping = TextWrapping.Wrap,
                 Width = 180,
             };
@@ -297,7 +297,7 @@ public partial class CalibrationWindow
         }
     }
 
-    private void RenamePlateauDurationColumnV5()
+    private void HideProfileDurationColumnV5()
     {
         if (_productionTabs is null) return;
         TabItem? plateaus = _productionTabs.Items.OfType<TabItem>()
@@ -307,15 +307,17 @@ public partial class CalibrationWindow
         foreach (DataGrid grid in FindVisualChildrenV5<DataGrid>(plateaus))
         {
             DataGridColumn? column = grid.Columns.FirstOrDefault(item =>
-                string.Equals(item.Header?.ToString(), "Min. čas plata", StringComparison.OrdinalIgnoreCase));
-            if (column is null) continue;
-            column.Header = new TextBlock
             {
-                Text = "Min. čas teplotného plata",
-                TextWrapping = TextWrapping.Wrap,
-                ToolTip = "Počas tohto času sa sleduje stabilita WIKA/internej sondy. FBG stabilizácia začne až keď je teplota stabilná a tento minimálny čas už uplynul.",
-            };
-            column.Width = 180;
+                string header = item.Header switch
+                {
+                    TextBlock text => text.Text,
+                    _ => item.Header?.ToString() ?? string.Empty,
+                };
+                return header.Contains("čas plata", StringComparison.OrdinalIgnoreCase) ||
+                       header.Contains("čas teplotného plata", StringComparison.OrdinalIgnoreCase);
+            });
+            if (column is null) continue;
+            column.Visibility = Visibility.Collapsed;
             break;
         }
     }
@@ -334,6 +336,13 @@ public partial class CalibrationWindow
     private static bool IsMeasuringV5(CalibrationTargetProgressViewModel row) =>
         row.State == CalibrationTargetState.Live ||
         (row.Detail?.StartsWith("MERANIE", StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private static string SanitizeRunnerStatusV5(string status) =>
+        (status ?? string.Empty)
+            .Replace("minimum hold: bez minima · ", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("minimum hold: bez minima", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("teplotnej/minimálnej brány", "teplotnej brány", StringComparison.OrdinalIgnoreCase)
+            .Trim(' ', '·');
 
     private static int ParseCurrentPlateauIndexV5(string label)
     {
