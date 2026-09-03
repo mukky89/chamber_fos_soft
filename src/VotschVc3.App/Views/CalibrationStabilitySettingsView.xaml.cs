@@ -88,8 +88,8 @@ public partial class CalibrationStabilitySettingsView : UserControl, INotifyProp
         {
             object? vm = DataContext;
             if (vm is null) return null;
-            FieldInfo? field = vm.GetType().GetField("_setup", BindingFlags.Instance | BindingFlags.NonPublic);
-            return (field?.GetValue(vm) as CalibrationSetup)?.Settings;
+            FieldInfo? setupFieldInfo = vm.GetType().GetField("_setup", BindingFlags.Instance | BindingFlags.NonPublic);
+            return (setupFieldInfo?.GetValue(vm) as CalibrationSetup)?.Settings;
         }
     }
 
