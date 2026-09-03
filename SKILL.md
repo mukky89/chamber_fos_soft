@@ -33,7 +33,7 @@ For **every code change** in this repository:
 5. Do **not** create `CHANGELOG_<version>.md` files for individual releases; keep release history in the root changelog only.
 6. Verify the version and root changelog are on `main` before reporting completion.
 
-Current baseline at the time of this change: `1.76.11`.
+Current baseline at the time of this change: `1.76.26`.
 
 ## Changelog format
 
@@ -45,6 +45,25 @@ Current baseline at the time of this change: `1.76.11`.
 ## USB / WIKA CTH7000 rules
 
 Serial communication is safety- and reliability-sensitive.
+
+### Validated physical-device baseline — do not regress
+
+The following settings were validated on the real production reference thermometer and are the current compatibility baseline:
+
+- Instrument identity: `WIKA,CTH7000,000000,V1.0,01/05/2013`.
+- USB serial: **9600 baud, 8 data bits, no parity, 1 stop bit, no flow control, CR terminator**.
+- Current desktop/RAW test uses **DTR=True, RTS=True**.
+- Production transmit pacing is **25 ms between every character/byte**. The WIKA documentation mentions a shorter delay, but the physical V1.0 unit timed out with the former 2 ms implementation and worked reliably with the AutoOptical/Pali 25 ms timing.
+- Do not replace character-by-character transmission with one bulk `SerialPort.Write` call.
+- Validated fresh-session order is:
+  `Open COM -> SYSTEM:REMOTE -> >=1000 ms settle -> *IDN? (first session only) -> MEASURE:CHANNEL? 1/2 -> SYSTEM:LOCAL`.
+- On the validated device, fresh-open `*IDN?` sent before `SYSTEM:REMOTE` with 2 ms pacing produced a zero-byte 8 s timeout.
+- `MEASURE:CHANNEL? 1` returned a valid channel-A temperature frame such as `1,24.707,"CEL"`.
+- `MEASURE:CHANNEL? 2` can legitimately return `2,NoProbe,"CEL"` when no probe is connected to B.
+- `SYSTEM:LOCAL` must be attempted in `finally`/dispose/error paths so the physical front panel is not left locked in REMOTE.
+- The RAW debug **Pali / AutoOptical preset** must continue to reproduce this exact compatibility setup for bench diagnostics.
+- Do **not** shorten the 25 ms pacing or 1000 ms REMOTE settle as a generic performance optimization without a physical-device regression test. Speed up UI/WMI/reuse overhead first.
+- Repeated one-shot reads should reuse the existing live COM client and cached identity instead of performing a fresh detailed Windows/WMI enumeration for every button click.
 
 ### Concurrency and COM ownership
 
@@ -82,6 +101,14 @@ Serial communication is safety- and reliability-sensitive.
 - Hover feedback should be communicated by border/background/foreground changes, not by a blur/glow effect on the button content.
 - Preserve keyboard focus visibility and disabled-state contrast when changing button templates.
 
+### FBG calibration layout
+
+- The FBG calibration workspace must remain usable on common 1080p operator displays.
+- Expanding the reference-temperature chart must never make the `Zapojenie` table unreachable.
+- Keep a page-level vertical scrollbar for content overflow and independent scrollbars for wide/long DataGrids.
+- Do not compress production table columns until headers/text overlap; prefer column minimum widths plus horizontal scrolling.
+- Dynamic status/port text must not visually collide with section headings.
+
 ## Changelog UI architecture
 
 - `src/VotschVc3.App/Changelog/ChangelogParser.cs` parses the root `CHANGELOG.md`.
@@ -92,12 +119,11 @@ Serial communication is safety- and reliability-sensitive.
 
 ## Protocol / diagnostics
 
-- CTH7000 uses serial communication compatible with the existing protocol implementation: 9600 8N1, no flow control, CR-terminated commands, with the configured inter-character delay.
-- The verified bench communication sends every command character separately with a 2 ms gap; do not replace this with one bulk `SerialPort.Write` call.
-- Keep `*IDN?`, `SYSTEM:REMOTE`, `SYSTEM:LOCAL`, and `MEASURE:CHANNEL? 1/2` behavior compatible with the existing protocol layer.
+- Keep `*IDN?`, `SYSTEM:REMOTE`, `SYSTEM:LOCAL`, and `MEASURE:CHANNEL? 1/2` behavior compatible with the validated physical-device baseline above.
 - Preserve A/B channel support.
 - TX and RX diagnostic logging should include device/port context and attempt information, while avoiding excessive log spam.
 - Preserve robust error-response detection (`ERR`, `NoProbe`, over/under range, and supported numeric error forms).
+- Treat the physical Pali/AutoOptical trace as stronger compatibility evidence for the installed CTH7000 V1.0 than an unverified timing optimization.
 
 ## Existing architecture
 
@@ -173,7 +199,12 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - [ ] A and B channels remain functional.
 - [ ] TX/RX diagnostics are available.
 - [ ] Silent query responses do not become false successful readings.
-- [ ] Verified CTH7000 2 ms inter-character transmit gap remains intact.
+- [ ] Verified production 25 ms inter-character transmit pacing remains intact.
+- [ ] Fresh session enters `SYSTEM:REMOTE` before the first `*IDN?` and waits at least 1000 ms before querying.
+- [ ] `SYSTEM:LOCAL` is attempted after every measurement/failure/dispose path.
+- [ ] Repeated temperature-button reads do not require a fresh detailed WMI scan while the CTH7000 is already connected.
+- [ ] FBG page remains vertically scrollable when the reference-temperature chart is expanded.
+- [ ] `Zapojenie` table retains usable vertical/horizontal scrolling and readable column widths.
 - [ ] Dashboard button hover has no blur/glow effect.
 - [ ] FBG calibration button hover has no blur/glow effect.
 - [ ] Button hover remains visually consistent with the main menu.
@@ -193,3 +224,4 @@ Before declaring a USB/thermometer fix complete, verify conceptually or with tes
 - Do not create duplicate per-version `CHANGELOG_<version>.md` files.
 - Do not rename the shared CTH7000 files back to the historical F100 filenames.
 - Do not reintroduce button blur/glow effects when fixing hover styling.
+- Do not revert the validated CTH7000 V1.0 timing/command order to the old 2 ms + pre-REMOTE `*IDN?` sequence without a new physical-device validation.
