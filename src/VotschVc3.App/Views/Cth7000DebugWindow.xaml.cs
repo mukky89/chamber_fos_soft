@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using VotschVc3.App.Thermometers;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Diagnostics;
@@ -13,6 +14,7 @@ public partial class Cth7000DebugWindow : Window
     private readonly ThermometerDeviceViewModel _device;
     private readonly Cth7000RawDebugSession _session;
     private bool _closeInProgress;
+    private bool _closeCleanupCompleted;
     private bool _busy;
 
     public Cth7000DebugWindow(ThermometerDeviceViewModel device)
@@ -292,10 +294,22 @@ public partial class Cth7000DebugWindow : Window
 
     private async void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (_closeInProgress) return;
+        // The second Close() is intentionally allowed only after async COM cleanup has
+        // completed and has been posted to a later Dispatcher turn. Calling Close() directly
+        // from this async Closing continuation can hit Window.VerifyNotClosing().
+        if (_closeCleanupCompleted)
+        {
+            return;
+        }
 
         e.Cancel = true;
+        if (_closeInProgress)
+        {
+            return;
+        }
+
         _closeInProgress = true;
+        UpdateEnabledState();
         try
         {
             if (_session.IsOpen)
@@ -312,8 +326,29 @@ public partial class Cth7000DebugWindow : Window
         }
         finally
         {
-            Closing -= OnClosing;
-            Close();
+            _closeCleanupCompleted = true;
+            _closeInProgress = false;
+
+            // Do not call Close() inline while WPF is unwinding the original Closing event.
+            // Posting it ensures the first close has been fully cancelled before the final close.
+            if (!Dispatcher.HasShutdownStarted && !Dispatcher.HasShutdownFinished)
+            {
+                _ = Dispatcher.BeginInvoke(
+                    DispatcherPriority.Normal,
+                    new Action(() =>
+                    {
+                        try
+                        {
+                            Close();
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            AppLog.Warn(
+                                "CTH7000 RAW",
+                                $"{_device.PortName}: deferred Close preskočený: {ex.Message}");
+                        }
+                    }));
+            }
         }
     }
 }
