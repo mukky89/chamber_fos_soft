@@ -7,9 +7,9 @@ using VotschVc3.Core.Thermometers;
 namespace VotschVc3.App.ViewModels;
 
 /// <summary>
-/// Manages the detected ASL F100 thermometers (one entry per USB COM port).
-/// Several units can be connected and read simultaneously; the user tells them
-/// apart by COM port and USB serial number.
+/// Manages the detected ASL F100 / WIKA CTH7000 thermometers (one entry per USB COM port).
+/// Startup enumeration is intentionally lightweight: WMI metadata is enriched only by the
+/// asynchronous detailed refresh so constructing the FBG calibration workspace cannot block UI.
 /// </summary>
 public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
 {
@@ -52,25 +52,35 @@ public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
     }
 
     /// <summary>
-    /// Re-enumerates the serial ports, adding new devices and removing
-    /// disappeared ones, while keeping any currently connected device intact.
+    /// Fast UI refresh. Uses SerialPort.GetPortNames plus already-cached metadata and therefore
+    /// never performs a synchronous WMI query on the dispatcher thread.
     /// </summary>
     public void Refresh()
     {
-        IReadOnlyList<SerialDeviceInfo> found = SerialPortEnumerator.Enumerate();
+        IReadOnlyList<SerialDeviceInfo> found = SerialPortEnumerator.EnumerateFast();
+        ApplyFastSnapshot(found);
+        StatusMessage = Devices.Count == 0
+            ? "Nenašli sa žiadne sériové porty. Pripoj teplomer cez USB a stlač Obnoviť."
+            : $"Nájdených {Devices.Count} portov.";
+        SelectedDevice ??= Devices.FirstOrDefault();
+    }
 
-        // Remove devices that are gone and not connected.
+    private void ApplyFastSnapshot(IReadOnlyList<SerialDeviceInfo> found)
+    {
+        // Remove devices that disappeared, but never tear down an active connection from a
+        // lightweight UI refresh.
         for (int i = Devices.Count - 1; i >= 0; i--)
         {
             ThermometerDeviceViewModel device = Devices[i];
+            bool manual = string.Equals(device.Info.Description, "ručne zadaný port", StringComparison.OrdinalIgnoreCase);
             bool stillThere = found.Any(f => string.Equals(f.PortName, device.PortName, StringComparison.OrdinalIgnoreCase));
-            if (!stillThere && !device.IsConnected)
+            if (!manual && !stillThere && !device.IsConnected)
             {
+                if (ReferenceEquals(SelectedDevice, device)) SelectedDevice = null;
                 Devices.RemoveAt(i);
             }
         }
 
-        // Add newly discovered ports.
         foreach (SerialDeviceInfo info in found)
         {
             if (!Devices.Any(d => string.Equals(d.PortName, info.PortName, StringComparison.OrdinalIgnoreCase)))
@@ -78,19 +88,12 @@ public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
                 Devices.Add(new ThermometerDeviceViewModel(info));
             }
         }
-
-        StatusMessage = Devices.Count == 0
-            ? "Nenašli sa žiadne sériové porty. Pripoj teplomer cez USB a stlač Obnoviť."
-            : $"Nájdených {Devices.Count} portov.";
-
-        SelectedDevice ??= Devices.FirstOrDefault();
     }
 
     /// <summary>
-    /// Performs a fresh Windows scan and also releases connected entries whose COM port
-    /// disappeared. This is used immediately before operator connect/read actions so a
-    /// USB adapter that came back under a different COM number is never reused stale.
-    /// Manually entered ports remain as an explicit fallback.
+    /// Performs a fresh detailed Windows scan on a worker thread and enriches entries with USB
+    /// serial number / PnP description. Connected devices remain intact. This is used only for
+    /// explicit or deferred refreshes, never while the calibration window is being constructed.
     /// </summary>
     public async Task RefreshAsync()
     {
@@ -104,16 +107,44 @@ public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
                 string.Equals(info.PortName, device.PortName, StringComparison.OrdinalIgnoreCase));
             if (stillThere || manual) continue;
 
+            if (ReferenceEquals(SelectedDevice, device)) SelectedDevice = null;
             await device.DisposeAsync();
             Devices.RemoveAt(i);
         }
 
         foreach (SerialDeviceInfo info in found)
         {
-            if (!Devices.Any(device => string.Equals(device.PortName, info.PortName, StringComparison.OrdinalIgnoreCase)))
+            int existingIndex = -1;
+            for (int i = 0; i < Devices.Count; i++)
+            {
+                if (string.Equals(Devices[i].PortName, info.PortName, StringComparison.OrdinalIgnoreCase))
+                {
+                    existingIndex = i;
+                    break;
+                }
+            }
+
+            if (existingIndex < 0)
             {
                 Devices.Add(new ThermometerDeviceViewModel(info));
+                continue;
             }
+
+            ThermometerDeviceViewModel existing = Devices[existingIndex];
+            if (existing.IsConnected || SameMetadata(existing.Info, info)) continue;
+
+            bool wasSelected = ReferenceEquals(SelectedDevice, existing);
+            var replacement = new ThermometerDeviceViewModel(info)
+            {
+                BaudRate = existing.BaudRate,
+                SelectedChannel = existing.SelectedChannel,
+                ReadCommand = existing.ReadCommand,
+                PollIntervalSeconds = existing.PollIntervalSeconds,
+                PollingEnabled = existing.PollingEnabled,
+            };
+            await existing.DisposeAsync();
+            Devices[existingIndex] = replacement;
+            if (wasSelected) SelectedDevice = replacement;
         }
 
         StatusMessage = Devices.Count == 0
@@ -121,6 +152,10 @@ public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
             : $"Nový scan: nájdených {Devices.Count} portov.";
         SelectedDevice ??= Devices.FirstOrDefault();
     }
+
+    private static bool SameMetadata(SerialDeviceInfo left, SerialDeviceInfo right) =>
+        string.Equals(left.SerialNumber, right.SerialNumber, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.Description, right.Description, StringComparison.OrdinalIgnoreCase);
 
     public async ValueTask DisposeAsync()
     {
