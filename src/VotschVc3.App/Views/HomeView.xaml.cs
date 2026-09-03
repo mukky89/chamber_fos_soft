@@ -6,7 +6,11 @@ namespace VotschVc3.App.Views;
 
 public partial class HomeView : UserControl
 {
-    public HomeView() => InitializeComponent();
+    public HomeView()
+    {
+        InitializeComponent();
+        AttachReferenceDashboard();
+    }
 
     /// <summary>Exit button: routes to the window's confirmed-exit flow (the only real way out).</summary>
     private void Exit_Click(object sender, System.Windows.RoutedEventArgs e)
