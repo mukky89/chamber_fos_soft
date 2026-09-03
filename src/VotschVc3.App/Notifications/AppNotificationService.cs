@@ -26,6 +26,7 @@ public static class AppNotificationService
     private static readonly object Gate = new();
     private static readonly Queue<AppNotification> Queue = new();
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastShown = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, byte> SessionOnceShown = new(StringComparer.Ordinal);
     private static AppNotificationWindow? _active;
 
     public static void Show(
@@ -39,9 +40,22 @@ public static class AppNotificationService
 
         string key = dedupeKey ?? $"{kind}|{title}|{message}";
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        if (LastShown.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(2.5))
-            return;
-        LastShown[key] = now;
+
+        // FBG identification validation is intentionally edge-like for the operator: a periodic
+        // PeakLogger/Sylex re-validation must not keep showing the same invalid-SN popup. For FBG
+        // format/duplicate warnings the typed SN itself changes on every keystroke, therefore the
+        // session key is based on the warning TYPE/message, not the volatile current SN text.
+        string? sessionOnceKey = GetSessionOnceKey(key, message);
+        if (sessionOnceKey is not null)
+        {
+            if (!SessionOnceShown.TryAdd(sessionOnceKey, 0)) return;
+        }
+        else
+        {
+            if (LastShown.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(2.5))
+                return;
+            LastShown[key] = now;
+        }
 
         var notification = new AppNotification(
             string.IsNullOrWhiteSpace(title) ? "Upozornenie" : title.Trim(),
@@ -65,6 +79,15 @@ public static class AppNotificationService
 
     public static void Error(string title, string message, string? key = null) =>
         Show(title, message, AppNotificationKind.Error, dedupeKey: key);
+
+    private static string? GetSessionOnceKey(string key, string message)
+    {
+        if (key.StartsWith("fbg-sn:", StringComparison.OrdinalIgnoreCase))
+            return $"fbg-sn|{message.Trim()}";
+        if (key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase))
+            return $"sylex|{key}";
+        return null;
+    }
 
     private static void EnqueueOnUi(AppNotification notification)
     {

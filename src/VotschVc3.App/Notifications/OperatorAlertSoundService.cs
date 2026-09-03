@@ -10,6 +10,7 @@ public static class OperatorAlertSoundService
     private static readonly object Gate = new();
     private static readonly string FilePath = Path.Combine(AppPaths.SettingsDir, "operator-alert-sound.json");
     private static readonly Dictionary<string, DateTimeOffset> LastPlayed = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> SessionOncePlayed = new(StringComparer.OrdinalIgnoreCase);
     private static bool _enabled = LoadEnabled();
 
     public static event EventHandler? EnabledChanged;
@@ -35,13 +36,38 @@ public static class OperatorAlertSoundService
         lock (Gate)
         {
             if (!_enabled) return;
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            if (LastPlayed.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(3)) return;
-            LastPlayed[key] = now;
+
+            // Bad-SN validation runs repeatedly while the operator types. Normalize serial warning
+            // keys to the warning category (the suffix after the last ':') so A -> AB -> ABC does
+            // not beep on every keystroke. Sylex mismatch keys remain once per concrete probe/key.
+            string? sessionKey = GetSessionOnceKey(key);
+            if (sessionKey is not null)
+            {
+                if (!SessionOncePlayed.Add(sessionKey)) return;
+            }
+            else
+            {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                if (LastPlayed.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(3)) return;
+                LastPlayed[key] = now;
+            }
         }
 
         try { SystemSounds.Exclamation.Play(); }
         catch { /* sound is optional and must never affect calibration */ }
+    }
+
+    private static string? GetSessionOnceKey(string key)
+    {
+        if (key.StartsWith("serial-warning:", StringComparison.OrdinalIgnoreCase))
+        {
+            int separator = key.LastIndexOf(':');
+            string category = separator >= 0 && separator + 1 < key.Length ? key[(separator + 1)..] : "warning";
+            return $"serial-warning|{category}";
+        }
+        if (key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase))
+            return key;
+        return null;
     }
 
     private static bool LoadEnabled()

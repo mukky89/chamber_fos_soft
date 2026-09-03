@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.76.33] – 2026-09-03
+
+### FBG workspace – úplná obnova po reštarte
+- Pri zatvorení FBG kalibračného okna aj pri ukončení celej aplikácie sa ešte pred async teardownom synchronne uloží posledný workspace a detailný `CalibrationStore` setup.
+- `fbg-calibration-workspaces.json` si okrem profilu a PeakLogger endpointu pamätá aj simulátor/scenario, zobrazenie grafu referencie a poslednú otvorenú kartu.
+- Po opätovnom spustení sa obnoví profil, presný PeakLogger endpoint alebo simulátor, zapojenie SN/CHAIN, vybrané peaky, kalibračné plata, per-peak timeouty, stability nastavenia a posledná karta.
+- Výber kalibračných plat a stability nastavenia sa priebežne autosavujú; produkčné SN/CHAIN zostávajú chránené existujúcim autosave mechanizmom.
+- Opravená obnova WIKA CTH7000 kanála A/B: uložený kanál sa aplikuje ešte pred priradením COM zariadenia, takže kanál B sa po reštarte neprepne späť na A.
+
+### FBG upozornenia
+- Rovnaký popup `FBG zapojenie` sa pre jeden typ chyby zobrazí iba raz za session aplikácie; periodická revalidácia ani písanie SN znak po znaku ho už neopakujú.
+- Rovnaký hardvérový warning beep pri neštandardnom/duplicitnom SN sa tiež prehrá iba raz za daný typ chyby počas session.
+- Ostatné aplikačné popupy naďalej používajú bežný krátky dedupe interval a môžu sa neskôr legitímne zopakovať.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.32` na `1.76.33`.
+
+## [1.76.32] – 2026-09-03
+
+### WIKA referencia a live grafy
+- Opravený `NullReferenceException` v `SylexFosCalibrationIntegration.DetachRow()` pri dynamickom PeakLogger refreshi; attach/detach riadkov je null-safe a idempotentný.
+- Referenčná WIKA CTH7000 teplota sa zaznamenáva od prvých platných live vzoriek a kliknutie na dashboardovú dlaždicu `Referencia` otvorí samostatný live graf priebehu.
+- `Live monitor` FBG kalibrácie zobrazuje samostatnú wavelength krivku pre každý vybraný FBG peak a časovo zarovnanú WIKA referenčnú teplotu na vlastnej osi/grafe.
+- Pridaný voliteľný systémový zvuk pri zlom SN alebo nezhode sondy so Sylex FOS API; používateľ ho môže vypnúť a voľba sa persistuje.
+
+### Voliteľné riadenie podľa referencie
+- Pre zariadenie je možné zapnúť kalibračné dorovnávanie setpointu podľa WIKA referencie; režim je defaultne vypnutý.
+- Dorovnávanie používa pomalý bounded outer-loop trim, nemení interný regulátor komory a má bezpečnostné limity kroku a celkovej korekcie.
+- WIKA zostáva autoritatívnou kalibračnou teplotou; lokálna teplota komory je pre FBG stability gate informatívna.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.31` na `1.76.32`.
+
 ## [1.76.31] – 2026-09-03
 
 ### Jednotné upozornenia v aplikácii
@@ -41,6 +74,19 @@
 
 ### Verzia
 - Desktop aplikácia zvýšená z `1.76.29` na `1.76.30`.
+
+## [1.76.29] – 2026-09-03
+
+### FBG produkčný workspace
+- Tabuľka `Zapojenie` bola rozšírená pre produkčný workflow: read-only `Sylex SN`, `Typ FBG` zo Sylex FOS API, autosave SN/CHAIN a jednoznačné zvýraznenie nového PeakLogger riadku.
+- Redundantný stĺpec `Snímač` bol odstránený; zmeny PeakLogger topológie aktualizujú tabuľku a operátor dostane stručnú informáciu o pridanom/odstránenom riadku.
+- Kalibračné plata sa po prvom výbere profilu defaultne označia všetky, pričom uložený setup zostáva zdrojom pravdy pri následnom obnovení.
+- Pridaná karta `Dáta` s cestami k run adresárom a metadátami RunId/čas začiatku/operátor.
+- Počas aktívneho runu sú profil, PeakLogger, referencia, stability a zapojenie zamknuté proti zmene.
+- PeakLogger integrácia podporuje operátorské otvorenie spektra kanála z kontextu zapojenia.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.28` na `1.76.29`.
 
 ## [1.76.28] – 2026-09-03
 
