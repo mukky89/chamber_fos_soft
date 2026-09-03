@@ -15,7 +15,11 @@ namespace VotschVc3.App.Views;
 /// </summary>
 public partial class ProfessionalDeviceCard : UserControl
 {
-    public ProfessionalDeviceCard() => InitializeComponent();
+    public ProfessionalDeviceCard()
+    {
+        InitializeComponent();
+        AttachProfessionalReferenceDashboard();
+    }
 
     public static readonly DependencyProperty ShellProperty = DependencyProperty.Register(
         nameof(Shell), typeof(ShellViewModel), typeof(ProfessionalDeviceCard), new PropertyMetadata(null));
