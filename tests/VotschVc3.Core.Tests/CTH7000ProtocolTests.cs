@@ -5,6 +5,14 @@ namespace VotschVc3.Core.Tests;
 
 public class F100ProtocolTests
 {
+    [Fact]
+    public void Production_timing_matches_validated_pali_trace()
+    {
+        Assert.Equal(2, F100Protocol.DocumentedInterCharacterDelayMs);
+        Assert.Equal(25, F100Protocol.InterCharacterDelayMs);
+        Assert.Equal(1000, F100Protocol.RemoteSettleDelayMs);
+    }
+
     [Theory]
     [InlineData("23.4567 C", 23.4567, "°C")]
     [InlineData("+0023.45 C", 23.45, "°C")]
