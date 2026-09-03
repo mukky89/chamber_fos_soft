@@ -1,14 +1,17 @@
 using System.IO;
 using System.Text.Json;
+using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Diagnostics;
 
 namespace VotschVc3.App.ViewModels;
 
 /// <summary>
-/// Persists the lightweight operator workspace selection that is not part of one
-/// profile/chamber wiring setup. The detailed wiring itself remains in CalibrationStore;
-/// this store only remembers which profile and PeakLogger endpoint should be restored
-/// when the FBG calibration workspace is opened again.
+/// Persists operator workspace state that does not belong to one profile/chamber wiring setup.
+///
+/// Detailed calibration data (plateau selection, mappings/SN/CHAIN, peak selection, per-peak
+/// timeout and stability settings) remains authoritative in CalibrationStore. The physical WIKA
+/// assignment remains authoritative in CalibrationReferenceStatusStore. This file remembers the
+/// remaining workspace/UI choices needed to reconstruct the same FBG workspace after app restart.
 /// </summary>
 public sealed class CalibrationWorkspaceStateStore
 {
@@ -41,18 +44,34 @@ public sealed class CalibrationWorkspaceStateStore
         }
     }
 
-    public void Save(Guid chamberId, Guid profileId, string peakLoggerHost, int peakLoggerPort)
+    /// <summary>Compatibility overload for older call sites.</summary>
+    public void Save(Guid chamberId, Guid profileId, string peakLoggerHost, int peakLoggerPort) =>
+        Save(new CalibrationWorkspaceState(
+            chamberId,
+            profileId,
+            string.IsNullOrWhiteSpace(peakLoggerHost) ? "localhost" : peakLoggerHost.Trim(),
+            peakLoggerPort,
+            DateTimeOffset.Now));
+
+    public void Save(CalibrationWorkspaceState state)
     {
-        if (chamberId == Guid.Empty || profileId == Guid.Empty) return;
+        if (state.ChamberId == Guid.Empty || state.ProfileId == Guid.Empty) return;
+
+        CalibrationWorkspaceState normalized = state with
+        {
+            PeakLoggerHost = string.IsNullOrWhiteSpace(state.PeakLoggerHost)
+                ? "localhost"
+                : state.PeakLoggerHost.Trim(),
+            PeakLoggerPort = Math.Max(0, state.PeakLoggerPort),
+            SelectedTabHeader = string.IsNullOrWhiteSpace(state.SelectedTabHeader)
+                ? "Zapojenie"
+                : state.SelectedTabHeader.Trim(),
+            SavedAt = DateTimeOffset.Now,
+        };
 
         lock (_gate)
         {
-            _states[chamberId] = new CalibrationWorkspaceState(
-                chamberId,
-                profileId,
-                string.IsNullOrWhiteSpace(peakLoggerHost) ? "localhost" : peakLoggerHost.Trim(),
-                peakLoggerPort,
-                DateTimeOffset.Now);
+            _states[state.ChamberId] = normalized;
             SaveUnsafe();
         }
     }
@@ -96,9 +115,20 @@ public sealed class CalibrationWorkspaceStateStore
     }
 }
 
+/// <summary>
+/// Backward-compatible workspace envelope. The original five constructor properties are retained,
+/// so existing fbg-calibration-workspaces.json files continue to deserialize. New init properties
+/// simply receive their safe defaults when an older file is loaded.
+/// </summary>
 public sealed record CalibrationWorkspaceState(
     Guid ChamberId,
     Guid ProfileId,
     string PeakLoggerHost,
     int PeakLoggerPort,
-    DateTimeOffset SavedAt);
+    DateTimeOffset SavedAt)
+{
+    public bool UseSimulator { get; init; }
+    public FakePeakLoggerScenario SimulatorScenario { get; init; } = FakePeakLoggerScenario.Normal;
+    public bool ShowF100Chart { get; init; }
+    public string SelectedTabHeader { get; init; } = "Zapojenie";
+}
