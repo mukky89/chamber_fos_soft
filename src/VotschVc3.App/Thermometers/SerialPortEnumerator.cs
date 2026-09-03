@@ -8,24 +8,74 @@ namespace VotschVc3.App.Thermometers;
 
 /// <summary>
 /// Enumerates serial / USB COM ports together with their USB serial number.
-/// Uses WMI (<c>Win32_PnPEntity</c>); falls back to a plain port list when WMI is unavailable.
+/// Fast UI paths only use <see cref="SerialPort.GetPortNames"/> and cached metadata;
+/// WMI enrichment is reserved for explicit/background detailed scans so opening a
+/// calibration window never waits on Win32_PnPEntity.
 /// </summary>
 public static class SerialPortEnumerator
 {
     private static readonly Regex ComInName = new(@"\((COM\d+)\)", RegexOptions.Compiled);
+    private static readonly object CacheGate = new();
+    private static Dictionary<string, SerialDeviceInfo> _metadataCache =
+        new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Very fast enumeration intended for constructors/UI startup. It never queries WMI.
+    /// If a previous detailed scan already knows USB metadata, that cached description and
+    /// serial number are reused for the matching live COM port.
+    /// </summary>
+    public static IReadOnlyList<SerialDeviceInfo> EnumerateFast()
+    {
+        string[] ports;
+        try
+        {
+            ports = SerialPort.GetPortNames();
+        }
+        catch
+        {
+            return Array.Empty<SerialDeviceInfo>();
+        }
+
+        Dictionary<string, SerialDeviceInfo> cache;
+        lock (CacheGate)
+        {
+            cache = new Dictionary<string, SerialDeviceInfo>(_metadataCache, StringComparer.OrdinalIgnoreCase);
+        }
+
+        return ports
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .Select(port => cache.TryGetValue(port, out SerialDeviceInfo? info)
+                ? info
+                : new SerialDeviceInfo(port, null, null))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Detailed enumeration with WMI metadata. Call this from a worker thread (normally via
+    /// <c>Task.Run</c>), not from a WPF constructor or Loaded handler.
+    /// </summary>
     public static IReadOnlyList<SerialDeviceInfo> Enumerate()
     {
         try
         {
-            return EnumerateViaWmi();
+            IReadOnlyList<SerialDeviceInfo> result = EnumerateViaWmi();
+            UpdateCache(result);
+            return result;
         }
         catch
         {
-            return SerialPort.GetPortNames()
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .Select(p => new SerialDeviceInfo(p, null, null))
-                .ToList();
+            return EnumerateFast();
+        }
+    }
+
+    private static void UpdateCache(IEnumerable<SerialDeviceInfo> devices)
+    {
+        var next = devices
+            .Where(device => !string.IsNullOrWhiteSpace(device.PortName))
+            .ToDictionary(device => device.PortName, device => device, StringComparer.OrdinalIgnoreCase);
+        lock (CacheGate)
+        {
+            _metadataCache = next;
         }
     }
 

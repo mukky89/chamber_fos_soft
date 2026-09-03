@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -25,16 +26,23 @@ public partial class CalibrationWindow : Window
     private readonly DispatcherTimer _fosApiStatusHideTimer;
     private readonly Border _duplicateSnBadge;
     private readonly TextBlock _duplicateSnText;
+    private readonly Stopwatch _startupStopwatch = Stopwatch.StartNew();
+    private readonly long _viewModelConstructionMs;
     private DataGrid? _wiringGrid;
     private StrictSerialValidationCommand? _strictStartCommand;
     private bool _pendingWiringGridRefresh;
+    private bool _passiveHardwareRefreshStarted;
     private bool _disposing;
     private bool _shutdownRequested;
 
     public CalibrationWindow(Guid chamberId)
     {
         _chamberId = chamberId;
+
+        var phase = Stopwatch.StartNew();
         _viewModel = new CalibrationViewModel(chamberId);
+        _viewModelConstructionMs = phase.ElapsedMilliseconds;
+
         InitializeComponent();
         DataContext = _viewModel;
         Loaded += OnLoaded;
@@ -65,28 +73,62 @@ public partial class CalibrationWindow : Window
 
         _sylexFosIntegration = new SylexFosCalibrationIntegration(_viewModel);
         _sylexFosIntegration.LookupStatusChanged += OnSylexFosLookupStatusChanged;
-        _ = _sylexFosIntegration.InitializeAsync();
+
+        // Network health checks are deliberately deferred until the first frame has rendered.
+        // FOS metadata is optional and must never delay showing the calibration workspace.
+        _ = InitializeFosApiDeferredAsync();
 
         Closing += OnClosing;
     }
 
     /// <summary>
-    /// Customer and SensorName are distinct business fields. Customer keeps its original
-    /// persisted meaning; SensorName is shown in a dedicated runtime column populated from FOS API.
+    /// Make the first frame useful immediately. The previous startup awaited a complete hardware
+    /// initialization here: WMI enumeration, active probing of every COM port as a CTH7000 and a
+    /// broad PeakLogger discovery. A slow/unresponsive USB device could therefore make opening the
+    /// FBG workspace feel frozen. Hardware connection is now operator-driven; only passive USB
+    /// metadata enrichment is scheduled after the UI is already interactive.
     /// </summary>
-    private async void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
-        await _viewModel.InitializeHardwareAsync();
+
+        // Calibration uses explicit one-shot reference reads. Disable the device VM's generic
+        // auto-polling mode immediately, before the operator can click Načítať teplotu.
+        foreach (ThermometerDeviceViewModel thermometer in _viewModel.F100Devices)
+        {
+            thermometer.PollingEnabled = false;
+        }
+
+        ConfigureWiringGrid();
+
+        _startupStopwatch.Stop();
+        AppLog.Info(
+            "FBG kalibrácia",
+            $"Okno pripravené za {_startupStopwatch.ElapsedMilliseconds} ms " +
+            $"(ViewModel {_viewModelConstructionMs} ms). Bez automatického COM probe/PeakLogger discovery.");
+
+        _ = StartPassiveHardwareMetadataRefreshAsync();
+    }
+
+    private void ConfigureWiringGrid()
+    {
         _wiringGrid = FindWiringGrid(this);
-        if (_wiringGrid is null) return;
+        if (_wiringGrid is null)
+        {
+            AppLog.Warn("FBG kalibrácia", "Zapojovacia tabuľka sa pri otvorení nenašla vo visual tree.");
+            return;
+        }
 
         DataGridColumn? chainSn = FindColumn(_wiringGrid, "FBG sensor SN CHAIN");
         DataGridColumn? order = FindColumn(_wiringGrid, "Zákazka");
         DataGridColumn? customer = FindColumn(_wiringGrid, "Zákazník");
         DataGridColumn? productDescription = FindColumn(_wiringGrid, "Popis produktu")
             ?? FindColumn(_wiringGrid, "Popis výrobku");
-        if (order is null || customer is null || productDescription is null) return;
+        if (order is null || customer is null || productDescription is null)
+        {
+            AttachStrictSerialValidation();
+            return;
+        }
 
         // Restore the correct business meaning. Customer is customer name, never sensor name.
         customer.Header = "Zákazník";
@@ -120,6 +162,44 @@ public partial class CalibrationWindow : Window
         customer.DisplayIndex = firstProductionIndex + 3;
 
         AttachStrictSerialValidation();
+    }
+
+    private async Task StartPassiveHardwareMetadataRefreshAsync()
+    {
+        if (_passiveHardwareRefreshStarted || _disposing) return;
+        _passiveHardwareRefreshStarted = true;
+
+        // Give WPF an idle turn so maximization/layout/input are finished before any background
+        // enumeration begins. RefreshF100PortsCommand performs WMI on Task.Run and does NOT open
+        // a COM port or send *IDN?/REMOTE/MEASURE commands.
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        if (_disposing) return;
+
+        try
+        {
+            if (_viewModel.RefreshF100PortsCommand.CanExecute(null))
+            {
+                _viewModel.RefreshF100PortsCommand.Execute(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("FBG kalibrácia", $"Pasívne obnovenie USB metadata: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeFosApiDeferredAsync()
+    {
+        try
+        {
+            await Task.Delay(250).ConfigureAwait(true);
+            if (_disposing) return;
+            await _sylexFosIntegration.InitializeAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("Sylex FOS API", $"Odložená kontrola API pri otvorení kalibrácie: {ex.Message}");
+        }
     }
 
     private static DataGridColumn? FindColumn(DataGrid grid, string header) =>
@@ -301,7 +381,7 @@ public partial class CalibrationWindow : Window
             SylexFosLookupState.Loaded => "Výrobné údaje boli načítané: zakázka, popis výrobku a názov snímača. Zákazník je samostatné pole.",
             SylexFosLookupState.NotFound => "SN sa v Sylex FOS API nenašlo. Skontroluj SN; polia zostávajú ručne editovateľné.",
             SylexFosLookupState.ConfigurationError => "Skontroluj SYLEX_FOS_API_KEY a konfiguráciu klienta chamber-fos.",
-            SylexFosLookupState.ApiUnavailable => "Centrálne API nie je dostupné. Kalibrácia môže pokračovať bez automatického doplnenia údajov.",
+            SylexFosLookupState.ApiUnavailable => "Centrálne API nie je dostupné. Kalibrácia môže pokračovať bez automatického doplnenia metadata.",
             _ => "Stav načítania výrobných údajov zo Sylex FOS API.",
         };
 
