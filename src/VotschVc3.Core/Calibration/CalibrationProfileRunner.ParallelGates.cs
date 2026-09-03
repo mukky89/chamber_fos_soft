@@ -6,10 +6,9 @@ using VotschVc3.Core.Protocol;
 namespace VotschVc3.Core.Calibration;
 
 /// <summary>
-/// Temperature-calibration profile runner. For selected FBG calibration points the profile hold
-/// Duration is intentionally ignored: progression is controlled only by measured temperature
-/// stability and then by independent per-FBG stability/measurement completion. Profile Duration
-/// still applies to ordinary non-calibration segments and ramps.
+/// Temperature-calibration profile runner. Ordinary ramps/non-calibration holds use their profile
+/// duration. Selected calibration points are commanded immediately and progression is controlled by
+/// the dedicated calibration minimum-time gate plus measured chamber, reference and FBG stability.
 /// </summary>
 public sealed class CalibrationProfileRunner
 {
@@ -77,6 +76,28 @@ public sealed class CalibrationProfileRunner
         await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
         run.State = CalibrationRunState.Preparing;
 
+        // A disconnected CTH7000 can fail while opening the COM port, not only return null.
+        // Convert transient reference communication exceptions to a missing reading so the
+        // orchestrator enters RECOVERING_DEVICE and honours DeviceRecoveryTimeout. Cancellation
+        // remains cancellation and is never swallowed.
+        Func<CancellationToken, Task<double?>>? safeReadReferenceTemperatureAsync = readReferenceTemperatureAsync is null
+            ? null
+            : async token =>
+            {
+                try
+                {
+                    return await readReferenceTemperatureAsync(token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return null;
+                }
+            };
+
         double previousTemperature = startTemperature;
         double? previousHumidity = startHumidity;
         int calibrationPlateauIndex = 0;
@@ -101,9 +122,9 @@ public sealed class CalibrationProfileRunner
                     continue;
                 }
 
-                // For an FBG calibration point, the profile's hold Duration is only descriptive data
-                // from the source profile. It must never delay the calibration workflow. Command the
-                // target and let real measured stability decide when the point can proceed.
+                // The ordinary profile hold is not reused as calibration stability time. The
+                // dedicated MinimumCalibrationPointDuration setting is explicit and combines with
+                // the physical chamber/reference gates.
                 double? targetHumidity = step.Segment.TargetHumidity ?? previousHumidity;
                 await WriteSetpointAsync(step.Segment.TargetTemperature, targetHumidity, cancellationToken).ConfigureAwait(false);
                 previousTemperature = step.Segment.TargetTemperature;
@@ -119,13 +140,19 @@ public sealed class CalibrationProfileRunner
                     currentPlateau,
                     calibrationSteps.Count,
                     step.Segment.TargetTemperature,
-                    TimeSpan.Zero,
+                    setup.Settings.MinimumCalibrationPointDuration,
                     ReadTemperatureAsync,
-                    readReferenceTemperatureAsync,
+                    safeReadReferenceTemperatureAsync,
                     referenceControl,
                     writer,
                     snapshot => Progress?.Invoke(snapshot),
                     cancellationToken).ConfigureAwait(false);
+
+                // The orchestrator aggregates final-sample reference temperatures. When no external
+                // reference delegate exists, keep ReferenceTemperatureC genuinely null so response
+                // validation and final TEMP/FBGS calculation fall back to the measured chamber
+                // temperature instead of interpreting an empty reference sequence as 0 °C.
+                if (safeReadReferenceTemperatureAsync is null) plateau.ReferenceTemperatureC = null;
 
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
@@ -165,8 +192,30 @@ public sealed class CalibrationProfileRunner
                 });
             }
 
+            // Polynomial TEMP/FBGS calibration requires at least three completed points. One/two
+            // point production checks remain valid measurement workflows and must not be converted
+            // into an artificial calibration-result failure.
+            if (run.Plateaus.Count >= 3)
+            {
+                run.State = CalibrationRunState.CalculatingResults;
+                var calculator = new TemperatureCalibrationCalculator();
+                run.CalculationResults = calculator.CalculateRun(run, setup).ToList();
+                foreach (TemperatureCalibrationResult failed in run.CalculationResults.Where(result => !result.OverallPassed))
+                {
+                    run.Warnings.Add(new CalibrationWarning
+                    {
+                        Code = "CALIBRATION_RESULT_FAIL",
+                        Message = $"FBG SN {failed.SerialNumber}, peak {failed.PeakId}: {failed.StatusMessage}",
+                        SerialNumber = failed.SerialNumber,
+                        PeakId = failed.PeakId,
+                    });
+                }
+            }
+
             run.CompletedAt = DateTimeOffset.Now;
-            run.State = run.Warnings.Count == 0 ? CalibrationRunState.Completed : CalibrationRunState.CompletedWithWarnings;
+            run.State = run.Warnings.Count == 0 && run.CalculationResults.All(r => r.OverallPassed)
+                ? CalibrationRunState.Completed
+                : CalibrationRunState.CompletedWithWarnings;
             writer.SaveSummary();
             _store.DeleteCheckpoint(run.ChamberId);
         }
@@ -337,6 +386,7 @@ public sealed class CalibrationProfileRunner
         ProductDescription = m.ProductDescription,
         Customer = m.Customer,
         Order = m.Order,
+        CalibrationRecipeKey = m.CalibrationRecipeKey,
         StabilizationTimeoutOverride = m.StabilizationTimeoutOverride,
     };
 

@@ -1,0 +1,78 @@
+<Window x:Class="VotschVc3.App.Views.CalibrationResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Výsledok teplotnej kalibrácie" Width="1280" Height="760"
+        MinWidth="980" MinHeight="620" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackgroundBrush}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Padding="14" Margin="0,0,0,12" CornerRadius="10"
+                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Subtitle}" Margin="0,4,0,0" Opacity="0.75" TextWrapping="Wrap" />
+                </StackPanel>
+                <Border Grid.Column="1" Padding="16,8" CornerRadius="8" Margin="16,0,0,0"
+                        Background="{Binding ResultBrush}">
+                    <TextBlock Text="{Binding OverallText}" Foreground="White" FontSize="18" FontWeight="Bold" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="1" Text="Koeficienty a validácia" FontSize="16" FontWeight="SemiBold" Margin="2,0,0,7" />
+
+        <DataGrid x:Name="ResultsGrid" Grid.Row="2" ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
+                  AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Margin="0,0,0,12">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="FBG SN" Binding="{Binding SerialNumber}" Width="120" />
+                <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" Width="70" />
+                <DataGridTextColumn Header="Peak" Binding="{Binding PeakId}" Width="65" />
+                <DataGridTextColumn Header="Recipe" Binding="{Binding RecipeKey}" Width="120" />
+                <DataGridTextColumn Header="Typ" Binding="{Binding CalculationType}" Width="70" />
+                <DataGridTextColumn Header="A" Binding="{Binding A, StringFormat=G9}" Width="95" />
+                <DataGridTextColumn Header="B" Binding="{Binding B, StringFormat=G9}" Width="95" />
+                <DataGridTextColumn Header="C" Binding="{Binding C, StringFormat=G9}" Width="95" />
+                <DataGridTextColumn Header="D" Binding="{Binding D, StringFormat=G9}" Width="95" />
+                <DataGridTextColumn Header="s1" Binding="{Binding S1, StringFormat=G9}" Width="95" />
+                <DataGridTextColumn Header="s2" Binding="{Binding S2, StringFormat=G9}" Width="95" />
+                <DataGridTextColumn Header="Sens. [pm/°C]" Binding="{Binding SensitivityPmPerC, StringFormat=F4}" Width="105" />
+                <DataGridTextColumn Header="TRef [nm]" Binding="{Binding TRefNm, StringFormat=F6}" Width="105" />
+                <DataGridTextColumn Header="Max error [°C]" Binding="{Binding MaxErrorC, StringFormat=F4}" Width="105" />
+                <DataGridTextColumn Header="Tol. [°C]" Binding="{Binding ErrorToleranceC, StringFormat=F4}" Width="90" />
+                <DataGridTextColumn Header="R²" Binding="{Binding R2, StringFormat=F6}" Width="85" />
+                <DataGridTextColumn Header="Výsledok" Binding="{Binding PassText}" Width="85" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Kalibračné body vybraného FBG" FontSize="16" FontWeight="SemiBold" Margin="2,0,0,7" />
+            <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedPoints}" AutoGenerateColumns="False"
+                      CanUserAddRows="False" IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Bod" Binding="{Binding PlateauIndex}" Width="70" />
+                    <DataGridTextColumn Header="Target [°C]" Binding="{Binding TargetTemperatureC, StringFormat=F3}" Width="110" />
+                    <DataGridTextColumn Header="WIKA/ref [°C]" Binding="{Binding ReferenceTemperatureC, StringFormat=F4}" Width="120" />
+                    <DataGridTextColumn Header="Komora [°C]" Binding="{Binding ChamberTemperatureC, StringFormat=F4}" Width="115" />
+                    <DataGridTextColumn Header="λ mean [nm]" Binding="{Binding MeanWavelengthNm, StringFormat=F6}" Width="130" />
+                    <DataGridTextColumn Header="T vypočítaná [°C]" Binding="{Binding PredictedTemperatureC, StringFormat=F4}" Width="135" />
+                    <DataGridTextColumn Header="Chyba [°C]" Binding="{Binding ErrorC, StringFormat=+0.0000;-0.0000;0.0000}" Width="110" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Grid>
+</Window>
