@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.76.30] – 2026-09-03
+
+### Opravené – zapojenie počas editácie
+- `Zapojenie` už nevolá `CollectionView.Refresh()` počas aktívnej `DataGrid` editácie, takže zapisovanie FBG SN nevyhadzuje kurzor z bunky a nevzniká WPF chyba `Refresh is not allowed during an AddNew or EditItem transaction`.
+- Background zmeny PeakLogger topológie a Sylex API metadata sa počas editácie SN odložia a aplikujú až po commitnutí bunky.
+- Existujúci 350 ms autosave vo ViewModeli zostáva aktívny; po dokončení editácie sa vykoná aj bezpečný finálny save zapojenia.
+
+### FBG workspace – layout a priebeh kalibrácie
+- Celé FBG okno má page-level vertikálny scroll a karta `Zapojenie` dostala priestor približne na 16 produkčných riadkov naraz plus vlastné scrollbary.
+- `Live monitor` zobrazuje pred spustením plán: profil, poradie a teploty plat, počet vybraných FBG peakov, WIKA referenciu a počet požadovaných stabilných samples.
+- Počas kalibrácie sa explicitne zobrazuje `AKTUÁLNY KROK`, `ČAKÁM NA`, aktuálne plato, aktívny SN/kanál/peak, wavelength, samples, WIKA teplota a počet stabilných peakov.
+- Historický stav `WaitingForChamberStability` je v operátorskom UI interpretovaný ako čakanie na stabilitu WIKA referencie; teplota komory je informatívna.
+
+### Referenčná teplota na pozadí
+- Päťsekundová aktualizácia WIKA CTH7000 už nevolá UI command `Načítať teplotu`, takže tlačidlo sa samo vizuálne nestláča.
+- Background refresh číta priamo z existujúceho CTH7000 klienta, bez WMI rescanov a bez zmeny overeného 25 ms / 1000 ms Pali timing baseline.
+
+### Bezpečnosť ovládania zariadenia
+- Keď na konkrétnom zariadení beží FBG kalibrácia, jeho `Rýchle ovládanie` a `Testovací profil` sú na dashboarde zablokované.
+- Stavový chip zariadenia sa počas behu prepne na `FBG CALIBRATION` namiesto zavádzajúceho `MANUÁL`.
+- Tlačidlo `FBG Kalibrácia` aktívneho zariadenia používa pomalý červený pulzujúci prechod; po ukončení behu sa vráti do pôvodného štýlu.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.29` na `1.76.30`.
+
 ## [1.76.28] – 2026-09-03
 
 ### FBG kalibrácia – stabilita merania
