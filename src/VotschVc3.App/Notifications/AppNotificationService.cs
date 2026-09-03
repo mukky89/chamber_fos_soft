@@ -26,6 +26,7 @@ public static class AppNotificationService
     private static readonly object Gate = new();
     private static readonly Queue<AppNotification> Queue = new();
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastShown = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, byte> SessionOnceShown = new(StringComparer.Ordinal);
     private static AppNotificationWindow? _active;
 
     public static void Show(
@@ -39,9 +40,20 @@ public static class AppNotificationService
 
         string key = dedupeKey ?? $"{kind}|{title}|{message}";
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        if (LastShown.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(2.5))
-            return;
-        LastShown[key] = now;
+
+        // FBG identification validation is intentionally edge-like for the operator: a periodic
+        // PeakLogger/Sylex re-validation must not keep showing the same invalid-SN popup. The
+        // concrete key already contains SN/channel/message, so a different fault still appears.
+        if (IsSessionOnceKey(key))
+        {
+            if (!SessionOnceShown.TryAdd(key, 0)) return;
+        }
+        else
+        {
+            if (LastShown.TryGetValue(key, out DateTimeOffset previous) && now - previous < TimeSpan.FromSeconds(2.5))
+                return;
+            LastShown[key] = now;
+        }
 
         var notification = new AppNotification(
             string.IsNullOrWhiteSpace(title) ? "Upozornenie" : title.Trim(),
@@ -65,6 +77,10 @@ public static class AppNotificationService
 
     public static void Error(string title, string message, string? key = null) =>
         Show(title, message, AppNotificationKind.Error, dedupeKey: key);
+
+    private static bool IsSessionOnceKey(string key) =>
+        key.StartsWith("fbg-sn:", StringComparison.OrdinalIgnoreCase) ||
+        key.StartsWith("sylex:", StringComparison.OrdinalIgnoreCase);
 
     private static void EnqueueOnUi(AppNotification notification)
     {
