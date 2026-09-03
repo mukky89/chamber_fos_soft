@@ -11,7 +11,9 @@
     { "id": "sika-sylex", "name": "SIKA Sylex", "kind": "sika", "host": "10.88.5.226", "port": 8081, "enabled": true, "allowControl": false },
     { "id": "sika-polytech", "name": "SIKA PolyTech", "kind": "sika", "host": "10.88.6.28", "port": 80, "enabled": true, "allowControl": false }
   ],
-  "thermometers": [],
+  "thermometers": [
+    { "id": "cth7000-ref", "name": "WIKA CTH7000 reference", "portName": "COM4", "baudRate": 9600, "readCommand": "A", "serialNumber": "", "enabled": false }
+  ],
   "folders": [
     { "alias": "Profiles", "path": "%USERPROFILE%\\Documents\\Lab Control\\Profiles", "writable": true },
     { "alias": "Recordings", "path": "%USERPROFILE%\\Documents\\Lab Control\\Recordings", "writable": true },

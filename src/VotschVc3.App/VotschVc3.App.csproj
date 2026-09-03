@@ -13,7 +13,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
-    <Version>1.76.19</Version>
+    <Version>1.76.20</Version>
     <Product>Riadenie laboratórnych zariadení</Product>
   </PropertyGroup>
 
@@ -25,6 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\VotschVc3.Core\VotschVc3.Core.csproj" />
     <ProjectReference Include="..\VotschVc3.Agent\VotschVc3.Agent.csproj" ReferenceOutputAssembly="false" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
   <Target Name="StopRunningBridgeAgent" BeforeTargets="CopyBridgeAgent"
