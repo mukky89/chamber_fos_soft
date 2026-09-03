@@ -13,6 +13,10 @@ namespace VotschVc3.App.ViewModels;
 /// </summary>
 public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
 {
+    private static readonly TimeSpan DetailedRefreshFreshFor = TimeSpan.FromSeconds(15);
+    private readonly SemaphoreSlim _detailedRefreshGate = new(1, 1);
+    private DateTimeOffset _lastDetailedRefreshAt = DateTimeOffset.MinValue;
+
     public ThermometersViewModel()
     {
         RefreshCommand = new RelayCommand(Refresh);
@@ -92,66 +96,97 @@ public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>
     /// Performs a fresh detailed Windows scan on a worker thread and enriches entries with USB
-    /// serial number / PnP description. Connected devices remain intact. This is used only for
-    /// explicit or deferred refreshes, never while the calibration window is being constructed.
+    /// serial number / PnP description.
+    ///
+    /// A connected CTH7000 never needs another WMI scan just to acquire the next temperature.
+    /// Likewise, a detailed scan completed moments ago is reused briefly. In those cases this
+    /// method falls back to the cheap GetPortNames snapshot. This is important because the FBG
+    /// "Načítať teplotu" path historically called this method before every one-shot reading.
     /// </summary>
     public async Task RefreshAsync()
     {
-        IReadOnlyList<SerialDeviceInfo> found = await Task.Run(SerialPortEnumerator.Enumerate);
-
-        for (int i = Devices.Count - 1; i >= 0; i--)
+        if (CanUseFastRefresh())
         {
-            ThermometerDeviceViewModel device = Devices[i];
-            bool manual = string.Equals(device.Info.Description, "ručne zadaný port", StringComparison.OrdinalIgnoreCase);
-            bool stillThere = found.Any(info =>
-                string.Equals(info.PortName, device.PortName, StringComparison.OrdinalIgnoreCase));
-            if (stillThere || manual) continue;
-
-            if (ReferenceEquals(SelectedDevice, device)) SelectedDevice = null;
-            await device.DisposeAsync();
-            Devices.RemoveAt(i);
+            Refresh();
+            return;
         }
 
-        foreach (SerialDeviceInfo info in found)
+        await _detailedRefreshGate.WaitAsync().ConfigureAwait(true);
+        try
         {
-            int existingIndex = -1;
-            for (int i = 0; i < Devices.Count; i++)
+            // Another caller (for example the passive metadata refresh after window startup) may
+            // have completed the expensive scan while we were waiting for the gate.
+            if (CanUseFastRefresh())
             {
-                if (string.Equals(Devices[i].PortName, info.PortName, StringComparison.OrdinalIgnoreCase))
+                Refresh();
+                return;
+            }
+
+            IReadOnlyList<SerialDeviceInfo> found = await Task.Run(SerialPortEnumerator.Enumerate);
+
+            for (int i = Devices.Count - 1; i >= 0; i--)
+            {
+                ThermometerDeviceViewModel device = Devices[i];
+                bool manual = string.Equals(device.Info.Description, "ručne zadaný port", StringComparison.OrdinalIgnoreCase);
+                bool stillThere = found.Any(info =>
+                    string.Equals(info.PortName, device.PortName, StringComparison.OrdinalIgnoreCase));
+                if (stillThere || manual) continue;
+
+                if (ReferenceEquals(SelectedDevice, device)) SelectedDevice = null;
+                await device.DisposeAsync();
+                Devices.RemoveAt(i);
+            }
+
+            foreach (SerialDeviceInfo info in found)
+            {
+                int existingIndex = -1;
+                for (int i = 0; i < Devices.Count; i++)
                 {
-                    existingIndex = i;
-                    break;
+                    if (string.Equals(Devices[i].PortName, info.PortName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingIndex = i;
+                        break;
+                    }
                 }
+
+                if (existingIndex < 0)
+                {
+                    Devices.Add(new ThermometerDeviceViewModel(info));
+                    continue;
+                }
+
+                ThermometerDeviceViewModel existing = Devices[existingIndex];
+                if (existing.IsConnected || SameMetadata(existing.Info, info)) continue;
+
+                bool wasSelected = ReferenceEquals(SelectedDevice, existing);
+                var replacement = new ThermometerDeviceViewModel(info)
+                {
+                    BaudRate = existing.BaudRate,
+                    SelectedChannel = existing.SelectedChannel,
+                    ReadCommand = existing.ReadCommand,
+                    PollIntervalSeconds = existing.PollIntervalSeconds,
+                    PollingEnabled = existing.PollingEnabled,
+                };
+                await existing.DisposeAsync();
+                Devices[existingIndex] = replacement;
+                if (wasSelected) SelectedDevice = replacement;
             }
 
-            if (existingIndex < 0)
-            {
-                Devices.Add(new ThermometerDeviceViewModel(info));
-                continue;
-            }
-
-            ThermometerDeviceViewModel existing = Devices[existingIndex];
-            if (existing.IsConnected || SameMetadata(existing.Info, info)) continue;
-
-            bool wasSelected = ReferenceEquals(SelectedDevice, existing);
-            var replacement = new ThermometerDeviceViewModel(info)
-            {
-                BaudRate = existing.BaudRate,
-                SelectedChannel = existing.SelectedChannel,
-                ReadCommand = existing.ReadCommand,
-                PollIntervalSeconds = existing.PollIntervalSeconds,
-                PollingEnabled = existing.PollingEnabled,
-            };
-            await existing.DisposeAsync();
-            Devices[existingIndex] = replacement;
-            if (wasSelected) SelectedDevice = replacement;
+            _lastDetailedRefreshAt = DateTimeOffset.UtcNow;
+            StatusMessage = Devices.Count == 0
+                ? "Nový scan: Windows nenašiel žiadny sériový USB/COM port."
+                : $"Nový scan: nájdených {Devices.Count} portov.";
+            SelectedDevice ??= Devices.FirstOrDefault();
         }
-
-        StatusMessage = Devices.Count == 0
-            ? "Nový scan: Windows nenašiel žiadny sériový USB/COM port."
-            : $"Nový scan: nájdených {Devices.Count} portov.";
-        SelectedDevice ??= Devices.FirstOrDefault();
+        finally
+        {
+            _detailedRefreshGate.Release();
+        }
     }
+
+    private bool CanUseFastRefresh() =>
+        Devices.Any(device => device.IsConnected) ||
+        DateTimeOffset.UtcNow - _lastDetailedRefreshAt < DetailedRefreshFreshFor;
 
     private static bool SameMetadata(SerialDeviceInfo left, SerialDeviceInfo right) =>
         string.Equals(left.SerialNumber, right.SerialNumber, StringComparison.OrdinalIgnoreCase) &&
@@ -163,5 +198,7 @@ public sealed class ThermometersViewModel : ObservableObject, IAsyncDisposable
         {
             await device.DisposeAsync();
         }
+
+        _detailedRefreshGate.Dispose();
     }
 }
