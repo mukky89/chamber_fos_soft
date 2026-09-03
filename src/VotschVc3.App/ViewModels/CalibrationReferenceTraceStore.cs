@@ -32,7 +32,7 @@ public sealed class CalibrationReferenceTraceStore
         CalibrationReferenceSnapshot snapshot = CalibrationReferenceStatusStore.Instance.GetSnapshot(e.ChamberId);
         if (!snapshot.IsConnected || snapshot.TemperatureC is not { } temperature || !double.IsFinite(temperature)) return;
 
-        DateTimeOffset timestamp = snapshot.UpdatedAt ?? DateTimeOffset.Now;
+        DateTimeOffset timestamp = snapshot.LastUpdate ?? DateTimeOffset.Now;
         lock (_gate)
         {
             if (!_traces.TryGetValue(e.ChamberId, out List<CalibrationReferenceTracePoint>? trace))
