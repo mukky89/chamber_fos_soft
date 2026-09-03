@@ -76,6 +76,28 @@ public sealed class CalibrationProfileRunner
         await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
         run.State = CalibrationRunState.Preparing;
 
+        // A disconnected CTH7000 can fail while opening the COM port, not only return null.
+        // Convert transient reference communication exceptions to a missing reading so the
+        // orchestrator enters RECOVERING_DEVICE and honours DeviceRecoveryTimeout. Cancellation
+        // remains cancellation and is never swallowed.
+        Func<CancellationToken, Task<double?>>? safeReadReferenceTemperatureAsync = readReferenceTemperatureAsync is null
+            ? null
+            : async token =>
+            {
+                try
+                {
+                    return await readReferenceTemperatureAsync(token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return null;
+                }
+            };
+
         double previousTemperature = startTemperature;
         double? previousHumidity = startHumidity;
         int calibrationPlateauIndex = 0;
@@ -120,7 +142,7 @@ public sealed class CalibrationProfileRunner
                     step.Segment.TargetTemperature,
                     setup.Settings.MinimumCalibrationPointDuration,
                     ReadTemperatureAsync,
-                    readReferenceTemperatureAsync,
+                    safeReadReferenceTemperatureAsync,
                     referenceControl,
                     writer,
                     snapshot => Progress?.Invoke(snapshot),
@@ -130,7 +152,7 @@ public sealed class CalibrationProfileRunner
                 // reference delegate exists, keep ReferenceTemperatureC genuinely null so response
                 // validation and final TEMP/FBGS calculation fall back to the measured chamber
                 // temperature instead of interpreting an empty reference sequence as 0 °C.
-                if (readReferenceTemperatureAsync is null) plateau.ReferenceTemperatureC = null;
+                if (safeReadReferenceTemperatureAsync is null) plateau.ReferenceTemperatureC = null;
 
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
