@@ -7,11 +7,6 @@ using VotschVc3.Core.Calibration;
 
 namespace VotschVc3.App.Views;
 
-/// <summary>
-/// Diagnostic view over the production runner. It intentionally reads the same ViewModel progress
-/// snapshots that are produced by CalibrationOrchestrator, so operator diagnostics follow the actual
-/// decision path: temperature -> parallel FBG stability -> per-FBG measurement samples -> save point.
-/// </summary>
 internal static class CalibrationWindowProductionWorkspaceV5Bootstrap
 {
     [ModuleInitializer]
@@ -156,7 +151,6 @@ public partial class CalibrationWindow
             Margin = new Thickness(8, 4, 8, 8),
             Child = content,
         };
-
         DockPanel.SetDock(card, Dock.Top);
         liveDock.Children.Insert(0, card);
     }
@@ -208,15 +202,14 @@ public partial class CalibrationWindow
         int failed = rows.Count(row => row.State is CalibrationTargetState.TimedOut or CalibrationTargetState.PeakLost or CalibrationTargetState.Disconnected or CalibrationTargetState.Failed);
         int stabilizing = Math.Max(0, total - waitingTemp - measuring - completed - failed);
 
-        bool waitingForTemperature = _viewModel.RunState.Contains("WaitingForChamberStability", StringComparison.OrdinalIgnoreCase) ||
-                                     waitingTemp > 0;
+        bool waitingForTemperature = _viewModel.RunState.Contains("WaitingForChamberStability", StringComparison.OrdinalIgnoreCase) || waitingTemp > 0;
         bool running = _viewModel.IsRunning;
 
         _temperaturePhaseV5.Text = !running
             ? "Pripravené"
             : waitingForTemperature
-                ? $"ČAKÁM · {_viewModel.ReferenceTemperatureLabel} · {_viewModel.TemperatureLabel}"
-                : $"STABILNÁ ✓ · {_viewModel.ReferenceTemperatureLabel}";
+                ? $"ČAKÁM · ref {_viewModel.ReferenceTemperatureLabel} · komora {_viewModel.TemperatureLabel}"
+                : $"STABILNÁ ✓ · ref {_viewModel.ReferenceTemperatureLabel}";
 
         _fbgPhaseV5.Text = total == 0
             ? "Čakám na FBG dáta"
@@ -231,21 +224,19 @@ public partial class CalibrationWindow
             : $"meria {measuring} · hotovo {completed}/{total}" +
               (measuring > 0 ? $" · samples {measurementCollected}/{measurementRequired}" : string.Empty);
 
-        string blocker;
         if (!running)
-            blocker = "Kalibrácia nie je spustená.";
+            _decisionV5.Text = "Kalibrácia nie je spustená.";
         else if (waitingForTemperature)
-            blocker = "ČAKÁM NA: stabilnú referenčnú/internú teplotu a minimálny čas teplotného plata.";
+            _decisionV5.Text = "ČAKÁM NA: stabilnú referenčnú/internú teplotu a minimálny čas teplotného plata.";
         else if (stabilizing > 0)
-            blocker = $"ČAKÁM NA: stabilizáciu {stabilizing} FBG peak(ov). Stabilné peaky už môžu súčasne merať samples.";
+            _decisionV5.Text = $"ČAKÁM NA: stabilizáciu {stabilizing} FBG peak(ov). Stabilné peaky už môžu súčasne merať samples.";
         else if (measuring > 0)
-            blocker = $"ČAKÁM NA: dokončenie meracích samples pre {measuring} FBG peak(ov).";
+            _decisionV5.Text = $"ČAKÁM NA: dokončenie meracích samples pre {measuring} FBG peak(ov).";
         else if (failed > 0)
-            blocker = $"POZOR: {failed} peak(ov) skončilo warning/error stavom; kontrolujem failure policy.";
+            _decisionV5.Text = $"POZOR: {failed} peak(ov) skončilo warning/error stavom; kontrolujem failure policy.";
         else
-            blocker = "Všetky FBG hotové ✓ · runner môže uložiť kalibračný bod a pokračovať.";
+            _decisionV5.Text = "Všetky FBG hotové ✓ · runner môže uložiť kalibračný bod a pokračovať.";
 
-        _decisionV5.Text = blocker;
         _nextStepV5.Text = "Aktuálny runner: " + _viewModel.StatusMessage;
         _etaV5.Text = BuildEtaTextV5(rows, waitingForTemperature, running);
         RefreshTimelineV5();
@@ -258,16 +249,16 @@ public partial class CalibrationWindow
     {
         if (!running) return "Odhad: po spustení sa bude priebežne prepočítavať podľa aktívnej fázy.";
         if (waitingForTemperature)
-            return "Odhad: teplotná stabilizácia je fyzikálne dynamická; presný čas sa nedá garantovať. Po otvorení teplotnej brány sa zobrazí odhad samples.";
+            return "Odhad: teplotná stabilizácia je fyzikálne dynamická; presný čas sa nedá garantovať.";
 
-        int longestRemainingSamples = rows
+        int remainingSamples = rows
             .Where(IsMeasuringV5)
             .Select(row => Math.Max(0, row.RequiredSamples - row.StableSamples))
             .DefaultIfEmpty(0)
             .Max();
         int stabilizing = rows.Count(row => !IsMeasuringV5(row) && row.State == CalibrationTargetState.Stabilizing);
-        string sampleEstimate = longestRemainingSamples > 0
-            ? $"min. ~{TimeSpan.FromSeconds(longestRemainingSamples):mm\:ss} pre už merajúce peaky pri ~1 Hz"
+        string sampleEstimate = remainingSamples > 0
+            ? $"min. ~{FormatTimeV5(TimeSpan.FromSeconds(remainingSamples))} pre už merajúce peaky pri ~1 Hz"
             : "žiadne rozbehnuté meracie samples";
         return $"Odhad aktuálneho plata: {sampleEstimate}; {stabilizing} peak(ov) má ešte neurčitý čas stabilizácie.";
     }
@@ -287,7 +278,7 @@ public partial class CalibrationWindow
             string state = isDone ? "✓ hotovo" : isCurrent ? "▶ aktuálne" : "○ čaká";
             var text = new TextBlock
             {
-                Text = $"{index + 1}. {point.Name}\n{point.TemperatureC:F1} °C · min {FormatTimelineDurationV5(point.Duration)}\n{state}",
+                Text = $"{index + 1}. {point.Name}\n{point.TemperatureC:F1} °C · min {FormatTimeV5(point.Duration)}\n{state}",
                 TextWrapping = TextWrapping.Wrap,
                 Width = 180,
             };
@@ -346,18 +337,22 @@ public partial class CalibrationWindow
 
     private static int ParseCurrentPlateauIndexV5(string label)
     {
-        // Expected ViewModel label: "Plato X / Y".
         if (string.IsNullOrWhiteSpace(label)) return -1;
         string[] parts = label.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        for (int i = 0; i < parts.Length; i++)
+        foreach (string part in parts)
         {
-            if (int.TryParse(parts[i], out int value)) return Math.Max(0, value - 1);
+            if (int.TryParse(part, out int value)) return Math.Max(0, value - 1);
         }
         return -1;
     }
 
-    private static string FormatTimelineDurationV5(TimeSpan duration) =>
-        duration.TotalHours >= 1 ? duration.ToString(@"hh\:mm\:ss") : duration.ToString(@"mm\:ss");
+    private static string FormatTimeV5(TimeSpan value)
+    {
+        if (value < TimeSpan.Zero) value = TimeSpan.Zero;
+        if (value.TotalHours >= 1)
+            return $"{(int)value.TotalHours:00}:{value.Minutes:00}:{value.Seconds:00}";
+        return $"{(int)value.TotalMinutes:00}:{value.Seconds:00}";
+    }
 
     private static IEnumerable<T> FindVisualChildrenV5<T>(DependencyObject root) where T : DependencyObject
     {
