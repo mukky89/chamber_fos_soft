@@ -18,30 +18,33 @@ public partial class CalibrationWindow
 {
     private bool _responsiveLayoutApplied;
 
-    static CalibrationWindow()
+    /// <summary>
+    /// Hook the responsive-layout pass from the normal WPF instance lifecycle. A static
+    /// constructor cannot be used on this XAML-generated partial class because the generated
+    /// WPF partial may also contribute a type initializer, which produces CS0111 during the
+    /// temporary WPF compilation pass.
+    /// </summary>
+    protected override void OnInitialized(EventArgs e)
     {
-        EventManager.RegisterClassHandler(
-            typeof(CalibrationWindow),
-            FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(OnResponsiveLayoutLoaded),
-            handledEventsToo: true);
+        base.OnInitialized(e);
+        Loaded += OnResponsiveLayoutLoaded;
     }
 
-    private static void OnResponsiveLayoutLoaded(object sender, RoutedEventArgs e)
+    private void OnResponsiveLayoutLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not CalibrationWindow window || window._responsiveLayoutApplied) return;
+        Loaded -= OnResponsiveLayoutLoaded;
+        if (_responsiveLayoutApplied || _disposing) return;
 
         // Selection ownership is a business rule rather than a visual concern, but Loaded is the
-        // first point where the VM's initial COM enumeration is available and all calibration
-        // windows pass through this same class handler.
-        window.AttachReferenceAssignmentBehavior();
+        // first point where the VM's initial COM enumeration is available.
+        AttachReferenceAssignmentBehavior();
 
         // Do not mutate the visual tree while WPF is still routing Loaded. The existing instance
         // Loaded handler first configures the wiring grid/extra production columns; this pass then
         // sizes the final tree on the next dispatcher turn.
-        _ = window.Dispatcher.BeginInvoke(
+        _ = Dispatcher.BeginInvoke(
             DispatcherPriority.ContextIdle,
-            new Action(window.ApplyResponsiveCalibrationLayout));
+            new Action(ApplyResponsiveCalibrationLayout));
     }
 
     private void ApplyResponsiveCalibrationLayout()
