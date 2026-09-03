@@ -490,7 +490,7 @@ public partial class CalibrationWindow
             dataRow.BorderThickness = new Thickness(3);
             DataGridCell? cell = FindCell(dataRow, serialColumn.DisplayIndex);
             cell?.Focus();
-            if (FindProductionDescendants<TextBox>(cell ?? dataRow).FirstOrDefault() is TextBox editor)
+            if (FindProductionDescendants<TextBox>((DependencyObject?)cell ?? dataRow).FirstOrDefault() is TextBox editor)
             {
                 editor.Focus();
                 Keyboard.Focus(editor);
