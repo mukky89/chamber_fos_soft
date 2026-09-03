@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Diagnostics;
+using VotschVc3.Core.Profiles;
 
 namespace VotschVc3.App.Views;
 
