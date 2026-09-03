@@ -56,7 +56,7 @@ public partial class CalibrationWindow
         {
             CalibrationReferenceStatusStore.Instance.TryAssign(
                 _chamberId,
-                selected.Info.Description is null ? selected.PortName : GetWorkspaceName(),
+                GetWorkspaceName(),
                 selected.PortName,
                 selected.SerialNumber,
                 _viewModel.SelectedF100Channel,
@@ -105,10 +105,12 @@ public partial class CalibrationWindow
 
         // If this chamber deliberately switched from one reference to another, immediately free
         // the old process-level COM reservation too. The VM will acquire the new one on first read.
-        if (_acceptedReference is { } old &&
-            !string.Equals(old.PortName, candidate.PortName, StringComparison.OrdinalIgnoreCase))
+        // Use the persisted previous port rather than the live VM object: the old USB device may
+        // already have disappeared from the current COM enumeration.
+        if (previous.IsAssigned &&
+            !string.Equals(previous.PortName, candidate.PortName, StringComparison.OrdinalIgnoreCase))
         {
-            CalibrationResourceRegistry.Release(CalibrationResourceRegistry.F100Key(old.PortName), _chamberId);
+            CalibrationResourceRegistry.Release(CalibrationResourceRegistry.F100Key(previous.PortName), _chamberId);
         }
 
         _acceptedReference = candidate;
