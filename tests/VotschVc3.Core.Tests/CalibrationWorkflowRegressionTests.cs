@@ -153,6 +153,8 @@ public sealed class CalibrationWorkflowRegressionTests
             setup.CalibrationSegmentIndices.Add(0);
             setup.Settings.ChamberStableDuration = TimeSpan.Zero;
             setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(200);
+            setup.Settings.ReferenceStableDuration = TimeSpan.Zero;
+            setup.Settings.ReferenceStabilityTimeout = TimeSpan.FromMilliseconds(200);
 
             var store = new CalibrationStore(root);
             var run = new CalibrationRunRecord
@@ -189,6 +191,7 @@ public sealed class CalibrationWorkflowRegressionTests
         Settings = new CalibrationProfileSettings
         {
             RequiredStableSamples = 2,
+            RequiredMeasurementSamples = 2,
             MaxWavelengthRangePm = 0,
             MaxWavelengthStdDevPm = 0,
             MaxWavelengthDriftPmPerMinute = 0,
@@ -196,6 +199,10 @@ public sealed class CalibrationWorkflowRegressionTests
             ChamberStableDuration = TimeSpan.Zero,
             MaxChamberDriftCPerMinute = 0,
             ChamberStabilityTimeout = TimeSpan.FromSeconds(5),
+            ReferenceToleranceC = 0.5,
+            ReferenceStableDuration = TimeSpan.Zero,
+            MaxReferenceDriftCPerMinute = 0,
+            ReferenceStabilityTimeout = TimeSpan.FromSeconds(5),
             DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(5),
             SensorTimeoutPolicy = CalibrationFailurePolicy.AbortCalibration,
             PeakLostPolicy = CalibrationFailurePolicy.AbortCalibration,
