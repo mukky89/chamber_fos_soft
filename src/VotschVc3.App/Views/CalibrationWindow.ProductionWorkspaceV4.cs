@@ -41,12 +41,23 @@ public partial class CalibrationWindow
     private readonly Dictionary<CalibrationPeakRowViewModel, List<(DateTimeOffset Time, double Wavelength)>> _fbgLiveTrace = new();
     private readonly HashSet<CalibrationPeakRowViewModel> _fbgLiveObservedRows = new();
     private readonly Dictionary<CalibrationPeakRowViewModel, bool> _lastSnWarningState = new();
+    private readonly Dictionary<string, bool> _fbgTraceVisibilityByKey = new(StringComparer.Ordinal);
     private ChartView? _fbgWavelengthTraceChart;
     private ChartView? _fbgReferenceTraceChart;
     private TextBlock? _fbgTraceSummary;
+    private WrapPanel? _fbgTraceFilterPanel;
+    private TextBlock? _fbgTraceFilterSummary;
     private DateTimeOffset _liveTraceOrigin = DateTimeOffset.Now;
     private bool _wasRunningV4;
     private CancellationTokenSource? _primeReferenceCts;
+
+    private static readonly Brush[] FbgTracePalette =
+    {
+        Brushes.DeepSkyBlue, Brushes.Orange, Brushes.MediumSeaGreen, Brushes.Violet,
+        Brushes.Gold, Brushes.Coral, Brushes.CornflowerBlue, Brushes.LightGreen,
+        Brushes.HotPink, Brushes.Turquoise, Brushes.Khaki, Brushes.Salmon,
+        Brushes.Plum, Brushes.SkyBlue, Brushes.PaleGreen, Brushes.Wheat,
+    };
 
     internal void InitializeProductionWorkspaceV4()
     {
@@ -68,6 +79,7 @@ public partial class CalibrationWindow
         _ = Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
         {
             EnsureFbgLiveTracePanel();
+            RefreshFbgTraceFilterPanel();
             RefreshFbgLiveTraceCharts();
             _ = PrimeReferenceReadAsync();
         }));
@@ -90,9 +102,9 @@ public partial class CalibrationWindow
 
         _fbgWavelengthTraceChart = new ChartView
         {
-            ChartTitle = "FBG wavelength · všetky vybrané peaky",
+            ChartTitle = "FBG wavelength · filtrované peaky",
             Unit = " nm",
-            EmptyText = "Vyber peaky na kalibráciu a pripoj PeakLogger…",
+            EmptyText = "Označ aspoň jeden peak pre zobrazenie alebo počkaj na prvé PeakLogger vzorky…",
             Height = 230,
             MinHeight = 200,
         };
@@ -127,16 +139,71 @@ public partial class CalibrationWindow
             VerticalAlignment = VerticalAlignment.Center,
         });
 
+        _fbgTraceFilterSummary = new TextBlock
+        {
+            Text = "Graf: —",
+            VerticalAlignment = VerticalAlignment.Center,
+            Opacity = 0.8,
+            Margin = new Thickness(0, 0, 10, 0),
+        };
+
+        Button showAllButton = CreateFbgTraceFilterButton("Všetky");
+        showAllButton.ToolTip = "Zobraziť v grafe všetky peaky, ktoré sú označené na kalibráciu.";
+        showAllButton.Click += (_, _) => SetAllFbgTraceVisibility(true);
+
+        Button showNoneButton = CreateFbgTraceFilterButton("Žiadny");
+        showNoneButton.ToolTip = "Dočasne skryť všetky wavelength krivky. Zber dát a kalibrácia pokračujú bez zmeny.";
+        showNoneButton.Click += (_, _) => SetAllFbgTraceVisibility(false);
+
+        var filterHeader = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 2, 0, 5) };
+        var filterButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        filterButtons.Children.Add(showAllButton);
+        filterButtons.Children.Add(showNoneButton);
+        DockPanel.SetDock(filterButtons, Dock.Right);
+        filterHeader.Children.Add(filterButtons);
+        filterHeader.Children.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = "Peaky v grafe",
+                    FontWeight = FontWeights.SemiBold,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 12, 0),
+                },
+                _fbgTraceFilterSummary,
+            },
+        });
+
+        _fbgTraceFilterPanel = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 0, 4, 2),
+        };
+        var filterScroll = new ScrollViewer
+        {
+            Content = _fbgTraceFilterPanel,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            MaxHeight = 105,
+            Margin = new Thickness(0, 0, 0, 7),
+        };
+
         var stack = new StackPanel();
         stack.Children.Add(header);
         stack.Children.Add(_fbgTraceSummary);
+        stack.Children.Add(filterHeader);
+        stack.Children.Add(filterScroll);
         stack.Children.Add(_fbgWavelengthTraceChart);
         stack.Children.Add(new TextBlock
         {
-            Text = "Referencia je na samostatnej osi °C, aby sa neskresľovali wavelength krivky v nm.",
+            Text = "Filter mení iba zobrazenie grafu. Peaky označené v Zapojení sa ďalej kalibrujú a ich dáta sa zbierajú aj keď je ich krivka skrytá. Referencia je na samostatnej osi °C.",
             Margin = new Thickness(0, 7, 0, 4),
             Opacity = 0.7,
             FontSize = 11.5,
+            TextWrapping = TextWrapping.Wrap,
         });
         stack.Children.Add(_fbgReferenceTraceChart);
 
@@ -158,6 +225,135 @@ public partial class CalibrationWindow
         liveDock.Children.Insert(insertIndex, traceCard);
     }
 
+    private Button CreateFbgTraceFilterButton(string text)
+    {
+        var button = new Button
+        {
+            Content = text,
+            Padding = new Thickness(10, 3, 10, 3),
+            Margin = new Thickness(5, 0, 0, 0),
+            MinWidth = 62,
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        if (TryFindResource("AccentOutlineButton") is Style style)
+            button.Style = style;
+        return button;
+    }
+
+    private void RefreshFbgTraceFilterPanel()
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            _ = Dispatcher.BeginInvoke(new Action(RefreshFbgTraceFilterPanel));
+            return;
+        }
+        if (_fbgTraceFilterPanel is null) return;
+
+        _fbgTraceFilterPanel.Children.Clear();
+        CalibrationPeakRowViewModel[] calibrationRows = _viewModel.Peaks.Where(row => row.Selected).ToArray();
+        foreach (CalibrationPeakRowViewModel row in calibrationRows)
+        {
+            string key = FbgTraceKey(row);
+            if (!_fbgTraceVisibilityByKey.ContainsKey(key))
+                _fbgTraceVisibilityByKey[key] = true;
+
+            var check = new CheckBox
+            {
+                IsChecked = _fbgTraceVisibilityByKey[key],
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 2, 16, 4),
+                ToolTip = BuildFbgTraceToolTip(row),
+            };
+
+            var label = new StackPanel { Orientation = Orientation.Horizontal };
+            label.Children.Add(new Border
+            {
+                Width = 13,
+                Height = 4,
+                CornerRadius = new CornerRadius(2),
+                Background = GetFbgTraceBrush(row),
+                Margin = new Thickness(5, 0, 7, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            label.Children.Add(new TextBlock
+            {
+                Text = BuildFbgTraceLabel(row),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 360,
+            });
+            check.Content = label;
+            check.Checked += (_, _) =>
+            {
+                _fbgTraceVisibilityByKey[key] = true;
+                RefreshFbgLiveTraceCharts();
+                UpdateFbgTraceFilterSummary();
+            };
+            check.Unchecked += (_, _) =>
+            {
+                _fbgTraceVisibilityByKey[key] = false;
+                RefreshFbgLiveTraceCharts();
+                UpdateFbgTraceFilterSummary();
+            };
+            _fbgTraceFilterPanel.Children.Add(check);
+        }
+
+        if (calibrationRows.Length == 0)
+        {
+            _fbgTraceFilterPanel.Children.Add(new TextBlock
+            {
+                Text = "V Zapojení zatiaľ nie je označený žiadny peak na kalibráciu.",
+                Opacity = 0.65,
+                Margin = new Thickness(0, 4, 0, 5),
+            });
+        }
+        UpdateFbgTraceFilterSummary();
+    }
+
+    private void SetAllFbgTraceVisibility(bool visible)
+    {
+        foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks.Where(row => row.Selected))
+            _fbgTraceVisibilityByKey[FbgTraceKey(row)] = visible;
+        RefreshFbgTraceFilterPanel();
+        RefreshFbgLiveTraceCharts();
+    }
+
+    private void UpdateFbgTraceFilterSummary()
+    {
+        if (_fbgTraceFilterSummary is null) return;
+        int total = _viewModel.Peaks.Count(row => row.Selected);
+        int visible = _viewModel.Peaks.Count(row => row.Selected && IsFbgTraceVisible(row));
+        _fbgTraceFilterSummary.Text = $"zobrazené {visible} / {total}";
+    }
+
+    private static string FbgTraceKey(CalibrationPeakRowViewModel row) =>
+        $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}|{row.PeakId}";
+
+    private bool IsFbgTraceVisible(CalibrationPeakRowViewModel row) =>
+        !_fbgTraceVisibilityByKey.TryGetValue(FbgTraceKey(row), out bool visible) || visible;
+
+    private Brush GetFbgTraceBrush(CalibrationPeakRowViewModel row)
+    {
+        int index = _viewModel.Peaks.IndexOf(row);
+        if (index < 0) index = 0;
+        return FbgTracePalette[index % FbgTracePalette.Length];
+    }
+
+    private static string BuildFbgTraceLabel(CalibrationPeakRowViewModel row)
+    {
+        string channelSn = string.IsNullOrWhiteSpace(row.ChannelSerialNumber) ? "bez SN" : row.ChannelSerialNumber;
+        if (!string.IsNullOrWhiteSpace(row.ChainSerialNumber))
+            return $"SN {channelSn} · CHAIN {row.ChainSerialNumber} · {row.Channel}/{row.PeakId}";
+        return $"SN {channelSn} · {row.Channel}/{row.PeakId}";
+    }
+
+    private static string BuildFbgTraceToolTip(CalibrationPeakRowViewModel row)
+    {
+        string channelSn = string.IsNullOrWhiteSpace(row.ChannelSerialNumber) ? "—" : row.ChannelSerialNumber;
+        string chainSn = string.IsNullOrWhiteSpace(row.ChainSerialNumber) ? "—" : row.ChainSerialNumber;
+        return $"FBG sensor SN (kanál): {channelSn}\nCHAIN SN: {chainSn}\nKanál: {row.Channel}\nPeak ID: {row.PeakId}\nFBG index: {row.PeakIndex}\nAktuálna λ: {row.CurrentWavelengthNm:F6} nm";
+    }
+
     private void OnFbgTracePeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.Action == NotifyCollectionChangedAction.Reset)
@@ -174,6 +370,7 @@ public partial class CalibrationWindow
                 foreach (object? item in e.NewItems)
                     if (item is CalibrationPeakRowViewModel row) AttachFbgTraceRow(row);
         }
+        RefreshFbgTraceFilterPanel();
         RefreshFbgLiveTraceCharts();
     }
 
@@ -182,6 +379,8 @@ public partial class CalibrationWindow
         if (row is null || !_fbgLiveObservedRows.Add(row)) return;
         row.PropertyChanged += OnFbgTraceRowChanged;
         _lastSnWarningState[row] = row.HasSerialNumberWarning;
+        if (row.Selected && !_fbgTraceVisibilityByKey.ContainsKey(FbgTraceKey(row)))
+            _fbgTraceVisibilityByKey[FbgTraceKey(row)] = true;
     }
 
     private void DetachFbgTraceRow(CalibrationPeakRowViewModel? row)
@@ -213,7 +412,14 @@ public partial class CalibrationWindow
         }
         else if (e.PropertyName == nameof(CalibrationPeakRowViewModel.Selected))
         {
+            if (row.Selected && !_fbgTraceVisibilityByKey.ContainsKey(FbgTraceKey(row)))
+                _fbgTraceVisibilityByKey[FbgTraceKey(row)] = true;
+            RefreshFbgTraceFilterPanel();
             RefreshFbgLiveTraceCharts();
+        }
+        else if (e.PropertyName == nameof(CalibrationPeakRowViewModel.SerialNumber))
+        {
+            RefreshFbgTraceFilterPanel();
         }
         else if (e.PropertyName is nameof(CalibrationPeakRowViewModel.SerialNumberWarning) or nameof(CalibrationPeakRowViewModel.HasSerialNumberWarning))
         {
@@ -300,7 +506,7 @@ public partial class CalibrationWindow
 
         IReadOnlyList<CalibrationReferenceTracePoint> reference = CalibrationReferenceTraceStore.Instance.GetTrace(_chamberId);
         DateTimeOffset? firstFbg = _fbgLiveTrace
-            .Where(pair => pair.Key.Selected && pair.Value.Count > 0)
+            .Where(pair => pair.Key.Selected && IsFbgTraceVisible(pair.Key) && pair.Value.Count > 0)
             .Select(pair => (DateTimeOffset?)pair.Value[0].Time)
             .OrderBy(value => value)
             .FirstOrDefault();
@@ -309,17 +515,8 @@ public partial class CalibrationWindow
             ? _liveTraceOrigin
             : new[] { firstFbg, firstRef }.Where(x => x.HasValue).Select(x => x!.Value).DefaultIfEmpty(_liveTraceOrigin).Min();
 
-        Brush[] palette =
-        {
-            Brushes.DeepSkyBlue, Brushes.Orange, Brushes.MediumSeaGreen, Brushes.Violet,
-            Brushes.Gold, Brushes.Coral, Brushes.CornflowerBlue, Brushes.LightGreen,
-            Brushes.HotPink, Brushes.Turquoise, Brushes.Khaki, Brushes.Salmon,
-            Brushes.Plum, Brushes.SkyBlue, Brushes.PaleGreen, Brushes.Wheat,
-        };
-
         var wavelengthSeries = new List<ChartSeries>();
-        int colorIndex = 0;
-        foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks.Where(p => p.Selected))
+        foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks.Where(p => p.Selected && IsFbgTraceVisible(p)))
         {
             if (!_fbgLiveTrace.TryGetValue(row, out List<(DateTimeOffset Time, double Wavelength)>? trace) || trace.Count == 0) continue;
             Point[] points = trace
@@ -329,8 +526,8 @@ public partial class CalibrationWindow
             if (points.Length == 0) continue;
             string sn = string.IsNullOrWhiteSpace(row.SerialNumber) ? "bez SN" : row.SerialNumber;
             wavelengthSeries.Add(new ChartSeries(
-                $"{sn} · {row.Channel}/{row.PeakId}",
-                palette[colorIndex++ % palette.Length],
+                $"SN {sn} · {row.Channel}/{row.PeakId}",
+                GetFbgTraceBrush(row),
                 points,
                 strokeThickness: 1.8));
         }
@@ -349,12 +546,14 @@ public partial class CalibrationWindow
 
         if (_fbgTraceSummary is not null)
         {
-            int selected = _viewModel.Peaks.Count(p => p.Selected);
+            int calibrationSelected = _viewModel.Peaks.Count(p => p.Selected);
+            int graphSelected = _viewModel.Peaks.Count(p => p.Selected && IsFbgTraceVisible(p));
             int withTrace = wavelengthSeries.Count;
             CalibrationReferenceSnapshot snapshot = CalibrationReferenceStatusStore.Instance.GetSnapshot(_chamberId);
             string referenceValue = snapshot.TemperatureC is { } t ? $"{t:F3} °C" : "—";
-            _fbgTraceSummary.Text = $"Vybrané peaky: {selected} · aktívne wavelength krivky: {withTrace} · WIKA: {referenceValue} · {snapshot.PortName}";
+            _fbgTraceSummary.Text = $"Kalibrované peaky: {calibrationSelected} · v grafe: {graphSelected} · krivky s dátami: {withTrace} · WIKA: {referenceValue} · {snapshot.PortName}";
         }
+        UpdateFbgTraceFilterSummary();
     }
 
     private void OnProductionWorkspaceV4Closed(object? sender, EventArgs e)

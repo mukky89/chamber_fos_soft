@@ -11,4 +11,10 @@
     <AssemblyName>VotschVc3.Core</AssemblyName>
   </PropertyGroup>
 
+  <!-- Production FBG calibration uses the parallel minimum-time/WIKA/FBG gate implementation. -->
+  <ItemGroup>
+    <Compile Remove="Calibration\CalibrationOrchestrator.cs" />
+    <Compile Remove="Calibration\CalibrationProfileRunner.cs" />
+  </ItemGroup>
+
 </Project>
