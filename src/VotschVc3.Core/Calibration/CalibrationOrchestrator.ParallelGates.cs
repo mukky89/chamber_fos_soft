@@ -3,11 +3,20 @@ using System.Diagnostics;
 namespace VotschVc3.Core.Calibration;
 
 /// <summary>
-/// Production calibration orchestrator. Minimum plateau time, authoritative reference-temperature
-/// stability and every selected FBG rolling stability window are observed from the beginning of
-/// the plateau. A calibration point is committed only when all three gates are true at the same
-/// time. This avoids throwing away useful warm-up data and prevents an early-stable peak from being
-/// accepted if it drifts again before the minimum plateau time expires.
+/// Production FBG calibration orchestrator.
+///
+/// The plateau is deliberately phased:
+/// 1) wait until the authoritative temperature source (WIKA when configured, otherwise the chamber
+///    probe) is stable and the profile's minimum hold time has elapsed;
+/// 2) only then start wavelength-stability evaluation for every selected FBG in parallel;
+/// 3) as soon as one FBG becomes stable, that FBG alone enters a fresh measurement-sampling window;
+/// 4) other FBGs keep stabilizing independently;
+/// 5) the plateau completes when every selected FBG has finished its measurement samples (or an
+///    explicit failure policy has produced a terminal result).
+///
+/// Stabilization samples are never reused as final calibration samples. If temperature stability is
+/// lost, unfinished FBGs are reset. If an FBG loses wavelength stability while its measurement window
+/// is running, that FBG's measurement samples are discarded and it returns to stabilization.
 /// </summary>
 public sealed class CalibrationOrchestrator
 {
@@ -66,7 +75,7 @@ public sealed class CalibrationOrchestrator
         return sensors;
     }
 
-    /// <summary>Compatibility overload for tests/callers that do not use a minimum plateau gate.</summary>
+    /// <summary>Compatibility overload for callers without a profile minimum hold or reference control.</summary>
     public Task<CalibrationPlateauResult> WaitForPlateauAsync(
         CalibrationRunRecord run,
         CalibrationSetup setup,
@@ -92,11 +101,6 @@ public sealed class CalibrationOrchestrator
             progress,
             cancellationToken);
 
-    /// <summary>
-    /// Observes all plateau gates in parallel. The reference-control callback is optional and may
-    /// slowly trim the chamber setpoint from the WIKA error; its returned text is included in live
-    /// diagnostics but does not itself decide stability.
-    /// </summary>
     public async Task<CalibrationPlateauResult> WaitForPlateauAsync(
         CalibrationRunRecord run,
         CalibrationSetup setup,
@@ -124,11 +128,12 @@ public sealed class CalibrationOrchestrator
 
         DateTimeOffset plateauStarted = DateTimeOffset.Now;
         Stopwatch plateauClock = Stopwatch.StartNew();
+        bool hasExternalReference = readReferenceTemperatureAsync is not null;
         var referenceDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
             settings.MaxChamberDriftCPerMinute);
-        var localFallbackDetector = new TemperatureStabilityDetector(
+        var chamberDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
             settings.MaxChamberDriftCPerMinute);
@@ -140,12 +145,10 @@ public sealed class CalibrationOrchestrator
         double actualTemperature = double.NaN;
         double? referenceTemperature = null;
         StabilityMetrics? temperatureMetrics = null;
-        TimeSpan sensorGateElapsed = TimeSpan.Zero;
+        bool temperatureGateOpen = false;
+        bool temperatureGateEverOpened = false;
+        DateTimeOffset? temperatureRecoveryStartedAt = null;
         DateTimeOffset previousLoopAt = DateTimeOffset.UtcNow;
-        bool previousGateOpen = false;
-        TimeSpan effectiveReferenceTimeout = settings.ChamberStabilityTimeout > minimumPlateauDuration
-            ? settings.ChamberStabilityTimeout
-            : minimumPlateauDuration;
 
         while (true)
         {
@@ -155,9 +158,9 @@ public sealed class CalibrationOrchestrator
             previousLoopAt = loopAt;
 
             actualTemperature = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
-            referenceTemperature = readReferenceTemperatureAsync is null
-                ? null
-                : await readReferenceTemperatureAsync(cancellationToken).ConfigureAwait(false);
+            referenceTemperature = hasExternalReference
+                ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false)
+                : null;
 
             string controlDetail = referenceControlAsync is null
                 ? string.Empty
@@ -166,10 +169,84 @@ public sealed class CalibrationOrchestrator
             if (_peakLogger is IPeakLoggerSimulationControl simulation)
                 simulation.SimulatedTemperatureC = referenceTemperature ?? actualTemperature;
 
-            temperatureMetrics = referenceTemperature is { } reference
-                ? referenceDetector.Add(loopAt, reference, targetTemperatureC)
-                : localFallbackDetector.Add(loopAt, actualTemperature, targetTemperatureC);
+            // If WIKA is configured, a missing WIKA reading is NOT silently replaced by the chamber
+            // probe. The chamber probe is used only when no external reference is configured.
+            temperatureMetrics = hasExternalReference
+                ? (referenceTemperature is { } reference
+                    ? referenceDetector.Add(loopAt, reference, targetTemperatureC)
+                    : null)
+                : chamberDetector.Add(loopAt, actualTemperature, targetTemperatureC);
 
+            bool minimumElapsed = plateauClock.Elapsed >= minimumPlateauDuration;
+            bool temperatureStable = temperatureMetrics?.IsStable == true;
+            bool shouldOpenTemperatureGate = minimumElapsed && temperatureStable;
+
+            if (!shouldOpenTemperatureGate)
+            {
+                run.State = CalibrationRunState.WaitingForChamberStability;
+                if (temperatureGateOpen)
+                {
+                    // Temperature was stable but left the accepted window. Do not keep unfinished
+                    // sensor qualification/measurement data across an unstable temperature period.
+                    foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
+                        tracker.ResetForTemperatureLoss();
+                    temperatureRecoveryStartedAt = loopAt;
+                }
+                temperatureGateOpen = false;
+
+                string temperatureDetail = BuildTemperatureDetail(
+                    referenceTemperature,
+                    actualTemperature,
+                    targetTemperatureC,
+                    temperatureMetrics,
+                    settings,
+                    hasExternalReference);
+                string minimumDetail = minimumPlateauDuration <= TimeSpan.Zero
+                    ? "minimum hold: bez minima"
+                    : $"minimum hold {FormatTime(plateauClock.Elapsed < minimumPlateauDuration ? plateauClock.Elapsed : minimumPlateauDuration)}/{FormatTime(minimumPlateauDuration)} {(minimumElapsed ? "✓" : "…")}";
+
+                progress?.Invoke(new CalibrationProgressSnapshot(
+                    CalibrationRunState.WaitingForChamberStability,
+                    plateauIndex,
+                    plateauCount,
+                    targetTemperatureC,
+                    actualTemperature,
+                    referenceTemperature,
+                    trackers.Values.Count(t => t.IsCompletedStable),
+                    selected.Count,
+                    plateauClock.Elapsed,
+                    trackers.Values.Select(t => t.ToWaitingForTemperatureProgress(settings, temperatureDetail, minimumDetail)).ToArray(),
+                    $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov."));
+
+                if (!temperatureGateEverOpened)
+                {
+                    if (settings.ChamberStabilityTimeout > TimeSpan.Zero &&
+                        plateauClock.Elapsed >= minimumPlateauDuration + settings.ChamberStabilityTimeout)
+                    {
+                        throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature, settings.ChamberStabilityTimeout, hasExternalReference);
+                    }
+                }
+                else if (temperatureRecoveryStartedAt is { } recoveryStart &&
+                         settings.ChamberStabilityTimeout > TimeSpan.Zero &&
+                         loopAt - recoveryStart >= settings.ChamberStabilityTimeout)
+                {
+                    throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature, settings.ChamberStabilityTimeout, hasExternalReference);
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            if (!temperatureGateOpen)
+            {
+                temperatureGateOpen = true;
+                temperatureGateEverOpened = true;
+                temperatureRecoveryStartedAt = null;
+                foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
+                    tracker.BeginSensorPhase();
+            }
+
+            run.State = CalibrationRunState.StabilizingSensors;
             IReadOnlyList<PeakLoggerMeasurement> batch;
             try
             {
@@ -200,13 +277,9 @@ public sealed class CalibrationOrchestrator
             var rawToWrite = new List<CalibrationRawSample>();
             foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
             {
-                PeakLoggerMeasurement? measurement = batch
-                    .Where(m => string.Equals(m.SerialNumber, tracker.Mapping.SourceDeviceSerialNumber, StringComparison.OrdinalIgnoreCase))
-                    .Where(m => string.Equals(m.PeakId, tracker.Mapping.PeakId, StringComparison.Ordinal))
-                    .Where(m => string.IsNullOrWhiteSpace(tracker.Mapping.Channel) || string.Equals(m.Channel, tracker.Mapping.Channel, StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(m => m.Timestamp)
-                    .FirstOrDefault();
+                tracker.AddActiveElapsed(loopDelta);
 
+                PeakLoggerMeasurement? measurement = FindMeasurement(batch, tracker.Mapping);
                 if (measurement is null)
                 {
                     tracker.MarkMissing(loopAt);
@@ -236,39 +309,24 @@ public sealed class CalibrationOrchestrator
 
                 measurement = tracker.ApplyAveraging(measurement);
                 tracker.MarkMeasurement(measurement);
-                rawToWrite.Add(CreateRawSample(
+                CalibrationRawSample raw = CreateRawSample(
                     run,
                     plateauIndex,
                     targetTemperatureC,
                     actualTemperature,
                     referenceTemperature,
                     tracker.Mapping,
-                    measurement));
+                    measurement);
+                rawToWrite.Add(raw);
 
-                tracker.LastMetrics = tracker.Detector.Add(measurement.Timestamp, measurement.WavelengthNm);
-                tracker.CurrentStable = tracker.LastMetrics.IsStable;
-                tracker.State = tracker.CurrentStable ? CalibrationTargetState.Stable : CalibrationTargetState.Stabilizing;
-            }
+                tracker.ProcessStableTemperatureSample(raw, settings);
 
-            if (rawToWrite.Count > 0)
-                await writer.AppendAsync(rawToWrite, cancellationToken).ConfigureAwait(false);
-
-            bool minimumElapsed = plateauClock.Elapsed >= minimumPlateauDuration;
-            bool referenceStable = temperatureMetrics.IsStable;
-            bool sensorGateOpen = minimumElapsed && referenceStable;
-            if (sensorGateOpen && previousGateOpen && loopDelta > TimeSpan.Zero)
-                sensorGateElapsed += loopDelta;
-            previousGateOpen = sensorGateOpen;
-
-            if (sensorGateOpen)
-            {
-                foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal && !t.CurrentStable))
+                if (!tracker.IsTerminal && tracker.ActiveElapsed >= tracker.Timeout)
                 {
-                    if (sensorGateElapsed < tracker.Timeout) continue;
                     CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
                     {
                         Code = "SENSOR_STABILITY_TIMEOUT",
-                        Message = $"FBG SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId} sa neustálil do {tracker.Timeout} po otvorení teplotnej/minimálnej brány.",
+                        Message = $"FBG SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId} nedokončil stabilizáciu/meranie do {tracker.Timeout} počas stabilnej teploty.",
                         PlateauIndex = plateauIndex,
                         SerialNumber = tracker.Mapping.SerialNumber,
                         PeakId = tracker.Mapping.PeakId,
@@ -280,72 +338,39 @@ public sealed class CalibrationOrchestrator
                 }
             }
 
-            bool allFbgStableNow = trackers.Values
-                .Where(t => !t.IsTerminal)
-                .All(t => t.CurrentStable);
-            bool allGatesSatisfied = minimumElapsed && referenceStable && allFbgStableNow;
+            if (rawToWrite.Count > 0)
+                await writer.AppendAsync(rawToWrite, cancellationToken).ConfigureAwait(false);
 
-            int stableNow = trackers.Values.Count(t => t.CurrentStable || t.Result?.Status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden);
-            CalibrationRunState progressState = !minimumElapsed || !referenceStable
-                ? CalibrationRunState.WaitingForChamberStability
-                : CalibrationRunState.StabilizingSensors;
-            run.State = progressState;
+            int completed = trackers.Values.Count(t => t.IsCompletedStable);
+            int measuring = trackers.Values.Count(t => t.IsMeasuring && !t.IsTerminal);
+            int stabilizing = trackers.Values.Count(t => !t.IsMeasuring && !t.IsTerminal);
+            bool allTerminal = trackers.Values.All(t => t.IsTerminal);
 
-            string referenceDetail = BuildReferenceDetail(
+            string temperatureDetailNow = BuildTemperatureDetail(
                 referenceTemperature,
                 actualTemperature,
                 targetTemperatureC,
                 temperatureMetrics,
                 settings,
-                readReferenceTemperatureAsync is not null);
-            string gateMessage = BuildGateMessage(
-                plateauClock.Elapsed,
-                minimumPlateauDuration,
-                referenceStable,
-                stableNow,
-                selected.Count,
-                referenceDetail,
-                controlDetail);
+                hasExternalReference);
+            string phaseMessage = allTerminal
+                ? "KROK 5/5 · Všetky FBG sú dokončené · ukladám plato."
+                : $"KROK 3–4/5 · FBG paralelne: stabilizuje sa {stabilizing}, meria sa {measuring}, hotovo {completed}/{selected.Count}.";
 
             progress?.Invoke(new CalibrationProgressSnapshot(
-                progressState,
+                CalibrationRunState.StabilizingSensors,
                 plateauIndex,
                 plateauCount,
                 targetTemperatureC,
                 actualTemperature,
                 referenceTemperature,
-                stableNow,
+                completed,
                 selected.Count,
                 plateauClock.Elapsed,
-                trackers.Values.Select(t => t.ToProgress(
-                    settings,
-                    plateauClock.Elapsed,
-                    minimumPlateauDuration,
-                    referenceStable,
-                    sensorGateElapsed)).ToArray(),
-                gateMessage));
+                trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
+                $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredStableSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky."));
 
-            if (allGatesSatisfied)
-            {
-                foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
-                    tracker.CompleteStable(run, plateauIndex, targetTemperatureC, actualTemperature, referenceTemperature);
-                break;
-            }
-
-            if (!referenceStable && effectiveReferenceTimeout > TimeSpan.Zero && plateauClock.Elapsed >= effectiveReferenceTimeout)
-            {
-                string measured = referenceTemperature is { } wika
-                    ? $"WIKA {wika:F3} °C"
-                    : $"lokálna sonda {actualTemperature:F3} °C";
-                CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
-                {
-                    Code = "REFERENCE_STABILITY_TIMEOUT",
-                    Message = $"Referenčná teplota sa neustálila na {targetTemperatureC:F1} °C do {effectiveReferenceTimeout}. Posledná hodnota: {measured}.",
-                    PlateauIndex = plateauIndex,
-                });
-                throw new CalibrationOperatorActionRequiredException(warning.Message, warning);
-            }
-
+            if (allTerminal) break;
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
         }
 
@@ -398,7 +423,7 @@ public sealed class CalibrationOrchestrator
             CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
             {
                 Code = "NO_TEMPERATURE_RESPONSE",
-                Message = $"FBG SN {currentTarget.SerialNumber}, peak {currentTarget.PeakId}: Δλ={deltaPm:F2} pm pri ΔT(WIKA)={deltaT:F2} °C – vybraná wavelength nereaguje podľa nastavených limitov.",
+                Message = $"FBG SN {currentTarget.SerialNumber}, peak {currentTarget.PeakId}: Δλ={deltaPm:F2} pm pri ΔT={deltaT:F2} °C – vybraná wavelength nereaguje podľa nastavených limitov.",
                 PlateauIndex = current.PlateauIndex,
                 SerialNumber = currentTarget.SerialNumber,
                 PeakId = currentTarget.PeakId,
@@ -418,47 +443,59 @@ public sealed class CalibrationOrchestrator
         return allValid || settings.AllowValidationOverride;
     }
 
-    private static string BuildReferenceDetail(
+    private CalibrationOperatorActionRequiredException BuildTemperatureTimeout(
+        CalibrationRunRecord run,
+        int plateauIndex,
+        double targetTemperatureC,
+        double? referenceTemperature,
+        double chamberTemperature,
+        TimeSpan timeout,
+        bool hasExternalReference)
+    {
+        string source = hasExternalReference ? "WIKA CTH7000" : "interná sonda komory";
+        string measured = hasExternalReference
+            ? (referenceTemperature is { } wika ? $"{wika:F3} °C" : "bez platnej hodnoty")
+            : $"{chamberTemperature:F3} °C";
+        CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
+        {
+            Code = "REFERENCE_STABILITY_TIMEOUT",
+            Message = $"{source} sa neustálila na {targetTemperatureC:F1} °C do {timeout}. Posledná hodnota: {measured}.",
+            PlateauIndex = plateauIndex,
+        });
+        return new CalibrationOperatorActionRequiredException(warning.Message, warning);
+    }
+
+    private static PeakLoggerMeasurement? FindMeasurement(
+        IReadOnlyList<PeakLoggerMeasurement> batch,
+        CalibrationSensorMapping mapping) => batch
+        .Where(m => string.Equals(m.SerialNumber, mapping.SourceDeviceSerialNumber, StringComparison.OrdinalIgnoreCase))
+        .Where(m => string.Equals(m.PeakId, mapping.PeakId, StringComparison.Ordinal))
+        .Where(m => string.IsNullOrWhiteSpace(mapping.Channel) || string.Equals(m.Channel, mapping.Channel, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(m => m.Timestamp)
+        .FirstOrDefault();
+
+    private static string BuildTemperatureDetail(
         double? referenceTemperature,
         double chamberTemperature,
         double targetTemperature,
-        StabilityMetrics metrics,
+        StabilityMetrics? metrics,
         CalibrationProfileSettings settings,
         bool hasExternalReference)
     {
+        string source = hasExternalReference ? "WIKA" : "interná sonda";
+        if (hasExternalReference && referenceTemperature is null)
+            return "WIKA: bez platnej vzorky ×";
+        if (metrics is null)
+            return $"{source}: čakám na prvé stability dáta…";
+
         double measured = referenceTemperature ?? chamberTemperature;
         double error = measured - targetTemperature;
         bool toleranceOk = Math.Abs(error) <= settings.ChamberToleranceC;
         bool durationOk = metrics.WindowDuration >= settings.ChamberStableDuration;
         bool driftOk = settings.MaxChamberDriftCPerMinute <= 0 || Math.Abs(metrics.SlopePerMinute) <= settings.MaxChamberDriftCPerMinute;
-        string source = hasExternalReference ? "WIKA" : "lokálna sonda (fallback)";
         return $"{source} {measured:F3} °C · Δ {error:+0.000;-0.000;0.000} / ±{settings.ChamberToleranceC:F3} {(toleranceOk ? "✓" : "×")} · " +
                $"stable čas {FormatTime(metrics.WindowDuration)}/{FormatTime(settings.ChamberStableDuration)} {(durationOk ? "✓" : "…")} · " +
                $"drift {Math.Abs(metrics.SlopePerMinute):F3}/{settings.MaxChamberDriftCPerMinute:F3} °C/min {(driftOk ? "✓" : "×")}";
-    }
-
-    private static string BuildGateMessage(
-        TimeSpan elapsed,
-        TimeSpan minimum,
-        bool referenceStable,
-        int stableFbg,
-        int totalFbg,
-        string referenceDetail,
-        string controlDetail)
-    {
-        bool minimumOk = elapsed >= minimum;
-        string minimumText = minimum <= TimeSpan.Zero
-            ? "MINIMUM ✓ (bez minima)"
-            : $"MINIMUM {(minimumOk ? "✓" : "…")} {FormatTime(elapsed < minimum ? elapsed : minimum)}/{FormatTime(minimum)}";
-        string fbgText = $"FBG {(stableFbg >= totalFbg ? "✓" : "…")} {stableFbg}/{totalFbg}";
-        string blockers = string.Join(" + ", new[]
-        {
-            minimumOk ? null : "minimálny čas plata",
-            referenceStable ? null : "stabilná referencia",
-            stableFbg >= totalFbg ? null : $"{totalFbg - stableFbg} FBG peak(ov)",
-        }.Where(x => x is not null));
-        if (string.IsNullOrWhiteSpace(blockers)) blockers = "všetky brány splnené – ukladám kalibračný bod";
-        return $"{minimumText} · WIKA {(referenceStable ? "✓" : "…")} · {fbgText} · ČAKÁM NA: {blockers}\n{referenceDetail}{controlDetail}";
     }
 
     private CalibrationWarning RaiseWarning(CalibrationRunRecord run, CalibrationWarning warning)
@@ -506,42 +543,59 @@ public sealed class CalibrationOrchestrator
         Intensity = measurement.Intensity,
     };
 
-    private static string FormatTime(TimeSpan value) =>
-        value.TotalHours >= 1 ? value.ToString(@"hh\:mm\:ss") : value.ToString(@"mm\:ss");
+    private static string FormatTime(TimeSpan value)
+    {
+        if (value < TimeSpan.Zero) value = TimeSpan.Zero;
+        return value.TotalHours >= 1 ? value.ToString(@"hh\:mm\:ss") : value.ToString(@"mm\:ss");
+    }
 
     private sealed class TargetTracker
     {
-        private DateTimeOffset? _missingSince;
-        private readonly Stopwatch _clock = Stopwatch.StartNew();
+        private readonly CalibrationProfileSettings _settings;
         private readonly int _averagingSamples;
         private readonly Queue<PeakLoggerMeasurement> _averagingWindow = new();
+        private readonly List<CalibrationRawSample> _measurementSamples = new();
+        private DateTimeOffset? _missingSince;
+        private RollingStabilityDetector _stabilityDetector;
+        private bool _sensorPhaseStarted;
 
         public TargetTracker(CalibrationSensorMapping mapping, CalibrationProfileSettings settings)
         {
             Mapping = mapping;
+            _settings = settings;
             _averagingSamples = settings.EnableWavelengthAveraging
                 ? Math.Clamp(settings.WavelengthAveragingSamples, 1, 1000)
                 : 1;
-            Detector = new RollingStabilityDetector(
-                settings.RequiredStableSamples,
-                settings.MaxWavelengthRangePm,
-                settings.MaxWavelengthStdDevPm,
-                settings.MaxWavelengthDriftPmPerMinute);
+            _stabilityDetector = NewStabilityDetector();
             Timeout = mapping.StabilizationTimeoutOverride ?? settings.DefaultSensorStabilizationTimeout;
-            State = CalibrationTargetState.Stabilizing;
+            State = CalibrationTargetState.WaitingForTemperature;
         }
 
         public CalibrationSensorMapping Mapping { get; }
-        public RollingStabilityDetector Detector { get; }
         public TimeSpan Timeout { get; }
-        public TimeSpan Elapsed => _clock.Elapsed;
-        public CalibrationTargetState State { get; set; }
-        public StabilityMetrics? LastMetrics { get; set; }
+        public TimeSpan ActiveElapsed { get; private set; }
+        public CalibrationTargetState State { get; private set; }
+        public StabilityMetrics? LastMetrics { get; private set; }
         public PeakLoggerMeasurement? LastMeasurement { get; private set; }
         public CalibrationMeasurementResult? Result { get; private set; }
         public TimeSpan MissingFor => _missingSince is { } since ? DateTimeOffset.UtcNow - since : TimeSpan.Zero;
-        public bool CurrentStable { get; set; }
+        public bool IsMeasuring { get; private set; }
         public bool IsTerminal => Result is not null;
+        public bool IsCompletedStable => Result?.Status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden;
+
+        public void BeginSensorPhase()
+        {
+            if (IsTerminal) return;
+            _sensorPhaseStarted = true;
+            if (State == CalibrationTargetState.WaitingForTemperature)
+                State = CalibrationTargetState.Stabilizing;
+        }
+
+        public void AddActiveElapsed(TimeSpan delta)
+        {
+            if (_sensorPhaseStarted && !IsTerminal && delta > TimeSpan.Zero)
+                ActiveElapsed += delta;
+        }
 
         public PeakLoggerMeasurement ApplyAveraging(PeakLoggerMeasurement measurement)
         {
@@ -563,33 +617,63 @@ public sealed class CalibrationOrchestrator
             LastMeasurement = measurement;
             Mapping.CurrentWavelengthNm = measurement.WavelengthNm;
             _missingSince = null;
-            if (!IsTerminal) State = CalibrationTargetState.Stabilizing;
         }
 
         public void MarkMissing(DateTimeOffset now)
         {
             _missingSince ??= now;
-            CurrentStable = false;
             if (!IsTerminal) State = CalibrationTargetState.PeakLost;
+        }
+
+        public void ProcessStableTemperatureSample(CalibrationRawSample raw, CalibrationProfileSettings settings)
+        {
+            if (IsTerminal) return;
+            LastMetrics = _stabilityDetector.Add(raw.Timestamp, raw.WavelengthNm);
+
+            if (!IsMeasuring)
+            {
+                State = CalibrationTargetState.Stabilizing;
+                if (LastMetrics.IsStable)
+                {
+                    IsMeasuring = true;
+                    State = CalibrationTargetState.Live;
+                    _measurementSamples.Clear();
+                }
+                return;
+            }
+
+            // Continue checking the rolling stability window during final sampling. If it leaves the
+            // limits, samples collected since the last qualification are invalid and are discarded.
+            if (!LastMetrics.IsStable)
+            {
+                ResetToStabilizing();
+                return;
+            }
+
+            State = CalibrationTargetState.Live;
+            _measurementSamples.Add(raw);
+            int requiredMeasurementSamples = Math.Max(2, settings.RequiredStableSamples);
+            if (_measurementSamples.Count >= requiredMeasurementSamples)
+                CompleteStableFromMeasurementWindow();
+        }
+
+        public void ResetForTemperatureLoss()
+        {
+            if (IsTerminal) return;
+            _sensorPhaseStarted = false;
+            State = CalibrationTargetState.WaitingForTemperature;
+            IsMeasuring = false;
+            _measurementSamples.Clear();
+            _averagingWindow.Clear();
+            _stabilityDetector = NewStabilityDetector();
+            LastMetrics = null;
         }
 
         public void Fail(CalibrationTargetState state, string problem)
         {
             State = state;
-            CurrentStable = false;
-            Result = CreateResult(state, problem, null, 0, 0, null);
-        }
-
-        public void CompleteStable(
-            CalibrationRunRecord run,
-            int plateauIndex,
-            double targetTemperature,
-            double actualTemperature,
-            double? referenceTemperature)
-        {
-            State = CalibrationTargetState.Stable;
-            CurrentStable = true;
-            Result = CreateResult(State, null, run, plateauIndex, targetTemperature, (actualTemperature, referenceTemperature));
+            IsMeasuring = false;
+            Result = CreateResultFromCurrentWindow(state, problem);
         }
 
         public void CompleteTimedOut(
@@ -601,61 +685,114 @@ public sealed class CalibrationOrchestrator
             string problem)
         {
             State = CalibrationTargetState.TimedOut;
-            CurrentStable = false;
-            Result = CreateResult(State, problem, run, plateauIndex, targetTemperature, (actualTemperature, referenceTemperature));
+            IsMeasuring = false;
+            Result = CreateResultFromCurrentWindow(State, problem);
         }
 
         public CalibrationMeasurementResult CreateFallbackResult() =>
-            Result ?? CreateResult(State, "Meranie skončilo bez kompletného výsledku.", null, 0, 0, null);
+            Result ?? CreateResultFromCurrentWindow(State, "Meranie skončilo bez kompletného výsledku.");
 
-        public CalibrationTargetProgress ToProgress(
+        public CalibrationTargetProgress ToWaitingForTemperatureProgress(
             CalibrationProfileSettings settings,
-            TimeSpan plateauElapsed,
-            TimeSpan minimumPlateauDuration,
-            bool referenceStable,
-            TimeSpan sensorGateElapsed)
+            string temperatureDetail,
+            string minimumDetail)
         {
-            StabilityMetrics metrics = LastMetrics ?? Detector.Evaluate();
+            string phase = IsTerminal
+                ? "HOTOVO"
+                : $"ČAKÁ NA TEPLOTU · {minimumDetail} · {temperatureDetail}";
+            return BuildProgress(
+                IsTerminal ? CalibrationTargetState.Stable : CalibrationTargetState.WaitingForTemperature,
+                IsTerminal ? Math.Max(2, settings.RequiredStableSamples) : 0,
+                Math.Max(2, settings.RequiredStableSamples),
+                phase);
+        }
+
+        public CalibrationTargetProgress ToProgress(CalibrationProfileSettings settings)
+        {
+            if (IsTerminal)
+            {
+                string terminal = Result?.Status == CalibrationTargetState.Stable
+                    ? $"HOTOVO · meranie {_measurementSamples.Count}/{Math.Max(2, settings.RequiredStableSamples)} samples ✓"
+                    : $"KONIEC · {Result?.Status}: {Result?.Problem}";
+                return BuildProgress(Result?.Status ?? State, _measurementSamples.Count, Math.Max(2, settings.RequiredStableSamples), terminal);
+            }
+
+            StabilityMetrics metrics = LastMetrics ?? _stabilityDetector.Evaluate();
             bool enough = metrics.Count >= settings.RequiredStableSamples;
             bool rangeOk = settings.MaxWavelengthRangePm <= 0 || metrics.Range <= settings.MaxWavelengthRangePm;
             bool stdOk = settings.MaxWavelengthStdDevPm <= 0 || metrics.StandardDeviation <= settings.MaxWavelengthStdDevPm;
             bool driftOk = settings.MaxWavelengthDriftPmPerMinute <= 0 || Math.Abs(metrics.SlopePerMinute) <= settings.MaxWavelengthDriftPmPerMinute;
-            bool minimumOk = plateauElapsed >= minimumPlateauDuration;
-            string detail =
-                $"samples {metrics.Count}/{settings.RequiredStableSamples} {(enough ? "✓" : "…")} · " +
+
+            if (IsMeasuring)
+            {
+                string measuring =
+                    $"MERANIE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredStableSamples)} samples · " +
+                    $"stabilita stále OK: range {metrics.Range:F3}/{settings.MaxWavelengthRangePm:F3} pm {(rangeOk ? "✓" : "×")} · " +
+                    $"std {metrics.StandardDeviation:F3}/{settings.MaxWavelengthStdDevPm:F3} pm {(stdOk ? "✓" : "×")} · " +
+                    $"drift {Math.Abs(metrics.SlopePerMinute):F3}/{settings.MaxWavelengthDriftPmPerMinute:F3} pm/min {(driftOk ? "✓" : "×")}";
+                return BuildProgress(CalibrationTargetState.Live, _measurementSamples.Count, Math.Max(2, settings.RequiredStableSamples), measuring);
+            }
+
+            string stabilizing =
+                $"STABILIZÁCIA · samples {metrics.Count}/{settings.RequiredStableSamples} {(enough ? "✓" : "…")} · " +
                 $"range {metrics.Range:F3}/{settings.MaxWavelengthRangePm:F3} pm {(rangeOk ? "✓" : "×")} · " +
                 $"std {metrics.StandardDeviation:F3}/{settings.MaxWavelengthStdDevPm:F3} pm {(stdOk ? "✓" : "×")} · " +
-                $"drift {Math.Abs(metrics.SlopePerMinute):F3}/{settings.MaxWavelengthDriftPmPerMinute:F3} pm/min {(driftOk ? "✓" : "×")} · " +
-                $"minimum {(minimumOk ? "✓" : "…")} · WIKA {(referenceStable ? "✓" : "…")} · timeout po gate {FormatTime(sensorGateElapsed)}/{FormatTime(Timeout)}";
-            if (State == CalibrationTargetState.PeakLost) detail = "Peak chýba · " + detail;
-            if (Result?.Problem is { Length: > 0 } problem) detail = problem + " · " + detail;
+                $"drift {Math.Abs(metrics.SlopePerMinute):F3}/{settings.MaxWavelengthDriftPmPerMinute:F3} pm/min {(driftOk ? "✓" : "×")}";
+            return BuildProgress(CalibrationTargetState.Stabilizing, metrics.Count, settings.RequiredStableSamples, stabilizing);
+        }
 
+        private CalibrationTargetProgress BuildProgress(
+            CalibrationTargetState state,
+            int samples,
+            int required,
+            string detail)
+        {
+            StabilityMetrics metrics = LastMetrics ?? _stabilityDetector.Evaluate();
             return new CalibrationTargetProgress(
                 Mapping.SerialNumber,
                 Mapping.Channel,
                 Mapping.PeakId,
                 Mapping.PeakIndex,
                 LastMeasurement?.WavelengthNm ?? Mapping.CurrentWavelengthNm,
-                metrics.Count,
-                settings.RequiredStableSamples,
+                samples,
+                required,
                 metrics.Count > 0 ? metrics.StandardDeviation : null,
                 metrics.Count > 0 ? metrics.SlopePerMinute : null,
-                plateauElapsed,
+                ActiveElapsed,
                 Timeout,
-                State,
+                state,
                 detail);
         }
 
-        private CalibrationMeasurementResult CreateResult(
-            CalibrationTargetState state,
-            string? problem,
-            CalibrationRunRecord? run,
-            int plateauIndex,
-            double targetTemperature,
-            (double Actual, double? Reference)? temperatures)
+        private void ResetToStabilizing()
         {
-            StabilityMetrics metrics = Detector.Evaluate();
-            var result = new CalibrationMeasurementResult
+            IsMeasuring = false;
+            State = CalibrationTargetState.Stabilizing;
+            _measurementSamples.Clear();
+            _stabilityDetector = NewStabilityDetector();
+            LastMetrics = null;
+        }
+
+        private RollingStabilityDetector NewStabilityDetector() => new(
+            Math.Max(2, _settings.RequiredStableSamples),
+            _settings.MaxWavelengthRangePm,
+            _settings.MaxWavelengthStdDevPm,
+            _settings.MaxWavelengthDriftPmPerMinute);
+
+        private void CompleteStableFromMeasurementWindow()
+        {
+            State = CalibrationTargetState.Stable;
+            IsMeasuring = false;
+            Result = CreateResultFromMeasurementSamples(CalibrationTargetState.Stable, null);
+        }
+
+        private CalibrationMeasurementResult CreateResultFromMeasurementSamples(
+            CalibrationTargetState state,
+            string? problem)
+        {
+            CalibrationRawSample[] samples = _measurementSamples.ToArray();
+            StabilityMetrics metrics = CalculateMetrics(samples);
+            return new CalibrationMeasurementResult
             {
                 SerialNumber = Mapping.SerialNumber,
                 PeakLoggerDeviceSerialNumber = Mapping.SourceDeviceSerialNumber,
@@ -663,7 +800,7 @@ public sealed class CalibrationOrchestrator
                 PeakId = Mapping.PeakId,
                 PeakIndex = Mapping.PeakIndex,
                 Status = state,
-                SampleCount = metrics.Count,
+                SampleCount = samples.Length,
                 MeanWavelengthNm = metrics.Mean,
                 MedianWavelengthNm = metrics.Median,
                 MinWavelengthNm = metrics.Minimum,
@@ -671,34 +808,50 @@ public sealed class CalibrationOrchestrator
                 RangePm = metrics.Range,
                 StandardDeviationPm = metrics.StandardDeviation,
                 DriftPmPerMinute = metrics.SlopePerMinute,
-                StabilizationTime = Elapsed,
+                StabilizationTime = ActiveElapsed,
+                Problem = problem,
+                StableSamples = samples.ToList(),
+            };
+        }
+
+        private CalibrationMeasurementResult CreateResultFromCurrentWindow(
+            CalibrationTargetState state,
+            string? problem)
+        {
+            if (_measurementSamples.Count > 0)
+                return CreateResultFromMeasurementSamples(state, problem);
+
+            StabilityMetrics metrics = LastMetrics ?? _stabilityDetector.Evaluate();
+            return new CalibrationMeasurementResult
+            {
+                SerialNumber = Mapping.SerialNumber,
+                PeakLoggerDeviceSerialNumber = Mapping.SourceDeviceSerialNumber,
+                Channel = Mapping.Channel,
+                PeakId = Mapping.PeakId,
+                PeakIndex = Mapping.PeakIndex,
+                Status = state,
+                SampleCount = 0,
+                MeanWavelengthNm = metrics.Mean,
+                MedianWavelengthNm = metrics.Median,
+                MinWavelengthNm = metrics.Minimum,
+                MaxWavelengthNm = metrics.Maximum,
+                RangePm = metrics.Range,
+                StandardDeviationPm = metrics.StandardDeviation,
+                DriftPmPerMinute = metrics.SlopePerMinute,
+                StabilizationTime = ActiveElapsed,
                 Problem = problem,
             };
+        }
 
-            if (run is not null && temperatures is { } temps)
-            {
-                foreach ((DateTimeOffset timestamp, double value) in Detector.Samples)
-                {
-                    result.StableSamples.Add(new CalibrationRawSample
-                    {
-                        RunId = run.RunId,
-                        ProfileId = run.ProfileId,
-                        PlateauIndex = plateauIndex,
-                        TargetTemperatureC = targetTemperature,
-                        ActualTemperatureC = temps.Actual,
-                        ReferenceTemperatureC = temps.Reference,
-                        Timestamp = timestamp,
-                        SerialNumber = Mapping.SerialNumber,
-                        PeakLoggerDeviceSerialNumber = Mapping.SourceDeviceSerialNumber,
-                        Channel = Mapping.Channel,
-                        PeakId = Mapping.PeakId,
-                        PeakIndex = Mapping.PeakIndex,
-                        WavelengthNm = value,
-                        Intensity = LastMeasurement?.Intensity,
-                    });
-                }
-            }
-            return result;
+        private static StabilityMetrics CalculateMetrics(IReadOnlyList<CalibrationRawSample> samples)
+        {
+            if (samples.Count == 0)
+                return new StabilityMetrics(0, 0, 0, 0, 0, 0, 0, 0, TimeSpan.Zero, false);
+            var detector = new RollingStabilityDetector(Math.Max(2, samples.Count), 0, 0, 0);
+            StabilityMetrics metrics = new(0, 0, 0, 0, 0, 0, 0, 0, TimeSpan.Zero, false);
+            foreach (CalibrationRawSample sample in samples)
+                metrics = detector.Add(sample.Timestamp, sample.WavelengthNm);
+            return metrics;
         }
     }
 }
