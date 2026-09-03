@@ -103,14 +103,22 @@ public sealed class CalibrationReferenceStatusStore
 
             string port = NormalizePort(portName);
             string serial = NormalizeSerial(usbSerialNumber);
+            string normalizedChannel = NormalizeChannel(channel);
             if (!SamePhysicalThermometer(state, port, serial)) return;
+
+            bool persistentMetadataChanged =
+                !string.Equals(state.PortName, port, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(serial) &&
+                 !string.Equals(state.UsbSerialNumber, serial, StringComparison.OrdinalIgnoreCase)) ||
+                !string.Equals(state.Channel, normalizedChannel, StringComparison.OrdinalIgnoreCase);
 
             state.PortName = port;
             if (!string.IsNullOrWhiteSpace(serial)) state.UsbSerialNumber = serial;
-            state.Channel = NormalizeChannel(channel);
+            state.Channel = normalizedChannel;
             state.IsConnected = isConnected;
             state.TemperatureC = isConnected ? temperatureC : null;
             state.LastUpdate = temperatureC is not null ? DateTimeOffset.Now : state.LastUpdate;
+            if (persistentMetadataChanged) SaveAssignmentsUnsafe();
             changed = true;
         }
 
