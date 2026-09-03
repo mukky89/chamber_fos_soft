@@ -19,11 +19,13 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private readonly SylexFosApiClient _apiClient;
     private readonly SylexFosApiProductionMetadataProvider _metadataProvider;
     private readonly Dictionary<CalibrationPeakRowViewModel, CancellationTokenSource> _lookups = new();
+    private readonly HashSet<CalibrationPeakRowViewModel> _attachedRows = new();
     private bool _disposed;
     private bool _configurationWarningLogged;
 
     public event EventHandler<SylexFosLookupStatus>? LookupStatusChanged;
     public event EventHandler<CalibrationPeakRowViewModel>? MetadataApplied;
+    public event EventHandler<SylexFosRowValidationIssue>? RowValidationFailed;
 
     public SylexFosCalibrationIntegration(CalibrationViewModel viewModel)
     {
@@ -44,34 +46,48 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
     private void OnPeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // Reset is special: ObservableCollection does not guarantee OldItems, therefore detach
+        // from our own tracked set first. This also makes sensor discovery/clear idempotent and
+        // prevents stale row subscriptions from surviving a complete PeakLogger refresh.
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            foreach (CalibrationPeakRowViewModel row in _attachedRows.ToArray()) DetachRow(row);
+            foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks) AttachRow(row);
+            return;
+        }
+
         if (e.OldItems is not null)
-            foreach (CalibrationPeakRowViewModel row in e.OldItems) DetachRow(row);
+        {
+            foreach (object? item in e.OldItems)
+            {
+                if (item is CalibrationPeakRowViewModel row) DetachRow(row);
+            }
+        }
 
         if (e.NewItems is not null)
         {
-            foreach (CalibrationPeakRowViewModel row in e.NewItems)
+            foreach (object? item in e.NewItems)
             {
+                if (item is not CalibrationPeakRowViewModel row) continue;
                 AttachRow(row);
                 if (!string.IsNullOrWhiteSpace(row.SerialNumber)) ScheduleLookup(row);
             }
         }
-
-        if (e.Action == NotifyCollectionChangedAction.Reset)
-        {
-            foreach (CalibrationPeakRowViewModel row in _lookups.Keys.ToArray()) DetachRow(row);
-            foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks) AttachRow(row);
-        }
     }
 
-    private void AttachRow(CalibrationPeakRowViewModel row)
+    private void AttachRow(CalibrationPeakRowViewModel? row)
     {
-        row.PropertyChanged -= OnRowPropertyChanged;
+        if (row is null || _disposed || !_attachedRows.Add(row)) return;
         row.PropertyChanged += OnRowPropertyChanged;
         SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
     }
 
-    private void DetachRow(CalibrationPeakRowViewModel row)
+    private void DetachRow(CalibrationPeakRowViewModel? row)
     {
+        // PeakLogger discovery can clear/rebuild the collection while async API lookups are still
+        // finishing. Treat detach as null-safe/idempotent instead of allowing a UI refresh to crash.
+        if (row is null) return;
+        _attachedRows.Remove(row);
         row.PropertyChanged -= OnRowPropertyChanged;
         SylexFosSensorNameStore.Remove(row);
         SylexFosRowMetadataStore.Remove(row);
@@ -90,7 +106,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
     private void ScheduleLookup(CalibrationPeakRowViewModel row)
     {
-        if (_disposed) return;
+        if (_disposed || !_attachedRows.Contains(row)) return;
         if (_lookups.Remove(row, out CancellationTokenSource? previous))
         {
             previous.Cancel();
@@ -113,17 +129,26 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         {
             await Task.Delay(250, cancellationToken).ConfigureAwait(false);
             ProductionMetadata? metadata = await _metadataProvider.FindAsync(serialNumber, row.Channel, cancellationToken).ConfigureAwait(false);
-            if (cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested || !_attachedRows.Contains(row)) return;
 
             if (metadata is null)
             {
-                AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: záznam nebol nájdený.");
-                await Application.Current.Dispatcher.InvokeAsync(() => MetadataApplied?.Invoke(this, row));
+                AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: záznam nebol nájdený alebo sa nezhoduje kanál/sonda.");
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (!_attachedRows.Contains(row)) return;
+                    RowValidationFailed?.Invoke(this, new SylexFosRowValidationIssue(
+                        row,
+                        serialNumber,
+                        $"Sylex FOS: SN {serialNumber} sa nenašlo pre kanál {row.Channel} alebo sa sonda nezhoduje."));
+                    MetadataApplied?.Invoke(this, row);
+                });
                 return;
             }
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                if (!_attachedRows.Contains(row)) return;
                 string currentParsed = SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber);
                 if (!string.Equals(currentParsed, serialNumber, StringComparison.OrdinalIgnoreCase)) return;
                 if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) row.ProductDescription = metadata.ProductDescription;
@@ -189,18 +214,14 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
         _viewModel.Peaks.CollectionChanged -= OnPeaksChanged;
-        foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks)
-        {
-            row.PropertyChanged -= OnRowPropertyChanged;
-            SylexFosSensorNameStore.Remove(row);
-            SylexFosRowMetadataStore.Remove(row);
-        }
+        foreach (CalibrationPeakRowViewModel row in _attachedRows.ToArray()) DetachRow(row);
         foreach (CancellationTokenSource cts in _lookups.Values)
         {
             cts.Cancel();
             cts.Dispose();
         }
         _lookups.Clear();
+        _attachedRows.Clear();
         _metadataProvider.Dispose();
         return ValueTask.CompletedTask;
     }
@@ -218,3 +239,8 @@ public enum SylexFosLookupState
 }
 
 public sealed record SylexFosLookupStatus(SylexFosLookupState State, string Message);
+
+public sealed record SylexFosRowValidationIssue(
+    CalibrationPeakRowViewModel Row,
+    string SerialNumber,
+    string Message);

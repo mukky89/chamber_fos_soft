@@ -111,10 +111,9 @@ public sealed class CalibrationProfileRunner
 
                 int currentPlateau = calibrationPlateauIndex++;
 
-                // Production rule: the physical WIKA CTH7000 is the temperature reference.
-                // The chamber controller value is useful for control/logging only and must NOT
-                // gate the start of FBG peak stabilization. First require the WIKA reference to
-                // remain inside tolerance with acceptable drift for the configured duration.
+                // The WIKA CTH7000 is the authoritative calibration temperature. The local chamber
+                // probe remains visible/logged and controls the chamber's internal loop, but it does
+                // not gate FBG sampling.
                 if (readReferenceTemperatureAsync is not null)
                 {
                     await WaitForReferenceStabilityAsync(
@@ -123,14 +122,11 @@ public sealed class CalibrationProfileRunner
                         currentPlateau,
                         calibrationSteps.Count,
                         step.Segment.TargetTemperature,
+                        step.Segment.TargetHumidity ?? previousHumidity,
                         readReferenceTemperatureAsync,
                         cancellationToken).ConfigureAwait(false);
                 }
 
-                // CalibrationOrchestrator contains a historical chamber-temperature gate before
-                // its independent per-peak wavelength trackers. The WIKA gate above is now the
-                // authoritative temperature criterion, therefore disable that chamber criterion
-                // for this call while preserving the configured values immediately afterwards.
                 TimeSpan originalStableDuration = setup.Settings.ChamberStableDuration;
                 double originalTolerance = setup.Settings.ChamberToleranceC;
                 double originalDrift = setup.Settings.MaxChamberDriftCPerMinute;
@@ -160,9 +156,6 @@ public sealed class CalibrationProfileRunner
                     setup.Settings.MaxChamberDriftCPerMinute = originalDrift;
                 }
 
-                // The orchestrator releases the plateau only after every selected FBG peak has
-                // independently reached its wavelength stability criteria or a configured
-                // terminal failure state. One stable peak never makes another peak stable.
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
 
@@ -186,10 +179,7 @@ public sealed class CalibrationProfileRunner
                 else if (!responseValidated)
                 {
                     bool validated = _orchestrator.ValidateTemperatureResponse(run, validationBaseline, plateau, setup.Settings);
-                    if (validated)
-                    {
-                        responseValidated = true;
-                    }
+                    if (validated) responseValidated = true;
                 }
 
                 run.State = CalibrationRunState.PlateauCompleted;
@@ -237,6 +227,7 @@ public sealed class CalibrationProfileRunner
         int plateauIndex,
         int plateauCount,
         double targetTemperatureC,
+        double? targetHumidity,
         Func<CancellationToken, Task<double?>> readReferenceTemperatureAsync,
         CancellationToken cancellationToken)
     {
@@ -249,6 +240,14 @@ public sealed class CalibrationProfileRunner
         Stopwatch plateauClock = Stopwatch.StartNew();
         double? lastReference = null;
 
+        // Optional, conservative outer loop. The chamber still regulates itself from its local
+        // sensor; this only trims its commanded setpoint slowly so the WIKA physical reference
+        // reaches the profile target. The bias is bounded and held once the error is in deadband.
+        CalibrationReferenceControlOptions referenceControl = CalibrationReferenceControlRegistry.Get(setup.ChamberId).Normalize();
+        double referenceBiasC = 0;
+        DateTimeOffset nextReferenceControlUpdate = DateTimeOffset.MinValue;
+        double lastCommandedSetpoint = targetTemperatureC;
+
         run.State = CalibrationRunState.WaitingForChamberStability;
 
         while (true)
@@ -256,11 +255,32 @@ public sealed class CalibrationProfileRunner
             cancellationToken.ThrowIfCancellationRequested();
             await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
 
-            // Chamber temperature is read only for progress/log context. It is deliberately not
-            // fed into a stability detector and cannot block measurement readiness.
             double chamberTemperature = await ReadTemperatureAsync(cancellationToken).ConfigureAwait(false);
             double? referenceTemperature = await readReferenceTemperatureAsync(cancellationToken).ConfigureAwait(false);
             lastReference = referenceTemperature ?? lastReference;
+
+            string controlDetail = string.Empty;
+            if (referenceControl.Enabled && referenceTemperature is { } referenceForControl)
+            {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                double errorC = targetTemperatureC - referenceForControl;
+                if (now >= nextReferenceControlUpdate && Math.Abs(errorC) > referenceControl.DeadbandC)
+                {
+                    double requestedStep = Math.Clamp(
+                        errorC * referenceControl.Gain,
+                        -referenceControl.MaxStepC,
+                        referenceControl.MaxStepC);
+                    referenceBiasC = Math.Clamp(
+                        referenceBiasC + requestedStep,
+                        -referenceControl.MaxCorrectionC,
+                        referenceControl.MaxCorrectionC);
+                    lastCommandedSetpoint = targetTemperatureC + referenceBiasC;
+                    await WriteSetpointAsync(lastCommandedSetpoint, targetHumidity, cancellationToken).ConfigureAwait(false);
+                    nextReferenceControlUpdate = now + referenceControl.UpdateInterval;
+                }
+
+                controlDetail = $" · WIKA control: setpoint komory {lastCommandedSetpoint:F2} °C (bias {referenceBiasC:+0.00;-0.00;0.00} °C)";
+            }
 
             StabilityMetrics? referenceMetrics = referenceTemperature is { } reference
                 ? referenceDetector.Add(DateTimeOffset.UtcNow, reference, targetTemperatureC)
@@ -283,13 +303,10 @@ public sealed class CalibrationProfileRunner
                 0,
                 setup.Mappings.Count(m => m.Selected),
                 plateauClock.Elapsed,
-                BuildReferenceWaitingTargets(setup, detail),
-                $"Čaká sa iba na stabilnú referenciu WIKA CTH7000 · {detail}"));
+                BuildReferenceWaitingTargets(setup, detail + controlDetail),
+                $"Čaká sa iba na stabilnú referenciu WIKA CTH7000 · {detail}{controlDetail}"));
 
-            if (referenceStable)
-            {
-                return;
-            }
+            if (referenceStable) return;
 
             if (settings.ChamberStabilityTimeout > TimeSpan.Zero && wait.Elapsed >= settings.ChamberStabilityTimeout)
             {
@@ -337,8 +354,6 @@ public sealed class CalibrationProfileRunner
                 .ToHashSet();
         }
 
-        // Backward compatibility for profiles/setups created before explicit UI plateau
-        // selection was persisted. New runs use CalibrationSegmentIndices as the source of truth.
         return profile.Segments
             .Select((segment, index) => (segment, index))
             .Where(x => !x.segment.IsRamp && x.segment.IsCalibrationPoint)
@@ -378,10 +393,7 @@ public sealed class CalibrationProfileRunner
 
             TimeSpan remaining = duration - clock.Elapsed;
             TimeSpan delay = remaining < _updateInterval ? remaining : _updateInterval;
-            if (delay > TimeSpan.Zero)
-            {
-                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-            }
+            if (delay > TimeSpan.Zero) await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
         }
     }
 
