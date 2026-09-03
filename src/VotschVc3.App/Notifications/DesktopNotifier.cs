@@ -20,11 +20,9 @@ public enum DesktopNotificationKind
 }
 
 /// <summary>
-/// Desktop notifications for long-running lab tests: plays a sound, shows a
-/// Windows tray balloon (renders as a toast on Windows 10/11) and flashes the
-/// taskbar button when the app is in the background – so an operator away from
-/// the monitor notices a finished profile or an alarm. Complements the e-mail
-/// notification; every call is best-effort and never throws into the caller.
+/// Desktop notifications for long-running lab tests. When the app is visible the same event
+/// also goes through AppNotificationService so every operator-facing transient message uses
+/// one in-app popup UX. Tray balloon/sound/taskbar flashing are retained for background use.
 /// </summary>
 public static class DesktopNotifier
 {
@@ -57,9 +55,27 @@ public static class DesktopNotifier
         }
     }
 
-    /// <summary>Shows a notification with a sound appropriate for <paramref name="kind"/>.</summary>
+    /// <summary>Shows one application notification and preserves Windows background alerting.</summary>
     public static void Notify(string title, string message, DesktopNotificationKind kind)
     {
+        try
+        {
+            AppNotificationService.Show(
+                title,
+                message,
+                kind switch
+                {
+                    DesktopNotificationKind.Alarm => AppNotificationKind.Error,
+                    DesktopNotificationKind.Warning => AppNotificationKind.Warning,
+                    _ => AppNotificationKind.Success,
+                },
+                dedupeKey: $"desktop:{kind}:{title}:{message}");
+        }
+        catch
+        {
+            // In-app notifications are auxiliary. Continue with the desktop path.
+        }
+
         try
         {
             (kind switch

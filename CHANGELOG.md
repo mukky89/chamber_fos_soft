@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.76.31] – 2026-09-03
+
+### Jednotné upozornenia v aplikácii
+- Pridaný centrálny `AppNotificationService` pre dočasné operátorské hlášky typu `Info`, `Success`, `Warning` a `Error`.
+- Popup sa zobrazuje hore nad aktívnym oknom aplikácie, neberie focus, má jednotný farebný štýl, frontu, automatické zatvorenie a ochranu proti opakovanému spamu rovnakej správy.
+- Existujúce `DesktopNotifier` udalosti sa pri viditeľnej aplikácii zobrazia aj cez rovnaký in-app popup; Windows tray balloon, zvuk a bliknutie taskbaru zostávajú zachované pre prácu na pozadí.
+- Inline upozornenia na konflikt manuálneho ovládania a testovacieho profilu boli z dashboardových kariet odstránené a nahradené popup hláškami, aby nemenili výšku a layout zariadenia.
+- Stav Sylex FOS API vo FBG kalibrácii používa rovnaký centrálny popup systém. Kontrola jednotlivých SN zostáva zámerne tichá, aby nevzniklo upozornenie pre každý symbol.
+- Trvalé stavové indikátory ako `ALARM`, pripojenie zariadenia a `FBG CALIBRATION` zostávajú priamo na karte; popup systém je určený pre prechodné udalosti a upozornenia.
+
+### Dashboard – FBG kalibrácia
+- Opravené umiestnenie FBG status karty: vkladá sa ako samostatný sibling nad celú sekciu `Rýchle ovládanie`, nie do jej headeru, takže sa už neprekrýva s `Rýchle ovládanie / Upraviť predvoľby`.
+- Neaktívna FBG status karta je zbalená; zobrazí sa až počas aktívneho FBG runu, čím sa uvoľní miesto na kartách zariadení.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.30` na `1.76.31`.
+
 ## [1.76.30] – 2026-09-03
 
 ### Opravené – zapojenie počas editácie

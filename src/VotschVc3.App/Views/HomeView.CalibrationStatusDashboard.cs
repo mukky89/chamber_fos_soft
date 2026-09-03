@@ -8,12 +8,13 @@ using VotschVc3.App.ViewModels;
 namespace VotschVc3.App.Views;
 
 /// <summary>
-/// Keeps FBG run status where the operator works: on the corresponding device card,
-/// immediately above Quick control. The old aggregate sidebar status is hidden.
+/// Keeps active FBG run status where the operator works: as a separate block above
+/// the complete Quick control section. Inactive cards are collapsed so they do not
+/// steal space or collide with the Quick control / Edit presets header.
 /// </summary>
 public partial class HomeView
 {
-    private const string CalibrationStatusCardTag = "FBG_DEVICE_STATUS_V2";
+    private const string CalibrationStatusCardTag = "FBG_DEVICE_STATUS_V3";
     private bool _calibrationStatusDashboardAttached;
 
     private void AttachCalibrationStatusDashboard()
@@ -79,7 +80,7 @@ public partial class HomeView
                      .Where(t => string.Equals(t.Text, "Rýchle ovládanie", StringComparison.OrdinalIgnoreCase)))
         {
             if (quickTitle.DataContext is not ChamberViewModel chamber) continue;
-            if (!TryFindInsertionPoint(quickTitle, chamber, out Panel? parent, out UIElement? quickSection)) continue;
+            if (!TryFindQuickControlSection(quickTitle, chamber, out Panel? parent, out Border? quickSection)) continue;
             if (parent.Children.OfType<FrameworkElement>().Any(x => string.Equals(x.Tag?.ToString(), CalibrationStatusCardTag, StringComparison.Ordinal)))
                 continue;
 
@@ -89,29 +90,38 @@ public partial class HomeView
         }
     }
 
-    private static bool TryFindInsertionPoint(
+    /// <summary>
+    /// Find the entire bordered Quick control section, not the inner DockPanel that owns
+    /// the title. The old implementation stopped at the first Panel ancestor and inserted
+    /// the FBG card inside the header row, which caused the status text to overlap
+    /// "Rýchle ovládanie" and "Upraviť predvoľby".
+    /// </summary>
+    private static bool TryFindQuickControlSection(
         DependencyObject start,
         ChamberViewModel chamber,
         out Panel? parent,
-        out UIElement? child)
+        out Border? section)
     {
         DependencyObject? current = start;
-        UIElement? currentElement = start as UIElement;
         while (current is not null)
         {
-            DependencyObject? visualParent = VisualTreeHelper.GetParent(current);
-            if (visualParent is Panel panel && currentElement is not null &&
-                panel.DataContext is ChamberViewModel panelChamber && panelChamber.Id == chamber.Id)
+            if (current is Border border &&
+                border.DataContext is ChamberViewModel borderChamber && borderChamber.Id == chamber.Id)
             {
-                parent = panel;
-                child = currentElement;
-                return true;
+                DependencyObject? visualParent = VisualTreeHelper.GetParent(border);
+                if (visualParent is Panel panel &&
+                    panel.DataContext is ChamberViewModel panelChamber && panelChamber.Id == chamber.Id)
+                {
+                    parent = panel;
+                    section = border;
+                    return true;
+                }
             }
-            currentElement = current as UIElement;
-            current = visualParent;
+            current = VisualTreeHelper.GetParent(current);
         }
+
         parent = null;
-        child = null;
+        section = null;
         return false;
     }
 
@@ -130,7 +140,7 @@ public partial class HomeView
         var state = new TextBlock
         {
             Tag = "state",
-            Text = "Neaktívna",
+            Text = string.Empty,
             FontFamily = new FontFamily("Segoe UI Semibold"),
             FontSize = 12,
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -144,7 +154,7 @@ public partial class HomeView
         var detail = new TextBlock
         {
             Tag = "detail",
-            Text = "Kalibrácia nie je spustená.",
+            Text = string.Empty,
             FontSize = 11.5,
             Foreground = muted,
             TextWrapping = TextWrapping.Wrap,
@@ -174,6 +184,7 @@ public partial class HomeView
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 0, 0, 10),
+            Visibility = Visibility.Collapsed,
             Child = stack,
         };
     }
@@ -192,18 +203,20 @@ public partial class HomeView
             TextBlock? detail = FindTagged<TextBlock>(stack, "detail");
             ProgressBar? progress = FindTagged<ProgressBar>(stack, "progress");
 
+            // The main card already has an FBG button and control-mode chip. An idle status card
+            // adds no useful information and unnecessarily pushes Quick control downward.
+            card.Visibility = snapshot.IsRunning ? Visibility.Visible : Visibility.Collapsed;
+            if (!snapshot.IsRunning) continue;
+
             if (state is not null)
             {
-                state.Text = snapshot.IsRunning ? snapshot.RunState : "Neaktívna";
-                state.Foreground = snapshot.IsRunning ? ok : muted;
+                state.Text = snapshot.RunState;
+                state.Foreground = ok;
             }
             if (detail is not null)
-            {
-                detail.Text = snapshot.IsRunning
-                    ? $"{snapshot.ProfileName} · {snapshot.Plateau}"
-                    : "Kalibrácia nie je spustená.";
-            }
-            if (progress is not null) progress.Value = snapshot.IsRunning ? snapshot.ProgressPercent : 0;
+                detail.Text = $"{snapshot.ProfileName} · {snapshot.Plateau}";
+            if (progress is not null)
+                progress.Value = snapshot.ProgressPercent;
         }
     }
 
