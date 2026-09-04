@@ -270,8 +270,17 @@ public sealed class CalibrationWarning
 
 public sealed class CalibrationRunRecord
 {
+    /// <summary>Internal, globally unique technical identifier retained for files and data joins.</summary>
     public Guid RunId { get; set; } = Guid.NewGuid();
+
+    /// <summary>Operator-facing run ID, for example 01-2026-09-04.</summary>
+    public string HumanRunId { get; set; } = string.Empty;
+
     public Guid ProfileId { get; set; }
+
+    /// <summary>Short library profile code such as P-0214.</summary>
+    public string ProfileCode { get; set; } = string.Empty;
+
     public string ProfileName { get; set; } = string.Empty;
     public Guid ChamberId { get; set; }
     public string ChamberName { get; set; } = string.Empty;
@@ -284,6 +293,16 @@ public sealed class CalibrationRunRecord
     public string ReferenceThermometerChannel { get; set; } = string.Empty;
     public List<CalibrationPlateauResult> Plateaus { get; set; } = new();
     public List<CalibrationWarning> Warnings { get; set; } = new();
+
+    [JsonIgnore]
+    public string DisplayRunId => string.IsNullOrWhiteSpace(HumanRunId)
+        ? $"ID-{RunId.ToString("N")[..8].ToUpperInvariant()}"
+        : HumanRunId;
+
+    [JsonIgnore]
+    public string DisplayProfileId => string.IsNullOrWhiteSpace(ProfileCode)
+        ? $"ID-{ProfileId.ToString("N")[..8].ToUpperInvariant()}"
+        : ProfileCode;
 }
 
 public sealed class CalibrationCheckpoint

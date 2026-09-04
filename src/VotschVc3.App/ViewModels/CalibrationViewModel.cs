@@ -1215,7 +1215,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
         EmailResult result = await _email.SendAsync(
             $"CHYBA – rozdiel teploty F100 a komory – {SelectedChamber?.Config.Name ?? "komora"}",
-            $"{message}\n\nKomora: {SelectedChamber?.Config.Name}\nF100: {SelectedF100?.PortName} / kanál {SelectedF100Channel}\nČas: {now:yyyy-MM-dd HH:mm:ss}",
+            $"Komora: {SelectedChamber?.Config.Name}\nWIKA: {SelectedF100?.PortName} / kanál {SelectedF100Channel}\nČas: {now:yyyy-MM-dd HH:mm:ss}\n\n{message}",
             cancellationToken: cancellationToken);
         if (result.Sent)
         {
@@ -1289,13 +1289,17 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu pred začiatkom kalibrácie.");
             _lastChamberTemperatureC = startTemperature;
 
+            DateTimeOffset runStartedAt = DateTimeOffset.Now;
             _activeRun = new CalibrationRunRecord
             {
+                HumanRunId = HumanReadableRunId.Allocate(AppPaths.CalibrationDir, runStartedAt),
                 ProfileId = SelectedProfile.Id,
+                ProfileCode = SelectedProfile.Code,
                 ProfileName = SelectedProfile.Name,
                 ChamberId = SelectedChamber.Config.Id,
                 ChamberName = SelectedChamber.Config.Name,
                 Operator = Environment.UserName,
+                StartedAt = runStartedAt,
                 State = CalibrationRunState.Preflight,
                 ReferenceThermometerPort = SelectedF100?.PortName ?? string.Empty,
                 ReferenceThermometerSerialNumber = SelectedF100?.SerialNumber ?? string.Empty,
@@ -1488,7 +1492,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         {
             Title = "Export kalibrácie",
             Filter = "CSV (*.csv)|*.csv",
-            FileName = $"calibration-{SelectedHistoryRun.StartedAt:yyyyMMdd-HHmm}-{SelectedHistoryRun.RunId:N}.csv",
+            FileName = $"calibration-{SelectedHistoryRun.DisplayRunId}-{SelectedHistoryRun.DisplayProfileId}.csv",
         };
         if (dialog.ShowDialog() != true) return;
         CalibrationStore.ExportSummaryCsv(SelectedHistoryRun, dialog.FileName);
@@ -1498,16 +1502,27 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private async Task SendWarningEmailAsync(CalibrationRunRecord? run, CalibrationWarning warning)
     {
         if (run is null) return;
+        string plateau = warning.PlateauIndex is { } plateauIndex ? (plateauIndex + 1).ToString() : "—";
+        string peak = string.IsNullOrWhiteSpace(warning.PeakId) ? "—" : warning.PeakId;
+        string sensor = string.IsNullOrWhiteSpace(warning.SerialNumber) ? "—" : warning.SerialNumber;
+
         await _email.SendAsync(
-            $"Kalibrácia FBG – warning – {run.ProfileName}",
-            $"Run: {run.RunId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\n\n{warning.Message}");
+            $"Kalibrácia FBG – WARNING – {run.DisplayProfileId}",
+            $"Run ID: {run.DisplayRunId}\nProfil ID: {run.DisplayProfileId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nPlato: {plateau}\nSnímač: {sensor}\nPeak: {peak}\nČas: {warning.Timestamp:yyyy-MM-dd HH:mm:ss}\n\n{warning.Message}");
     }
 
     private async Task SendCompletionEmailAsync(CalibrationRunRecord run)
     {
+        string status = run.State switch
+        {
+            CalibrationRunState.Completed => "COMPLETED",
+            CalibrationRunState.CompletedWithWarnings => "COMPLETED WITH WARNINGS",
+            _ => run.State.ToString().ToUpperInvariant(),
+        };
+
         await _email.SendAsync(
-            $"Kalibrácia FBG – {run.State} – {run.ProfileName}",
-            $"Run: {run.RunId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nStav: {run.State}\nF100: {run.ReferenceThermometerPort} / {run.ReferenceThermometerChannel}\nPlata: {run.Plateaus.Count}\nWarnings: {run.Warnings.Count}");
+            $"Kalibrácia FBG – {status} – {run.DisplayProfileId}",
+            $"Run ID: {run.DisplayRunId}\nProfil ID: {run.DisplayProfileId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nStav: {run.State}\nWIKA: {run.ReferenceThermometerPort} / {run.ReferenceThermometerChannel}\nPlata: {run.Plateaus.Count}\nUpozornenia: {run.Warnings.Count}\n\nKalibračný run bol ukončený v stave {run.State}.");
     }
 
     private static IChamberDevice CreateChamberClient(ChamberConfig config) => config.Protocol switch
