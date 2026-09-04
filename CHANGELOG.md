@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.85] – 2026-09-04
+
+- Predvolený povolený rozdiel medzi WIKA CTH7000 a internou teplotou komory bol zvýšený z ±5 °C na ±10 °C.
+- Staré nastavenia s pôvodnou implicitnou hodnotou sa pri prvom načítaní jednorazovo migrujú; neskoršie ručné nastavenia operátora sa zachovajú.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.85.
+
 ## [1.76.84] – 2026-09-04
 
 - Kompaktná karta aktívnej FBG kalibrácie na domovskom dashboarde dostala moderný live vzhľad a zrozumiteľný slovenský stav.

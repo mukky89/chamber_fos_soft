@@ -367,7 +367,7 @@
                                 <StackPanel Style="{StaticResource MiniField}" Width="190">
                                     <TextBlock Text="Max. rozdiel [°C]" Style="{StaticResource Label}" />
                                     <TextBox Text="{Binding Email.ReferenceTemperatureMismatchLimitC, UpdateSourceTrigger=LostFocus}"
-                                             ToolTip="Predvolená hodnota je ±5 °C." />
+                                             ToolTip="Predvolená hodnota je ±10 °C." />
                                 </StackPanel>
                                 <StackPanel Style="{StaticResource MiniField}" Width="220">
                                     <TextBlock Text="Opakovať e-mail najskôr [min]" Style="{StaticResource Label}" />

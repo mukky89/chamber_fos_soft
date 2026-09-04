@@ -215,4 +215,26 @@ public class EmailSettingsTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void DefaultMismatchLimitIsTenDegreesAndLegacySettingsAreMigratedOnce()
+    {
+        Assert.Equal(10.0, new EmailSettings().ReferenceTemperatureMismatchLimitC);
+        string path = Path.Combine(Path.GetTempPath(), $"email-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(path, "{\"ReferenceTemperatureMismatchLimitC\":5.0}");
+            var store = new EmailSettingsStore(path);
+            EmailSettings migrated = store.Load();
+            Assert.Equal(10.0, migrated.ReferenceTemperatureMismatchLimitC);
+
+            migrated.ReferenceTemperatureMismatchLimitC = 5.0;
+            store.Save(migrated);
+            Assert.Equal(5.0, store.Load().ReferenceTemperatureMismatchLimitC);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

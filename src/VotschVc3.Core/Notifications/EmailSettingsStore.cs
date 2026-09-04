@@ -33,7 +33,18 @@ public sealed class EmailSettingsStore
 
             try
             {
-                EmailSettings settings = JsonSerializer.Deserialize<EmailSettings>(File.ReadAllText(FilePath), Options) ?? new EmailSettings();
+                string json = File.ReadAllText(FilePath);
+                EmailSettings settings = JsonSerializer.Deserialize<EmailSettings>(json, Options) ?? new EmailSettings();
+                using JsonDocument document = JsonDocument.Parse(json);
+                if (!document.RootElement.TryGetProperty(nameof(EmailSettings.ReferenceTemperatureMismatchLimitVersion), out _) &&
+                    Math.Abs(settings.ReferenceTemperatureMismatchLimitC - 5.0) < 0.000001)
+                {
+                    // Before schema v2 the application always persisted its implicit 5 °C
+                    // default. Migrate those installations once; all later explicit operator
+                    // choices are preserved because the version marker is then saved with them.
+                    settings.ReferenceTemperatureMismatchLimitC = 10.0;
+                    settings.ReferenceTemperatureMismatchLimitVersion = 2;
+                }
                 // Older versions stored empty values because notifications only supported
                 // one manually entered recipient and had no dashboard-compatible defaults.
                 if (string.IsNullOrWhiteSpace(settings.Recipient))

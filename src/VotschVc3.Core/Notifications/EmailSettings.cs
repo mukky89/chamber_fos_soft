@@ -54,11 +54,14 @@ public sealed class EmailSettings
     /// <summary>Master switch for sending notification e-mails.</summary>
     public bool Enabled { get; set; }
 
-    /// <summary>Warn when the ASL F100 reference differs too much from the chamber reading.</summary>
+    /// <summary>Warn when the WIKA CTH7000 reference differs too much from the chamber reading.</summary>
     public bool ReferenceTemperatureMismatchAlertsEnabled { get; set; } = true;
 
-    /// <summary>Maximum allowed absolute difference between chamber and F100.</summary>
-    public double ReferenceTemperatureMismatchLimitC { get; set; } = 5.0;
+    /// <summary>Maximum allowed absolute difference between chamber and WIKA CTH7000.</summary>
+    public double ReferenceTemperatureMismatchLimitC { get; set; } = 10.0;
+
+    /// <summary>Schema marker used to migrate the former implicit 5 °C default exactly once.</summary>
+    public int ReferenceTemperatureMismatchLimitVersion { get; set; } = 2;
 
     /// <summary>Minimum interval between repeated mismatch e-mails.</summary>
     public int ReferenceTemperatureMismatchEmailCooldownMinutes { get; set; } = 30;
