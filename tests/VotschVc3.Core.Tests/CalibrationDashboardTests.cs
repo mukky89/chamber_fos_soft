@@ -47,6 +47,23 @@ public sealed class CalibrationDashboardTests
         Assert.Equal("Active", m.Steps[4].State); Assert.Equal("Active", m.Steps[5].State);
         Assert.Equal("SN1|CH1|P1", m.ActivePeakKey);
     }
+    [Fact] public void IndividualFbgChartsTrackEachPeakAndResetForNewRun()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { CurrentWavelengthNm = 1550.001 },
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2", CurrentWavelengthNm = 1551.002 }), Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { CurrentWavelengthNm = 1550.003 },
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2", CurrentWavelengthNm = 1551.004 }), Start.AddSeconds(1));
+
+        Assert.Equal(2, m.FbgStabilityCharts.Count);
+        Assert.All(m.FbgStabilityCharts, chart => Assert.Equal(2, chart.ChartPoints.Count));
+        Assert.Contains("P2", m.FbgStabilityCharts[1].Title);
+
+        m.Begin(Start.AddHours(1));
+        Assert.Empty(m.FbgStabilityCharts);
+    }
     [Fact] public void TemperatureLossRegressesGatesWithoutCompletingPoint()
     {
         var m = Model(); m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 2)), Start);

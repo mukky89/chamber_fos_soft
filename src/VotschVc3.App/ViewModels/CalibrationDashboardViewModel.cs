@@ -21,6 +21,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
+    public ObservableCollection<FbgStabilityChartItem> FbgStabilityCharts { get; } = new();
     public string Profile { get; private set; } = "Vyberte kalibračný profil";
     public string ProfileDescription { get; private set; } = "Vyberte kalibračný profil";
     public string RunId { get; private set; } = "—";
@@ -182,7 +183,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null;
         _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
-        Alert = "Bez hlásených upozornení"; Trend = "—"; _targetEvents.Clear(); Activity.Clear();
+        Alert = "Bez hlásených upozornení"; Trend = "—"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
         AddEvent(now, "INFO", "Kalibrácia spustená."); RefreshSteps(); Tick(now);
     }
@@ -212,6 +213,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (snapshot.PlateauIndex >= 0 && previous?.PlateauIndex != snapshot.PlateauIndex)
         {
             _targetEvents.Clear();
+            FbgStabilityCharts.Clear();
             AddEvent(now, "INFO", $"Začal sa bod {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount} na {Target}.");
         }
         if (snapshot.PlateauIndex >= 0 && snapshot.PlateauIndex < Points.Count)
@@ -230,6 +232,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         foreach (var t in snapshot.Targets)
         {
             string key = $"{t.SerialNumber}|{t.Channel}|{t.PeakId}";
+            FbgStabilityChartItem? chart = FbgStabilityCharts.FirstOrDefault(item => item.Identity == key);
+            if (chart is null)
+            {
+                chart = new FbgStabilityChartItem(key);
+                FbgStabilityCharts.Add(chart);
+            }
+            chart.Update(t, now);
             string state = $"{t.State}|{t.Phase}";
             if (_targetEvents.GetValueOrDefault(key) != state)
             {
@@ -344,4 +353,63 @@ public sealed class DashboardNode : INotifyPropertyChanged
     public string Badge => State switch { "Done" => "✓ DONE", "Active" => "● RUNNING", "Waiting" => "Ⅱ WAITING", "Error" => "! ERROR", "Warning" => "! DONE", "Skipped" => "— N/A", _ => "○ PENDING" };
     public TimeSpan? Duration { get; set; }
 }
+
+public sealed class FbgStabilityChartItem : INotifyPropertyChanged
+{
+    private readonly List<(DateTimeOffset Time, double Wavelength)> _samples = new();
+    private CalibrationTargetProgress? _progress;
+
+    public FbgStabilityChartItem(string identity)
+    {
+        Identity = identity;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public string Identity { get; }
+    public string Title => $"SN {_progress?.SerialNumber ?? "—"} · {_progress?.Channel ?? "—"}/{_progress?.PeakId ?? "—"}";
+    public string Wavelength => _progress?.CurrentWavelengthNm is { } value ? $"{value:F6} nm" : "—";
+    public string Samples => _progress is null ? "Vzorky —" : $"Vzorky {_progress.StabilitySamples} / {_progress.RequiredStabilitySamples}";
+    public double Progress => _progress?.RequiredStabilitySamples > 0
+        ? Math.Clamp(100d * _progress.StabilitySamples / _progress.RequiredStabilitySamples, 0, 100)
+        : 0;
+    public string Range => Metric("Rozsah", _progress?.RangePm, _progress?.RangeLimitPm, "pm");
+    public string StandardDeviation => Metric("σ", _progress?.StandardDeviationPm, _progress?.StdDevLimitPm, "pm");
+    public string Drift => Metric("Drift", _progress?.DriftPmPerMinute is { } value ? Math.Abs(value) : null, _progress?.DriftLimitPmPerMinute, "pm/min");
+    public string State => _progress?.Phase switch
+    {
+        "Measuring" => "MERANIE",
+        _ when _progress?.State == CalibrationTargetState.Stable => "HOTOVO",
+        _ => "STABILIZÁCIA",
+    };
+    public string StateBrush => _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
+        ? "#3CB371"
+        : "#DAA520";
+    public IReadOnlyList<FbgStabilitySample> ChartPoints
+    {
+        get
+        {
+            if (_samples.Count == 0) return Array.Empty<FbgStabilitySample>();
+            DateTimeOffset origin = _samples[0].Time;
+            return _samples.Select(sample => new FbgStabilitySample(
+                (sample.Time - origin).TotalMinutes,
+                sample.Wavelength)).ToArray();
+        }
+    }
+
+    public void Update(CalibrationTargetProgress progress, DateTimeOffset now)
+    {
+        _progress = progress;
+        if (progress.Phase is "Stabilizing" or "Measuring" &&
+            progress.CurrentWavelengthNm is { } wavelength && double.IsFinite(wavelength))
+        {
+            _samples.Add((now, wavelength));
+            if (_samples.Count > 180) _samples.RemoveRange(0, _samples.Count - 180);
+        }
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
+
+    private static string Metric(string name, double? value, double? limit, string unit) =>
+        value is null || limit is null ? $"{name}: čaká na dáta" : $"{name}: {value:F3} / ≤ {limit:F3} {unit}";
+}
+public sealed record FbgStabilitySample(double Minutes, double WavelengthNm);
 public sealed record DashboardEvent(string Time, string Level, string Message);

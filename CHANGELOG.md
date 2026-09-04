@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.82] – 2026-09-04
+
+- Prehľad kalibrácie teraz zobrazuje samostatný živý graf stability pre každý vybraný FBG peak.
+- Každá karta peaku ukazuje aktuálnu vlnovú dĺžku, priebeh posledných 180 vzoriek, počet stabilných vzoriek, rozsah, smerodajnú odchýlku a drift voči nastaveným limitom.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.82.
+
 ## [1.76.81] – 2026-09-04
 
 - Karta teplotnej stability WIKA sa dá rozbaliť a zobrazuje detailný graf posledných 50 vzoriek použitých pri stabilizácii.

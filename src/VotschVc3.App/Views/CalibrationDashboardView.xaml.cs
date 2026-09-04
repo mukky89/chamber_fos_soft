@@ -1,11 +1,30 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Calibration;
 
 namespace VotschVc3.App.Views;
+
+public sealed class FbgStabilitySeriesConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value is not IReadOnlyList<FbgStabilitySample> samples || samples.Count == 0)
+            return Array.Empty<ChartSeries>();
+        return new[]
+        {
+            new ChartSeries("FBG peak", Brushes.DeepSkyBlue, samples
+                .Select(sample => new Point(sample.Minutes, sample.WavelengthNm))
+                .ToArray(), strokeThickness: 2.1),
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+        Binding.DoNothing;
+}
 
 public partial class CalibrationDashboardView : UserControl
 {
