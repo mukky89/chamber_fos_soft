@@ -39,7 +39,7 @@ public partial class CalibrationWindow
 {
     private const int MaxLiveTracePoints = 3000;
     private bool _productionWorkspaceV4Initialized;
-    private readonly Dictionary<CalibrationPeakRowViewModel, List<(DateTimeOffset Time, double Wavelength)>> _fbgLiveTrace = new();
+    private readonly Dictionary<string, List<(DateTimeOffset Time, double Wavelength)>> _fbgLiveTrace = new(StringComparer.Ordinal);
     private readonly HashSet<CalibrationPeakRowViewModel> _fbgLiveObservedRows = new();
     private readonly Dictionary<CalibrationPeakRowViewModel, bool> _lastSnWarningState = new();
     private readonly Dictionary<string, bool> _fbgTraceVisibilityByKey = new(StringComparer.Ordinal);
@@ -424,7 +424,9 @@ public partial class CalibrationWindow
         if (row is null || !_fbgLiveObservedRows.Remove(row)) return;
         row.PropertyChanged -= OnFbgTraceRowChanged;
         _lastSnWarningState.Remove(row);
-        _fbgLiveTrace.Remove(row);
+        // The row object is replaced when PeakLogger refreshes its topology. Keep
+        // trace data under the stable source identity so a transient refresh does
+        // not erase the graph for a physical peak that is still present.
     }
 
     private void OnFbgTraceRowChanged(object? sender, PropertyChangedEventArgs e)
@@ -434,10 +436,11 @@ public partial class CalibrationWindow
         if (e.PropertyName == nameof(CalibrationPeakRowViewModel.LastWavelengthUpdate) &&
             row.Selected && row.LastWavelengthUpdate is { } timestamp && double.IsFinite(row.CurrentWavelengthNm))
         {
-            if (!_fbgLiveTrace.TryGetValue(row, out List<(DateTimeOffset Time, double Wavelength)>? trace))
+            string traceKey = FbgTraceKey(row);
+            if (!_fbgLiveTrace.TryGetValue(traceKey, out List<(DateTimeOffset Time, double Wavelength)>? trace))
             {
                 trace = new List<(DateTimeOffset, double)>();
-                _fbgLiveTrace[row] = trace;
+                _fbgLiveTrace[traceKey] = trace;
             }
             if (trace.Count == 0 || trace[^1].Time != timestamp)
             {
@@ -554,9 +557,12 @@ public partial class CalibrationWindow
         }
 
         IReadOnlyList<CalibrationReferenceTracePoint> reference = CalibrationReferenceTraceStore.Instance.GetTrace(_chamberId);
-        DateTimeOffset? firstFbg = _fbgLiveTrace
-            .Where(pair => pair.Key.Selected && IsFbgTraceVisible(pair.Key) && pair.Value.Count > 0)
-            .Select(pair => (DateTimeOffset?)pair.Value[0].Time)
+        DateTimeOffset? firstFbg = _viewModel.Peaks
+            .Where(row => row.Selected && IsFbgTraceVisible(row))
+            .Select(row => _fbgLiveTrace.TryGetValue(FbgTraceKey(row), out var trace) && trace.Count > 0
+                ? (DateTimeOffset?)trace[0].Time
+                : null)
+            .Where(value => value.HasValue)
             .OrderBy(value => value)
             .FirstOrDefault();
         DateTimeOffset? firstRef = reference.Count > 0 ? reference[0].Timestamp : null;
@@ -601,7 +607,7 @@ public partial class CalibrationWindow
                 _fbgPeakChartsPanel.Children.Insert(index, card);
             }
             chart.ChartTitle = BuildFbgTraceLabel(row);
-            Point[] points = _fbgLiveTrace.TryGetValue(row, out var trace)
+            Point[] points = _fbgLiveTrace.TryGetValue(FbgTraceKey(row), out var trace)
                 ? trace.Where(p => !_viewModel.IsRunning || p.Time >= _liveTraceOrigin)
                     .Select(p => new Point((p.Time - origin).TotalMinutes, p.Wavelength)).ToArray()
                 : Array.Empty<Point>();

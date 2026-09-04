@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.72] – 2026-09-04
+
+- Opravené vypadávanie kriviek a dát peakov v záložke Live dáta pri obnovení topológie alebo krátkom výpadku PeakLoggera.
+- História živého grafu sa teraz viaže na stabilnú identitu zariadenia, kanála a Peak ID namiesto dočasného objektu riadku tabuľky.
+- Opätovne načítaný rovnaký fyzický peak plynulo pokračuje v existujúcej krivke bez vymazania predchádzajúcich vzoriek.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.72.
+
 ## [1.76.71] – 2026-09-04
 
 - Okno poradového párovania SN sa už pri otvorení FBG kalibrácie nezobrazuje automaticky.
