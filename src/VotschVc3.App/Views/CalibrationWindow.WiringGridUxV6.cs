@@ -108,7 +108,7 @@ public partial class CalibrationWindow
 
     private Style BuildWiringCellStyleV6(bool editable)
     {
-        Style? basedOn = _wiringGrid?.CellStyle;
+        Style? basedOn = _wiringGrid?.CellStyle ?? TryFindResource(typeof(DataGridCell)) as Style;
         var style = basedOn is null
             ? new Style(typeof(DataGridCell))
             : new Style(typeof(DataGridCell), basedOn);
@@ -193,8 +193,7 @@ public partial class CalibrationWindow
         // One click = focus the cell and immediately enter edit mode. WPF normally needs two clicks
         // when a DataGridTextColumn is not already current.
         cell.Focus();
-        _wiringGrid.CurrentCell = new DataGridCellInfo(cell);
-        _wiringGrid.SelectedItem = cell.DataContext;
+        _wiringGrid.CurrentCell = new DataGridCellInfo(cell.DataContext, cell.Column);
 
         if (_wiringGrid.BeginEdit())
         {
