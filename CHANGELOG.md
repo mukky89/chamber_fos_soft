@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.69] – 2026-09-04
+
+- Aktuálne fokusovaná bunka v tabuľke zapojenia FBG je výrazne označená červeným rámčekom, aby operátor vždy videl miesto zadávania.
+- Červený rámček zostáva viditeľný aj počas editácie textu v bunke a po presune klávesom Enter sa premiestni na nasledujúcu bunku.
+- Opravená šablóna buniek DataGrid, ktorá predtým nastavený rámček nevykresľovala.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.69.
+
 ## [1.76.68] – 2026-09-04
 
 - Predvoleným spôsobom zadávania zapojenia FBG je teraz poradové párovanie cez okno pre SN; tabuľkový režim zostáva dostupný ako voliteľná možnosť.
