@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.63] – 2026-09-04
+
+- Zapojenie FBG snímačov ponúka dva režimy: priame zadávanie SN v tabuľke a poradové automatické párovanie po pripojení snímača.
+- V tabuľkovom režime zostáva fokus v stĺpci `FBG sensor SN (kanál)` a Enter presunie editáciu na nasledujúci riadok toho istého stĺpca.
+- Poradové párovanie najprv overí SN a načíta výrobné údaje zo Sylex FOS API, potom čaká na nový peak a priradí SN všetkým peakom zisteného kanála.
+- Po úspešnom priradení sa vstup automaticky pripraví na ďalšie SN; priebežné uloženie zapojenia a ochrana aktívnej editácie zostávajú zachované.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.63.
+
 ## [1.76.62] – 2026-09-04
 
 ### Zmenené – stručný live prehľad a ID kalibrácie

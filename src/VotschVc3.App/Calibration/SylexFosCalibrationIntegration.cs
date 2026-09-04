@@ -44,6 +44,19 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         await CheckApiAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Loads production data before a sensor is connected. Sequential wiring uses this preview
+    /// to let the operator verify the scanned SN before it is armed for the next new channel.
+    /// </summary>
+    public Task<ProductionMetadata?> PreviewAsync(string serialNumber, CancellationToken cancellationToken = default)
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(SylexFosCalibrationIntegration));
+        string normalized = SylexFosRowMetadataStore.ParseSerialNumber(serialNumber);
+        return string.IsNullOrWhiteSpace(normalized)
+            ? Task.FromResult<ProductionMetadata?>(null)
+            : _metadataProvider.FindAsync(normalized, string.Empty, cancellationToken);
+    }
+
     private void OnPeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         // Reset is special: ObservableCollection does not guarantee OldItems, therefore detach

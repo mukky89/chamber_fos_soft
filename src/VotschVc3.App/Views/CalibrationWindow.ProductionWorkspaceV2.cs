@@ -462,6 +462,8 @@ public partial class CalibrationWindow
 
         if (added.Length > 0)
         {
+            if (_wiringEntryModeSequential && TryPairSequentialPeak(added)) return;
+
             CalibrationPeakRowViewModel? row = _viewModel.Peaks.FirstOrDefault(p => added.Contains(PeakIdentity(p), StringComparer.OrdinalIgnoreCase));
             if (row is not null)
             {
