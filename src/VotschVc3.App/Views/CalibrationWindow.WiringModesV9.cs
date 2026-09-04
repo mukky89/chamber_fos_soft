@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using VotschVc3.App.Calibration;
@@ -48,7 +50,6 @@ public partial class CalibrationWindow
         var table = new RadioButton
         {
             Content = "Tabuľka SN",
-            IsChecked = true,
             GroupName = "WiringEntryModeV9",
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(12, 0, 10, 0),
@@ -79,9 +80,12 @@ public partial class CalibrationWindow
         DockPanel.SetDock(modes, Dock.Right);
         header.Children.Insert(0, modes);
 
+        // Poradové párovanie je bezpečnejší výrobný postup: operátor najprv
+        // pripraví overené SN a až potom sa novo pripojený kanál priradí.
+        sequential.IsChecked = true;
+
         _wiringGrid.PreviewKeyDown -= WiringGridPreviewKeyDownV9;
         _wiringGrid.PreviewKeyDown += WiringGridPreviewKeyDownV9;
-        FocusFirstEmptySerialV9();
     }
 
     private void WiringGridPreviewKeyDownV9(object sender, KeyEventArgs e)
@@ -121,24 +125,54 @@ public partial class CalibrationWindow
     private void OpenSequentialWiringV9()
     {
         if (_sequentialWiringWindow is not null) { _sequentialWiringWindow.Activate(); return; }
-        _sequentialSnBox = new TextBox { MinWidth = 280, FontSize = 18, Margin = new Thickness(0, 6, 0, 8) };
-        _sequentialStatus = new TextBlock { Text = "Zadaj alebo naskenuj SN.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
-        _sequentialArmButton = new Button { Content = "Načítať z API a pripraviť", Padding = new Thickness(14, 7, 14, 7), HorizontalAlignment = HorizontalAlignment.Left };
+        Brush background = TryFindResource("BackgroundBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(24, 26, 38));
+        Brush surface = TryFindResource("SurfaceBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(34, 36, 58));
+        Brush border = TryFindResource("BorderBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(58, 61, 92));
+        Brush text = TryFindResource("TextBrush") as Brush ?? Brushes.White;
+        Brush muted = TryFindResource("MutedBrush") as Brush ?? Brushes.LightGray;
+
+        _sequentialSnBox = new TextBox
+        {
+            MinWidth = 420, MinHeight = 44, FontSize = 18,
+            Margin = new Thickness(0, 8, 0, 8),
+        };
+        _sequentialStatus = new TextBlock
+        {
+            Text = "Zadaj alebo naskenuj sériové číslo.",
+            Foreground = muted, TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 16),
+        };
+        _sequentialArmButton = new Button
+        {
+            Content = "Načítať z API a pripraviť", Padding = new Thickness(18, 9, 18, 9),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Style = TryFindResource("AccentButton") as Style,
+        };
         _sequentialArmButton.Click += async (_, _) => await ArmSequentialSerialV9Async();
         _sequentialSnBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; await ArmSequentialSerialV9Async(); } };
-        var stack = new StackPanel { Margin = new Thickness(18) };
-        stack.Children.Add(new TextBlock { Text = "Poradové párovanie snímačov", FontSize = 19, FontWeight = FontWeights.SemiBold });
-        stack.Children.Add(new TextBlock { Text = "1. Zadaj SN   2. Pripoj snímač   3. Nový kanál sa priradí automaticky", Margin = new Thickness(0, 4, 0, 8), Opacity = .8 });
+        var stack = new StackPanel { Margin = new Thickness(24) };
+        stack.Children.Add(new TextBlock { Text = "Poradové párovanie snímačov", FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = text });
+        stack.Children.Add(new TextBlock
+        {
+            Text = "1  Zadaj SN     2  Pripoj snímač     3  Nový kanál sa priradí automaticky",
+            Foreground = muted, Margin = new Thickness(0, 6, 0, 12),
+        });
         stack.Children.Add(_sequentialSnBox);
         stack.Children.Add(_sequentialStatus);
         stack.Children.Add(_sequentialArmButton);
+        var card = new Border
+        {
+            Background = surface, BorderBrush = border, BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12), Margin = new Thickness(18), Child = stack,
+        };
         _sequentialWiringWindow = new Window
         {
-            Owner = this, Title = "Priradenie FBG SN", Content = stack,
-            SizeToContent = SizeToContent.WidthAndHeight, MinWidth = 560,
+            Owner = this, Title = "Priradenie FBG SN", Content = card,
+            SizeToContent = SizeToContent.WidthAndHeight, MinWidth = 620,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
-            Background = TryFindResource("WindowBackgroundBrush") as Brush ?? SystemColors.WindowBrush,
+            Background = background, Foreground = text,
         };
+        _sequentialWiringWindow.SourceInitialized += (_, _) => EnableDarkTitleBarV9(_sequentialWiringWindow);
         _sequentialWiringWindow.Closed += (_, _) =>
         {
             _sequentialWiringWindow = null; _sequentialSnBox = null; _sequentialStatus = null; _sequentialArmButton = null;
@@ -147,6 +181,18 @@ public partial class CalibrationWindow
         _sequentialWiringWindow.Show();
         _sequentialSnBox.Focus();
     }
+
+    private static void EnableDarkTitleBarV9(Window? window)
+    {
+        if (window is null) return;
+        IntPtr handle = new WindowInteropHelper(window).Handle;
+        int enabled = 1;
+        if (DwmSetWindowAttributeV9(handle, 20, ref enabled, sizeof(int)) != 0)
+            _ = DwmSetWindowAttributeV9(handle, 19, ref enabled, sizeof(int));
+    }
+
+    [DllImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute")]
+    private static extern int DwmSetWindowAttributeV9(IntPtr window, int attribute, ref int value, int valueSize);
 
     private async Task ArmSequentialSerialV9Async()
     {

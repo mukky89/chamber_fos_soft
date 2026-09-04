@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.68] – 2026-09-04
+
+- Predvoleným spôsobom zadávania zapojenia FBG je teraz poradové párovanie cez okno pre SN; tabuľkový režim zostáva dostupný ako voliteľná možnosť.
+- Okno poradového párovania používa kompletnú tmavú tému vrátane titulku, kontrastného vstupu, stavového textu a hlavného tlačidla podľa dizajnového systému aplikácie.
+- Rozloženie dialógu bolo sprehľadnené, zväčšené pre skener a klávesnicu a zachováva automatický fokus na zadanie ďalšieho SN.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.68.
+
 ## [1.76.67] – 2026-09-04
 
 - Predvolene riadi kalibračnú teplotu vlastný interný regulátor komory podľa jej internej teploty.
