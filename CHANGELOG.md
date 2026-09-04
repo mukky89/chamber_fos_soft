@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.89] – 2026-09-04
+
+- Nové súbory analýzy histórie profilov boli zjednotené na projektový Windows CRLF formát, aby Visual Studio nehlásilo nekonzistentné konce riadkov.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.89.
+
 ## [1.76.88] – 2026-09-04
 
 - Ku každému kalibračnému profilu sa z uložených behov automaticky počíta počet použití, posledné použitie, posledné a priemerné trvanie aj typický odhad ďalšieho behu.
