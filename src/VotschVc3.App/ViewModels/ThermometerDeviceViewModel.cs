@@ -22,6 +22,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     private static readonly Brush TempBrush = CreateBrush(0x4F, 0xC1, 0x7A);
 
     private readonly List<(DateTimeOffset time, double value)> _live = new();
+    private readonly SemaphoreSlim _connectionGate = new(1, 1);
     private F100Client? _client;
     private CancellationTokenSource? _pollingCts;
     private ThermometerCsvRecorder? _recorder;
@@ -157,6 +158,28 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
+        await _connectionGate.WaitAsync(cancellationToken);
+        try
+        {
+            await ConnectUnderGateAsync(cancellationToken);
+        }
+        finally
+        {
+            _connectionGate.Release();
+        }
+    }
+
+    private async Task ConnectUnderGateAsync(CancellationToken cancellationToken)
+    {
+        // PrimeReferenceReadAsync and the five-second refresh can both request the first
+        // sample at startup. The second caller must reuse the connection established by
+        // the first one instead of disposing it and racing a second client onto the COM port.
+        if (_client is { IsOpen: true })
+        {
+            IsConnected = true;
+            return;
+        }
+
         if (_client is not null)
         {
             try { await _client.DisposeAsync(); } catch { }
@@ -191,15 +214,17 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     private async Task DisconnectAsync()
     {
         StopPolling();
-        if (_client is not null)
+        await _connectionGate.WaitAsync();
+        try
         {
-            try { await _client.ReturnToLocalIfSupportedAsync(); } catch { }
-            await _client.DisposeAsync();
-            _client = null;
+            await DisposeClientUnderGateAsync();
+            IsConnected = false;
+            StatusMessage = "Odpojené.";
         }
-
-        IsConnected = false;
-        StatusMessage = "Odpojené.";
+        finally
+        {
+            _connectionGate.Release();
+        }
     }
 
     private async Task IdentifyAsync()
@@ -299,16 +324,27 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     public async Task<double?> ForceReconnectAsync(CancellationToken cancellationToken = default)
     {
         StopPolling();
-        if (_client is not null)
+        await _connectionGate.WaitAsync(cancellationToken);
+        try
         {
-            try { await _client.DisposeAsync(); } catch { }
-            _client = null;
+            await DisposeClientUnderGateAsync();
+            IsConnected = false;
+            StatusMessage = $"Vynucujem nové pripojenie {PortName}…";
+            await ConnectUnderGateAsync(cancellationToken);
         }
-
-        IsConnected = false;
-        StatusMessage = $"Vynucujem nové pripojenie {PortName}…";
-        await ConnectAsync(cancellationToken);
+        finally
+        {
+            _connectionGate.Release();
+        }
         return await ReadReferenceTemperatureAsync(cancellationToken);
+    }
+
+    private async Task DisposeClientUnderGateAsync()
+    {
+        if (_client is null) return;
+        try { await _client.ReturnToLocalIfSupportedAsync(); } catch { }
+        await _client.DisposeAsync();
+        _client = null;
     }
 
     private void StartPolling()
@@ -522,12 +558,15 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     {
         StopPolling();
         StopRecording();
-        if (_client is not null)
+        await _connectionGate.WaitAsync();
+        try
         {
-            try { await _client.ReturnToLocalIfSupportedAsync(); } catch { }
-            await _client.DisposeAsync();
-            _client = null;
+            await DisposeClientUnderGateAsync();
+            IsConnected = false;
         }
-        IsConnected = false;
+        finally
+        {
+            _connectionGate.Release();
+        }
     }
 }

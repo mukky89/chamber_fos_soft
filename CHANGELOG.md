@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.57] – 2026-09-04
+
+### Opravené – súbežné čítanie WIKA CTH7000
+- Prvá automatická vzorka a pravidelný 5-sekundový refresh už nemôžu súčasne vytvoriť dva klienty pre rovnaký COM port.
+- Súbežné požiadavky zdieľajú existujúce otvorené spojenie; odpojenie, vynútené pripojenie a ukončenie klienta sú serializované rovnakým zámkom.
+- Overená WIKA sekvencia 9600 8N1, CR, DTR/RTS, 25 ms medzi znakmi a `SYSTEM:REMOTE → *IDN? → MEASURE:CHANNEL? → SYSTEM:LOCAL` zostáva nezmenená.
+
 ## [1.76.56] – 2026-09-04
 
 ### Opravené – jednotné konce riadkov
