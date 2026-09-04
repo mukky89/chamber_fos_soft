@@ -1,4 +1,5 @@
 {
+  "enabled": false,
   "dashboardUrl": "https://YOUR-RAILWAY-DASHBOARD.example",
   "agentKey": "lab_VLOZ_TOKEN_Z_ADMINISTRACIE",
   "pollSeconds": 3,
