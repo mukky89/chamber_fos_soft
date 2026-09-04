@@ -1,5 +1,6 @@
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Notifications;
+using Xunit;
 
 namespace VotschVc3.Core.Tests;
 
