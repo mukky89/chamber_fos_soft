@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.74] – 2026-09-04
+
+- Opravené pravidelné nepravdivé špičky a „zuby“ v grafoch FBG na záložke Live dáta.
+- Reálnu vlnovú dĺžku teraz počas behu aktualizuje výhradne kontinuálny PeakLogger monitor; starší päťsekundový progress snapshot ju už neprepisuje.
+- Aktualizácia z progress snapshotu zostáva zachovaná iba pre simulátor, ktorý sa počas kalibrácie zámerne nečíta druhýkrát.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.74.
+
 ## [1.76.73] – 2026-09-04
 
 - Live terminál kalibrácie je v záložke Prehľad predvolene skrytý a zobrazí sa až tlačidlom „Zobraziť live terminál“.

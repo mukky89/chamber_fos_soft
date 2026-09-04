@@ -1532,7 +1532,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 string.Equals(p.SerialNumber, target.SerialNumber, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(p.Channel, target.Channel, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(p.PeakId, target.PeakId, StringComparison.OrdinalIgnoreCase));
-            if (sourceRow is not null && target.CurrentWavelengthNm is { } wavelength)
+            // A real PeakLogger is continuously sampled by MonitorPeakLoggerAsync.
+            // Runner progress can contain the plateau's older snapshot and must not
+            // overwrite that live value every five seconds (it creates false spikes).
+            // The simulator is intentionally not double-polled, so it keeps this fallback.
+            if (UseSimulator && sourceRow is not null && target.CurrentWavelengthNm is { } wavelength)
             {
                 sourceRow.UpdateLive(wavelength, sourceRow.Intensity, DateTimeOffset.Now);
             }
