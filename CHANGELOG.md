@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.75] – 2026-09-04
+
+- Natrvalo zjednotené konce riadkov podľa typu súboru, aby Visual Studio prestalo zobrazovať dialóg „Inconsistent Line Endings“.
+- Pridaný opakovateľný skript `scripts/Normalize-LineEndings.ps1`, ktorý po úpravách normalizuje všetky sledované textové súbory.
+- PowerShell skripty majú v Git pravidlách explicitne nastavené Windows konce riadkov CRLF.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.75.
+
 ## [1.76.74] – 2026-09-04
 
 - Opravené pravidelné nepravdivé špičky a „zuby“ v grafoch FBG na záložke Live dáta.
