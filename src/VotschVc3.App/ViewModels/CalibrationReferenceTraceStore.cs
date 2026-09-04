@@ -25,6 +25,20 @@ public sealed class CalibrationReferenceTraceStore
     public void EndRun(Guid chamberId) { lock (_gate) _activeRuns.Remove(chamberId); }
     public DateTimeOffset? GetRunStart(Guid chamberId)
     { lock (_gate) return _runStarts.TryGetValue(chamberId, out var start) ? start : null; }
+
+    /// <summary>
+    /// Returns the chamber id when exactly one calibration trace is active.
+    /// This is a safe UI fallback for older dashboard callers that did not explicitly
+    /// pass ReferenceChamberId yet. If multiple runs are active, no guess is made.
+    /// </summary>
+    public Guid? GetSingleActiveChamberId()
+    {
+        lock (_gate)
+        {
+            return _activeRuns.Count == 1 ? _activeRuns.First() : null;
+        }
+    }
+
     public void AppendRunSample(Guid chamberId, CalibrationReferenceTracePoint point)
     {
         lock (_gate)
