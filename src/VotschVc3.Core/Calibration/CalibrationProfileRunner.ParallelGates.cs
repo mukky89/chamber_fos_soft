@@ -47,6 +47,8 @@ public sealed class CalibrationProfileRunner
         _resume.Set();
     }
 
+    public void RequestTemperatureGateOverride() => _orchestrator.RequestTemperatureGateOverride();
+
     public async Task RunAsync(
         TestProfile profile,
         CalibrationSetup setup,

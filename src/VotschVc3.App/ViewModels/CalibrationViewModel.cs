@@ -51,6 +51,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private DateTimeOffset _nextWavelengthTraceAt = DateTimeOffset.MinValue;
     private CalibrationSetup _setup = new();
     private bool _stopRequested;
+    private bool _temperatureGateOverridePending;
     private double? _lastChamberTemperatureC;
     private double? _lastReferenceTemperatureC;
     private DateTimeOffset? _lastReferenceMismatchEmailAt;
@@ -89,6 +90,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         MarkAllPlateausCommand = new RelayCommand(MarkAllPlateaus, () => CalibrationPoints.Count > 0 && !IsRunning);
         StartCalibrationCommand = new AsyncRelayCommand(StartCalibrationAsync, CanStartCalibration, ReportError);
         PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null);
+        ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending);
         StopCalibrationCommand = new RelayCommand(StopCalibration, () => IsRunning);
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
@@ -129,6 +131,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand MarkAllPlateausCommand { get; }
     public AsyncRelayCommand StartCalibrationCommand { get; }
     public RelayCommand PauseResumeCommand { get; }
+    public RelayCommand ForceNextStepCommand { get; }
     public RelayCommand StopCalibrationCommand { get; }
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ExportSelectedRunCommand { get; }
@@ -1331,6 +1334,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         TargetProgress.Clear();
         _runCts = new CancellationTokenSource();
         _stopRequested = false;
+        _temperatureGateOverridePending = false;
         _calibrationProgressPercent = 0;
         Dashboard.ResetPlan();
         RefreshDashboardPlan();
@@ -1467,7 +1471,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         ReferenceTemperatureLabel = snapshot.ReferenceTemperatureC is { } reference ? $"{reference:F3} °C" : ReferenceTemperatureLabel;
         StableLabel = $"{snapshot.StableTargets} / {snapshot.TotalTargets}";
         StatusMessage = snapshot.Message;
+        if (snapshot.State != CalibrationRunState.WaitingForChamberStability)
+            _temperatureGateOverridePending = false;
         PublishCalibrationStatus();
+        ForceNextStepCommand.RaiseCanExecuteChanged();
 
         Dictionary<string, CalibrationTargetProgressViewModel> existing = TargetProgress.ToDictionary(x => x.Identity, StringComparer.OrdinalIgnoreCase);
         foreach (CalibrationTargetProgress target in snapshot.Targets)
@@ -1508,6 +1515,16 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = "Kalibrácia pozastavená; čas segmentu stojí.";
         }
         Dashboard.Pause(_runner.IsPaused, DateTimeOffset.Now);
+    }
+
+    private void ForceNextStep()
+    {
+        if (_runner is null || !Dashboard.CanForceTemperatureGate || _temperatureGateOverridePending) return;
+        _temperatureGateOverridePending = true;
+        _runner.RequestTemperatureGateOverride();
+        StatusMessage = "Operátor vyžiadal vynútené pokračovanie na stabilizáciu FBG. Akcia bude zapísaná do výsledku kalibrácie.";
+        Dashboard.Warn(StatusMessage, DateTimeOffset.Now);
+        ForceNextStepCommand.RaiseCanExecuteChanged();
     }
 
     private void StopCalibration()
@@ -1651,6 +1668,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StartCalibrationCommand.RaiseCanExecuteChanged();
         StopCalibrationCommand.RaiseCanExecuteChanged();
         PauseResumeCommand.RaiseCanExecuteChanged();
+        ForceNextStepCommand.RaiseCanExecuteChanged();
         SaveSetupCommand.RaiseCanExecuteChanged();
         SelectSuggestedPeaksCommand.RaiseCanExecuteChanged();
         MarkAllPlateausCommand.RaiseCanExecuteChanged();

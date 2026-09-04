@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.61] – 2026-09-04
+
+### Pridané – vynútenie ďalšieho kroku kalibrácie
+- Počas čakania na stabilitu môže operátor tlačidlom „Vynútiť ďalší krok“ pokračovať na stabilizáciu FBG, ak je dostupná platná aktuálna teplota.
+- Vynútenie platí iba pre aktuálne plato a neovplyvní pravidlá nasledujúcich kalibračných bodov.
+- Akcia sa uloží medzi upozornenia behu spolu s cieľom, teplotou WIKA a teplotou komory, aby zostala dohľadateľná vo výsledkoch.
+
 ## [1.76.60] – 2026-09-04
 
 ### Zmenené – presnosť a hranice stability v teplotných grafoch

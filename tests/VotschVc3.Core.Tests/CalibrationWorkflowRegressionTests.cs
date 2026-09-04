@@ -189,6 +189,52 @@ public sealed class CalibrationWorkflowRegressionTests
         }
     }
 
+    [Fact]
+    public async Task Runner_OperatorCanForceCurrentTemperatureGate_AndOverrideIsAudited()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "Forced WIKA gate",
+                ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments = { new ProfileSegment { Name = "20 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 20 } },
+            };
+            var setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.Add(0);
+            setup.Settings.ChamberStabilityTimeout = TimeSpan.FromSeconds(10);
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ProfileName = profile.Name, ChamberId = Guid.NewGuid() };
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+            bool requested = false;
+            runner.Progress += snapshot =>
+            {
+                if (!requested && snapshot.State == CalibrationRunState.WaitingForChamberStability)
+                {
+                    requested = true;
+                    runner.RequestTemperatureGateOverride();
+                }
+            };
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            await runner.RunAsync(profile, setup, run, writer, 20, null, _ => Task.FromResult<double?>(35), timeout.Token);
+
+            Assert.Equal(CalibrationRunState.CompletedWithWarnings, run.State);
+            Assert.Contains(run.Warnings, warning => warning.Code == "TEMPERATURE_STABILITY_FORCED");
+            Assert.Single(run.Plateaus);
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
     private static CalibrationSetup StableSetup(Guid profileId) => new()
     {
         ProfileId = profileId,

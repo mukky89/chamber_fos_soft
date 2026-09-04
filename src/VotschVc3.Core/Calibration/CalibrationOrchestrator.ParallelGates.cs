@@ -21,6 +21,7 @@ namespace VotschVc3.Core.Calibration;
 public sealed class CalibrationOrchestrator
 {
     private readonly IPeakLoggerClient _peakLogger;
+    private int _temperatureGateOverrideRequested;
 
     public CalibrationOrchestrator(IPeakLoggerClient peakLogger)
     {
@@ -28,6 +29,10 @@ public sealed class CalibrationOrchestrator
     }
 
     public event Action<CalibrationWarning>? WarningRaised;
+
+    /// <summary>Requests an audited one-time bypass of the stability gate for the current plateau.</summary>
+    public void RequestTemperatureGateOverride() =>
+        Interlocked.Exchange(ref _temperatureGateOverrideRequested, 1);
 
     public async Task<IReadOnlyList<PeakLoggerSensor>> PreflightAsync(
         CalibrationSetup setup,
@@ -146,6 +151,7 @@ public sealed class CalibrationOrchestrator
         double? referenceTemperature = null;
         StabilityMetrics? temperatureMetrics = null;
         bool temperatureGateOpen = false;
+        bool temperatureGateForced = false;
         bool temperatureGateEverOpened = false;
         DateTimeOffset? temperatureRecoveryStartedAt = null;
         DateTimeOffset previousLoopAt = DateTimeOffset.UtcNow;
@@ -177,8 +183,27 @@ public sealed class CalibrationOrchestrator
                     : null)
                 : chamberDetector.Add(loopAt, actualTemperature, targetTemperatureC);
 
+            bool temperatureGateOverrideRequested = Interlocked.Exchange(ref _temperatureGateOverrideRequested, 0) == 1;
+            if (!temperatureGateForced && temperatureGateOverrideRequested)
+            {
+                bool hasAuthoritativeTemperature = hasExternalReference
+                    ? referenceTemperature is not null
+                    : double.IsFinite(actualTemperature);
+                if (hasAuthoritativeTemperature)
+                {
+                    temperatureGateForced = true;
+                    RaiseWarning(run, new CalibrationWarning
+                    {
+                        Code = "TEMPERATURE_STABILITY_FORCED",
+                        PlateauIndex = plateauIndex,
+                        Message = $"Operátor vynútil pokračovanie z teplotnej stability na plate {plateauIndex + 1} pri cieli {targetTemperatureC:F2} °C " +
+                                  $"(WIKA {(referenceTemperature is { } forcedReference ? $"{forcedReference:F3} °C" : "bez referencie")}, komora {actualTemperature:F2} °C).",
+                    });
+                }
+            }
+
             bool minimumElapsed = plateauClock.Elapsed >= minimumPlateauDuration;
-            bool temperatureStable = temperatureMetrics?.IsStable == true;
+            bool temperatureStable = temperatureMetrics?.IsStable == true || temperatureGateForced;
             bool shouldOpenTemperatureGate = minimumElapsed && temperatureStable;
 
             if (!shouldOpenTemperatureGate)

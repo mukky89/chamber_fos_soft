@@ -54,6 +54,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Delta => _snapshot?.ActualTemperatureC is { } t ? $"Δ {t - _snapshot.TargetTemperatureC:+0.00;-0.00;0.00} °C" : "Čaká na údaje";
     public string Trend { get; private set; } = "—";
     public bool HasReference { get; private set; }
+    public bool CanForceTemperatureGate => _running &&
+        _state == CalibrationRunState.WaitingForChamberStability &&
+        (!HasReference || _snapshot?.ReferenceTemperatureC is not null);
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
     public string TemperatureScore => _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Po nastavení cieľa sa začne vyhodnocovať výhradne WIKA referencia." : _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability WIKA {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability WIKA";

@@ -60,6 +60,10 @@
                                 <TextBlock Text="Pauza" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
                             </StackPanel>
                         </Button>
+                        <Button Style="{StaticResource GhostButton}" Command="{Binding ForceNextStepCommand}" Margin="0,0,6,0"
+                                ToolTip="Vynechá čakanie na stabilitu iba pre aktuálne plato a pokračuje na stabilizáciu FBG. Akcia sa zapíše ako upozornenie do výsledku.">
+                            <TextBlock Text="Vynútiť ďalší krok" Style="{StaticResource IconLabel}" />
+                        </Button>
                         <Button Style="{StaticResource DangerButton}" Command="{Binding StopCalibrationCommand}" Margin="0"
                                 ToolTip="Zastaví beh kalibrácie.">
                             <StackPanel Orientation="Horizontal">

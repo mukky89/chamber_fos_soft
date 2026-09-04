@@ -106,4 +106,13 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(-40, m.TargetTemperatureC);
         Assert.Equal(0.25, m.StabilityToleranceC);
     }
+    [Fact] public void ForceNextStepIsAvailableOnlyWhileWaitingWithAuthoritativeTemperature()
+    {
+        var m = Model();
+        Assert.False(m.CanForceTemperatureGate);
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);
+        Assert.True(m.CanForceTemperatureGate);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors), Start.AddSeconds(1));
+        Assert.False(m.CanForceTemperatureGate);
+    }
 }
