@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.79] – 2026-09-04
+
+- Sekcia „Čo sa deje práve teraz“ bola prerobená na moderný dynamický timeline s dokončeným, aktuálnym a nasledujúcim krokom.
+- Aktuálny krok je výrazne zvýraznený a pri čakaní používa jemný pulz; spojovacie čiary a stavové body okamžite ukazujú smer procesu.
+- Podmienky aktuálneho kroku, časy, aktívny peak a upozornenia zostávajú oddelené v prehľadných blokoch pod timeline.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.79.
+
 ## [1.76.78] – 2026-09-04
 
 - Karta WIKA v živom prehľade teraz dynamicky zobrazuje odchýlku od cieľa, povolenú toleranciu, aktuálny drift a nazbieraný stabilný čas.

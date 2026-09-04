@@ -54,6 +54,9 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(0, m.Samples); Assert.Equal("Waiting", m.Steps[3].State); Assert.Equal("Pending", m.Steps[5].State);
         Assert.Equal(0, m.CompletedPoints);
         Assert.Contains("WAITING", m.TemperatureStatus); // 100% score alone is not gate approval.
+        Assert.Equal("Teplota komory", m.TimelinePreviousTitle);
+        Assert.Equal("WIKA referencia", m.TimelineCurrentTitle);
+        Assert.Equal("Stabilita FBG", m.TimelineNextTitle);
     }
     [Fact] public void PauseAndFailureKeepProgressAndStopEta()
     {

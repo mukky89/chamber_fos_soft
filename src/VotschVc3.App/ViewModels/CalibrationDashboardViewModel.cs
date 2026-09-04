@@ -132,6 +132,28 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private bool AllTargetsFinished => _snapshot?.Targets.Count > 0 && _snapshot.Targets.All(t => t.Phase == "Done");
     public string Freshness { get; private set; } = "Čaká na dáta";
     public double PointProgress => Steps.Take(9).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(9).Count(s => s.State != "Skipped"));
+    private int TimelineCurrentIndex
+    {
+        get
+        {
+            int active = Steps.ToList().FindIndex(step => step.State is "Active" or "Waiting" or "Error");
+            if (active >= 0) return active;
+            int pending = Steps.ToList().FindIndex(step => step.State == "Pending");
+            return pending >= 0 ? pending : Math.Max(0, Steps.Count - 1);
+        }
+    }
+    private DashboardNode? TimelinePreviousNode => TimelineCurrentIndex > 0 ? Steps[TimelineCurrentIndex - 1] : null;
+    private DashboardNode? TimelineCurrentNode => Steps.Count > 0 ? Steps[TimelineCurrentIndex] : null;
+    private DashboardNode? TimelineNextNode => TimelineCurrentIndex + 1 < Steps.Count ? Steps[TimelineCurrentIndex + 1] : null;
+    public string TimelinePreviousNumber => TimelinePreviousNode?.Number ?? "00";
+    public string TimelinePreviousTitle => TimelinePreviousNode?.Title ?? "Štart kalibrácie";
+    public string TimelinePreviousDetail => TimelinePreviousNode?.Detail ?? "Pripravené na spustenie.";
+    public string TimelineCurrentNumber => TimelineCurrentNode?.Number ?? "—";
+    public string TimelineCurrentTitle => TimelineCurrentNode?.Title ?? Phase;
+    public string TimelineCurrentDetail => Now;
+    public string TimelineNextNumber => TimelineNextNode?.Number ?? "✓";
+    public string TimelineNextTitle => TimelineNextNode?.Title ?? "Kalibrácia dokončená";
+    public string TimelineNextDetail => TimelineNextNode?.Detail ?? "Všetky naplánované kroky sú hotové.";
 
     public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null)
     {
