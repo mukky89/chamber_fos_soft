@@ -18,7 +18,8 @@ internal static class Program
             BridgeOptions options = BridgeOptions.Load(Path.GetFullPath(Environment.ExpandEnvironmentVariables(configPath)));
 
             // Dashboard communication is opt-in. Older bridge.json files do not contain
-            // the Enabled property and therefore deserialize to false as well.
+            // the Enabled property and therefore deserialize to false as well. Exit before
+            // validation/device initialization and without opening a visible console banner.
             if (!options.Enabled)
             {
                 BridgeStatusFile.Write(statusPath, new BridgeStatus
@@ -28,9 +29,8 @@ internal static class Program
                     UpdatedUtc = DateTime.UtcNow,
                     MachineName = Environment.MachineName,
                     DashboardUrl = options.DashboardUrl,
-                    LastError = "FOS Dashboard Bridge je vypnutý v konfigurácii (enabled=false).",
+                    LastError = "FOS Dashboard Bridge je vypnutý. Spusti ho ručne v Administrácii.",
                 });
-                Console.WriteLine("Lab Control Bridge je vypnutý (enabled=false). Dashboard sa nekontaktuje.");
                 return 0;
             }
 
