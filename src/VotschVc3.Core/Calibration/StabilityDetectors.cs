@@ -139,14 +139,68 @@ public sealed class TemperatureStabilityDetector
 
     public StabilityMetrics Add(DateTimeOffset timestamp, double value, double target)
     {
+        bool currentInsideTolerance = Math.Abs(value - target) <= _toleranceC;
+
+        // Temperature stability is a CONTINUOUS in-tolerance interval. As soon as the reference
+        // leaves the configured target band, the previous stability history must no longer block a
+        // later recovery. The old implementation retained requiredDuration + 1 minute of history and
+        // required every retained sample to be inside tolerance. That could report "not stable" even
+        // though the current WIKA value, stable duration and drift shown in the UI were already valid.
+        if (!currentInsideTolerance)
+        {
+            _samples.Clear();
+            _samples.Enqueue((timestamp, value));
+            return Evaluate(target);
+        }
+
+        // The one out-of-tolerance diagnostic sample retained above is discarded on the first valid
+        // sample. From this point the window contains only the current continuous accepted interval.
+        if (_samples.Count > 0 && _samples.Any(x => Math.Abs(x.Value - target) > _toleranceC))
+        {
+            _samples.Clear();
+        }
+
         _samples.Enqueue((timestamp, value));
-        DateTimeOffset cutoff = timestamp - _requiredDuration - TimeSpan.FromMinutes(1);
-        while (_samples.Count > 1 && _samples.Peek().Timestamp < cutoff)
+        TrimToRequiredWindow(timestamp);
+        return Evaluate(target);
+    }
+
+    private void TrimToRequiredWindow(DateTimeOffset timestamp)
+    {
+        if (_samples.Count <= 1)
+        {
+            return;
+        }
+
+        if (_requiredDuration <= TimeSpan.Zero)
+        {
+            while (_samples.Count > 1)
+            {
+                _samples.Dequeue();
+            }
+            return;
+        }
+
+        DateTimeOffset cutoff = timestamp - _requiredDuration;
+
+        // Keep exactly one anchor sample at/before the cutoff plus all newer samples. Keeping that
+        // anchor avoids an off-by-one polling problem (for example 1 Hz samples would otherwise keep
+        // producing a 59.x s window for a required 60 s duration), without retaining an extra minute
+        // of stale history as the previous implementation did.
+        while (_samples.Count > 1 && _samples.ElementAt(1).Timestamp <= cutoff)
         {
             _samples.Dequeue();
         }
+    }
 
+    private StabilityMetrics Evaluate(double target)
+    {
         var data = _samples.ToArray();
+        if (data.Length == 0)
+        {
+            return new StabilityMetrics(0, 0, 0, 0, 0, 0, 0, 0, TimeSpan.Zero, false);
+        }
+
         double[] values = data.Select(x => x.Value).ToArray();
         double mean = values.Average();
         double[] ordered = values.OrderBy(x => x).ToArray();
