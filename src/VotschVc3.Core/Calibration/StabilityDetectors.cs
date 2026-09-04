@@ -149,6 +149,7 @@ public sealed class TemperatureStabilityDetector
     private readonly List<(DateTimeOffset Timestamp, double Value)> _block = new(PaliBlockSize);
 
     private DateTimeOffset? _baselineTimestamp;
+    private DateTimeOffset? _scoreTimestamp;
     private double _baselineValue;
     private int _stableScoreSeconds;
     private double _lastAverageDeltaC;
@@ -181,6 +182,7 @@ public sealed class TemperatureStabilityDetector
         if (_baselineTimestamp is null)
         {
             _baselineTimestamp = timestamp;
+            _scoreTimestamp = timestamp;
             _baselineValue = value;
             _block.Clear();
             // A zero dwell time removes only the time requirement; it must not bypass
@@ -211,21 +213,18 @@ public sealed class TemperatureStabilityDetector
         bool toleranceOk = Math.Abs(latest - target) < _toleranceC ||
                            (_toleranceC == 0 && Math.Abs(latest - target) <= double.Epsilon);
         bool changeOk = _maxDriftCPerMinute <= 0 || normalizedChangePerMinute < _maxDriftCPerMinute;
+        int elapsedScoreSeconds = Math.Max(1, (int)Math.Round(
+            (timestamp - (_scoreTimestamp ?? timestamp)).TotalSeconds,
+            MidpointRounding.AwayFromZero));
+        _scoreTimestamp = timestamp;
 
         if (toleranceOk && changeOk)
         {
-            // Match Pali literally: it checks whether enough good samples were already accumulated
-            // before adding the current five. Consequently a configured 60 s stability requirement
-            // opens on the next successful five-sample block after the counter reaches 60.
-            if (_stableScoreSeconds >= RequiredStableScoreSeconds)
-            {
-                _isStable = true;
-            }
-            else
-            {
-                _stableScoreSeconds += _block.Count;
-                _isStable = _requiredDuration <= TimeSpan.Zero;
-            }
+            // Pali sampled at roughly 1 Hz, where five samples also meant five seconds. Real CTH7000
+            // reads take longer, so count the measured wall-clock interval instead of pretending
+            // every completed block lasted exactly five seconds.
+            _stableScoreSeconds = Math.Min(RequiredStableScoreSeconds, _stableScoreSeconds + elapsedScoreSeconds);
+            _isStable = _stableScoreSeconds >= RequiredStableScoreSeconds;
         }
         else
         {
@@ -236,7 +235,7 @@ public sealed class TemperatureStabilityDetector
             _baselineValue = latest;
             _stableScoreSeconds = Math.Max(
                 0,
-                _stableScoreSeconds - (_block.Count * PaliFailurePenaltyMultiplier));
+                _stableScoreSeconds - (elapsedScoreSeconds * PaliFailurePenaltyMultiplier));
             _isStable = false;
         }
 

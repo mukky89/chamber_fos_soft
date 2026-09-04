@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.65] – 2026-09-04
+
+- Opravené počítanie stability WIKA: požadovaný čas sa už odvodzuje zo skutočných časových značiek meraní, nie z nesprávneho predpokladu jednej vzorky za sekundu.
+- Desať minút nastavenej stability teraz zodpovedá približne desiatim minútam reálne stabilnej referenčnej teploty aj pri pomalšej komunikácii CTH7000.
+- Do spodnej časti záložky Prehľad pribudol tmavý živý terminál kalibrácie s automatickým posunom a poslednými 500 diagnostickými udalosťami aktuálneho behu.
+- Živý terminál zobrazuje Run ID, stavové prechody, teploty, stabilitu, peaky, limity, dôvody čakania, zásahy operátora a chyby zapisované aj do `diagnostics.log`.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.65.
+
 ## [1.76.64] – 2026-09-04
 
 - Každý kalibračný beh vytvára vo svojom adresári samostatný terminálovo čitateľný súbor `diagnostics.log` s Run ID a okamžitým zápisom na disk.

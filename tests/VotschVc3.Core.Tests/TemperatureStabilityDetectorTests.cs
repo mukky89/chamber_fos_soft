@@ -112,4 +112,20 @@ public sealed class TemperatureStabilityDetectorTests
         Assert.True(detector.LastNormalizedChangeCPerMinute > 0.1);
         Assert.True(Math.Abs(metrics.SlopePerMinute) > 0.1);
     }
+
+    [Fact]
+    public void StableDuration_UsesRealElapsedTimeWhenWikaSamplesAreSlowerThanOneHertz()
+    {
+        var detector = new TemperatureStabilityDetector(
+            TimeSpan.FromMinutes(1), toleranceC: 0.5, maxDriftCPerMinute: 0.1);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+
+        StabilityMetrics metrics = detector.Add(t0, -40.02, target: -40.0);
+        for (int sample = 1; sample <= 20; sample++)
+            metrics = detector.Add(t0.AddSeconds(sample * 3), -40.02, target: -40.0);
+
+        Assert.True(metrics.IsStable);
+        Assert.Equal(60, detector.StableScoreSeconds);
+        Assert.Equal(TimeSpan.FromSeconds(60), metrics.WindowDuration);
+    }
 }

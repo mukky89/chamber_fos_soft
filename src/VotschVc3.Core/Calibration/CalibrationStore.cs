@@ -182,6 +182,8 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
     private readonly object _diagnosticSync = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    public event Action<string>? DiagnosticWritten;
+
     internal CalibrationRunWriter(CalibrationStore store, CalibrationRunRecord run)
     {
         _store = store;
@@ -208,14 +210,16 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
 
     public void WriteDiagnostic(string level, string eventName, string details)
     {
+        string line = string.Join('\t', new[]
+        {
+            DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture), E(level),
+            _run.RunId.ToString("N"), E(_run.DisplayRunId), E(eventName), E(details),
+        });
         lock (_diagnosticSync)
         {
-            _diagnosticWriter.WriteLine(string.Join('\t', new[]
-            {
-                DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture), E(level),
-                _run.RunId.ToString("N"), E(_run.DisplayRunId), E(eventName), E(details),
-            }));
+            _diagnosticWriter.WriteLine(line);
         }
+        DiagnosticWritten?.Invoke(line);
     }
 
     public async Task AppendAsync(IEnumerable<CalibrationRawSample> samples, CancellationToken cancellationToken = default)

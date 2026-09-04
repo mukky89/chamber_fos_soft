@@ -20,6 +20,7 @@ namespace VotschVc3.App.ViewModels;
 public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 {
     public CalibrationDashboardViewModel Dashboard { get; } = new();
+    public ObservableCollection<string> CalibrationTerminalLines { get; } = new();
 
     public void RefreshDashboardPlan() => Dashboard.Configure(
         SelectedProfile?.Name ?? "Vyberte profil", SelectedChamber?.Config.Name ?? "Komora",
@@ -1382,6 +1383,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _nextWavelengthTraceAt = DateTimeOffset.MaxValue;
             await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun);
             _activeWriter = writer;
+            CalibrationTerminalLines.Clear();
+            CalibrationTerminalLines.Add($"{DateTimeOffset.Now:HH:mm:ss.fff}  RUN  {_activeRun.DisplayRunId}  {writer.DiagnosticFilePath}");
+            writer.DiagnosticWritten += line => _ = Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                CalibrationTerminalLines.Add(line);
+                while (CalibrationTerminalLines.Count > 500) CalibrationTerminalLines.RemoveAt(0);
+            });
             CalibrationProfileSettings diagnosticSettings = _setup.Settings;
             writer.WriteDiagnostic("INFO", "RUN_STARTED",
                 $"version={GetType().Assembly.GetName().Version?.ToString(3)}; profileId={SelectedProfile.Id:N}; profile={SelectedProfile.Code}|{SelectedProfile.Name}; " +
