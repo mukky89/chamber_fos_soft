@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.92] – 2026-09-04
+
+- Voľba zvukového upozornenia pri chybnom SN bola presunutá z Live dát do záložky Zapojenie k režimom zadávania a párovania snímačov.
+- Funkcia upozornenia aj jej globálne nastavenie pre celú aplikáciu zostali nezmenené.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.92.
+
 ## [1.76.91] – 2026-09-04
 
 - Grafy majú väčšie a čitateľnejšie ovládacie prvky na priblíženie, oddialenie a návrat na celý rozsah dát.

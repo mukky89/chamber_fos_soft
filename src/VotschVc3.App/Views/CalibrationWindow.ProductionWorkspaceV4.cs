@@ -120,20 +120,7 @@ public partial class CalibrationWindow
             MinHeight = 160,
         };
 
-        var soundToggle = new CheckBox
-        {
-            Content = "Pípnuť pri zlom SN / nezhode sondy",
-            IsChecked = OperatorAlertSoundService.Enabled,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 0, 0),
-            ToolTip = "Jednorazový systémový zvuk pri neplatnom/duplicitnom SN alebo keď Sylex FOS API nepotvrdí sondu pre daný kanál. Nastavenie platí pre celú aplikáciu.",
-        };
-        soundToggle.Checked += (_, _) => OperatorAlertSoundService.Enabled = true;
-        soundToggle.Unchecked += (_, _) => OperatorAlertSoundService.Enabled = false;
-
         var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 4) };
-        DockPanel.SetDock(soundToggle, Dock.Right);
-        header.Children.Add(soundToggle);
         header.Children.Add(new TextBlock
         {
             Text = "Live priebeh kalibrácie",

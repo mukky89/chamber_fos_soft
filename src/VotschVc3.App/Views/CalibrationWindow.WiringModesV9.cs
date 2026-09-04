@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using VotschVc3.App.Calibration;
+using VotschVc3.App.Notifications;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Diagnostics;
@@ -75,9 +76,21 @@ public partial class CalibrationWindow
             _wiringEntryModeSequential = true;
             OpenSequentialWiringV9();
         };
+        var soundToggle = new CheckBox
+        {
+            Content = "Zvuk pri chybe SN",
+            IsChecked = OperatorAlertSoundService.Enabled,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(22, 0, 0, 0),
+            ToolTip = "Jednorazové zvukové upozornenie pri neplatnom alebo duplicitnom SN a pri nezhode sondy s kanálom. Nastavenie platí pre celú aplikáciu.",
+        };
+        soundToggle.Checked += (_, _) => OperatorAlertSoundService.Enabled = true;
+        soundToggle.Unchecked += (_, _) => OperatorAlertSoundService.Enabled = false;
+
         var modes = new StackPanel { Tag = "WIRING_MODES_V9", Orientation = Orientation.Horizontal };
         modes.Children.Add(table);
         modes.Children.Add(sequential);
+        modes.Children.Add(soundToggle);
         DockPanel.SetDock(modes, Dock.Right);
         header.Children.Insert(0, modes);
 
