@@ -4028,7 +4028,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
         return _email.SendAsync(
             $"⚠ ALARM – {Name}",
-            $"Komora \"{Name}\": {message}\r\nČas: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
+            $"Komora: {Name}\r\nČas: {DateTime.Now:dd.MM.yyyy HH:mm:ss}\r\n\r\n{message}");
     }
 
     #endregion
