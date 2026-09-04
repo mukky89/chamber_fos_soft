@@ -67,6 +67,15 @@ public sealed class PeakLoggerSettings
 
 public sealed class CalibrationProfileSettings
 {
+    /// <summary>
+    /// Shapes chamber setpoint commands into a gradual ramp. The chamber still regulates from its
+    /// own internal sensor; this is not WIKA feedback control.
+    /// </summary>
+    public bool EnableSetpointRamp { get; set; } = true;
+
+    /// <summary>Maximum commanded setpoint change in °C/min while moving between plateaus.</summary>
+    public double SetpointRampCPerMinute { get; set; } = 1.0;
+
     public bool EnableWavelengthAveraging { get; set; }
     public int WavelengthAveragingSamples { get; set; } = 1;
     public bool EnableWavelengthTraceLogging { get; set; } = true;

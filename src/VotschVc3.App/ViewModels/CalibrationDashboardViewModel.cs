@@ -26,6 +26,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private TimeSpan _stableDuration = TimeSpan.FromMinutes(10);
     private TimeSpan _stabilityTimeout = TimeSpan.FromMinutes(30);
     private TimeSpan _sensorTimeout = TimeSpan.FromMinutes(60);
+    private bool _enableSetpointRamp = true;
+    private double _setpointRampCPerMinute = 1;
     private double? _observedCycleSeconds;
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
@@ -168,12 +170,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 
     public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null,
         int requiredStableSamples = 50, int requiredMeasurementSamples = 50, double maxRangePm = 5, double maxStdDevPm = 1.5,
-        double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null, TimeSpan? sensorTimeout = null)
+        double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null, TimeSpan? sensorTimeout = null,
+        bool enableSetpointRamp = true, double setpointRampCPerMinute = 1)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
         string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{maxDriftCPerMinute}|" +
-            $"{requiredStableSamples}|{requiredMeasurementSamples}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{string.Join(",", plan)}";
+            $"{requiredStableSamples}|{requiredMeasurementSamples}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
         ProfileDescription = profile;
@@ -192,6 +195,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _stableDuration = stableDuration ?? TimeSpan.Zero;
         _stabilityTimeout = stabilityTimeout ?? TimeSpan.Zero;
         _sensorTimeout = sensorTimeout ?? TimeSpan.Zero;
+        _enableSetpointRamp = enableSetpointRamp;
+        _setpointRampCPerMinute = Math.Clamp(Math.Abs(setpointRampCPerMinute), 0.1, 20.0);
         ReferenceChamberId = referenceChamberId;
         Points.Clear();
         foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká"));
@@ -376,7 +381,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         string[] tips =
         {
             "Skontroluje vybraný profil, zapojenie, SN, dostupnosť komory, WIKA a PeakLoggera. Krok nemá pevný čas; pri chybe čaká na opravu alebo zásah operátora.",
-            "Komore nastaví cieľ aktuálneho kalibračného plata. Profilové hold časy neurčujú dĺžku FBG kalibrácie.",
+            _enableSetpointRamp
+                ? $"Aplikácia posúva setpoint plynulo najviac {_setpointRampCPerMinute:F2} °C/min. Komora sa naďalej reguluje vlastným interným snímačom; WIKA iba overí stabilitu po dosiahnutí cieľa. Profilové hold časy neurčujú dĺžku FBG kalibrácie."
+                : "Plynulý nábeh je vypnutý a aplikácia nastaví cieľ plata priamo. Komora sa reguluje vlastným interným snímačom; WIKA iba overuje stabilitu.",
             "Interná sonda komory sa zobrazuje a loguje, ale neotvára ani neblokuje FBG bránu. Slúži na kontrolu správania regulátora a porovnanie s WIKA.",
             $"Autoritatívna WIKA musí byť v tolerancii ±{StabilityToleranceC:F3} °C, mať drift ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min a nazbierať stabilné skóre {Duration(_stableDuration)}. Timeout: {Duration(_stabilityTimeout)}.",
             $"Každý vybraný peak má vlastný detektor. Potrebuje {_requiredStableSamples} vzoriek, range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm a drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Peaky sa kontrolujú paralelne; {Estimate(_requiredStableSamples)}. Timeout peaku: {Duration(_sensorTimeout)}. {cycle}.",

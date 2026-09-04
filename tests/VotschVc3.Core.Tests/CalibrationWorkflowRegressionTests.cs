@@ -63,7 +63,7 @@ public sealed class CalibrationWorkflowRegressionTests
 
             Assert.Equal(CalibrationRunState.Preflight, updates[0].State);
             Assert.DoesNotContain(updates, s => s.PlateauIndex == -1 && s.Message.Contains("Do konca časového kroku", StringComparison.Ordinal));
-            Assert.Contains(updates, s => s.PlateauIndex == 0 && s.Message.Contains("rampy", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(updates, s => s.PlateauIndex == 0 && s.Message.Contains("nábeh", StringComparison.OrdinalIgnoreCase));
             CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
             Assert.Equal(40, plateau.TargetTemperatureC, 6);
             Assert.Single(plateau.Targets);
@@ -240,6 +240,7 @@ public sealed class CalibrationWorkflowRegressionTests
         ProfileId = profileId,
         Settings = new CalibrationProfileSettings
         {
+            EnableSetpointRamp = false,
             RequiredStableSamples = 2,
             RequiredMeasurementSamples = 2,
             MaxWavelengthRangePm = 0,

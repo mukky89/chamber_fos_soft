@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.95] – 2026-09-04
+
+### Pridané
+- Nastavenia stability obsahujú samostatný plynulý nábeh setpointu komory s predvolenou rýchlosťou 1 °C/min a rozsahom 0,1 až 20 °C/min.
+- Kalibračný runner posúva setpoint po malých krokoch a v live stave zobrazuje prikázaný setpoint, cieľ a nastavenú rýchlosť.
+
+### Zmenené
+- Workflow vysvetľuje, že komora sa reguluje vlastným interným snímačom a WIKA iba overuje stabilitu bez druhej regulačnej slučky.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.95.
+
 ## [1.76.94] – 2026-09-04
 
 - Textové polia v nastaveniach stability používajú jednotný tmavý dizajn aplikácie, výrazný focus, čitateľný disabled stav a pohodlnejšie rozmery.

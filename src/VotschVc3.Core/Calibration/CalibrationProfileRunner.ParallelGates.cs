@@ -93,6 +93,7 @@ public sealed class CalibrationProfileRunner
         run.State = CalibrationRunState.Preparing;
 
         double? previousHumidity = startHumidity;
+        double previousCommandedTemperature = startTemperature;
         CalibrationPlateauResult? validationBaseline = null;
         bool responseValidated = false;
 
@@ -107,7 +108,15 @@ public sealed class CalibrationProfileRunner
                 run.State = CalibrationRunState.MovingToPlateau;
 
                 double? targetHumidity = step.Segment.TargetHumidity ?? previousHumidity;
-                await WriteSetpointAsync(step.Segment.TargetTemperature, targetHumidity, cancellationToken).ConfigureAwait(false);
+                await MoveSetpointToPlateauAsync(
+                    setup.Settings,
+                    currentPlateau,
+                    calibrationSteps.Count,
+                    previousCommandedTemperature,
+                    step.Segment.TargetTemperature,
+                    targetHumidity,
+                    cancellationToken).ConfigureAwait(false);
+                previousCommandedTemperature = step.Segment.TargetTemperature;
                 previousHumidity = targetHumidity;
 
                 Progress?.Invoke(new CalibrationProgressSnapshot(
@@ -121,8 +130,11 @@ public sealed class CalibrationProfileRunner
                     0,
                     TimeSpan.Zero,
                     Array.Empty<CalibrationTargetProgress>(),
-                    $"Komore bol okamžite nastavený cieľ {step.Segment.TargetTemperature:F2} °C. " +
-                    "Profilové rampy, nábehy a časy držania sa pri FBG kalibrácii nevykonávajú. " +
+                    $"Komora dosiahla koncový setpoint {step.Segment.TargetTemperature:F2} °C" +
+                    (setup.Settings.EnableSetpointRamp
+                        ? $" plynulým nábehom najviac {NormalizeSetpointRate(setup.Settings.SetpointRampCPerMinute):F2} °C/min. "
+                        : ". Plynulý nábeh je vypnutý. ") +
+                    "Komora sa reguluje vlastným interným regulátorom. " +
                     "Ďalší krok riadi výhradne stabilita WIKA referencie."));
 
                 Func<double, double?, CancellationToken, Task<string?>>? referenceControl =
@@ -286,6 +298,61 @@ public sealed class CalibrationProfileRunner
         return reading.Temperature
             ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu počas kalibrácie.");
     }
+
+    private async Task MoveSetpointToPlateauAsync(
+        CalibrationProfileSettings settings,
+        int plateauIndex,
+        int plateauCount,
+        double fromTemperature,
+        double targetTemperature,
+        double? targetHumidity,
+        CancellationToken cancellationToken)
+    {
+        if (!settings.EnableSetpointRamp || Math.Abs(targetTemperature - fromTemperature) < 0.001)
+        {
+            await WriteSetpointAsync(targetTemperature, targetHumidity, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        double rateCPerMinute = NormalizeSetpointRate(settings.SetpointRampCPerMinute);
+        double direction = Math.Sign(targetTemperature - fromTemperature);
+        double stepC = rateCPerMinute * _updateInterval.TotalMinutes;
+        double commanded = fromTemperature;
+        DateTimeOffset startedAt = DateTimeOffset.UtcNow;
+
+        while (Math.Abs(targetTemperature - commanded) > 0.001)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
+
+            commanded += direction * Math.Min(stepC, Math.Abs(targetTemperature - commanded));
+            await WriteSetpointAsync(commanded, targetHumidity, cancellationToken).ConfigureAwait(false);
+
+            double? actual = null;
+            try { actual = await ReadTemperatureAsync(cancellationToken).ConfigureAwait(false); }
+            catch (InvalidOperationException) { }
+
+            Progress?.Invoke(new CalibrationProgressSnapshot(
+                CalibrationRunState.MovingToPlateau,
+                plateauIndex,
+                plateauCount,
+                targetTemperature,
+                actual,
+                null,
+                0,
+                0,
+                DateTimeOffset.UtcNow - startedAt,
+                Array.Empty<CalibrationTargetProgress>(),
+                $"Plynulý nábeh {rateCPerMinute:F2} °C/min · setpoint {commanded:F2} °C · cieľ {targetTemperature:F2} °C. " +
+                "Komora sa reguluje vlastným snímačom; WIKA zatiaľ iba meria."));
+
+            if (Math.Abs(targetTemperature - commanded) > 0.001)
+                await Task.Delay(_updateInterval, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static double NormalizeSetpointRate(double value) =>
+        double.IsFinite(value) ? Math.Clamp(Math.Abs(value), 0.1, 20.0) : 1.0;
 
     private Task WriteSetpointAsync(double temperature, double? humidity, CancellationToken cancellationToken)
     {

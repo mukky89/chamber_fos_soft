@@ -40,7 +40,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         maxPeakDriftPmPerMinute: _setup.Settings.MaxWavelengthDriftPmPerMinute,
         stableDuration: _setup.Settings.ChamberStableDuration,
         stabilityTimeout: _setup.Settings.ChamberStabilityTimeout,
-        sensorTimeout: _setup.Settings.DefaultSensorStabilizationTimeout);
+        sensorTimeout: _setup.Settings.DefaultSensorStabilizationTimeout,
+        enableSetpointRamp: _setup.Settings.EnableSetpointRamp,
+        setpointRampCPerMinute: _setup.Settings.SetpointRampCPerMinute);
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;
@@ -421,6 +423,23 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         get => _setup.Settings.RequiredStableSamples;
         set { _setup.Settings.RequiredStableSamples = Math.Clamp(value, 2, 10000); OnPropertyChanged(); }
+    }
+
+    public bool EnableSetpointRamp
+    {
+        get => _setup.Settings.EnableSetpointRamp;
+        set { _setup.Settings.EnableSetpointRamp = value; OnPropertyChanged(); RefreshDashboardPlan(); }
+    }
+
+    public double SetpointRampCPerMinute
+    {
+        get => _setup.Settings.SetpointRampCPerMinute;
+        set
+        {
+            _setup.Settings.SetpointRampCPerMinute = double.IsFinite(value) ? Math.Clamp(Math.Abs(value), 0.1, 20.0) : 1.0;
+            OnPropertyChanged();
+            RefreshDashboardPlan();
+        }
     }
 
     public int RequiredMeasurementSamples
@@ -1772,6 +1791,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private void RefreshSettingsBindings()
     {
+        OnPropertyChanged(nameof(EnableSetpointRamp));
+        OnPropertyChanged(nameof(SetpointRampCPerMinute));
         OnPropertyChanged(nameof(EnableWavelengthAveraging));
         OnPropertyChanged(nameof(WavelengthAveragingSamples));
         OnPropertyChanged(nameof(EnableWavelengthTraceLogging));

@@ -72,6 +72,26 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="0 · Plynulý nábeh komory" Style="{StaticResource Heading}" Margin="0,0,0,8" />
+            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                       Text="Aplikácia obmedzí iba rýchlosť zmeny setpointu. PID komory sa naďalej riadi interným snímačom a WIKA iba overuje výslednú stabilitu; nevytvára sa druhá regulačná slučka." />
+            <WrapPanel>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Odporúčané zapnúť. Namiesto skoku na nový cieľ posúva aplikácia setpoint po malých krokoch. Interný regulátor komory zostáva jediným regulátorom.">
+                    <StackPanel>
+                        <TextBlock Text="Riadený nábeh setpointu" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Znižuje riziko prekmitu pri veľkej zmene teploty. WIKA setpoint nekoriguje." Style="{StaticResource SettingHelp}" />
+                        <CheckBox Content="Plynulo posúvať setpoint" IsChecked="{Binding EnableSetpointRamp}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Maximálna rýchlosť pohybu setpointu. Bezpečná predvolená hodnota je 1 °C/min; povolený rozsah je 0,1 až 20 °C/min.">
+                    <StackPanel>
+                        <TextBlock Text="Rýchlosť setpointu [°C/min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Napríklad 1 znamená, že aplikácia zmení požadovanú teplotu najviac o 1 °C za minútu." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding SetpointRampCPerMinute, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
             <TextBlock Text="1 · Stabilita referenčnej teploty" Style="{StaticResource Heading}" Margin="0,0,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Tieto podmienky rozhodujú, kedy sa vôbec môže začať stabilizácia FBG. Ak je priradená WIKA CTH7000, rozhoduje WIKA; interná teplota komory je iba fallback bez WIKA." />
