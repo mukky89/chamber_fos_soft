@@ -21,6 +21,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
     public string Profile { get; private set; } = "Vyberte kalibračný profil";
     public string Chamber { get; private set; } = "Komora";
+    public Guid? ReferenceChamberId { get; private set; }
     public string Rules { get; private set; } = "Pravidlá stability sú v nastaveniach.";
     public string Alert { get; private set; } = "Bez hlásených upozornení";
     public string AlertTone => _lastWarning.Length > 0 ? "Waiting" : "Done";
@@ -42,7 +43,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int CompletedPoints => Points.Count(p => p.State is "Done" or "Warning");
     public double OverallProgress => Points.Count == 0 ? 0 : 100d * CompletedPoints / Points.Count;
     public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov dokončených";
-    public string Plateau => _snapshot?.PlateauIndex < 0 ? "Priebeh profilu / príprava" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
+    public string Plateau => _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
     public double? ActualTemperature => _snapshot?.ActualTemperatureC;
     public string Actual => ActualTemperature is { } t ? $"{t:F2} °C" : "—";
@@ -52,8 +53,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public bool HasReference { get; private set; }
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
-    public string TemperatureScore => _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Najskôr musí skončiť príprava a časovaný krok profilu." : _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability";
-    public string TemperatureStatus => _snapshot is null || _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Stabilita teploty sa ešte nevyhodnocuje" : _snapshot?.TemperatureGateOpen == true ? "✓ STABLE · Teplota potvrdená" : "WAITING · Teplotná brána";
+    public string TemperatureScore => _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Po nastavení cieľa sa začne vyhodnocovať výhradne WIKA referencia." : _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability WIKA {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability WIKA";
+    public string TemperatureStatus => _snapshot is null || _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Stabilita WIKA sa ešte nevyhodnocuje" : _snapshot?.TemperatureGateOpen == true ? "✓ STABLE · WIKA referencia potvrdená" : "WAITING · WIKA teplotná brána";
     public int TotalTargets => _snapshot?.TotalTargets ?? 0;
     public int StableCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable || t.Phase == "Measuring") ?? 0;
     public int DoneCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable) ?? 0;
@@ -70,10 +71,10 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ActivePeak => ActivePeakKey.Length == 0 ? "—" : ActivePeakKey.Replace("|", " · ");
     public string Phase => _paused ? "Pozastavené" : _state switch
     {
-        CalibrationRunState.WaitingForChamberStability => "Stabilita teploty",
+        CalibrationRunState.WaitingForChamberStability => "Stabilita WIKA referencie",
         CalibrationRunState.StabilizingSensors when AllTargetsFinished => "Vyhodnotenie bodu",
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? "Meranie a stabilizácia FBG" : "Stabilizácia FBG",
-        CalibrationRunState.MovingToPlateau => "Prechod komory",
+        CalibrationRunState.MovingToPlateau => "Nastavenie cieľovej teploty",
         CalibrationRunState.PlateauCompleted => "Bod dokončený",
         CalibrationRunState.MovingToNextPlateau => "Presun na ďalšie plato",
         CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => "Kalibrácia ukončená",
@@ -87,11 +88,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void ReportStartup(string detail) { _startupDetail = detail; Notify(); }
     public string Now => _paused ? "Kalibrácia je pozastavená. Pokračujte tlačidlom Pauza." : _state switch
     {
-        CalibrationRunState.WaitingForChamberStability => $"Čaká sa na stabilitu {(HasReference ? "referencie WIKA" : "komory")} pri cieli {Target}.",
+        CalibrationRunState.WaitingForChamberStability => $"Čaká sa na stabilitu referencie WIKA pri cieli {Target}. Interná teplota komory je iba informatívna.",
         CalibrationRunState.StabilizingSensors when AllTargetsFinished => "Meranie peakov sa skončilo. Ukladá sa a vyhodnocuje kalibračný bod.",
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? $"Meria {MeasuringCount} peakov. Ostatné peaky pokračujú v stabilizácii. Namerané vzorky: {SampleSummary}." : $"Stabilizuje sa {TotalTargets} peakov. Aktuálne stabilné: {StableCount} / {TotalTargets}.",
-        CalibrationRunState.MovingToPlateau => $"Komora prechádza na cieľ {Target}.",
-        CalibrationRunState.PlateauCompleted => "Kalibračný bod je dokončený. Pripravuje sa ďalší krok.",
+        CalibrationRunState.MovingToPlateau => $"Komore sa nastavuje cieľ {Target}. Profilové rampy a časy sa ignorujú.",
+        CalibrationRunState.PlateauCompleted => "Kalibračný bod je dokončený. Pripravuje sa ďalšie vybrané plato.",
         CalibrationRunState.Completed => "Všetky kalibračné body sú dokončené. Výsledky a export nájdete v Histórii.",
         CalibrationRunState.CompletedWithWarnings => "Beh sa skončil s upozorneniami. Pred použitím výsledkov skontrolujte diagnostiku a históriu.",
         CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted => Alert,
@@ -109,17 +110,22 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Freshness { get; private set; } = "Čaká na dáta";
     public double PointProgress => Steps.Take(8).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(8).Count(s => s.State != "Skipped"));
 
-    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules)
+    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null)
     {
-        if (_started is not null) return; // Keep the finished run visible until the next start.
+        if (_started is not null) return;
         double[] plan = temperatures.ToArray();
-        string signature = $"{profile}|{chamber}|{hasReference}|{rules}|{string.Join(",", plan)}";
+        string signature = $"{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
-        Profile = profile; Chamber = chamber; HasReference = hasReference; Rules = rules;
+        Profile = profile;
+        Chamber = chamber;
+        HasReference = hasReference;
+        Rules = rules;
+        ReferenceChamberId = referenceChamberId;
         Points.Clear();
         foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká"));
-        RefreshSteps(); Notify();
+        RefreshSteps();
+        Notify();
     }
     public void Begin(DateTimeOffset now)
     {
@@ -226,8 +232,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         if (Steps.Count == 0)
         {
-            string[] names = { "Príprava", "Nábeh komory", "Stabilita komory", "Referencia WIKA", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
-            string[] tips = { "Kontrola zapojenia a zariadení.", "Nastavenie cieľovej teploty.", "Pri WIKA referencii rozhoduje jej stabilita; interná sonda je monitorovaná.", "Teplotnú bránu riadi skóre stability z runnera. Pri neprítomnosti WIKA sa používa interná sonda.", "Všetky peaky sa kontrolujú paralelne.", "Každý stabilný peak zbiera vlastné meracie vzorky.", "Uloženie a overenie výsledku bodu.", "Prechod na ďalší vybraný bod.", "Dokončenie behu; export je v Histórii." };
+            string[] names = { "Príprava", "Nastavenie cieľa", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
+            string[] tips = { "Kontrola zapojenia a zariadení.", "Priamo sa nastaví cieľ vybraného plata; rampy a časy profilu sa ignorujú.", "Teplotnú bránu riadi výhradne WIKA referencia; interná sonda komory je iba informatívna.", "Všetky vybrané peaky sa kontrolujú paralelne.", "Každý stabilný peak zbiera vlastné meracie vzorky.", "Uloženie a overenie výsledku bodu.", "Prechod priamo na ďalšie vybrané plato.", "Dokončenie behu; export je v Histórii." };
             for (int i = 0; i < names.Length; i++) Steps.Add(new DashboardNode($"{i + 1:00}", names[i], tips[i]));
         }
         var effectiveState = _state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted ? _snapshot?.State ?? _state : _state;
@@ -235,21 +241,19 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         {
             CalibrationRunState.MovingToPlateau => 1,
             CalibrationRunState.WaitingForChamberStability => 2,
-            CalibrationRunState.StabilizingSensors when AllTargetsFinished => 6,
-            CalibrationRunState.StabilizingSensors => 4,
-            CalibrationRunState.PlateauCompleted => 7,
-            CalibrationRunState.MovingToNextPlateau => 7,
-            CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => 9,
+            CalibrationRunState.StabilizingSensors when AllTargetsFinished => 5,
+            CalibrationRunState.StabilizingSensors => 3,
+            CalibrationRunState.PlateauCompleted => 6,
+            CalibrationRunState.MovingToNextPlateau => 6,
+            CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => 8,
             _ => 0
         };
         for (int i = 0; i < Steps.Count; i++) Steps[i].State = i < phase ? "Done" : i == phase && _running ? "Active" : "Pending";
-        if (phase == 2) { Steps[2].State = HasReference ? "Pending" : "Waiting"; Steps[3].State = HasReference ? "Waiting" : "Pending"; }
-        if (phase == 4 && MeasuringCount > 0) Steps[5].State = "Active";
-        if (!HasReference) Steps[3].State = "Skipped";
-        else if (phase >= 2) Steps[2].State = "Skipped";
+        if (phase == 2) Steps[2].State = "Waiting";
+        if (phase == 3 && MeasuringCount > 0) Steps[4].State = "Active";
         if (_paused) foreach (var step in Steps.Where(s => s.State is "Active" or "Waiting")) step.State = "Waiting";
-        if (_state == CalibrationRunState.Failed) Steps[Math.Min(phase, 8)].State = "Error";
-        if (_state == CalibrationRunState.AwaitingOperator) Steps[Math.Min(phase, 8)].State = "Waiting";
+        if (_state == CalibrationRunState.Failed) Steps[Math.Min(phase, Steps.Count - 1)].State = "Error";
+        if (_state == CalibrationRunState.AwaitingOperator) Steps[Math.Min(phase, Steps.Count - 1)].State = "Waiting";
     }
     private void AddEvent(DateTimeOffset now, string level, string message)
     {

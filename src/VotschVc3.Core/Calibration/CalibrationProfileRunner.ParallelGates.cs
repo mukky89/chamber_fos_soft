@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using VotschVc3.Core.Communication;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
@@ -6,10 +5,11 @@ using VotschVc3.Core.Protocol;
 namespace VotschVc3.Core.Calibration;
 
 /// <summary>
-/// Temperature-calibration profile runner. For selected FBG calibration points the profile hold
-/// Duration is intentionally ignored: progression is controlled only by measured temperature
-/// stability and then by independent per-FBG stability/measurement completion. Profile Duration
-/// still applies to ordinary non-calibration segments and ramps.
+/// Temperature-calibration profile runner.
+/// For FBG calibration the profile is used only as a source of selected calibration plateau
+/// temperatures. Profile ramps, non-calibration segments and all profile durations are ignored.
+/// Progression is controlled by the measured WIKA reference stability and then by independent
+/// per-FBG stability/measurement completion.
 /// </summary>
 public sealed class CalibrationProfileRunner
 {
@@ -65,68 +65,64 @@ public sealed class CalibrationProfileRunner
         if (profile.ExecutionMode != ProfileExecutionMode.TemperatureCalibration)
             throw new InvalidOperationException("Profil nie je označený ako TemperatureCalibration.");
 
-        List<ExecutionStep> steps = ExpandExecution(profile);
         HashSet<int> selectedCalibrationSegments = ResolveCalibrationSegmentIndices(profile, setup);
-        List<ExecutionStep> calibrationSteps = steps
+        List<ExecutionStep> calibrationSteps = ExpandExecution(profile)
             .Where(s => !s.Segment.IsRamp && selectedCalibrationSegments.Contains(s.SegmentIndex))
             .ToList();
+
         if (calibrationSteps.Count == 0)
             throw new InvalidOperationException("Kalibračný profil nemá označené žiadne kalibračné plato.");
 
         run.State = CalibrationRunState.Preflight;
-        Progress?.Invoke(new CalibrationProgressSnapshot(CalibrationRunState.Preflight, -1, calibrationSteps.Count,
-            calibrationSteps[0].Segment.TargetTemperature, startTemperature, null, 0,
-            setup.Mappings.Count(m => m.Selected), TimeSpan.Zero, Array.Empty<CalibrationTargetProgress>(),
-            "Kontrola PeakLoggera a zapojenia. Čaká sa na dokončenie kontroly zariadení."));
+        Progress?.Invoke(new CalibrationProgressSnapshot(
+            CalibrationRunState.Preflight,
+            -1,
+            calibrationSteps.Count,
+            calibrationSteps[0].Segment.TargetTemperature,
+            startTemperature,
+            null,
+            0,
+            setup.Mappings.Count(m => m.Selected),
+            TimeSpan.Zero,
+            Array.Empty<CalibrationTargetProgress>(),
+            "Kontrola PeakLoggera a zapojenia. Z profilu sa použijú iba vybrané teploty kalibračných plat; rampy a časy profilu sa ignorujú."));
+
         await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
         run.State = CalibrationRunState.Preparing;
 
-        double previousTemperature = startTemperature;
         double? previousHumidity = startHumidity;
-        int calibrationPlateauIndex = 0;
         CalibrationPlateauResult? validationBaseline = null;
         bool responseValidated = false;
 
         try
         {
-            foreach (ExecutionStep step in steps)
+            for (int currentPlateau = 0; currentPlateau < calibrationSteps.Count; currentPlateau++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
 
-                bool isCalibrationPlateau = !step.Segment.IsRamp && selectedCalibrationSegments.Contains(step.SegmentIndex);
+                ExecutionStep step = calibrationSteps[currentPlateau];
                 run.State = CalibrationRunState.MovingToPlateau;
 
-                if (!isCalibrationPlateau)
-                {
-                    await ExecuteSegmentAsync(step.Segment, previousTemperature, previousHumidity,
-                        (setpoint, elapsed, remaining) => Progress?.Invoke(new CalibrationProgressSnapshot(
-                            CalibrationRunState.MovingToPlateau, -1, calibrationSteps.Count,
-                            step.Segment.TargetTemperature, null, null, 0, setup.Mappings.Count(m => m.Selected),
-                            elapsed, Array.Empty<CalibrationTargetProgress>(),
-                            $"Krok profilu {steps.IndexOf(step) + 1}/{steps.Count} · {(step.Segment.IsRamp ? "Nábeh / rampa" : "Časované držanie mimo kalibračného bodu")}. " +
-                            $"Komore bol odoslaný setpoint {setpoint:F2} °C; cieľ kroku {step.Segment.TargetTemperature:F2} °C. " +
-                            $"Do konca časového kroku zostáva {remaining:hh\\:mm\\:ss}. " +
-                            "Teraz sa čaká na uplynutie času kroku, nie na potvrdenie stability. Meranie FBG začne až v kalibračnom bode.")),
-                        cancellationToken).ConfigureAwait(false);
-                    previousTemperature = step.Segment.TargetTemperature;
-                    previousHumidity = step.Segment.TargetHumidity ?? previousHumidity;
-                    continue;
-                }
-
-                // For an FBG calibration point, the profile's hold Duration is only descriptive data
-                // from the source profile. It must never delay the calibration workflow. Command the
-                // target and let real measured stability decide when the point can proceed.
                 double? targetHumidity = step.Segment.TargetHumidity ?? previousHumidity;
                 await WriteSetpointAsync(step.Segment.TargetTemperature, targetHumidity, cancellationToken).ConfigureAwait(false);
-                previousTemperature = step.Segment.TargetTemperature;
                 previousHumidity = targetHumidity;
 
-                int currentPlateau = calibrationPlateauIndex++;
                 Progress?.Invoke(new CalibrationProgressSnapshot(
-                    CalibrationRunState.MovingToPlateau, currentPlateau, calibrationSteps.Count,
-                    step.Segment.TargetTemperature, null, null, 0, 0, TimeSpan.Zero,
-                    Array.Empty<CalibrationTargetProgress>(), "Komora prechádza na cieľovú teplotu."));
+                    CalibrationRunState.MovingToPlateau,
+                    currentPlateau,
+                    calibrationSteps.Count,
+                    step.Segment.TargetTemperature,
+                    null,
+                    null,
+                    0,
+                    0,
+                    TimeSpan.Zero,
+                    Array.Empty<CalibrationTargetProgress>(),
+                    $"Komore bol okamžite nastavený cieľ {step.Segment.TargetTemperature:F2} °C. " +
+                    "Profilové rampy, nábehy a časy držania sa pri FBG kalibrácii nevykonávajú. " +
+                    "Ďalší krok riadi výhradne stabilita WIKA referencie."));
+
                 Func<double, double?, CancellationToken, Task<string?>>? referenceControl =
                     CreateReferenceControl(setup, targetHumidity);
 
@@ -172,10 +168,16 @@ public sealed class CalibrationProfileRunner
 
                 run.State = CalibrationRunState.PlateauCompleted;
                 Progress?.Invoke(new CalibrationProgressSnapshot(
-                    run.State, currentPlateau, calibrationSteps.Count, plateau.TargetTemperatureC,
-                    plateau.ActualTemperatureC, plateau.ReferenceTemperatureC,
-                    plateau.Targets.Count(t => t.Status == CalibrationTargetState.Stable), plateau.Targets.Count,
-                    plateau.CompletedAt - plateau.StartedAt, Array.Empty<CalibrationTargetProgress>(),
+                    run.State,
+                    currentPlateau,
+                    calibrationSteps.Count,
+                    plateau.TargetTemperatureC,
+                    plateau.ActualTemperatureC,
+                    plateau.ReferenceTemperatureC,
+                    plateau.Targets.Count(t => t.Status == CalibrationTargetState.Stable),
+                    plateau.Targets.Count,
+                    plateau.CompletedAt - plateau.StartedAt,
+                    Array.Empty<CalibrationTargetProgress>(),
                     $"Kalibračný bod {currentPlateau + 1} / {calibrationSteps.Count} je dokončený."));
             }
 
@@ -261,44 +263,6 @@ public sealed class CalibrationProfileRunner
             .Where(x => !x.segment.IsRamp && x.segment.IsCalibrationPoint)
             .Select(x => x.index)
             .ToHashSet();
-    }
-
-    private async Task ExecuteSegmentAsync(
-        ProfileSegment segment,
-        double startTemperature,
-        double? startHumidity,
-        Action<double, TimeSpan, TimeSpan> report,
-        CancellationToken cancellationToken)
-    {
-        TimeSpan duration = segment.Duration > TimeSpan.Zero ? segment.Duration : TimeSpan.FromSeconds(1);
-        Stopwatch clock = Stopwatch.StartNew();
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!_resume.IsSet)
-            {
-                clock.Stop();
-                await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
-                clock.Start();
-            }
-
-            double fraction = Math.Clamp(clock.Elapsed.TotalSeconds / duration.TotalSeconds, 0d, 1d);
-            double temperature = segment.IsRamp
-                ? segment.TemperatureAt(fraction, startTemperature)
-                : segment.TargetTemperature;
-            double? humidity = segment.IsRamp
-                ? segment.HumidityAt(fraction, startHumidity)
-                : (segment.TargetHumidity ?? startHumidity);
-
-            await WriteSetpointAsync(temperature, humidity, cancellationToken).ConfigureAwait(false);
-            report(temperature, clock.Elapsed, duration > clock.Elapsed ? duration - clock.Elapsed : TimeSpan.Zero);
-            if (fraction >= 1d) return;
-
-            TimeSpan remaining = duration - clock.Elapsed;
-            TimeSpan delay = remaining < _updateInterval ? remaining : _updateInterval;
-            if (delay > TimeSpan.Zero) await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-        }
     }
 
     private async Task<double> ReadTemperatureAsync(CancellationToken cancellationToken)
