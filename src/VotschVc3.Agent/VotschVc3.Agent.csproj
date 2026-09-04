@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>1.76.43</Version>
+    <Version>1.76.44</Version>
     <Product>Lab Control Bridge</Product>
     <!-- The bridge is a background companion process. WinExe prevents a console
          window from flashing when a legacy desktop path probes the disabled agent. -->
