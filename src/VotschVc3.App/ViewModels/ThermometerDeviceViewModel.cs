@@ -18,6 +18,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 {
     private const int MaxTerminalLines = 500;
     private const int LiveWindow = 600;
+    private static readonly TimeSpan OperatorCheckTimeout = TimeSpan.FromSeconds(20);
     private static readonly Brush TempBrush = CreateBrush(0x4F, 0xC1, 0x7A);
 
     private readonly List<(DateTimeOffset time, double value)> _live = new();
@@ -152,7 +153,9 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     public AsyncRelayCommand SendTerminalCommand { get; }
     public RelayCommand ClearTerminalCommand { get; }
 
-    private async Task ConnectAsync()
+    private Task ConnectAsync() => ConnectAsync(CancellationToken.None);
+
+    private async Task ConnectAsync(CancellationToken cancellationToken)
     {
         if (_client is not null)
         {
@@ -160,11 +163,12 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
             _client = null;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var client = new F100Client(PortName, BaudRate);
         StatusMessage = $"Otváram {PortName}…";
         try
         {
-            await client.OpenAsync();
+            await client.OpenAsync(cancellationToken);
             _client = client;
         }
         catch
@@ -239,7 +243,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     {
         if (!IsConnected)
         {
-            await ConnectAsync();
+            await ConnectAsync(cancellationToken);
         }
 
         if (_client is null) return null;
@@ -271,9 +275,25 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         OnPropertyChanged(nameof(DeviceTypeLabel));
     }
 
-    /// <summary>One operator "Kontrola" action: connect when needed and acquire one fresh value.</summary>
-    public Task<double?> CheckAsync(CancellationToken cancellationToken = default) =>
-        ReadReferenceTemperatureAsync(cancellationToken);
+    /// <summary>
+    /// One operator "Kontrola" action. It is deliberately bounded so an occupied or stale COM
+    /// port can never leave the WPF command (and therefore the button) disabled indefinitely.
+    /// </summary>
+    public async Task<double?> CheckAsync(CancellationToken cancellationToken = default)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(OperatorCheckTimeout);
+        try
+        {
+            return await ReadReferenceTemperatureAsync(timeout.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            StatusMessage = $"Čítanie {PortName} vypršalo po {OperatorCheckTimeout.TotalSeconds:F0} s. Port môže byť obsadený alebo WIKA neodpovedá.";
+            throw new TimeoutException(
+                $"WIKA CTH7000 {PortName} neodpovedala do {OperatorCheckTimeout.TotalSeconds:F0} s. Skontroluj COM port a skús Vynútiť pripojenie.");
+        }
+    }
 
     /// <summary>Closes a stale/occupied handle owned by this app and opens the selected port again.</summary>
     public async Task<double?> ForceReconnectAsync(CancellationToken cancellationToken = default)
@@ -287,7 +307,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
         IsConnected = false;
         StatusMessage = $"Vynucujem nové pripojenie {PortName}…";
-        await ConnectAsync();
+        await ConnectAsync(cancellationToken);
         return await ReadReferenceTemperatureAsync(cancellationToken);
     }
 
