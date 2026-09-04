@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$crlfExtensions = @('.cs', '.csproj', '.sln', '.slnlaunch', '.md', '.ps1')
+$crlfExtensions = @('.cs', '.csproj', '.xaml', '.sln', '.slnlaunch', '.md', '.ps1')
 $lfExtensions = @('.sh', '.yml', '.yaml', '.json', '.xml')
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $updated = 0

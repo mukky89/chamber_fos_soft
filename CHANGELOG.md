@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.76] – 2026-09-04
+
+- Kontrola formátu a duplicity FBG SN sa už nespúšťa pri každom napísanom znaku, ale až po potvrdení bunky Enterom alebo po odchode z bunky.
+- Rovnaké správanie platí pre vyhľadanie a kontrolu SN cez Sylex FOS API, takže rozpracovaný text nevytvára opakované upozornenia.
+- Do projektových pravidiel bola doplnená povinnosť nevykonávať textové validácie ani zobrazovať chyby počas písania.
+- Normalizácia koncov riadkov teraz zahŕňa aj XAML obrazovky upravované vo Visual Studiu.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.76.
+
 ## [1.76.75] – 2026-09-04
 
 - Natrvalo zjednotené konce riadkov podľa typu súboru, aby Visual Studio prestalo zobrazovať dialóg „Inconsistent Line Endings“.

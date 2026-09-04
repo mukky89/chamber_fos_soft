@@ -109,6 +109,7 @@ The following settings were validated on the real production reference thermomet
 ### FBG wiring edit transaction — never interrupt operator input
 
 - An operator editing `FBG sensor SN (kanál)`, `FBG sensor SN CHAIN` or another wiring cell owns the DataGrid until the edit is committed or cancelled.
+- Text-field validation, API lookup failures and operator warning popups must run only after the value is committed with Enter or the editor loses focus. Never validate or notify on every keystroke while the operator is still composing a value.
 - Never call `Items.Refresh()`, `CollectionView.Refresh()`, clear/rebuild `Peaks`, or execute a topology-driven `RefreshSensorsCommand` while the DataGrid has an active `AddNew`/`EditItem` transaction or focused editor.
 - Sylex metadata refreshes and PeakLogger topology changes that arrive during an edit must be queued/deferred and applied only after the edit has ended.
 - A background timer must never move focus, change `CurrentCell`, cancel `BeginEdit`, or cause typed SN data to disappear.
@@ -314,6 +315,7 @@ Before declaring a USB/thermometer or FBG calibration fix complete, verify conce
 - [ ] Closing/reopening the FBG workspace restores the last profile, wiring, selected peaks, SN/CHAIN, timeouts, plateau selection and exact PeakLogger endpoint.
 - [ ] Automatic workspace restore uses only the known PeakLogger endpoint and does not reintroduce broad startup discovery.
 - [ ] Typing/editing an SN cannot be interrupted by `CollectionView.Refresh`, Sylex metadata refresh, or PeakLogger topology refresh.
+- [ ] SN format, duplicate and Sylex API warnings appear only after Enter or leaving the edited cell, never repeatedly while typing.
 - [ ] FBG page remains vertically scrollable when the reference-temperature chart is expanded.
 - [ ] `Zapojenie` table retains usable vertical/horizontal scrolling, readable column widths, and approximately 16 visible working rows.
 - [ ] Live monitor shows the planned plateaus before start and current step / wait reason / WIKA / active peak samples during a run.
