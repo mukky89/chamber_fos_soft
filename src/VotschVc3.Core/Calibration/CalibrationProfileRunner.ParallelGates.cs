@@ -74,6 +74,10 @@ public sealed class CalibrationProfileRunner
             throw new InvalidOperationException("Kalibračný profil nemá označené žiadne kalibračné plato.");
 
         run.State = CalibrationRunState.Preflight;
+        Progress?.Invoke(new CalibrationProgressSnapshot(CalibrationRunState.Preflight, -1, calibrationSteps.Count,
+            calibrationSteps[0].Segment.TargetTemperature, startTemperature, null, 0,
+            setup.Mappings.Count(m => m.Selected), TimeSpan.Zero, Array.Empty<CalibrationTargetProgress>(),
+            "Kontrola PeakLoggera a zapojenia. Čaká sa na dokončenie kontroly zariadení."));
         await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
         run.State = CalibrationRunState.Preparing;
 
@@ -95,7 +99,16 @@ public sealed class CalibrationProfileRunner
 
                 if (!isCalibrationPlateau)
                 {
-                    await ExecuteSegmentAsync(step.Segment, previousTemperature, previousHumidity, cancellationToken).ConfigureAwait(false);
+                    await ExecuteSegmentAsync(step.Segment, previousTemperature, previousHumidity,
+                        (setpoint, elapsed, remaining) => Progress?.Invoke(new CalibrationProgressSnapshot(
+                            CalibrationRunState.MovingToPlateau, -1, calibrationSteps.Count,
+                            step.Segment.TargetTemperature, null, null, 0, setup.Mappings.Count(m => m.Selected),
+                            elapsed, Array.Empty<CalibrationTargetProgress>(),
+                            $"Krok profilu {steps.IndexOf(step) + 1}/{steps.Count} · {(step.Segment.IsRamp ? "Nábeh / rampa" : "Časované držanie mimo kalibračného bodu")}. " +
+                            $"Komore bol odoslaný setpoint {setpoint:F2} °C; cieľ kroku {step.Segment.TargetTemperature:F2} °C. " +
+                            $"Do konca časového kroku zostáva {remaining:hh\\:mm\\:ss}. " +
+                            "Teraz sa čaká na uplynutie času kroku, nie na potvrdenie stability. Meranie FBG začne až v kalibračnom bode.")),
+                        cancellationToken).ConfigureAwait(false);
                     previousTemperature = step.Segment.TargetTemperature;
                     previousHumidity = step.Segment.TargetHumidity ?? previousHumidity;
                     continue;
@@ -254,6 +267,7 @@ public sealed class CalibrationProfileRunner
         ProfileSegment segment,
         double startTemperature,
         double? startHumidity,
+        Action<double, TimeSpan, TimeSpan> report,
         CancellationToken cancellationToken)
     {
         TimeSpan duration = segment.Duration > TimeSpan.Zero ? segment.Duration : TimeSpan.FromSeconds(1);
@@ -278,6 +292,7 @@ public sealed class CalibrationProfileRunner
                 : (segment.TargetHumidity ?? startHumidity);
 
             await WriteSetpointAsync(temperature, humidity, cancellationToken).ConfigureAwait(false);
+            report(temperature, clock.Elapsed, duration > clock.Elapsed ? duration - clock.Elapsed : TimeSpan.Zero);
             if (fraction >= 1d) return;
 
             TimeSpan remaining = duration - clock.Elapsed;

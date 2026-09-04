@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.51] – 2026-09-04
+
+### Opravené – zrozumiteľný aktuálny stav kalibrácie
+- Prehľad dostáva stav aj počas úvodnej kontroly a časovaných krokov profilu. Pri rampe zobrazuje odoslaný setpoint, cieľ, číslo kroku a zostávajúci čas namiesto neaktuálneho stavu „Príprava“.
+- Panel „Čo sa deje práve teraz“ je nad workflow a zobrazuje konkrétnu správu runnera vrátane dôvodu čakania, teplotných limitov a ďalšieho kroku.
+- Pred vyhodnocovaním stability sa už nezobrazuje zavádzajúce čakanie na teplotnú bránu. Pripájanie komory a prvé čítanie zariadení majú vlastné hlásenia.
+- Doplnené regresné overenie priebežných hlásení rampy, jej zobrazenia a zastavenia pred prvým kalibračným bodom. Riadenie komory a podmienky merania sa nemenia.
+
 ## [1.76.50] – 2026-09-04
 
 ### Zmenené – samostatné live grafy FBG peakov

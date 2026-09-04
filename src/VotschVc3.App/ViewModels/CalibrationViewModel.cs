@@ -1297,7 +1297,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _chamber = CreateChamberClient(SelectedChamber.Config);
             ChamberConnectionSettings connection = ToConnectionSettings(SelectedChamber.Config);
             StatusMessage = $"Pripájam komoru {SelectedChamber.Config.Name}…";
+            Dashboard.ReportStartup(StatusMessage);
             await _chamber.ConnectAsync(connection, _runCts.Token);
+            Dashboard.ReportStartup("Komora je pripojená. Čaká sa na prvú nameranú teplotu komory.");
             var initialReading = await _chamber.ReadAsync(_runCts.Token);
             double startTemperature = initialReading.Temperature
                 ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu pred začiatkom kalibrácie.");
@@ -1325,6 +1327,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _activeWriter = writer;
             if (_setup.Settings.EnableWavelengthTraceLogging)
             {
+                Dashboard.ReportStartup("Čaká sa na prvé merania PeakLoggera pre záznam priebehu.");
                 IReadOnlyList<PeakLoggerMeasurement> firstMeasurements = await _peakLogger.ReadMeasurementsAsync(_runCts.Token);
                 await Application.Current.Dispatcher.InvokeAsync(() => ApplyLivePeakMeasurements(firstMeasurements));
                 await AppendWavelengthTraceIfDueAsync(firstMeasurements, force: true, _runCts.Token);
@@ -1402,7 +1405,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         Dashboard.Apply(snapshot, DateTimeOffset.Now);
         RunState = snapshot.State.ToString();
-        PlateauLabel = snapshot.PlateauCount <= 0 ? "—" : $"Plato {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount}";
+        PlateauLabel = snapshot.PlateauCount <= 0 || snapshot.PlateauIndex < 0 ? "Priebeh profilu / príprava" : $"Plato {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount}";
         _calibrationProgressPercent = Dashboard.OverallProgress;
         TemperatureLabel = snapshot.ActualTemperatureC is { } actual
             ? $"{actual:F2} °C  →  {snapshot.TargetTemperatureC:F2} °C"

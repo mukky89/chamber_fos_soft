@@ -42,7 +42,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int CompletedPoints => Points.Count(p => p.State is "Done" or "Warning");
     public double OverallProgress => Points.Count == 0 ? 0 : 100d * CompletedPoints / Points.Count;
     public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov dokončených";
-    public string Plateau => _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
+    public string Plateau => _snapshot?.PlateauIndex < 0 ? "Priebeh profilu / príprava" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
     public double? ActualTemperature => _snapshot?.ActualTemperatureC;
     public string Actual => ActualTemperature is { } t ? $"{t:F2} °C" : "—";
@@ -52,8 +52,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public bool HasReference { get; private set; }
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
-    public string TemperatureScore => _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability";
-    public string TemperatureStatus => _snapshot?.TemperatureGateOpen == true ? "✓ STABLE · Teplota potvrdená" : "WAITING · Teplotná brána";
+    public string TemperatureScore => _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Najskôr musí skončiť príprava a časovaný krok profilu." : _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability";
+    public string TemperatureStatus => _snapshot is null || _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Stabilita teploty sa ešte nevyhodnocuje" : _snapshot?.TemperatureGateOpen == true ? "✓ STABLE · Teplota potvrdená" : "WAITING · Teplotná brána";
     public int TotalTargets => _snapshot?.TotalTargets ?? 0;
     public int StableCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable || t.Phase == "Measuring") ?? 0;
     public int DoneCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable) ?? 0;
@@ -82,6 +82,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationRunState.AwaitingOperator => "Čaká na operátora",
         _ => "Príprava"
     };
+    public string OperationDetail => _paused ? "Pokračovanie čaká na zrušenie pauzy." : !_running && _started is not null ? Now : _snapshot?.Message ?? _startupDetail;
+    private string _startupDetail = "Čaká sa na prvý stav zariadení.";
+    public void ReportStartup(string detail) { _startupDetail = detail; Notify(); }
     public string Now => _paused ? "Kalibrácia je pozastavená. Pokračujte tlačidlom Pauza." : _state switch
     {
         CalibrationRunState.WaitingForChamberStability => $"Čaká sa na stabilitu {(HasReference ? "referencie WIKA" : "komory")} pri cieli {Target}.",
@@ -120,6 +123,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     }
     public void Begin(DateTimeOffset now)
     {
+        _startupDetail = "Čaká sa na prvý stav zariadení.";
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null;
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; _targetEvents.Clear(); Activity.Clear();
@@ -139,7 +143,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _snapshot = snapshot.State == CalibrationRunState.PlateauCompleted && snapshot.Targets.Count == 0 && previous?.PlateauIndex == snapshot.PlateauIndex
             ? snapshot with { Targets = previous.Targets, TemperatureStableScoreSeconds = previous.TemperatureStableScoreSeconds, RequiredTemperatureScoreSeconds = previous.RequiredTemperatureScoreSeconds, TemperatureGateOpen = previous.TemperatureGateOpen } : snapshot;
         if (previousPhase != Phase) _phaseStarted = now;
-        if (previous?.PlateauIndex != snapshot.PlateauIndex)
+        if (snapshot.PlateauIndex >= 0 && previous?.PlateauIndex != snapshot.PlateauIndex)
         {
             _targetEvents.Clear();
             AddEvent(now, "INFO", $"Začal sa bod {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount} na {Target}.");
@@ -190,7 +194,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         _state = state; _running = false; _paused = false; _ended = now;
         if (state != CalibrationRunState.Completed) { Alert = message; _lastWarning = message; }
-        if (state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted && _snapshot is not null && _snapshot.PlateauIndex < Points.Count)
+        if (state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted && _snapshot is not null && _snapshot.PlateauIndex >= 0 && _snapshot.PlateauIndex < Points.Count)
         {
             var point = Points[_snapshot.PlateauIndex];
             if (point.Duration is null) { point.State = state == CalibrationRunState.Failed ? "Error" : "Waiting"; point.Detail = Phase; }

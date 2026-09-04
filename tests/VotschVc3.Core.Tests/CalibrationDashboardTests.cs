@@ -4,6 +4,20 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void RampShowsReasonWithoutStartingCalibrationPoint_AndCanBeStopped()
+    {
+        var m = Model();
+        m.ReportStartup("Čaká sa na pripojenie komory.");
+        Assert.Contains("pripojenie", m.OperationDetail);
+        m.Apply(Snapshot(CalibrationRunState.MovingToPlateau, -1) with
+        { Message = "Nábeh / rampa. Do konca kroku zostáva 00:25:00." }, Start.AddMinutes(5));
+        Assert.Contains("00:25:00", m.OperationDetail);
+        Assert.Contains("ešte nevyhodnocuje", m.TemperatureStatus);
+        Assert.All(m.Points, p => Assert.Equal("Pending", p.State));
+        Assert.DoesNotContain(m.Activity, e => e.Message.Contains("bod 0"));
+        m.End(CalibrationRunState.Aborted, "Zastavené počas rampy", Start.AddMinutes(6));
+        Assert.Contains("Zastavené", m.OperationDetail);
+    }
     private static readonly DateTimeOffset Start = new(2026, 9, 4, 10, 0, 0, TimeSpan.Zero);
     private static CalibrationDashboardViewModel Model()
     {
