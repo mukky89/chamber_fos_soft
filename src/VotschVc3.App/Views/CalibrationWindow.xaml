@@ -28,9 +28,9 @@
              The run controls are one group, set apart from "Uložiť zapojenie" so a stop is
              never a neighbour of a save. -->
         <DockPanel Grid.Row="0" Margin="6,4,6,12">
-            <StackPanel DockPanel.Dock="Left">
+            <StackPanel DockPanel.Dock="Left" MaxWidth="310" Margin="0,0,16,0">
                 <TextBlock Text="FBG teplotná kalibrácia" FontSize="24" FontFamily="Segoe UI Semibold" />
-                <TextBlock Text="Komora + PeakLogger + USB referenčný teplomer + automatické vyhodnotenie stability wavelength"
+                <TextBlock Text="Live prehľad kalibračného procesu"
                            Style="{StaticResource Caption}" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">

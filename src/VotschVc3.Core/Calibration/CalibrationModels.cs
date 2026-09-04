@@ -359,7 +359,10 @@ public sealed record CalibrationProgressSnapshot(
     int TotalTargets,
     TimeSpan PlateauElapsed,
     IReadOnlyList<CalibrationTargetProgress> Targets,
-    string Message);
+    string Message,
+    int? TemperatureStableScoreSeconds = null,
+    int? RequiredTemperatureScoreSeconds = null,
+    bool? TemperatureGateOpen = null);
 
 public sealed class CalibrationOperatorActionRequiredException : Exception
 {

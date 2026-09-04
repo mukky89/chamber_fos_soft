@@ -216,7 +216,10 @@ public sealed class CalibrationOrchestrator
                     selected.Count,
                     plateauClock.Elapsed,
                     trackers.Values.Select(t => t.ToWaitingForTemperatureProgress(settings, temperatureDetail, minimumDetail)).ToArray(),
-                    $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov."));
+                    $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov.",
+                    (hasExternalReference ? referenceDetector : chamberDetector).StableScoreSeconds,
+                    (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
+                    false));
 
                 if (!temperatureGateEverOpened)
                 {
@@ -368,7 +371,10 @@ public sealed class CalibrationOrchestrator
                 selected.Count,
                 plateauClock.Elapsed,
                 trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
-                $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredStableSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky."));
+                $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredStableSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky.",
+                (hasExternalReference ? referenceDetector : chamberDetector).StableScoreSeconds,
+                (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
+                true));
 
             if (allTerminal) break;
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
@@ -701,7 +707,7 @@ public sealed class CalibrationOrchestrator
                 ? "HOTOVO"
                 : $"ČAKÁ NA TEPLOTU · {minimumDetail} · {temperatureDetail}";
             return BuildProgress(
-                IsTerminal ? CalibrationTargetState.Stable : CalibrationTargetState.WaitingForTemperature,
+                IsTerminal ? Result!.Status : CalibrationTargetState.WaitingForTemperature,
                 IsTerminal ? Math.Max(2, settings.RequiredStableSamples) : 0,
                 Math.Max(2, settings.RequiredStableSamples),
                 phase);
@@ -761,7 +767,17 @@ public sealed class CalibrationOrchestrator
                 ActiveElapsed,
                 Timeout,
                 state,
-                detail);
+                detail,
+                StabilitySamples: metrics.Count,
+                RequiredStabilitySamples: Math.Max(2, _settings.RequiredStableSamples),
+                MeasurementSamples: _measurementSamples.Count,
+                RequiredMeasurementSamples: Math.Max(2, _settings.RequiredStableSamples),
+                RangePm: metrics.Range,
+                RangeLimitPm: _settings.MaxWavelengthRangePm,
+                StdDevLimitPm: _settings.MaxWavelengthStdDevPm,
+                DriftLimitPmPerMinute: _settings.MaxWavelengthDriftPmPerMinute,
+                Phase: IsTerminal ? "Done" : state == CalibrationTargetState.WaitingForTemperature ? "Temperature" : IsMeasuring ? "Measuring" : "Stabilizing",
+                BlockingReason: Result?.Problem ?? (state == CalibrationTargetState.WaitingForTemperature ? detail : string.Empty));
         }
 
         private void ResetToStabilizing()
