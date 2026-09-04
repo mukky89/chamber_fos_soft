@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.66] – 2026-09-04
+
+- Živý terminál kalibrácie bol presunutý na úplný koniec obsahu záložky Prehľad.
+- Terminál už nezaberá trvalo pripnutú spodnú časť obrazovky; zobrazí sa až po zrolovaní za všetky karty a grafy prehľadu.
+- Automatické posúvanie výpisu a úplný súborový `diagnostics.log` zostávajú zachované.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.66.
+
 ## [1.76.65] – 2026-09-04
 
 - Opravené počítanie stability WIKA: požadovaný čas sa už odvodzuje zo skutočných časových značiek meraní, nie z nesprávneho predpokladu jednej vzorky za sekundu.

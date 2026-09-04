@@ -32,13 +32,14 @@ public partial class CalibrationWindow
     private void AttachLiveTerminalV10()
     {
         if (_liveTerminalV10 is not null) return;
-        if (_overviewTab?.Content is not UIElement dashboard)
+        if (_overviewTab?.Content is not CalibrationDashboardView dashboard ||
+            dashboard.Content is not ScrollViewer dashboardScroll ||
+            dashboardScroll.Content is not StackPanel dashboardContent)
         {
             _ = Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(AttachLiveTerminalV10));
             return;
         }
 
-        _overviewTab.Content = null;
         _liveTerminalV10 = new ListBox
         {
             ItemsSource = _viewModel.CalibrationTerminalLines,
@@ -58,6 +59,7 @@ public partial class CalibrationWindow
             CornerRadius = new CornerRadius(8),
             Margin = new Thickness(12, 4, 12, 10),
             Height = 190,
+            Tag = "CALIBRATION_LIVE_TERMINAL_END",
             Child = new DockPanel
             {
                 Children =
@@ -77,11 +79,9 @@ public partial class CalibrationWindow
         };
         DockPanel.SetDock(((DockPanel)terminalCard.Child).Children[0], Dock.Top);
 
-        var layout = new DockPanel();
-        DockPanel.SetDock(terminalCard, Dock.Bottom);
-        layout.Children.Add(terminalCard);
-        layout.Children.Add(dashboard);
-        _overviewTab.Content = layout;
+        // The dashboard owns its vertical ScrollViewer. Appending here places the terminal after
+        // every chart/card so it is visible only at the true end of Prehľad, not pinned over it.
+        dashboardContent.Children.Add(terminalCard);
     }
 
     private void OnLiveTerminalLinesChangedV10(object? sender, NotifyCollectionChangedEventArgs e)
