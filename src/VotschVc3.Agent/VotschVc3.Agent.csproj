@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>1.75.4</Version>
+    <Version>1.76.43</Version>
     <Product>Lab Control Bridge</Product>
+    <!-- The bridge is a background companion process. WinExe prevents a console
+         window from flashing when a legacy desktop path probes the disabled agent. -->
     <!-- The desktop app references this project (build-only) and publishes itself
          framework-dependent. A RID passed on the publish command line flows into this
          project too, and an Exe with a RID would otherwise default to self-contained,
