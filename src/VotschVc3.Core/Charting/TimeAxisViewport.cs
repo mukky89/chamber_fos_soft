@@ -124,5 +124,26 @@ public sealed class TimeAxisViewport
         return true;
     }
 
+    /// <summary>Selects an exact visible range, as used by drag-a-rectangle chart zoom.</summary>
+    public bool SelectRange(double from, double to, double dataMin, double dataMax)
+    {
+        if (!double.IsFinite(from) || !double.IsFinite(to) || dataMax <= dataMin)
+            return false;
+
+        double min = Math.Clamp(Math.Min(from, to), dataMin, dataMax);
+        double max = Math.Clamp(Math.Max(from, to), dataMin, dataMax);
+        double full = dataMax - dataMin;
+        double span = Math.Clamp(max - min, MinimumSpanFor(full), full);
+        if (span >= full * 0.999999)
+        {
+            Reset();
+            return true;
+        }
+
+        _span = span;
+        _start = Math.Clamp(min, dataMin, dataMax - span);
+        return true;
+    }
+
     private double MinimumSpanFor(double full) => Math.Min(Math.Max(_minimumSpan, full / MaxZoom), full);
 }

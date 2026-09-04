@@ -27,7 +27,7 @@
                 <Button Content="＋" Style="{StaticResource ChartZoomButton}" Click="OnZoomInClick"
                         ToolTip="Priblížiť (koliesko myši nahor)" />
                 <Button Content="⤢" Style="{StaticResource ChartZoomButton}" Click="OnZoomResetClick"
-                        ToolTip="Zobraziť celý rozsah (dvojklik do grafu)" />
+                        ToolTip="Zobraziť celý rozsah (dvojklik) · ľavým ťahom označíte oblasť" />
                 <Button x:Name="ZoomButton" Content="⛶" Style="{StaticResource ChartZoomButton}"
                         Visibility="Collapsed"
                         ToolTip="Zväčšiť graf na celú obrazovku"

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.83] – 2026-09-04
+
+- Vo všetkých grafoch možno ľavým tlačidlom myši označiť obdĺžnikovú oblasť a priblížiť ju v osi času aj meranej hodnoty.
+- Počas výberu sa zobrazuje modrý priehľadný rámček; dvojklik obnoví celý rozsah a pravé tlačidlo posúva priblížený graf.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.83.
+
 ## [1.76.82] – 2026-09-04
 
 - Prehľad kalibrácie teraz zobrazuje samostatný živý graf stability pre každý vybraný FBG peak.

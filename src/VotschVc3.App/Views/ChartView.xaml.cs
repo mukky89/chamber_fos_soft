@@ -49,6 +49,11 @@ public partial class ChartView : UserControl
     private bool _isPanning;
     private Point _panStartMouse;
     private double _panStartMin;
+    private bool _isSelecting;
+    private Point _selectionStart;
+    private Rectangle? _selectionRectangle;
+    private double? _selectedMinY;
+    private double? _selectedMaxY;
 
     // Mini-map strip under the plot: clicking or dragging it jumps straight to that part
     // of the recording, instead of panning across the whole range.
@@ -71,6 +76,8 @@ public partial class ChartView : UserControl
         PreviewMouseWheel += OnPlotMouseWheel;
         PlotCanvas.MouseLeftButtonDown += OnPlotMouseDown;
         PlotCanvas.MouseLeftButtonUp += OnPlotMouseUp;
+        PlotCanvas.MouseRightButtonDown += OnPlotRightMouseDown;
+        PlotCanvas.MouseRightButtonUp += OnPlotRightMouseUp;
     }
 
     public static readonly DependencyProperty AllowZoomProperty = DependencyProperty.Register(
@@ -92,12 +99,13 @@ public partial class ChartView : UserControl
 
     private void OnZoomResetClick(object sender, RoutedEventArgs e)
     {
-        if (!_viewport.IsZoomed)
+        if (!_viewport.IsZoomed && !_selectedMinY.HasValue)
         {
             return;
         }
 
         _viewport.Reset();
+        _selectedMinY = _selectedMaxY = null;
         ClearOverlay();
         Redraw();
     }
@@ -270,7 +278,13 @@ public partial class ChartView : UserControl
         double visibleMaxY = series.Max(s => s.Points.Max(p => p.Y));
         double minY;
         double maxY;
-        if (double.IsNaN(YMin) && double.IsNaN(YMax))
+        if (_selectedMinY is { } selectedMinY && _selectedMaxY is { } selectedMaxY)
+        {
+            minY = selectedMinY;
+            maxY = selectedMaxY;
+            _yAxis = new ValueAxis(minY, maxY, (maxY - minY) / 4, 4);
+        }
+        else if (double.IsNaN(YMin) && double.IsNaN(YMax))
         {
             // Rounded bounds keep the labels readable and hold the axis still while a
             // zoomed window is panned. Scale also picks how many gridlines there are, so
@@ -306,7 +320,7 @@ public partial class ChartView : UserControl
 
         // Remember the transform so the hover read-out can map cursor -> data.
         _minX = minX; _maxX = maxX; _minY = minY; _maxY = maxY; _plotW = plotW; _plotH = plotH;
-        PlotCanvas.Cursor = _window.IsZoomed ? Cursors.SizeWE : Cursors.Arrow;
+        PlotCanvas.Cursor = Cursors.Cross;
         _hoverSeries = series.FirstOrDefault(s => !s.Dashed) ?? series[0];
         _hasPlot = true;
 
@@ -593,19 +607,15 @@ public partial class ChartView : UserControl
     {
         if (e.ClickCount == 2)
         {
-            if (_viewport.IsZoomed)
+            if (_viewport.IsZoomed || _selectedMinY.HasValue)
             {
                 _viewport.Reset();
+                _selectedMinY = _selectedMaxY = null;
                 ClearOverlay();
                 Redraw();
                 e.Handled = true;
             }
 
-            return;
-        }
-
-        if (!_window.IsZoomed)
-        {
             return;
         }
 
@@ -620,9 +630,21 @@ public partial class ChartView : UserControl
             return;
         }
 
-        _isPanning = true;
-        _panStartMouse = pos;
-        _panStartMin = _window.Min;
+        if (pos.X < PadLeft || pos.X > PadLeft + _plotW || pos.Y < PadTop || pos.Y > PadTop + _plotH)
+            return;
+
+        _isSelecting = true;
+        _selectionStart = pos;
+        _selectionRectangle = new Rectangle
+        {
+            Stroke = AccentBrush,
+            StrokeThickness = 1.5,
+            StrokeDashArray = new DoubleCollection { 4, 3 },
+            Fill = AccentBrush,
+            Opacity = 0.22,
+            IsHitTestVisible = false,
+        };
+        PlotCanvas.Children.Add(_selectionRectangle);
         PlotCanvas.CaptureMouse();
         ClearOverlay();
         e.Handled = true;
@@ -658,13 +680,55 @@ public partial class ChartView : UserControl
             return;
         }
 
-        if (!_isPanning)
+        if (!_isSelecting)
         {
             return;
         }
 
+        Point end = ClampToPlot(e.GetPosition(PlotCanvas));
+        Point start = ClampToPlot(_selectionStart);
+        _isSelecting = false;
+        PlotCanvas.ReleaseMouseCapture();
+        if (_selectionRectangle is not null) PlotCanvas.Children.Remove(_selectionRectangle);
+        _selectionRectangle = null;
+
+        if (Math.Abs(end.X - start.X) < 6 || Math.Abs(end.Y - start.Y) < 6)
+            return;
+
+        double x1 = _minX + ((start.X - PadLeft) / _plotW * (_maxX - _minX));
+        double x2 = _minX + ((end.X - PadLeft) / _plotW * (_maxX - _minX));
+        double y1 = _maxY - ((start.Y - PadTop) / _plotH * (_maxY - _minY));
+        double y2 = _maxY - ((end.Y - PadTop) / _plotH * (_maxY - _minY));
+        _viewport.SelectRange(x1, x2, _fullMinX, _fullMaxX);
+        _selectedMinY = Math.Min(y1, y2);
+        _selectedMaxY = Math.Max(y1, y2);
+        ClearOverlay();
+        Redraw();
+    }
+
+    private Point ClampToPlot(Point point) => new(
+        Math.Clamp(point.X, PadLeft, PadLeft + _plotW),
+        Math.Clamp(point.Y, PadTop, PadTop + _plotH));
+
+    private void OnPlotRightMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_window.IsZoomed) return;
+        _isPanning = true;
+        _panStartMouse = e.GetPosition(PlotCanvas);
+        _panStartMin = _window.Min;
+        PlotCanvas.CaptureMouse();
+        PlotCanvas.Cursor = Cursors.SizeWE;
+        ClearOverlay();
+        e.Handled = true;
+    }
+
+    private void OnPlotRightMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isPanning) return;
         _isPanning = false;
         PlotCanvas.ReleaseMouseCapture();
+        PlotCanvas.Cursor = Cursors.Cross;
+        e.Handled = true;
     }
 
     private void AddLine(double x1, double y1, double x2, double y2, Brush brush, double thickness, bool dashed)
@@ -737,6 +801,17 @@ public partial class ChartView : UserControl
                 }
             }
 
+            return;
+        }
+
+        if (_isSelecting && _selectionRectangle is not null)
+        {
+            Point current = ClampToPlot(e.GetPosition(PlotCanvas));
+            Point start = ClampToPlot(_selectionStart);
+            Canvas.SetLeft(_selectionRectangle, Math.Min(start.X, current.X));
+            Canvas.SetTop(_selectionRectangle, Math.Min(start.Y, current.Y));
+            _selectionRectangle.Width = Math.Abs(current.X - start.X);
+            _selectionRectangle.Height = Math.Abs(current.Y - start.Y);
             return;
         }
 

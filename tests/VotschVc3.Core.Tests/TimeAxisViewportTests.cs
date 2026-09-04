@@ -10,6 +10,16 @@ namespace VotschVc3.Core.Tests;
 public class TimeAxisViewportTests
 {
     [Fact]
+    public void SelectRangeUsesDraggedTimeWindowInEitherDirection()
+    {
+        var viewport = new TimeAxisViewport(minimumSpan: 0.01);
+        Assert.True(viewport.SelectRange(8, 2, 0, 10));
+        AxisWindow selected = viewport.Resolve(0, 10);
+        Assert.Equal(2, selected.Min, 6);
+        Assert.Equal(8, selected.Max, 6);
+    }
+
+    [Fact]
     public void FreshViewportShowsWholeRange()
     {
         var viewport = new TimeAxisViewport();
