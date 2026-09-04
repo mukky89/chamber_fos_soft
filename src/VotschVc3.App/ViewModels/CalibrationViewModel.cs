@@ -29,7 +29,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         $"σ ≤ {MaxStdDevPm:F3} pm · drift ≤ {MaxDriftPmPerMinute:F3} pm/min. " +
         "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
         "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.",
-        toleranceC: ChamberToleranceC);
+        toleranceC: ChamberToleranceC,
+        profileCode: SelectedProfile?.Code);
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;
@@ -1376,6 +1377,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 ReferenceThermometerSerialNumber = SelectedF100?.SerialNumber ?? string.Empty,
                 ReferenceThermometerChannel = SelectedF100 is null ? string.Empty : SelectedF100Channel,
             };
+            Dashboard.SetRunId(_activeRun.DisplayRunId);
 
             _nextWavelengthTraceAt = DateTimeOffset.MaxValue;
             await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun);

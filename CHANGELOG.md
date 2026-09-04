@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.62] – 2026-09-04
+
+### Zmenené – stručný live prehľad a ID kalibrácie
+- Horný nadpis live prehľadu zobrazuje iba kód profilu a prvú stručnú časť názvu; celý automatický popis zostáva dostupný v bubline po podržaní myši.
+- Pri komore sa zobrazuje ID aktuálneho kalibračného behu zhodné s ID uloženým vo výsledkoch a exportoch.
+- Počas prípravy behu je stav ID zobrazený zrozumiteľne a po jeho pridelení sa prehľad okamžite aktualizuje.
+
 ## [1.76.61] – 2026-09-04
 
 ### Pridané – vynútenie ďalšieho kroku kalibrácie

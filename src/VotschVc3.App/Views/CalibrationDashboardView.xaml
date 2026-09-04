@@ -29,8 +29,11 @@
      <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
      <StackPanel>
       <TextBlock Text="FBG KALIBRÁCIA / LIVE PREHĽAD" Style="{StaticResource Muted}"/>
-      <TextBlock Text="{Binding Profile}" FontSize="27" FontWeight="SemiBold" Margin="0,8,0,4"/>
-      <TextBlock Text="{Binding Chamber}" Style="{StaticResource Muted}"/>
+      <TextBlock Text="{Binding Profile}" ToolTip="{Binding ProfileDescription}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="27" FontWeight="SemiBold" Margin="0,8,0,4"/>
+      <WrapPanel>
+       <TextBlock Text="{Binding Chamber}" Style="{StaticResource Muted}" Margin="0,0,18,0"/>
+       <TextBlock Text="{Binding RunId, StringFormat=ID kalibrácie: {0}}" Foreground="#BBD8FF" FontWeight="SemiBold"/>
+      </WrapPanel>
       <TextBlock Text="{Binding Plateau}" FontSize="18" Margin="0,18,0,2"/>
       <TextBlock Text="{Binding Target}" FontSize="36" FontWeight="SemiBold"/>
       <TextBlock Text="{Binding Phase}" Foreground="#9CC6FF" FontSize="16" Margin="0,5,0,12"/>

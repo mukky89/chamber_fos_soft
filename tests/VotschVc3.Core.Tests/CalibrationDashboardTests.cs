@@ -22,7 +22,7 @@ public sealed class CalibrationDashboardTests
     private static CalibrationDashboardViewModel Model()
     {
         var m = new CalibrationDashboardViewModel();
-        m.Configure("Test", "Komora", new[] { -40d, 0, 120 }, true, "Rules", toleranceC: 0.25);
+        m.Configure("Test profile · rozsah -40…120 °C · 17 krokov · veľmi dlhý popis", "Komora", new[] { -40d, 0, 120 }, true, "Rules", toleranceC: 0.25, profileCode: "P-0214");
         m.Begin(Start);
         return m;
     }
@@ -114,5 +114,14 @@ public sealed class CalibrationDashboardTests
         Assert.True(m.CanForceTemperatureGate);
         m.Apply(Snapshot(CalibrationRunState.StabilizingSensors), Start.AddSeconds(1));
         Assert.False(m.CanForceTemperatureGate);
+    }
+    [Fact] public void HeaderUsesCompactProfileName_AndShowsPersistedRunId()
+    {
+        var m = Model();
+        Assert.Equal("P-0214 · Test profile", m.Profile);
+        Assert.Contains("veľmi dlhý popis", m.ProfileDescription);
+        Assert.Equal("Pripravuje sa…", m.RunId);
+        m.SetRunId("01-2026-09-04");
+        Assert.Equal("01-2026-09-04", m.RunId);
     }
 }

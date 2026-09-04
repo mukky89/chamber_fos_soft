@@ -21,6 +21,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public ObservableCollection<DashboardNode> Points { get; } = new();
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
     public string Profile { get; private set; } = "Vyberte kalibračný profil";
+    public string ProfileDescription { get; private set; } = "Vyberte kalibračný profil";
+    public string RunId { get; private set; } = "—";
     public string Chamber { get; private set; } = "Komora";
     public Guid? ReferenceChamberId { get; private set; }
     public string Rules { get; private set; } = "Pravidlá stability sú v nastaveniach.";
@@ -117,14 +119,16 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Freshness { get; private set; } = "Čaká na dáta";
     public double PointProgress => Steps.Take(9).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(9).Count(s => s.State != "Skipped"));
 
-    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0)
+    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, string? profileCode = null)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
-        string signature = $"{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{string.Join(",", plan)}";
+        string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
-        Profile = profile;
+        ProfileDescription = profile;
+        string shortName = profile.Split(" · ", 2, StringSplitOptions.TrimEntries)[0];
+        Profile = string.IsNullOrWhiteSpace(profileCode) ? shortName : $"{profileCode} · {shortName}";
         Chamber = chamber;
         HasReference = hasReference;
         Rules = rules;
@@ -139,11 +143,16 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         _startupDetail = "Čaká sa na prvý stav zariadení.";
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null;
-        _latestChamberTemperature = null; LastTemperatureSampleAt = null;
+        _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; _targetEvents.Clear(); Activity.Clear();
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
         AddEvent(now, "INFO", "Kalibrácia spustená."); RefreshSteps(); Tick(now);
+    }
+    public void SetRunId(string runId)
+    {
+        RunId = string.IsNullOrWhiteSpace(runId) ? "—" : runId;
+        Notify();
     }
     public void ResetPlan() { _started = null; _planSignature = ""; }
     public void Apply(CalibrationProgressSnapshot snapshot, DateTimeOffset now)
