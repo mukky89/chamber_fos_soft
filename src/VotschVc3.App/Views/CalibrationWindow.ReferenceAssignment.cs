@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Threading;
 using VotschVc3.App.ViewModels;
+using VotschVc3.Core.Diagnostics;
 
 namespace VotschVc3.App.Views;
 
@@ -11,7 +12,8 @@ namespace VotschVc3.App.Views;
 ///
 /// CalibrationViewModel intentionally continues to own the physical COM lifecycle; this layer
 /// owns the higher-level business rule "one reference thermometer belongs to one FBG workspace".
-/// That rule applies already at selection time, before anybody presses Read or starts a run.
+/// A persisted assignment must not behave like a permanent lock after the previous workspace is
+/// no longer using the COM port, therefore stale/disconnected assignments can be taken over.
 /// </summary>
 public partial class CalibrationWindow
 {
@@ -20,6 +22,7 @@ public partial class CalibrationWindow
     private bool _referenceDeviceListChanging;
     private ThermometerDeviceViewModel? _acceptedReference;
     private ThermometerDeviceViewModel? _observedReference;
+    private string? _lastRejectedReferenceKey;
 
     private void AttachReferenceAssignmentBehavior()
     {
@@ -31,8 +34,8 @@ public partial class CalibrationWindow
         Closed += OnReferenceAssignmentWindowClosed;
 
         // The CalibrationViewModel historically auto-selected the first COM port. That is unsafe
-        // once assignment is persistent: opening another FBG window must not silently steal the
-        // first CTH7000. Restore this chamber's saved assignment, or show no selected reference.
+        // once assignment is persistent: opening another FBG window must not silently steal an
+        // actively used CTH7000. Restore this chamber's saved assignment, or show no selection.
         ReconcileReferenceSelection();
     }
 
@@ -77,31 +80,78 @@ public partial class CalibrationWindow
 
         CalibrationReferenceSnapshot previous = CalibrationReferenceStatusStore.Instance.GetSnapshot(_chamberId);
         string workspaceName = GetWorkspaceName();
-        if (!CalibrationReferenceStatusStore.Instance.TryAssign(
-                _chamberId,
-                workspaceName,
-                candidate.PortName,
-                candidate.SerialNumber,
-                _viewModel.SelectedF100Channel,
-                out string occupiedBy))
+
+        bool assigned = CalibrationReferenceStatusStore.Instance.TryAssign(
+            _chamberId,
+            workspaceName,
+            candidate.PortName,
+            candidate.SerialNumber,
+            _viewModel.SelectedF100Channel,
+            out string occupiedBy);
+
+        if (!assigned)
         {
-            ThermometerDeviceViewModel? restore = FindAssignedReference(previous);
-            SetReferenceSelectionInternal(restore, previous.Channel);
-            ObserveReference(restore);
-            if (restore is null)
+            // A saved assignment from an old/disconnected workspace must not permanently block a
+            // physical COM port. Runtime reservations are the authoritative protection against two
+            // live calibrations using the same device. If there is no live reservation, remove the
+            // stale persisted owner and retry the operator's explicit selection once.
+            string resourceKey = CalibrationResourceRegistry.F100Key(candidate.PortName);
+            bool activelyReserved = CalibrationResourceRegistry.IsReservedByOther(
+                resourceKey,
+                _chamberId,
+                out string activeOwner);
+
+            CalibrationChamberOption? staleOwner = _viewModel.Chambers.FirstOrDefault(chamber =>
+                string.Equals(chamber.Config.Name, occupiedBy, StringComparison.OrdinalIgnoreCase));
+
+            if (!activelyReserved && staleOwner is not null && staleOwner.Config.Id != _chamberId)
             {
-                CalibrationReferenceStatusStore.Instance.MarkDisconnected(_chamberId);
+                CalibrationReferenceStatusStore.Instance.ReleaseAssignment(staleOwner.Config.Id);
+                assigned = CalibrationReferenceStatusStore.Instance.TryAssign(
+                    _chamberId,
+                    workspaceName,
+                    candidate.PortName,
+                    candidate.SerialNumber,
+                    _viewModel.SelectedF100Channel,
+                    out occupiedBy);
+
+                if (assigned)
+                {
+                    AppLog.Info(
+                        "FBG referencia",
+                        $"{candidate.PortName}: odstránené neaktívne priradenie „{staleOwner.Config.Name}“ a referencia bola priradená „{workspaceName}“.");
+                }
             }
 
-            MessageBox.Show(
-                this,
-                $"WIKA CTH7000 na porte {candidate.PortName} je už priradený FBG kalibrácii zariadenia „{occupiedBy}“.\n\n" +
-                "Jeden referenčný teplomer môže byť priradený iba jednému zariadeniu.",
-                "Referencia je už priradená",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
+            if (!assigned)
+            {
+                ThermometerDeviceViewModel? restore = FindAssignedReference(previous);
+                SetReferenceSelectionInternal(restore, previous.Channel);
+                ObserveReference(restore);
+                if (restore is null)
+                {
+                    CalibrationReferenceStatusStore.Instance.MarkDisconnected(_chamberId);
+                }
+
+                // A rescan can raise the same selection several times. Show one warning per
+                // rejected port/owner instead of trapping the operator in a popup loop.
+                string rejectionKey = $"{candidate.PortName}|{occupiedBy}|{activeOwner}";
+                if (!string.Equals(_lastRejectedReferenceKey, rejectionKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    _lastRejectedReferenceKey = rejectionKey;
+                    MessageBox.Show(
+                        this,
+                        $"WIKA CTH7000 na porte {candidate.PortName} je práve používaný FBG kalibráciou zariadenia „{(string.IsNullOrWhiteSpace(activeOwner) ? occupiedBy : activeOwner)}“.\n\n" +
+                        "Aktívny COM port nemožno prevziať. Vyber iný port alebo najprv zastav/uvoľni kalibráciu v pôvodnom okne.",
+                        "Referencia je práve používaná",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                return;
+            }
         }
+
+        _lastRejectedReferenceKey = null;
 
         // If this chamber deliberately switched from one reference to another, immediately free
         // the old process-level COM reservation too. The VM will acquire the new one on first read.
@@ -139,8 +189,6 @@ public partial class CalibrationWindow
         CalibrationReferenceSnapshot assignment = CalibrationReferenceStatusStore.Instance.GetSnapshot(_chamberId);
         if (!assignment.IsAssigned)
         {
-            // No operator assignment exists yet. Clear the VM's historical "first COM wins"
-            // default so simply opening this window never claims a thermometer.
             SetReferenceSelectionInternal(null);
             _acceptedReference = null;
             ObserveReference(null);
@@ -251,7 +299,7 @@ public partial class CalibrationWindow
         _viewModel.F100Devices.CollectionChanged -= OnReferenceDeviceCollectionChanged;
         ObserveReference(null);
         Closed -= OnReferenceAssignmentWindowClosed;
-        // Intentionally DO NOT release CalibrationReferenceStatusStore assignment here.
-        // It is a persistent equipment assignment, not a window lifetime lock.
+        // Persistent assignment is kept for convenient restoration. It is no longer a permanent
+        // lock: another workspace may take it over when there is no live resource reservation.
     }
 }
