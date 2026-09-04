@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.50] – 2026-09-04
+
+### Zmenené – samostatné live grafy FBG peakov
+- Každý zobrazený peak má vlastný graf s nezávislou mierkou vlnovej dĺžky a označením SN, kanála a Peak ID.
+- Grafy sa zobrazujú v dvoch stĺpcoch na širšom okne a pod sebou na užšom. Predvolene sa zobrazia všetky peaky označené na kalibráciu.
+- Filtre aktívneho/vybraných peakov, samostatné grafy WIKA a komory aj zber dát zostávajú zachované. Peaky bez vzoriek zobrazujú čakací stav.
+
 ## [1.76.49] – 2026-09-04
 
 ### Zmenené – príprava FBG kalibrácie a zapojenie

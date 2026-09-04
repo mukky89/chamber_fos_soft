@@ -57,7 +57,7 @@ public partial class CalibrationWindow
         _productionTabs.MinHeight = 0;
 
         // Charts get their own focused page; raw diagnostics remain reachable.
-        if (_fbgWavelengthTraceChart?.Parent is StackPanel chartStack && chartStack.Parent is Border card && card.Parent is DockPanel dock)
+        if (_fbgPeakChartsPanel?.Parent is StackPanel chartStack && chartStack.Parent is Border card && card.Parent is DockPanel dock)
         {
             dock.Children.Remove(card);
             _productionTabs.Items.Insert(1, new TabItem

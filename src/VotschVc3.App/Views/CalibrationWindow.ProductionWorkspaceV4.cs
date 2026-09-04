@@ -42,7 +42,8 @@ public partial class CalibrationWindow
     private readonly HashSet<CalibrationPeakRowViewModel> _fbgLiveObservedRows = new();
     private readonly Dictionary<CalibrationPeakRowViewModel, bool> _lastSnWarningState = new();
     private readonly Dictionary<string, bool> _fbgTraceVisibilityByKey = new(StringComparer.Ordinal);
-    private ChartView? _fbgWavelengthTraceChart;
+    private System.Windows.Controls.Primitives.UniformGrid? _fbgPeakChartsPanel;
+    private readonly Dictionary<CalibrationPeakRowViewModel, ChartView> _peakCharts = new();
     private ChartView? _fbgReferenceTraceChart;
     private ChartView? _chamberTraceChart;
     private ComboBox? _peakDisplayMode;
@@ -91,7 +92,7 @@ public partial class CalibrationWindow
 
     private void EnsureFbgLiveTracePanel()
     {
-        if (_fbgWavelengthTraceChart is not null) return;
+        if (_fbgPeakChartsPanel is not null) return;
         _liveMonitorTab ??= _productionTabs?.Items.OfType<TabItem>()
             .FirstOrDefault(item => HeaderText(item.Header) == "Live monitor");
         if (_liveMonitorTab?.Content is not DockPanel liveDock) return;
@@ -104,14 +105,9 @@ public partial class CalibrationWindow
             Opacity = 0.8,
         };
 
-        _fbgWavelengthTraceChart = new ChartView
-        {
-            ChartTitle = "FBG wavelength · filtrované peaky",
-            Unit = " nm",
-            EmptyText = "Označ aspoň jeden peak pre zobrazenie alebo počkaj na prvé PeakLogger vzorky…",
-            Height = 230,
-            MinHeight = 200,
-        };
+        _fbgPeakChartsPanel = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+        _fbgPeakChartsPanel.SizeChanged += (_, e) =>
+            _fbgPeakChartsPanel.Columns = e.NewSize.Width >= 1000 ? 2 : 1;
         _fbgReferenceTraceChart = new ChartView
         {
             ChartTitle = "WIKA referenčná teplota",
@@ -200,7 +196,7 @@ public partial class CalibrationWindow
         stack.Children.Add(_fbgTraceSummary);
         var modes = new WrapPanel { Margin = new Thickness(0, 6, 0, 12) };
         var chartMode = new ComboBox { Width = 210, ItemsSource = new[] { "FBG peaky", "WIKA teplota", "Komora teplota" }, SelectedIndex = 0, Margin = new Thickness(0, 0, 12, 0) };
-        _peakDisplayMode = new ComboBox { Width = 210, ItemsSource = new[] { "Iba aktívny peak", "Všetky peaky", "Vybrané peaky" }, SelectedIndex = 0 };
+        _peakDisplayMode = new ComboBox { Width = 210, ItemsSource = new[] { "Iba aktívny peak", "Všetky peaky", "Vybrané peaky" }, SelectedIndex = 1 };
         modes.Children.Add(chartMode);
         modes.Children.Add(_peakDisplayMode);
         stack.Children.Add(modes);
@@ -208,7 +204,7 @@ public partial class CalibrationWindow
         _fbgReferenceTraceChart.Visibility = Visibility.Collapsed;
         chartMode.SelectionChanged += (_, _) =>
         {
-            _fbgWavelengthTraceChart.Visibility = chartMode.SelectedIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
+            _fbgPeakChartsPanel.Visibility = chartMode.SelectedIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
             _fbgReferenceTraceChart.Visibility = chartMode.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
             _chamberTraceChart.Visibility = chartMode.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             _peakDisplayMode.Visibility = chartMode.SelectedIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -224,10 +220,10 @@ public partial class CalibrationWindow
         filterHeader.Visibility = filterScroll.Visibility = Visibility.Collapsed;
         stack.Children.Add(filterHeader);
         stack.Children.Add(filterScroll);
-        stack.Children.Add(_fbgWavelengthTraceChart);
+        stack.Children.Add(_fbgPeakChartsPanel);
         stack.Children.Add(new TextBlock
         {
-            Text = "Filter mení iba zobrazenie grafu. Peaky označené v Zapojení sa ďalej kalibrujú a ich dáta sa zbierajú aj keď je ich krivka skrytá. Referencia je na samostatnej osi °C.",
+            Text = "Každý peak má vlastný graf a mierku v nm. Filter mení iba zobrazenie; zber dát a kalibrácia pokračujú aj pre skryté peaky.",
             Margin = new Thickness(0, 7, 0, 4),
             Opacity = 0.7,
             FontSize = 11.5,
@@ -539,7 +535,7 @@ public partial class CalibrationWindow
             _ = Dispatcher.BeginInvoke(new Action(RefreshFbgLiveTraceCharts));
             return;
         }
-        if (_fbgWavelengthTraceChart is null || _fbgReferenceTraceChart is null) return;
+        if (_fbgPeakChartsPanel is null || _fbgReferenceTraceChart is null) return;
         if (_viewModel.IsRunning && _viewModel.Dashboard.LastUpdate != _lastChamberSnapshot && _viewModel.Dashboard.ActualTemperature is { } chamberTemperature)
         {
             _lastChamberSnapshot = _viewModel.Dashboard.LastUpdate;
@@ -561,23 +557,44 @@ public partial class CalibrationWindow
             _chamberTraceChart.Series = new[] { new ChartSeries("Komora", Brushes.CornflowerBlue,
                 _chamberTrace.Where(p => p.Time >= _liveTraceOrigin).Select(p => new Point((p.Time - origin).TotalMinutes, p.Temperature)).ToArray(), strokeThickness: 2.3) };
 
-        var wavelengthSeries = new List<ChartSeries>();
-        foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks.Where(p => p.Selected && IsFbgTraceVisible(p)))
+        var visibleRows = _viewModel.Peaks.Where(p => p.Selected && IsFbgTraceVisible(p)).ToArray();
+        foreach (var removed in _peakCharts.Keys.Where(row => !visibleRows.Contains(row)).ToArray())
         {
-            if (!_fbgLiveTrace.TryGetValue(row, out List<(DateTimeOffset Time, double Wavelength)>? trace) || trace.Count == 0) continue;
-            Point[] points = trace
-                .Where(p => !_viewModel.IsRunning || p.Time >= _liveTraceOrigin)
-                .Select(p => new Point((p.Time - origin).TotalMinutes, p.Wavelength))
-                .ToArray();
-            if (points.Length == 0) continue;
-            string sn = string.IsNullOrWhiteSpace(row.SerialNumber) ? "bez SN" : row.SerialNumber;
-            wavelengthSeries.Add(new ChartSeries(
-                $"SN {sn} · {row.Channel}/{row.PeakId}",
-                GetFbgTraceBrush(row),
-                points,
-                strokeThickness: 1.8));
+            _fbgPeakChartsPanel.Children.Remove((UIElement)_peakCharts[removed].Parent);
+            _peakCharts.Remove(removed);
         }
-        _fbgWavelengthTraceChart.Series = wavelengthSeries;
+        foreach (CalibrationPeakRowViewModel row in visibleRows)
+        {
+            if (!_peakCharts.TryGetValue(row, out ChartView? chart))
+            {
+                chart = new ChartView
+                {
+                    Unit = " nm", Height = 220, MinHeight = 180,
+                    Margin = new Thickness(4, 4, 8, 12),
+                    EmptyText = "Čakám na prvé vzorky tohto peaku…",
+                };
+                var peakCard = new StackPanel { Margin = new Thickness(4, 4, 8, 12) };
+                var title = new TextBlock { FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4, 0, 0) };
+                title.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(ChartView.ChartTitle)) { Source = chart });
+                peakCard.Children.Add(title);
+                peakCard.Children.Add(chart);
+                _peakCharts.Add(row, chart);
+            }
+            var card = (UIElement)chart.Parent;
+            int index = Array.IndexOf(visibleRows, row);
+            if (_fbgPeakChartsPanel.Children.IndexOf(card) != index)
+            {
+                _fbgPeakChartsPanel.Children.Remove(card);
+                _fbgPeakChartsPanel.Children.Insert(index, card);
+            }
+            chart.ChartTitle = BuildFbgTraceLabel(row);
+            Point[] points = _fbgLiveTrace.TryGetValue(row, out var trace)
+                ? trace.Where(p => !_viewModel.IsRunning || p.Time >= _liveTraceOrigin)
+                    .Select(p => new Point((p.Time - origin).TotalMinutes, p.Wavelength)).ToArray()
+                : Array.Empty<Point>();
+            chart.Series = points.Length == 0 ? Array.Empty<ChartSeries>()
+                : new[] { new ChartSeries(BuildFbgTraceLabel(row), GetFbgTraceBrush(row), points, strokeThickness: 1.8) };
+        }
 
         IEnumerable<CalibrationReferenceTracePoint> referenceForView = _viewModel.IsRunning
             ? reference.Where(p => p.Timestamp >= _liveTraceOrigin)
@@ -594,7 +611,7 @@ public partial class CalibrationWindow
         {
             int calibrationSelected = _viewModel.Peaks.Count(p => p.Selected);
             int graphSelected = _viewModel.Peaks.Count(p => p.Selected && IsFbgTraceVisible(p));
-            int withTrace = wavelengthSeries.Count;
+
             CalibrationReferenceSnapshot snapshot = CalibrationReferenceStatusStore.Instance.GetSnapshot(_chamberId);
             string referenceValue = snapshot.TemperatureC is { } t ? $"{t:F3} °C" : "—";
             _fbgTraceSummary.Text = $"Peaky: {calibrationSelected} · stabilné: {_viewModel.Dashboard.StableCount} · aktívny: {_viewModel.Dashboard.ActivePeak} · WIKA: {referenceValue} · komora: {_viewModel.Dashboard.Actual}";
