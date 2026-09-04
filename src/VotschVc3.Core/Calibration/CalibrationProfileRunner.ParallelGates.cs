@@ -197,6 +197,19 @@ public sealed class CalibrationProfileRunner
         }
         catch (OperationCanceledException)
         {
+            // STOP from the UI cancels the runner token. Do not wait for the outer ViewModel
+            // cleanup before stopping the physical chamber: send a best-effort STOP here
+            // immediately so the chamber is not left running while reference/FBG cleanup finishes.
+            try
+            {
+                await _chamber.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                // The outer cleanup will try StopAsync once more. Preserve cancellation as the
+                // primary result even if the device is already disconnected or busy.
+            }
+
             run.CompletedAt = DateTimeOffset.Now;
             run.State = CalibrationRunState.Aborted;
             writer.SaveSummary();
