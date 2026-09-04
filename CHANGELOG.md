@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.64] – 2026-09-04
+
+- Každý kalibračný beh vytvára vo svojom adresári samostatný terminálovo čitateľný súbor `diagnostics.log` s Run ID a okamžitým zápisom na disk.
+- Diagnostika obsahuje konfiguráciu behu a stability, vybrané peaky, stavové prechody, WIKA a komorovú teplotu, priebeh každého peaku, limity, blokujúce dôvody, upozornenia, chyby a zásahy operátora.
+- Existujúce `raw-samples.csv`, `wavelength-trace.csv`, výsledky a denný aplikačný log zostávajú zachované; cesta k diagnostike sa zapisuje aj do aplikačného logu.
+- API kľúče ani iné prihlasovacie tajomstvá sa do kalibračnej diagnostiky nezapisujú.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.64.
+
 ## [1.76.63] – 2026-09-04
 
 - Zapojenie FBG snímačov ponúka dva režimy: priame zadávanie SN v tabuľke a poradové automatické párovanie po pripojení snímača.

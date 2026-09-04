@@ -178,6 +178,8 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
     private readonly CalibrationRunRecord _run;
     private readonly StreamWriter _rawWriter;
     private readonly StreamWriter _wavelengthWriter;
+    private readonly StreamWriter _diagnosticWriter;
+    private readonly object _diagnosticSync = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     internal CalibrationRunWriter(CalibrationStore store, CalibrationRunRecord run)
@@ -193,6 +195,27 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         _wavelengthWriter = new StreamWriter(Path.Combine(dir, "wavelength-trace.csv"), append: false, Encoding.UTF8);
         _wavelengthWriter.WriteLine("RunId;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity;ChamberTemperatureC;ReferenceTemperatureC");
         _wavelengthWriter.Flush();
+
+        DiagnosticFilePath = Path.Combine(dir, "diagnostics.log");
+        var diagnosticStream = new FileStream(
+            DiagnosticFilePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+        _diagnosticWriter = new StreamWriter(diagnosticStream, Encoding.UTF8) { AutoFlush = true };
+        _diagnosticWriter.WriteLine("Timestamp\tLevel\tRunId\tHumanRunId\tEvent\tDetails");
+        WriteDiagnostic("INFO", "RUN_LOG_CREATED", $"profile={run.ProfileCode}|{run.ProfileName}; chamber={run.ChamberName}; operator={run.Operator}");
+    }
+
+    public string DiagnosticFilePath { get; }
+
+    public void WriteDiagnostic(string level, string eventName, string details)
+    {
+        lock (_diagnosticSync)
+        {
+            _diagnosticWriter.WriteLine(string.Join('\t', new[]
+            {
+                DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture), E(level),
+                _run.RunId.ToString("N"), E(_run.DisplayRunId), E(eventName), E(details),
+            }));
+        }
     }
 
     public async Task AppendAsync(IEnumerable<CalibrationRawSample> samples, CancellationToken cancellationToken = default)
@@ -275,6 +298,11 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
             await _wavelengthWriter.FlushAsync().ConfigureAwait(false);
             _rawWriter.Dispose();
             _wavelengthWriter.Dispose();
+            lock (_diagnosticSync)
+            {
+                _diagnosticWriter.WriteLine($"{DateTimeOffset.Now:O}\tINFO\t{_run.RunId:N}\t{E(_run.DisplayRunId)}\tRUN_LOG_CLOSED\tstate={_run.State}");
+                _diagnosticWriter.Dispose();
+            }
             _store.SaveRun(_run);
         }
         finally

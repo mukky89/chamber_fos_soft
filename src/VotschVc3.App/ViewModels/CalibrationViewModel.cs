@@ -1382,6 +1382,20 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _nextWavelengthTraceAt = DateTimeOffset.MaxValue;
             await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun);
             _activeWriter = writer;
+            CalibrationProfileSettings diagnosticSettings = _setup.Settings;
+            writer.WriteDiagnostic("INFO", "RUN_STARTED",
+                $"version={GetType().Assembly.GetName().Version?.ToString(3)}; profileId={SelectedProfile.Id:N}; profile={SelectedProfile.Code}|{SelectedProfile.Name}; " +
+                $"chamber={SelectedChamber.Config.Name}; wikaPort={SelectedF100?.PortName ?? "none"}; wikaSerial={SelectedF100?.SerialNumber ?? "none"}; wikaChannel={(SelectedF100 is null ? "none" : SelectedF100Channel)}; " +
+                $"peakLogger={PeakLoggerHost}:{PeakLoggerPort}; simulator={UseSimulator}; selectedPeaks={Peaks.Count(p => p.Selected)}; plateaus={string.Join(',', _setup.CalibrationSegmentIndices)}");
+            writer.WriteDiagnostic("INFO", "STABILITY_CONFIGURATION",
+                $"temperatureToleranceC={diagnosticSettings.ChamberToleranceC:G17}; temperatureStableSeconds={diagnosticSettings.ChamberStableDuration.TotalSeconds:G17}; " +
+                $"temperatureMaxDriftCPerMinute={diagnosticSettings.MaxChamberDriftCPerMinute:G17}; temperatureTimeoutSeconds={diagnosticSettings.ChamberStabilityTimeout.TotalSeconds:G17}; " +
+                $"wavelengthStableSamples={diagnosticSettings.RequiredStableSamples}; measurementSamples={diagnosticSettings.RequiredMeasurementSamples}; " +
+                $"rangeLimitPm={diagnosticSettings.MaxWavelengthRangePm:G17}; stdDevLimitPm={diagnosticSettings.MaxWavelengthStdDevPm:G17}; driftLimitPmPerMinute={diagnosticSettings.MaxWavelengthDriftPmPerMinute:G17}");
+            foreach (CalibrationPeakRowViewModel peak in Peaks.Where(p => p.Selected))
+                writer.WriteDiagnostic("INFO", "SELECTED_PEAK",
+                    $"sn={peak.SerialNumber}; device={peak.PeakLoggerDeviceSerialNumber}; channel={peak.Channel}; peak={peak.PeakId}; index={peak.PeakIndex}; wavelengthNm={peak.CurrentWavelengthNm:G17}; intensity={peak.Intensity:G17}");
+            AppLog.Info("FBG kalibrácia", $"Run {_activeRun.DisplayRunId}: úplný diagnostický log {writer.DiagnosticFilePath}");
             if (_setup.Settings.EnableWavelengthTraceLogging)
             {
                 Dashboard.ReportStartup("Čaká sa na prvé merania PeakLoggera pre záznam priebehu.");
@@ -1392,11 +1406,17 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             var orchestrator = new CalibrationOrchestrator(_peakLogger);
             orchestrator.WarningRaised += warning =>
             {
+                writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
+                AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {warning.Code} · {warning.Message}");
                 _ = Application.Current.Dispatcher.InvokeAsync(() => WarningText = warning.Message);
                 _ = SendWarningEmailAsync(_activeRun, warning);
             };
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
-            _runner.Progress += snapshot => _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
+            _runner.Progress += snapshot =>
+            {
+                WriteProgressDiagnostic(writer, snapshot);
+                _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
+            };
 
             StatusMessage = SelectedF100 is null
                 ? "Kalibrácia spustená bez externého WIKA CTH7000. Najskôr prebehne preflight a kontrola PeakLoggera."
@@ -1411,6 +1431,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 SelectedF100 is null ? null : ReadReferenceTemperatureAsync,
                 _runCts.Token);
 
+            writer.WriteDiagnostic("INFO", "RUN_FINISHED", $"state={_activeRun.State}; plateaus={_activeRun.Plateaus.Count}; warnings={_activeRun.Warnings.Count}");
+
             RunState = _activeRun.State.ToString();
             StatusMessage = _activeRun.State == CalibrationRunState.Completed
                 ? "Kalibrácia úspešne dokončená."
@@ -1419,17 +1441,23 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
         catch (CalibrationOperatorActionRequiredException ex)
         {
+            _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_ACTION_REQUIRED", ex.ToString());
+            AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: vyžaduje zásah operátora · {ex.Message}");
             WarningText = ex.Message;
             RunState = CalibrationRunState.AwaitingOperator.ToString();
             StatusMessage = "Kalibrácia čaká na zásah operátora. Oprav výber/limity alebo povoľ zdôvodnený override a spusti kontrolu znovu.";
         }
         catch (OperationCanceledException)
         {
+            _activeWriter?.WriteDiagnostic("WARNING", "RUN_CANCELLED", $"stopRequested={_stopRequested}");
+            AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: kalibrácia zrušená; stopRequested={_stopRequested}.");
             StatusMessage = "Kalibrácia bola zastavená operátorom.";
             RunState = CalibrationRunState.Aborted.ToString();
         }
         catch (Exception ex)
         {
+            _activeWriter?.WriteDiagnostic("ERROR", "RUN_FAILED", ex.ToString());
+            AppLog.Error("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {ex}");
             RunState = CalibrationRunState.Failed.ToString();
             StatusMessage = ex.Message;
             throw;
@@ -1517,6 +1545,23 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = "Kalibrácia pozastavená; čas segmentu stojí.";
         }
         Dashboard.Pause(_runner.IsPaused, DateTimeOffset.Now);
+        _activeWriter?.WriteDiagnostic("INFO", _runner.IsPaused ? "OPERATOR_PAUSE" : "OPERATOR_RESUME", StatusMessage);
+        AppLog.Info("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {StatusMessage}");
+    }
+
+    private static void WriteProgressDiagnostic(CalibrationRunWriter writer, CalibrationProgressSnapshot snapshot)
+    {
+        writer.WriteDiagnostic("INFO", "PROGRESS",
+            $"state={snapshot.State}; plateau={snapshot.PlateauIndex + 1}/{snapshot.PlateauCount}; elapsedSeconds={snapshot.PlateauElapsed.TotalSeconds:F1}; " +
+            $"targetC={snapshot.TargetTemperatureC:G17}; chamberC={snapshot.ActualTemperatureC?.ToString("G17") ?? "null"}; wikaC={snapshot.ReferenceTemperatureC?.ToString("G17") ?? "null"}; " +
+            $"temperatureGate={snapshot.TemperatureGateOpen?.ToString() ?? "null"}; temperatureScore={snapshot.TemperatureStableScoreSeconds?.ToString() ?? "null"}/{snapshot.RequiredTemperatureScoreSeconds?.ToString() ?? "null"}; " +
+            $"stablePeaks={snapshot.StableTargets}/{snapshot.TotalTargets}; message={snapshot.Message}");
+        foreach (CalibrationTargetProgress target in snapshot.Targets)
+            writer.WriteDiagnostic("INFO", "PEAK_PROGRESS",
+                $"sn={target.SerialNumber}; channel={target.Channel}; peak={target.PeakId}; index={target.PeakIndex}; phase={target.Phase}; state={target.State}; " +
+                $"wavelengthNm={target.CurrentWavelengthNm?.ToString("G17") ?? "null"}; stableSamples={target.StabilitySamples}/{target.RequiredStabilitySamples}; measurementSamples={target.MeasurementSamples}/{target.RequiredMeasurementSamples}; " +
+                $"rangePm={target.RangePm?.ToString("G17") ?? "null"}/{target.RangeLimitPm?.ToString("G17") ?? "null"}; stdDevPm={target.StandardDeviationPm?.ToString("G17") ?? "null"}/{target.StdDevLimitPm?.ToString("G17") ?? "null"}; " +
+                $"driftPmPerMinute={target.DriftPmPerMinute?.ToString("G17") ?? "null"}/{target.DriftLimitPmPerMinute?.ToString("G17") ?? "null"}; blocking={target.BlockingReason}; detail={target.Detail}");
     }
 
     private void ForceNextStep()
@@ -1526,12 +1571,16 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _runner.RequestTemperatureGateOverride();
         StatusMessage = "Operátor vyžiadal vynútené pokračovanie na stabilizáciu FBG. Akcia bude zapísaná do výsledku kalibrácie.";
         Dashboard.Warn(StatusMessage, DateTimeOffset.Now);
+        _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_FORCE_NEXT_STEP", StatusMessage);
+        AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {StatusMessage}");
         ForceNextStepCommand.RaiseCanExecuteChanged();
     }
 
     private void StopCalibration()
     {
         _stopRequested = true;
+        _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_STOP", "Operátor stlačil STOP; ruším beh a požadujem bezpečné zastavenie komory.");
+        AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: operátor stlačil STOP.");
         _runCts?.Cancel();
         StatusMessage = "Zastavujem kalibráciu a posielam bezpečný STOP komore…";
     }
