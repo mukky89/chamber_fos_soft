@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.76.48] – 2026-09-04
+
+### Pridané – operátorský prehľad FBG kalibrácie
+- Nová hlavná karta `Prehľad` zobrazuje profil, stav behu, aktuálne plato, fázu, dokončené body a odhad zostávajúceho času.
+- Vizuálny workflow, roadmapa kalibračných bodov, live karty komory/WIKA/FBG, viacúrovňový progres a časovaný operátorský log uľahčujú sledovanie dlhého behu.
+- Stabilizácia a meranie jednotlivých peakov sa zobrazujú paralelne. Progres teploty používa skutočné skóre stability; ETA sa počíta z dokončených bodov a počas pauzy sa nezobrazuje.
+
+### Zmenené – kalibračný workspace a grafy
+- Nastavenia zariadení a zapojenie sú oddelené od live prehľadu; technické stavy zostávajú v diagnostike a výsledky s exportom v histórii.
+- `Live dáta` prepínajú graf FBG peakov, referencie WIKA a komory. Predvolený FBG graf sleduje aktívny peak, dostupné sú aj všetky alebo vybrané peaky.
+- Existujúce kalibračné rozhodovacie pravidlá a ovládacie príkazy zostávajú zachované.
+
+### Zmenené – jednotné e-mailové šablóny
+- Testovacie správy, alarmy, rozdiel teploty WIKA/komora, FBG upozornenia a dokončenia aj súhrny profilov používajú spoločnú tmavú hlavičku, farebný stav, zvýraznenú správu a prehľadné údaje.
+- Súhrn profilu používa spoločný dizajn so sekciou grafu a príloh. Nepotvrdené vypnutie komory je výrazne označené ako upozornenie.
+
+### Opravené
+- Celkový progres kalibrácie počíta dokončené body; stabilizačné a meracie vzorky sa nezamieňajú.
+- Dokončený peak s chybou sa pri návrate do čakania na teplotu neoznačí za úspešný.
+- E-mail neoznamuje chýbajúci CSV súbor ako priložený. Súradnice SVG grafu majú platný formát aj pri slovenskom nastavení desatinnej čiarky.
+
+### Verzia
+- Desktop aplikácia zvýšená z `1.76.47` na `1.76.48`.
+
 ## [1.76.34] – 2026-09-03
 
 ### UI – tiché úspešné pripojenie zariadení

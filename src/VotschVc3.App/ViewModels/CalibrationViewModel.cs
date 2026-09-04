@@ -19,6 +19,16 @@ namespace VotschVc3.App.ViewModels;
 
 public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 {
+    public CalibrationDashboardViewModel Dashboard { get; } = new();
+
+    public void RefreshDashboardPlan() => Dashboard.Configure(
+        SelectedProfile?.Name ?? "Vyberte profil", SelectedChamber?.Config.Name ?? "Komora",
+        CalibrationPoints.Where(p => p.Selected).Select(p => p.TemperatureC), SelectedF100 is not null,
+        $"Teplota ±{ChamberToleranceC:F2} °C · stabilita {ChamberStableMinutes:F1} min · " +
+        $"{RequiredStableSamples} vzoriek · range ≤ {MaxRangePm:F3} pm · " +
+        $"σ ≤ {MaxStdDevPm:F3} pm · drift ≤ {MaxDriftPmPerMinute:F3} pm/min. " +
+        "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
+        "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.");
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;
@@ -1274,6 +1284,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _runCts = new CancellationTokenSource();
         _stopRequested = false;
         _calibrationProgressPercent = 0;
+        Dashboard.ResetPlan();
+        RefreshDashboardPlan();
+        Dashboard.Begin(DateTimeOffset.Now);
+        RunState = CalibrationRunState.Preflight.ToString();
         IsRunning = true;
         _lastChamberTemperatureC = null;
         _lastReferenceTemperatureC = SelectedF100?.Temperature;
@@ -1354,8 +1368,16 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = "Kalibrácia bola zastavená operátorom.";
             RunState = CalibrationRunState.Aborted.ToString();
         }
+        catch (Exception ex)
+        {
+            RunState = CalibrationRunState.Failed.ToString();
+            StatusMessage = ex.Message;
+            throw;
+        }
         finally
         {
+            Dashboard.End(Enum.TryParse<CalibrationRunState>(RunState, out var finalState) ? finalState : CalibrationRunState.Failed,
+                StatusMessage, DateTimeOffset.Now);
             _activeWriter = null;
             IsRunning = false;
             _runner = null;
@@ -1378,11 +1400,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private void ApplyProgress(CalibrationProgressSnapshot snapshot)
     {
+        Dashboard.Apply(snapshot, DateTimeOffset.Now);
         RunState = snapshot.State.ToString();
         PlateauLabel = snapshot.PlateauCount <= 0 ? "—" : $"Plato {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount}";
-        _calibrationProgressPercent = snapshot.PlateauCount <= 0
-            ? 0
-            : 100d * Math.Clamp(snapshot.PlateauIndex + 1, 0, snapshot.PlateauCount) / snapshot.PlateauCount;
+        _calibrationProgressPercent = Dashboard.OverallProgress;
         TemperatureLabel = snapshot.ActualTemperatureC is { } actual
             ? $"{actual:F2} °C  →  {snapshot.TargetTemperatureC:F2} °C"
             : $"→ {snapshot.TargetTemperatureC:F2} °C";
@@ -1431,6 +1452,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _runner.Pause();
             StatusMessage = "Kalibrácia pozastavená; čas segmentu stojí.";
         }
+        Dashboard.Pause(_runner.IsPaused, DateTimeOffset.Now);
     }
 
     private void StopCalibration()

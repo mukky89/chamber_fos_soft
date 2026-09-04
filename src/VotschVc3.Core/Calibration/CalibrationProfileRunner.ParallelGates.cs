@@ -110,6 +110,10 @@ public sealed class CalibrationProfileRunner
                 previousHumidity = targetHumidity;
 
                 int currentPlateau = calibrationPlateauIndex++;
+                Progress?.Invoke(new CalibrationProgressSnapshot(
+                    CalibrationRunState.MovingToPlateau, currentPlateau, calibrationSteps.Count,
+                    step.Segment.TargetTemperature, null, null, 0, 0, TimeSpan.Zero,
+                    Array.Empty<CalibrationTargetProgress>(), "Komora prechádza na cieľovú teplotu."));
                 Func<double, double?, CancellationToken, Task<string?>>? referenceControl =
                     CreateReferenceControl(setup, targetHumidity);
 
@@ -154,6 +158,12 @@ public sealed class CalibrationProfileRunner
                 }
 
                 run.State = CalibrationRunState.PlateauCompleted;
+                Progress?.Invoke(new CalibrationProgressSnapshot(
+                    run.State, currentPlateau, calibrationSteps.Count, plateau.TargetTemperatureC,
+                    plateau.ActualTemperatureC, plateau.ReferenceTemperatureC,
+                    plateau.Targets.Count(t => t.Status == CalibrationTargetState.Stable), plateau.Targets.Count,
+                    plateau.CompletedAt - plateau.StartedAt, Array.Empty<CalibrationTargetProgress>(),
+                    $"Kalibračný bod {currentPlateau + 1} / {calibrationSteps.Count} je dokončený."));
             }
 
             if (!responseValidated && run.Plateaus.Count > 1)

@@ -91,6 +91,7 @@ public partial class CalibrationWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
+        _ = Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(InitializeDashboardLayout));
 
         // Calibration uses explicit one-shot reference reads. Disable the device VM's generic
         // auto-polling mode immediately, before the operator can click Načítať teplotu.

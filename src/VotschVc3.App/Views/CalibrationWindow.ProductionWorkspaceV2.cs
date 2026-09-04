@@ -322,7 +322,7 @@ public partial class CalibrationWindow
         {
             ApplyRunInputLock(_viewModel.IsRunning);
             if (_viewModel.IsRunning && _liveMonitorTab is not null && _productionTabs is not null)
-                _productionTabs.SelectedItem = _liveMonitorTab;
+                _productionTabs.SelectedItem = _overviewTab ?? _liveMonitorTab;
             RefreshDataPathPanel();
         }
         else if (e.PropertyName == nameof(CalibrationViewModel.SelectedProfile))
