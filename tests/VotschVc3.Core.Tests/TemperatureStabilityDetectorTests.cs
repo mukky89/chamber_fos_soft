@@ -6,7 +6,7 @@ namespace VotschVc3.Core.Tests;
 public sealed class TemperatureStabilityDetectorTests
 {
     [Fact]
-    public void Minus40Point322_IsStableInsideHalfDegreeToleranceAfterOneMinute()
+    public void Minus40Point322_IsAcceptedByPaliStyleGateInsideHalfDegreeTolerance()
     {
         var detector = new TemperatureStabilityDetector(
             TimeSpan.FromMinutes(1),
@@ -14,20 +14,22 @@ public sealed class TemperatureStabilityDetectorTests
             maxDriftCPerMinute: 0.1);
         DateTimeOffset t0 = DateTimeOffset.UtcNow;
 
-        StabilityMetrics metrics = default!;
-        for (int second = 0; second <= 60; second++)
+        StabilityMetrics metrics = detector.Add(t0, -40.322, target: -40.0);
+        for (int second = 1; second <= 65; second++)
         {
             metrics = detector.Add(t0.AddSeconds(second), -40.322, target: -40.0);
         }
 
         Assert.True(metrics.IsStable);
-        Assert.True(metrics.WindowDuration >= TimeSpan.FromMinutes(1));
+        Assert.Equal(60, detector.StableScoreSeconds);
+        Assert.Equal(60, detector.RequiredStableScoreSeconds);
         Assert.InRange(Math.Abs(metrics.Mean - (-40.0)), 0, 0.5);
-        Assert.InRange(Math.Abs(metrics.SlopePerMinute), 0, 0.1);
+        Assert.InRange(detector.LastAverageDeltaC, 0, 0.000001);
+        Assert.InRange(detector.LastNormalizedChangeCPerMinute, 0, 0.000001);
     }
 
     [Fact]
-    public void OutOfToleranceHistory_DoesNotBlockRecoveredWikaForExtraMinute()
+    public void PaliStyleGate_RecoversFromOldOutOfToleranceValueWithoutKeepingRollingHistory()
     {
         var detector = new TemperatureStabilityDetector(
             TimeSpan.FromMinutes(1),
@@ -35,22 +37,29 @@ public sealed class TemperatureStabilityDetectorTests
             maxDriftCPerMinute: 0.1);
         DateTimeOffset t0 = DateTimeOffset.UtcNow;
 
-        Assert.False(detector.Add(t0, -40.8, target: -40.0).IsStable);
+        // Initial baseline is outside tolerance. The first five samples at the new value fail because
+        // they are still compared with that old baseline; Pali then moves prev_temp to the new value.
+        StabilityMetrics metrics = detector.Add(t0, -40.8, target: -40.0);
+        for (int second = 1; second <= 5; second++)
+        {
+            metrics = detector.Add(t0.AddSeconds(second), -40.322, target: -40.0);
+        }
+        Assert.False(metrics.IsStable);
+        Assert.Equal(0, detector.StableScoreSeconds);
 
-        StabilityMetrics metrics = default!;
-        for (int second = 1; second <= 61; second++)
+        // From the new baseline the same stable WIKA value is accepted. No old -40.8 sample remains
+        // in a rolling all-samples-must-pass window.
+        for (int second = 6; second <= 70; second++)
         {
             metrics = detector.Add(t0.AddSeconds(second), -40.322, target: -40.0);
         }
 
         Assert.True(metrics.IsStable);
-        Assert.True(metrics.Minimum >= -40.5);
-        Assert.True(metrics.Maximum <= -39.5);
-        Assert.InRange(metrics.WindowDuration.TotalSeconds, 60, 61.1);
+        Assert.Equal(60, detector.StableScoreSeconds);
     }
 
     [Fact]
-    public void LeavingTolerance_ResetsContinuousStabilityWindow()
+    public void PaliStyleGate_BadFiveSampleBlockPenalizesByTenInsteadOfResettingEverything()
     {
         var detector = new TemperatureStabilityDetector(
             TimeSpan.FromMinutes(1),
@@ -58,30 +67,30 @@ public sealed class TemperatureStabilityDetectorTests
             maxDriftCPerMinute: 0.1);
         DateTimeOffset t0 = DateTimeOffset.UtcNow;
 
+        detector.Add(t0, -40.2, target: -40.0);
         StabilityMetrics metrics = default!;
-        for (int second = 0; second <= 60; second++)
+
+        // Four good blocks = 20 stability points.
+        for (int second = 1; second <= 20; second++)
         {
             metrics = detector.Add(t0.AddSeconds(second), -40.2, target: -40.0);
         }
-        Assert.True(metrics.IsStable);
-
-        metrics = detector.Add(t0.AddSeconds(61), -40.7, target: -40.0);
+        Assert.Equal(20, detector.StableScoreSeconds);
         Assert.False(metrics.IsStable);
 
-        metrics = detector.Add(t0.AddSeconds(62), -40.2, target: -40.0);
-        Assert.False(metrics.IsStable);
-        Assert.True(metrics.WindowDuration < TimeSpan.FromSeconds(2));
-
-        for (int second = 63; second <= 122; second++)
+        // One bad five-sample block subtracts 10 points, exactly like change -= i*2 in Pali.
+        for (int second = 21; second <= 25; second++)
         {
-            metrics = detector.Add(t0.AddSeconds(second), -40.2, target: -40.0);
+            metrics = detector.Add(t0.AddSeconds(second), -40.7, target: -40.0);
         }
 
-        Assert.True(metrics.IsStable);
+        Assert.False(metrics.IsStable);
+        Assert.Equal(10, detector.StableScoreSeconds);
+        Assert.Equal(TimeSpan.FromSeconds(10), metrics.WindowDuration);
     }
 
     [Fact]
-    public void ExcessiveTemperatureDrift_IsStillRejectedInsideTolerance()
+    public void PaliStyleGate_RejectsRealTemperatureMovementEvenWhenLatestValueIsInsideTolerance()
     {
         var detector = new TemperatureStabilityDetector(
             TimeSpan.FromMinutes(1),
@@ -89,15 +98,18 @@ public sealed class TemperatureStabilityDetectorTests
             maxDriftCPerMinute: 0.1);
         DateTimeOffset t0 = DateTimeOffset.UtcNow;
 
-        StabilityMetrics metrics = default!;
-        for (int second = 0; second <= 60; second++)
+        StabilityMetrics metrics = detector.Add(t0, -40.30, target: -40.0);
+        for (int second = 1; second <= 60; second++)
         {
-            // 0.2 °C/min drift, entirely within the ±0.5 °C target band.
-            double value = -40.3 + (0.2 * second / 60.0);
+            // 0.2 °C/min linear change. Values stay inside ±0.5 °C, but Pali's five-sample
+            // baseline-change test must keep rejecting the block.
+            double value = -40.30 + (0.2 * second / 60.0);
             metrics = detector.Add(t0.AddSeconds(second), value, target: -40.0);
         }
 
         Assert.False(metrics.IsStable);
+        Assert.Equal(0, detector.StableScoreSeconds);
+        Assert.True(detector.LastNormalizedChangeCPerMinute > 0.1);
         Assert.True(Math.Abs(metrics.SlopePerMinute) > 0.1);
     }
 }
