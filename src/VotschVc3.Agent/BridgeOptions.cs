@@ -6,6 +6,12 @@ namespace VotschVc3.Agent;
 
 public sealed class BridgeOptions
 {
+    /// <summary>
+    /// Global opt-in for Dashboard bridge communication. Missing values deserialize to false,
+    /// so both fresh installs and existing bridge.json files from older versions stay offline
+    /// until an operator explicitly enables the bridge.
+    /// </summary>
+    public bool Enabled { get; set; } = false;
     public string DashboardUrl { get; set; } = "https://YOUR-DASHBOARD.example";
     public string AgentKey { get; set; } = "";
     public int PollSeconds { get; set; } = 3;
