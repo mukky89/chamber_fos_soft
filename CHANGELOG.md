@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.87] – 2026-09-04
+
+- Karta komory v prehľade kalibrácie má nový vektorový indikátor smeru teploty s modernou šípkou a jemnou pulznou animáciou.
+- Zelený indikátor znamená približovanie k cieľovej teplote, červený vzďaľovanie od cieľa a modrý stabilný smer bez výraznej zmeny.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.87.
+
 ## [1.76.86] – 2026-09-04
 
 - Legenda grafov má vlastné kontrastné pozadie, takže ju už neprekrývajú merané krivky, cieľové čiary ani hranice stability.

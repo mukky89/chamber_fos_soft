@@ -57,6 +57,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Reference => _snapshot?.ReferenceTemperatureC is { } t ? $"{t:F3} °C" : "—";
     public string Delta => _snapshot?.ActualTemperatureC is { } t ? $"Δ {t - _snapshot.TargetTemperatureC:+0.00;-0.00;0.00} °C" : "Čaká na údaje";
     public string Trend { get; private set; } = "—";
+    public string TrendTone { get; private set; } = "Steady";
     public bool HasReference { get; private set; }
     public bool CanForceTemperatureGate => _running &&
         _state == CalibrationRunState.WaitingForChamberStability &&
@@ -183,7 +184,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null;
         _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
-        Alert = "Bez hlásených upozornení"; Trend = "—"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
+        Alert = "Bez hlásených upozornení"; Trend = "—"; TrendTone = "Steady"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
         AddEvent(now, "INFO", "Kalibrácia spustená."); RefreshSteps(); Tick(now);
     }
@@ -204,7 +205,23 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             LastTemperatureSampleAt = now;
         }
         if (snapshot.ActualTemperatureC is { } temperature && previous?.ActualTemperatureC is { } p)
-            Trend = Math.Abs(temperature - p) < 0.01 ? "→ Drží" : temperature > p ? "↗ Rastie" : "↘ Klesá";
+        {
+            double movement = temperature - p;
+            Trend = Math.Abs(movement) < 0.01 ? "→ Drží" : movement > 0 ? "↗ Rastie" : "↘ Klesá";
+
+            // Colour communicates whether the chamber is moving toward the current target,
+            // not merely whether the numeric temperature is rising or falling.
+            if (Math.Abs(snapshot.TargetTemperatureC - previous.TargetTemperatureC) > 0.001 || Math.Abs(movement) < 0.01)
+            {
+                TrendTone = "Steady";
+            }
+            else
+            {
+                double previousError = Math.Abs(p - snapshot.TargetTemperatureC);
+                double currentError = Math.Abs(temperature - snapshot.TargetTemperatureC);
+                TrendTone = currentError < previousError ? "Closer" : "Farther";
+            }
+        }
         if (previous?.State != snapshot.State) _phaseStarted = now;
         _state = snapshot.State;
         _snapshot = snapshot.State == CalibrationRunState.PlateauCompleted && snapshot.Targets.Count == 0 && previous?.PlateauIndex == snapshot.PlateauIndex
