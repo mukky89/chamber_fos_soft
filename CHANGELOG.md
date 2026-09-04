@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.52] – 2026-09-04
+
+### Opravené – celý priebeh referenčnej teploty FBG
+- Samostatný zber WIKA sa spúšťa ihneď s FBG kalibráciou a číta referenciu každých 5 sekúnd, aj počas rampy, pauzy a pri zatvorenom grafe.
+- Graf behu zachováva všetky získané vzorky od štartu bez prerieďovania starších bodov. Nový beh začne nový priebeh; po skončení zostáva posledný priebeh dostupný počas otvorenej aplikácie.
+- Okno referenčnej teploty sa obnoví po uložení vzorky a časová os vychádza zo štartu kalibrácie. Pri chybe čítania sa nevkladá vymyslená hodnota; ďalší interval čítanie zopakuje.
+
 ## [1.76.51] – 2026-09-04
 
 ### Opravené – zrozumiteľný aktuálny stav kalibrácie

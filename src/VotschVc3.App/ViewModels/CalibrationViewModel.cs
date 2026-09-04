@@ -39,6 +39,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private IPeakLoggerClient? _peakLogger;
     private IChamberDevice? _chamber;
     private CalibrationProfileRunner? _runner;
+    private CancellationTokenSource? _referenceTraceCts;
+    private Task? _referenceTraceTask;
     private CancellationTokenSource? _runCts;
     private CancellationTokenSource? _peakMonitorCts;
     private CancellationTokenSource? _setupAutosaveCts;
@@ -1143,6 +1145,51 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    private void StartReferenceTrace()
+    {
+        if (SelectedF100 is not { } device) return;
+        EnsureF100Reservation();
+        device.SelectedChannel = SelectedF100Channel;
+        CalibrationReferenceTraceStore.Instance.BeginRun(_workspaceChamberId, DateTimeOffset.Now);
+        _referenceTraceCts = CancellationTokenSource.CreateLinkedTokenSource(_runCts!.Token);
+        _referenceTraceTask = RecordReferenceTraceAsync(device, _referenceTraceCts.Token);
+    }
+
+    private async Task RecordReferenceTraceAsync(ThermometerDeviceViewModel device, CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            do
+            {
+                try
+                {
+                    // The thermometer client serializes requests with its existing I/O gate.
+                    double? value = await device.ReadReferenceTemperatureAsync(token);
+                    if (value is { } temperature && double.IsFinite(temperature))
+                        CalibrationReferenceTraceStore.Instance.AppendRunSample(_workspaceChamberId,
+                            new(DateTimeOffset.Now, temperature, device.PortName, device.SelectedChannel));
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
+                catch (Exception ex)
+                {
+                    AppLog.Warn("WIKA trace", $"Vzorka referencie sa nepodarila: {ex.Message}");
+                }
+            } while (await timer.WaitForNextTickAsync(token));
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
+
+    private async Task StopReferenceTraceAsync()
+    {
+        _referenceTraceCts?.Cancel();
+        if (_referenceTraceTask is { } task) await task;
+        _referenceTraceTask = null;
+        _referenceTraceCts?.Dispose();
+        _referenceTraceCts = null;
+        CalibrationReferenceTraceStore.Instance.EndRun(_workspaceChamberId);
+    }
+
     private async Task<double?> ReadReferenceTemperatureAsync(CancellationToken token)
     {
         if (SelectedF100 is null) return null;
@@ -1294,6 +1341,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
         try
         {
+            StartReferenceTrace();
             _chamber = CreateChamberClient(SelectedChamber.Config);
             ChamberConnectionSettings connection = ToConnectionSettings(SelectedChamber.Config);
             StatusMessage = $"Pripájam komoru {SelectedChamber.Config.Name}…";
@@ -1379,6 +1427,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
         finally
         {
+            await StopReferenceTraceAsync();
             Dashboard.End(Enum.TryParse<CalibrationRunState>(RunState, out var finalState) ? finalState : CalibrationRunState.Failed,
                 StatusMessage, DateTimeOffset.Now);
             _activeWriter = null;
@@ -1620,6 +1669,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _activeWriter = null;
         _stopRequested = IsRunning;
         _runCts?.Cancel();
+        await StopReferenceTraceAsync();
         if (_chamber is not null)
         {
             if (_stopRequested)

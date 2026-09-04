@@ -68,12 +68,14 @@ public sealed class ReferenceTemperatureChartWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         CalibrationReferenceStatusStore.Instance.Changed += OnReferenceChanged;
+        CalibrationReferenceTraceStore.Instance.Changed += OnTraceChanged;
         RefreshChart();
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
         CalibrationReferenceStatusStore.Instance.Changed -= OnReferenceChanged;
+        CalibrationReferenceTraceStore.Instance.Changed -= OnTraceChanged;
     }
 
     private void OnReferenceChanged(object? sender, CalibrationReferenceChangedEventArgs e)
@@ -87,6 +89,8 @@ public sealed class ReferenceTemperatureChartWindow : Window
         RefreshChart();
     }
 
+    private void OnTraceChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(new Action(RefreshChart));
+
     private void RefreshChart()
     {
         IReadOnlyList<CalibrationReferenceTracePoint> trace = CalibrationReferenceTraceStore.Instance.GetTrace(_chamberId);
@@ -98,7 +102,7 @@ public sealed class ReferenceTemperatureChartWindow : Window
         }
         else
         {
-            DateTimeOffset origin = trace[0].Timestamp;
+            DateTimeOffset origin = CalibrationReferenceTraceStore.Instance.GetRunStart(_chamberId) ?? trace[0].Timestamp;
             Point[] points = trace
                 .Select(p => new Point((p.Timestamp - origin).TotalMinutes, p.TemperatureC))
                 .ToArray();

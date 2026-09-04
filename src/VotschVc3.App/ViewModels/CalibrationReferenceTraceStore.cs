@@ -13,6 +13,28 @@ public sealed class CalibrationReferenceTraceStore
     private static readonly Lazy<CalibrationReferenceTraceStore> LazyInstance = new(() => new CalibrationReferenceTraceStore());
     public static CalibrationReferenceTraceStore Instance => LazyInstance.Value;
 
+    public event EventHandler? Changed;
+    private readonly Dictionary<Guid, DateTimeOffset> _runStarts = new();
+    private readonly HashSet<Guid> _activeRuns = new();
+
+    public void BeginRun(Guid chamberId, DateTimeOffset started)
+    {
+        lock (_gate) { _traces[chamberId] = new(); _runStarts[chamberId] = started; _activeRuns.Add(chamberId); }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+    public void EndRun(Guid chamberId) { lock (_gate) _activeRuns.Remove(chamberId); }
+    public DateTimeOffset? GetRunStart(Guid chamberId)
+    { lock (_gate) return _runStarts.TryGetValue(chamberId, out var start) ? start : null; }
+    public void AppendRunSample(Guid chamberId, CalibrationReferenceTracePoint point)
+    {
+        lock (_gate)
+        {
+            if (!_activeRuns.Contains(chamberId) || !double.IsFinite(point.TemperatureC)) return;
+            if (point.Timestamp < _runStarts[chamberId]) return;
+            _traces[chamberId].Add(point); // Retain every five-second sample for the entire run.
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
     private readonly object _gate = new();
     private readonly Dictionary<Guid, List<CalibrationReferenceTracePoint>> _traces = new();
 
@@ -35,6 +57,7 @@ public sealed class CalibrationReferenceTraceStore
         DateTimeOffset timestamp = snapshot.LastUpdate ?? DateTimeOffset.Now;
         lock (_gate)
         {
+            if (_runStarts.ContainsKey(e.ChamberId)) return; // Run traces are written only by the five-second sampler, then frozen.
             if (!_traces.TryGetValue(e.ChamberId, out List<CalibrationReferenceTracePoint>? trace))
             {
                 trace = new List<CalibrationReferenceTracePoint>();
@@ -76,7 +99,7 @@ public sealed class CalibrationReferenceTraceStore
 
     public void Clear(Guid chamberId)
     {
-        lock (_gate) _traces.Remove(chamberId);
+        lock (_gate) { _traces.Remove(chamberId); _runStarts.Remove(chamberId); _activeRuns.Remove(chamberId); }
     }
 }
 
