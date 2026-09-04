@@ -105,6 +105,10 @@ public partial class AdminView : UserControl
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden,
             };
+            // The agent has a hard manual-only gate. This switch is deliberately supplied
+            // only by the Administration button so startup code / Scheduled Tasks cannot
+            // establish a dashboard connection by accident.
+            startInfo.ArgumentList.Add("--manual-start");
             startInfo.ArgumentList.Add(configPath);
             Process.Start(startInfo)?.Dispose();
 
