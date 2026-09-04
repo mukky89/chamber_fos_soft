@@ -42,8 +42,12 @@ public partial class CalibrationDashboardView : UserControl
             return;
         }
 
-        if (DataContext is CalibrationDashboardViewModel vm && vm.ReferenceChamberId == e.ChamberId)
-            RefreshReferenceTrace();
+        if (DataContext is CalibrationDashboardViewModel vm)
+        {
+            Guid? chamberId = vm.ReferenceChamberId ?? CalibrationReferenceTraceStore.Instance.GetSingleActiveChamberId();
+            if (chamberId == e.ChamberId)
+                RefreshReferenceTrace();
+        }
     }
 
     private void RequestReferenceTraceRefresh()
@@ -65,11 +69,16 @@ public partial class CalibrationDashboardView : UserControl
             return;
         }
 
-        if (DataContext is not CalibrationDashboardViewModel vm || vm.ReferenceChamberId is not { } chamberId)
+        if (DataContext is not CalibrationDashboardViewModel vm)
         {
-            ReferencePortText.Text = "—";
-            ReferenceCurrentTemperatureText.Text = "—";
-            ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
+            ClearReferenceTrace();
+            return;
+        }
+
+        Guid? resolvedChamberId = vm.ReferenceChamberId ?? CalibrationReferenceTraceStore.Instance.GetSingleActiveChamberId();
+        if (resolvedChamberId is not { } chamberId)
+        {
+            ClearReferenceTrace();
             return;
         }
 
@@ -115,5 +124,12 @@ public partial class CalibrationDashboardView : UserControl
         }
 
         ReferenceTraceChart.Series = series;
+    }
+
+    private void ClearReferenceTrace()
+    {
+        ReferencePortText.Text = "—";
+        ReferenceCurrentTemperatureText.Text = "—";
+        ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
     }
 }
