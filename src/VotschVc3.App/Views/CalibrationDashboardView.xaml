@@ -1,6 +1,7 @@
 <UserControl x:Class="VotschVc3.App.Views.CalibrationDashboardView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:views="clr-namespace:VotschVc3.App.Views"
  Background="#0D1420" Foreground="#EAF1FA" FontFamily="Segoe UI" FontSize="13">
  <UserControl.Resources>
   <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Foreground" Value="#EAF1FA"/></Style>
@@ -50,7 +51,7 @@
       <TextBlock Text="{Binding Finish, StringFormat=Predpokladaný koniec / koniec: {0}}"/>
       <TextBlock Text="{Binding Started, StringFormat=Štart: {0}}" Margin="0,10,0,3"/>
       <TextBlock Text="{Binding Elapsed, StringFormat=Čas od štartu: {0}}"/>
-      <TextBlock Text="Odhad vychádza z dokončených bodov. Nábeh a stabilita sa môžu líšiť." Style="{StaticResource Muted}" Margin="0,12,0,0"/>
+      <TextBlock Text="Odhad vychádza z dokončených kalibračných bodov; profilové rampy a časy sa ignorujú." Style="{StaticResource Muted}" Margin="0,12,0,0"/>
      </StackPanel>
     </Grid>
    </Border>
@@ -67,14 +68,23 @@
    <ItemsControl ItemsSource="{Binding Steps}" ItemTemplate="{StaticResource StepTemplate}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
    <ProgressBar Value="{Binding PointProgress, Mode=OneWay}" ToolTip="Dokončené fázy aktuálneho bodu. Stabilizácia a meranie peakov prebiehajú paralelne." Margin="0,0,0,18"/>
    <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-    <Border Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><TextBlock Text="01 / KOMORA" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Actual}" Style="{StaticResource Metric}"/><TextBlock Text="{Binding Delta}"/><TextBlock Text="{Binding Trend}" Style="{StaticResource Muted}" Margin="0,8,0,0"/></StackPanel></Border>
-    <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><TextBlock Text="02 / WIKA REFERENCIA" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Reference}" Style="{StaticResource Metric}"/><TextBlock Text="{Binding ReferenceStatus}" Style="{StaticResource Muted}"/></StackPanel></Border>
+    <Border Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><TextBlock Text="01 / KOMORA" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Actual}" Style="{StaticResource Metric}"/><TextBlock Text="{Binding Delta}"/><TextBlock Text="{Binding Trend}" Style="{StaticResource Muted}" Margin="0,8,0,0"/><TextBlock Text="Iba monitorovanie; neblokuje FBG fázu." Style="{StaticResource Muted}" Margin="0,6,0,0"/></StackPanel></Border>
+    <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><TextBlock Text="02 / WIKA REFERENCIA" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Reference}" Style="{StaticResource Metric}"/><TextBlock Text="{Binding ReferenceStatus}" Style="{StaticResource Muted}"/><TextBlock Text="Riadi teplotnú bránu kalibrácie." Style="{StaticResource Muted}" Margin="0,6,0,0"/></StackPanel></Border>
     <Border Grid.Column="2" Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><TextBlock Text="03 / FBG PEAKY" Style="{StaticResource Muted}"/><TextBlock Text="{Binding PeakSummary}" FontSize="20" Margin="0,12,0,4"/><ProgressBar Value="{Binding StabilityProgress, Mode=OneWay}"/><TextBlock Text="{Binding PeakDetail}" Style="{StaticResource Muted}"/></StackPanel></Border>
     <Border Grid.Column="3" Style="{StaticResource Panel}"><StackPanel><TextBlock Text="04 / MERANIE VZORIEK" Style="{StaticResource Muted}"/><TextBlock Text="{Binding SampleSummary}" Style="{StaticResource Metric}"/><ProgressBar Value="{Binding SampleProgress, Mode=OneWay}"/><TextBlock Text="Spolu za všetky peaky" Style="{StaticResource Muted}"/></StackPanel></Border>
    </Grid>
    <Border Style="{StaticResource Panel}"><StackPanel>
+    <TextBlock Text="WIKA referencia / ustáľovanie" Style="{StaticResource Title}"/>
+    <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+     <StackPanel><TextBlock Text="TYP" Style="{StaticResource Muted}"/><TextBlock x:Name="ReferenceTypeText" Text="WIKA CTH7000" FontWeight="SemiBold" Margin="0,5,0,0"/></StackPanel>
+     <StackPanel Grid.Column="1"><TextBlock Text="PORT / KANÁL" Style="{StaticResource Muted}"/><TextBlock x:Name="ReferencePortText" Text="—" FontWeight="SemiBold" Margin="0,5,0,0"/></StackPanel>
+     <StackPanel Grid.Column="2"><TextBlock Text="AKTUÁLNA TEPLOTA" Style="{StaticResource Muted}"/><TextBlock x:Name="ReferenceCurrentTemperatureText" Text="—" FontSize="20" FontWeight="SemiBold" Margin="0,5,0,0"/></StackPanel>
+    </Grid>
+    <views:ChartView x:Name="ReferenceTraceChart" Height="230" Unit="°C" ChartTitle="Ustáľovanie WIKA referencie" EmptyText="Čaká sa na dáta WIKA referencie..."/>
+   </StackPanel></Border>
+   <Border Style="{StaticResource Panel}"><StackPanel>
     <TextBlock Text="{Binding TemperatureStatus}" FontWeight="SemiBold"/>
-    <ProgressBar Value="{Binding TemperatureProgress, Mode=OneWay}" ToolTip="Skóre stability z runnera. Dosiahnutie 100 % ešte vyžaduje potvrdenie teplotnej brány v ďalšom bloku."/>
+    <ProgressBar Value="{Binding TemperatureProgress, Mode=OneWay}" ToolTip="Skóre stability WIKA referencie."/>
     <TextBlock Text="{Binding TemperatureScore}" Style="{StaticResource Muted}"/>
    </StackPanel></Border>
 
