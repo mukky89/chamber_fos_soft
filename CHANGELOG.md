@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.80] – 2026-09-04
+
+- Zobrazovaný stabilný čas WIKA teraz medzi päťvzorkovými kontrolnými blokmi plynulo pribúda podľa skutočných časov vzoriek.
+- Bezpečnostné rozhodnutie o stabilite naďalej používa pôvodné blokové vyhodnotenie; zmena opravuje iba neaktuálne zobrazenie priebehu.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.80.
+
 ## [1.76.79] – 2026-09-04
 
 - Sekcia „Čo sa deje práve teraz“ bola prerobená na moderný dynamický timeline s dokončeným, aktuálnym a nasledujúcim krokom.

@@ -242,7 +242,7 @@ public sealed class CalibrationOrchestrator
                     plateauClock.Elapsed,
                     trackers.Values.Select(t => t.ToWaitingForTemperatureProgress(settings, temperatureDetail, minimumDetail)).ToArray(),
                     $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov.",
-                    (hasExternalReference ? referenceDetector : chamberDetector).StableScoreSeconds,
+                    (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                     (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                     false,
                     temperatureMetrics?.SlopePerMinute));
@@ -398,7 +398,7 @@ public sealed class CalibrationOrchestrator
                 plateauClock.Elapsed,
                 trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
                 $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredStableSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky.",
-                (hasExternalReference ? referenceDetector : chamberDetector).StableScoreSeconds,
+                (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                 (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                 true,
                 temperatureMetrics?.SlopePerMinute));

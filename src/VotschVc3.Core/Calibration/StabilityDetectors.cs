@@ -152,6 +152,7 @@ public sealed class TemperatureStabilityDetector
     private DateTimeOffset? _scoreTimestamp;
     private double _baselineValue;
     private int _stableScoreSeconds;
+    private int _displayedStableScoreSeconds;
     private double _lastAverageDeltaC;
     private double _lastNormalizedChangeCPerMinute;
     private bool _isStable;
@@ -165,6 +166,13 @@ public sealed class TemperatureStabilityDetector
 
     /// <summary>Pali-style accumulated stability score. Good 5-sample block: +5, bad block: -10.</summary>
     public int StableScoreSeconds => _stableScoreSeconds;
+
+    /// <summary>
+    /// Stability time shown to the operator. Between completed five-sample validation blocks it
+    /// follows the real sample timestamps, while <see cref="StableScoreSeconds"/> remains the
+    /// authoritative block-validated score used to open the calibration gate.
+    /// </summary>
+    public int DisplayedStableScoreSeconds => _displayedStableScoreSeconds;
 
     /// <summary>Configured score required before the temperature gate opens.</summary>
     public int RequiredStableScoreSeconds => (int)Math.Ceiling(_requiredDuration.TotalSeconds);
@@ -185,6 +193,7 @@ public sealed class TemperatureStabilityDetector
             _scoreTimestamp = timestamp;
             _baselineValue = value;
             _block.Clear();
+            _displayedStableScoreSeconds = 0;
             // A zero dwell time removes only the time requirement; it must not bypass
             // the target-tolerance gate on the very first reference sample.
             _isStable = _requiredDuration <= TimeSpan.Zero &&
@@ -196,6 +205,18 @@ public sealed class TemperatureStabilityDetector
         _block.Add((timestamp, value));
         if (_block.Count < PaliBlockSize)
         {
+            double partialAverageDelta = _block.Average(x => Math.Abs(x.Value - _baselineValue));
+            double partialAverageAgeMinutes = _block.Average(x => Math.Max(0, (x.Timestamp - _baselineTimestamp.Value).TotalMinutes));
+            double partialChangePerMinute = partialAverageAgeMinutes <= double.Epsilon
+                ? 0
+                : partialAverageDelta / partialAverageAgeMinutes;
+            bool partialToleranceOk = Math.Abs(value - target) < _toleranceC ||
+                                      (_toleranceC == 0 && Math.Abs(value - target) <= double.Epsilon);
+            bool partialChangeOk = _maxDriftCPerMinute <= 0 || partialChangePerMinute < _maxDriftCPerMinute;
+            int pendingSeconds = Math.Max(0, (int)Math.Floor((timestamp - (_scoreTimestamp ?? timestamp)).TotalSeconds));
+            _displayedStableScoreSeconds = partialToleranceOk && partialChangeOk
+                ? Math.Min(RequiredStableScoreSeconds, _stableScoreSeconds + pendingSeconds)
+                : _stableScoreSeconds;
             return BuildMetrics(_block, _isStable);
         }
 
@@ -239,6 +260,8 @@ public sealed class TemperatureStabilityDetector
             _isStable = false;
         }
 
+        _displayedStableScoreSeconds = _stableScoreSeconds;
+
         StabilityMetrics result = BuildMetrics(_block, _isStable);
         _block.Clear();
         return result;
@@ -259,7 +282,7 @@ public sealed class TemperatureStabilityDetector
                 0,
                 0,
                 _lastNormalizedChangeCPerMinute,
-                TimeSpan.FromSeconds(_stableScoreSeconds),
+                TimeSpan.FromSeconds(_displayedStableScoreSeconds),
                 isStable);
         }
 
@@ -283,7 +306,7 @@ public sealed class TemperatureStabilityDetector
             max - min,
             stdDev,
             _lastNormalizedChangeCPerMinute,
-            TimeSpan.FromSeconds(_stableScoreSeconds),
+            TimeSpan.FromSeconds(_displayedStableScoreSeconds),
             isStable);
     }
 }

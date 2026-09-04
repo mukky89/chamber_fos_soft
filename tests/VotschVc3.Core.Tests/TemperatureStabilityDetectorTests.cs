@@ -128,4 +128,22 @@ public sealed class TemperatureStabilityDetectorTests
         Assert.Equal(60, detector.StableScoreSeconds);
         Assert.Equal(TimeSpan.FromSeconds(60), metrics.WindowDuration);
     }
+
+    [Fact]
+    public void DisplayedStableDuration_AdvancesBetweenCompletedValidationBlocks()
+    {
+        var detector = new TemperatureStabilityDetector(
+            TimeSpan.FromMinutes(10), toleranceC: 0.5, maxDriftCPerMinute: 0.1);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+
+        detector.Add(t0, -40.02, target: -40.0);
+        StabilityMetrics firstSecond = detector.Add(t0.AddSeconds(1), -40.02, target: -40.0);
+        StabilityMetrics secondSecond = detector.Add(t0.AddSeconds(2), -40.02, target: -40.0);
+
+        Assert.Equal(0, detector.StableScoreSeconds);
+        Assert.Equal(2, detector.DisplayedStableScoreSeconds);
+        Assert.Equal(TimeSpan.FromSeconds(1), firstSecond.WindowDuration);
+        Assert.Equal(TimeSpan.FromSeconds(2), secondSecond.WindowDuration);
+        Assert.False(secondSecond.IsStable);
+    }
 }
