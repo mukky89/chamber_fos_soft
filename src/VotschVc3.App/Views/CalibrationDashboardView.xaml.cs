@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.ViewModels;
+using VotschVc3.Core.Calibration;
 
 namespace VotschVc3.App.Views;
 
@@ -107,18 +108,28 @@ public partial class CalibrationDashboardView : UserControl
             new("WIKA CTH7000", Brushes.DeepSkyBlue, measured, strokeThickness: 2.2),
         };
 
-        if (double.TryParse(vm.Target.Replace(" °C", string.Empty), System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.CurrentCulture, out double target) ||
-            double.TryParse(vm.Target.Replace(" °C", string.Empty), System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out target))
+        if (vm.TargetTemperatureC is { } target)
         {
             double minX = measured[0].X;
             double maxX = measured[^1].X;
             if (maxX <= minX) maxX = minX + 0.01;
+            TemperatureStabilityBand band = TemperatureStabilityBand.Around(target, vm.StabilityToleranceC);
             series.Add(new ChartSeries(
-                "Cieľ plata",
+                $"Cieľ plata {target:F2} °C",
                 Brushes.Goldenrod,
                 new[] { new Point(minX, target), new Point(maxX, target) },
+                dashed: true,
+                strokeThickness: 1.5));
+            series.Add(new ChartSeries(
+                $"Dolná hranica {band.LowerC:F2} °C",
+                Brushes.OrangeRed,
+                new[] { new Point(minX, band.LowerC), new Point(maxX, band.LowerC) },
+                dashed: true,
+                strokeThickness: 1.5));
+            series.Add(new ChartSeries(
+                $"Horná hranica {band.UpperC:F2} °C",
+                Brushes.OrangeRed,
+                new[] { new Point(minX, band.UpperC), new Point(maxX, band.UpperC) },
                 dashed: true,
                 strokeThickness: 1.5));
         }

@@ -80,7 +80,7 @@
      <StackPanel Grid.Column="1"><TextBlock Text="PORT / KANÁL" Style="{StaticResource Muted}"/><TextBlock x:Name="ReferencePortText" Text="—" FontWeight="SemiBold" Margin="0,5,0,0"/></StackPanel>
      <StackPanel Grid.Column="2"><TextBlock Text="AKTUÁLNA TEPLOTA" Style="{StaticResource Muted}"/><TextBlock x:Name="ReferenceCurrentTemperatureText" Text="—" FontSize="20" FontWeight="SemiBold" Margin="0,5,0,0"/></StackPanel>
     </Grid>
-    <views:ChartView x:Name="ReferenceTraceChart" Height="230" Unit="°C" ChartTitle="Ustáľovanie WIKA referencie" EmptyText="Čaká sa na dáta WIKA referencie..."/>
+    <views:ChartView x:Name="ReferenceTraceChart" Height="230" Unit="°C" MinimumYDecimals="2" ChartTitle="Ustáľovanie WIKA referencie" EmptyText="Čaká sa na dáta WIKA referencie..."/>
    </StackPanel></Border>
    <Border Style="{StaticResource Panel}"><StackPanel>
     <TextBlock Text="{Binding TemperatureStatus}" FontWeight="SemiBold"/>

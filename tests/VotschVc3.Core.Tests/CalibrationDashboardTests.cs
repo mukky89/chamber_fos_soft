@@ -22,7 +22,7 @@ public sealed class CalibrationDashboardTests
     private static CalibrationDashboardViewModel Model()
     {
         var m = new CalibrationDashboardViewModel();
-        m.Configure("Test", "Komora", new[] { -40d, 0, 120 }, true, "Rules");
+        m.Configure("Test", "Komora", new[] { -40d, 0, 120 }, true, "Rules", toleranceC: 0.25);
         m.Begin(Start);
         return m;
     }
@@ -98,5 +98,12 @@ public sealed class CalibrationDashboardTests
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with { ActualTemperatureC = -39.5 }, sampleAt);
         Assert.Equal(-39.5, m.ActualTemperature);
         Assert.Equal(sampleAt, m.LastTemperatureSampleAt);
+    }
+    [Fact] public void DashboardExposesCurrentTargetForStabilityBand()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with { TargetTemperatureC = -40 }, Start);
+        Assert.Equal(-40, m.TargetTemperatureC);
+        Assert.Equal(0.25, m.StabilityToleranceC);
     }
 }

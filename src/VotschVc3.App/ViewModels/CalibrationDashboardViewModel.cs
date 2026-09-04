@@ -24,6 +24,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Chamber { get; private set; } = "Komora";
     public Guid? ReferenceChamberId { get; private set; }
     public string Rules { get; private set; } = "Pravidlá stability sú v nastaveniach.";
+    public double StabilityToleranceC { get; private set; }
     public string Alert { get; private set; } = "Bez hlásených upozornení";
     public string AlertTone => _lastWarning.Length > 0 ? "Waiting" : "Done";
     public string StateLabel => _paused ? "PAUSED · Pauza" : _state switch
@@ -46,6 +47,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov dokončených";
     public string Plateau => _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
+    public double? TargetTemperatureC => _snapshot?.TargetTemperatureC;
     public double? ActualTemperature => _snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
     public string Actual => ActualTemperature is { } t ? $"{t:F2} °C" : "—";
     public string Reference => _snapshot?.ReferenceTemperatureC is { } t ? $"{t:F3} °C" : "—";
@@ -112,17 +114,18 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Freshness { get; private set; } = "Čaká na dáta";
     public double PointProgress => Steps.Take(9).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(9).Count(s => s.State != "Skipped"));
 
-    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null)
+    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
-        string signature = $"{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{string.Join(",", plan)}";
+        string signature = $"{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
         Profile = profile;
         Chamber = chamber;
         HasReference = hasReference;
         Rules = rules;
+        StabilityToleranceC = Math.Abs(toleranceC);
         ReferenceChamberId = referenceChamberId;
         Points.Clear();
         foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká"));

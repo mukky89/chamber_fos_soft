@@ -26,6 +26,21 @@ public readonly record struct ValueAxis(double Min, double Max, double Step, int
 
 public static class NiceAxis
 {
+    /// <summary>Decimal places needed to display an axis step without hiding its precision.</summary>
+    public static int RequiredDecimalPlaces(double step, int minimum = 0, int maximum = 6)
+    {
+        minimum = Math.Max(0, minimum);
+        maximum = Math.Max(minimum, maximum);
+        if (!double.IsFinite(step)) return minimum;
+        step = Math.Abs(step);
+        for (int decimals = 0; decimals <= maximum; decimals++)
+        {
+            if (Math.Abs(step - Math.Round(step, decimals)) <= 1e-9)
+                return Math.Max(minimum, decimals);
+        }
+        return maximum;
+    }
+
     /// <summary>
     /// An axis whose bounds are exactly the supplied data bounds. Use for planned
     /// profile charts where the operator expects the scale to state the configured

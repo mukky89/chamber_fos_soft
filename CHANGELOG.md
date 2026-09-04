@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.60] – 2026-09-04
+
+### Zmenené – presnosť a hranice stability v teplotných grafoch
+- Osa Y v grafoch WIKA a komory vždy zobrazuje teplotu najmenej na dve desatinné miesta, aby boli viditeľné stotiny dôležité pre stabilitu.
+- Grafy počas kalibrácie zobrazujú prerušovanú dolnú a hornú hranicu stabilného pásma vypočítanú z aktuálneho cieľa a nastavenej tolerancie.
+- Legenda uvádza presné hodnoty oboch hraníc v °C; pásmo sa automaticky zmení pri prechode na ďalší kalibračný bod.
+
 ## [1.76.59] – 2026-09-04
 
 ### Opravené – záznam teploty komory v kalibrácii

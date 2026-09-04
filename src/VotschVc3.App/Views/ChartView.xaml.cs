@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Globalization;
 using VotschVc3.App.Charting;
 using VotschVc3.Core.Charting;
 
@@ -155,6 +156,17 @@ public partial class ChartView : UserControl
     {
         get => (string)GetValue(UnitProperty);
         set => SetValue(UnitProperty, value);
+    }
+
+    public static readonly DependencyProperty MinimumYDecimalsProperty = DependencyProperty.Register(
+        nameof(MinimumYDecimals), typeof(int), typeof(ChartView),
+        new PropertyMetadata(0, OnVisualChanged));
+
+    /// <summary>Minimum decimal places shown on every Y-axis label.</summary>
+    public int MinimumYDecimals
+    {
+        get => (int)GetValue(MinimumYDecimalsProperty);
+        set => SetValue(MinimumYDecimalsProperty, Math.Clamp(value, 0, 6));
     }
 
     public static readonly DependencyProperty EmptyTextProperty = DependencyProperty.Register(
@@ -349,7 +361,9 @@ public partial class ChartView : UserControl
             double yVal = _yAxis.LabelAt(i);
             double py = ToPy(yVal);
             AddLine(PadLeft, py, PadLeft + plotW, py, GridBrush, 1, dashed: i is not 0 && i != gridSteps);
-            AddText($"{yVal:0.#}{Unit}", 2, py - 8, MutedBrush, 10, PadLeft - 6, TextAlignment.Right);
+            int decimals = NiceAxis.RequiredDecimalPlaces(_yAxis.Step, MinimumYDecimals);
+            string yLabel = yVal.ToString($"F{decimals}", CultureInfo.CurrentCulture);
+            AddText($"{yLabel}{Unit}", 2, py - 8, MutedBrush, 10, PadLeft - 6, TextAlignment.Right);
         }
 
         // Time axis: a gridline on a readable step (quarter hours / hours / days,

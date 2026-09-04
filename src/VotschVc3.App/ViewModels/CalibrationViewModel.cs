@@ -28,7 +28,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         $"{RequiredStableSamples} vzoriek · range ≤ {MaxRangePm:F3} pm · " +
         $"σ ≤ {MaxStdDevPm:F3} pm · drift ≤ {MaxDriftPmPerMinute:F3} pm/min. " +
         "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
-        "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.");
+        "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.",
+        toleranceC: ChamberToleranceC);
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;

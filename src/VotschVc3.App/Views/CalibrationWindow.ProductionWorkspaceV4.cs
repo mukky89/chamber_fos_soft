@@ -9,6 +9,7 @@ using VotschVc3.App.Calibration;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Notifications;
 using VotschVc3.App.ViewModels;
+using VotschVc3.Core.Calibration;
 
 namespace VotschVc3.App.Views;
 
@@ -113,6 +114,7 @@ public partial class CalibrationWindow
         {
             ChartTitle = "WIKA referenčná teplota",
             Unit = " °C",
+            MinimumYDecimals = 2,
             EmptyText = "Čakám na prvú automatickú WIKA vzorku…",
             Height = 185,
             MinHeight = 160,
@@ -201,7 +203,7 @@ public partial class CalibrationWindow
         modes.Children.Add(chartMode);
         modes.Children.Add(_peakDisplayMode);
         stack.Children.Add(modes);
-        _chamberTraceChart = new ChartView { ChartTitle = "Komora · aktuálna teplota", Unit = " °C", Height = 300, EmptyText = "Čaká na údaje z kalibrácie", Visibility = Visibility.Collapsed };
+        _chamberTraceChart = new ChartView { ChartTitle = "Komora · aktuálna teplota", Unit = " °C", MinimumYDecimals = 2, Height = 300, EmptyText = "Čaká na údaje z kalibrácie", Visibility = Visibility.Collapsed };
         _fbgReferenceTraceChart.Visibility = Visibility.Collapsed;
         chartMode.SelectionChanged += (_, _) =>
         {
@@ -562,9 +564,11 @@ public partial class CalibrationWindow
         DateTimeOffset origin = _viewModel.IsRunning
             ? _liveTraceOrigin
             : new[] { firstFbg, firstRef, firstChamber }.Where(x => x.HasValue).Select(x => x!.Value).DefaultIfEmpty(_liveTraceOrigin).Min();
+        Point[] chamberPoints = _chamberTrace.Where(p => p.Time >= _liveTraceOrigin)
+            .Select(p => new Point((p.Time - origin).TotalMinutes, p.Temperature)).ToArray();
         if (_chamberTraceChart is not null)
-            _chamberTraceChart.Series = new[] { new ChartSeries("Komora", Brushes.CornflowerBlue,
-                _chamberTrace.Where(p => p.Time >= _liveTraceOrigin).Select(p => new Point((p.Time - origin).TotalMinutes, p.Temperature)).ToArray(), strokeThickness: 2.3) };
+            _chamberTraceChart.Series = AddTemperatureStabilityLimits(
+                new ChartSeries("Komora", Brushes.CornflowerBlue, chamberPoints, strokeThickness: 2.3), chamberPoints);
 
         var visibleRows = _viewModel.Peaks.Where(p => p.Selected && IsFbgTraceVisible(p)).ToArray();
         foreach (var removed in _peakCharts.Keys.Where(row => !visibleRows.Contains(row)).ToArray())
@@ -614,7 +618,8 @@ public partial class CalibrationWindow
         Brush referenceBrush = TryFindResource("DangerBrush") as Brush ?? Brushes.IndianRed;
         _fbgReferenceTraceChart.Series = referencePoints.Length == 0
             ? Array.Empty<ChartSeries>()
-            : new[] { new ChartSeries("WIKA referencia", referenceBrush, referencePoints, strokeThickness: 2.3) };
+            : AddTemperatureStabilityLimits(
+                new ChartSeries("WIKA referencia", referenceBrush, referencePoints, strokeThickness: 2.3), referencePoints);
 
         if (_fbgTraceSummary is not null)
         {
@@ -626,6 +631,25 @@ public partial class CalibrationWindow
             _fbgTraceSummary.Text = $"Peaky: {calibrationSelected} · stabilné: {_viewModel.Dashboard.StableCount} · aktívny: {_viewModel.Dashboard.ActivePeak} · WIKA: {referenceValue} · komora: {_viewModel.Dashboard.Actual}";
         }
         UpdateFbgTraceFilterSummary();
+    }
+
+    private IReadOnlyList<ChartSeries> AddTemperatureStabilityLimits(ChartSeries temperature, IReadOnlyList<Point> points)
+    {
+        if (points.Count == 0 || _viewModel.Dashboard.TargetTemperatureC is not { } target)
+            return points.Count == 0 ? Array.Empty<ChartSeries>() : new[] { temperature };
+
+        TemperatureStabilityBand band = TemperatureStabilityBand.Around(target, _viewModel.Dashboard.StabilityToleranceC);
+        double from = points.Min(point => point.X);
+        double to = Math.Max(points.Max(point => point.X), from + 0.01);
+        Brush limitBrush = TryFindResource("WarnBrush") as Brush ?? Brushes.Orange;
+        return new[]
+        {
+            temperature,
+            new ChartSeries($"Dolná hranica {band.LowerC:F2} °C", limitBrush,
+                new[] { new Point(from, band.LowerC), new Point(to, band.LowerC) }, dashed: true, strokeThickness: 1.6),
+            new ChartSeries($"Horná hranica {band.UpperC:F2} °C", limitBrush,
+                new[] { new Point(from, band.UpperC), new Point(to, band.UpperC) }, dashed: true, strokeThickness: 1.6),
+        };
     }
 
     private void OnProductionWorkspaceV4Closed(object? sender, EventArgs e)
