@@ -17,6 +17,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private readonly Dictionary<string, string> _targetEvents = new();
     private string _lastWarning = "";
     private string _planSignature = "";
+    private double _stabilityMaxDriftCPerMinute;
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
@@ -60,6 +61,18 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _state == CalibrationRunState.WaitingForChamberStability &&
         (!HasReference || _snapshot?.ReferenceTemperatureC is not null);
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
+    public string ReferenceToleranceLabel => _snapshot?.ReferenceTemperatureC is not { } reference
+        ? "Odchýlka od cieľa · čaká na vzorku"
+        : $"Odchýlka |Δ| {Math.Abs(reference - _snapshot.TargetTemperatureC):F3} / ≤ {StabilityToleranceC:F3} °C";
+    public string ReferenceToleranceTone => _snapshot?.ReferenceTemperatureC is { } reference &&
+        Math.Abs(reference - _snapshot.TargetTemperatureC) <= StabilityToleranceC ? "Done" : "Waiting";
+    public string ReferenceDriftLabel => _snapshot?.TemperatureDriftCPerMinute is not { } drift
+        ? "Drift · čaká na blok 5 vzoriek"
+        : $"Drift {Math.Abs(drift):F3} / ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min";
+    public string ReferenceDriftTone => _snapshot?.TemperatureDriftCPerMinute is { } drift &&
+        (_stabilityMaxDriftCPerMinute <= 0 || Math.Abs(drift) <= _stabilityMaxDriftCPerMinute) ? "Done" : "Waiting";
+    public string ReferenceTimeLabel => $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
+    public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
     public int TemperatureStableScoreSeconds => _snapshot?.TemperatureStableScoreSeconds ?? 0;
     public string TemperatureScore => _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Po nastavení cieľa sa začne vyhodnocovať výhradne WIKA referencia." : _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability WIKA {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability WIKA";
@@ -120,7 +133,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Freshness { get; private set; } = "Čaká na dáta";
     public double PointProgress => Steps.Take(9).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(9).Count(s => s.State != "Skipped"));
 
-    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, string? profileCode = null)
+    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
@@ -134,6 +147,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         HasReference = hasReference;
         Rules = rules;
         StabilityToleranceC = Math.Abs(toleranceC);
+        _stabilityMaxDriftCPerMinute = Math.Max(0, maxDriftCPerMinute);
         ReferenceChamberId = referenceChamberId;
         Points.Clear();
         foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká"));

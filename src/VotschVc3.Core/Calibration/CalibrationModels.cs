@@ -362,7 +362,8 @@ public sealed record CalibrationProgressSnapshot(
     string Message,
     int? TemperatureStableScoreSeconds = null,
     int? RequiredTemperatureScoreSeconds = null,
-    bool? TemperatureGateOpen = null);
+    bool? TemperatureGateOpen = null,
+    double? TemperatureDriftCPerMinute = null);
 
 public sealed class CalibrationOperatorActionRequiredException : Exception
 {

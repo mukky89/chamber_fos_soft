@@ -244,7 +244,8 @@ public sealed class CalibrationOrchestrator
                     $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov.",
                     (hasExternalReference ? referenceDetector : chamberDetector).StableScoreSeconds,
                     (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
-                    false));
+                    false,
+                    temperatureMetrics?.SlopePerMinute));
 
                 if (!temperatureGateEverOpened)
                 {
@@ -399,7 +400,8 @@ public sealed class CalibrationOrchestrator
                 $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredStableSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky.",
                 (hasExternalReference ? referenceDetector : chamberDetector).StableScoreSeconds,
                 (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
-                true));
+                true,
+                temperatureMetrics?.SlopePerMinute));
 
             if (allTerminal) break;
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);

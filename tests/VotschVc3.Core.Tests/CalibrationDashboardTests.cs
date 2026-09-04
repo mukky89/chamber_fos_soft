@@ -22,7 +22,7 @@ public sealed class CalibrationDashboardTests
     private static CalibrationDashboardViewModel Model()
     {
         var m = new CalibrationDashboardViewModel();
-        m.Configure("Test profile · rozsah -40…120 °C · 17 krokov · veľmi dlhý popis", "Komora", new[] { -40d, 0, 120 }, true, "Rules", toleranceC: 0.25, profileCode: "P-0214");
+        m.Configure("Test profile · rozsah -40…120 °C · 17 krokov · veľmi dlhý popis", "Komora", new[] { -40d, 0, 120 }, true, "Rules", toleranceC: 0.25, maxDriftCPerMinute: 0.1, profileCode: "P-0214");
         m.Begin(Start);
         return m;
     }
@@ -105,6 +105,25 @@ public sealed class CalibrationDashboardTests
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with { TargetTemperatureC = -40 }, Start);
         Assert.Equal(-40, m.TargetTemperatureC);
         Assert.Equal(0.25, m.StabilityToleranceC);
+    }
+    [Fact] public void WikaCardExposesLiveToleranceDriftAndTimeCriteria()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
+        {
+            ReferenceTemperatureC = -40.2,
+            TemperatureStableScoreSeconds = 35,
+            RequiredTemperatureScoreSeconds = 600,
+            TemperatureGateOpen = false,
+            TemperatureDriftCPerMinute = 0.08,
+        }, Start);
+
+        Assert.Equal("Done", m.ReferenceToleranceTone);
+        Assert.Contains("0,200", m.ReferenceToleranceLabel);
+        Assert.Equal("Done", m.ReferenceDriftTone);
+        Assert.Contains("0,080 / ≤ 0,100", m.ReferenceDriftLabel);
+        Assert.Equal("Waiting", m.ReferenceTimeTone);
+        Assert.Contains("35 / 600 s", m.ReferenceTimeLabel);
     }
     [Fact] public void ForceNextStepIsAvailableOnlyWhileWaitingWithAuthoritativeTemperature()
     {

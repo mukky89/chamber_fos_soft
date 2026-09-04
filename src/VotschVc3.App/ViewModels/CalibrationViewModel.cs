@@ -31,6 +31,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
         "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.",
         toleranceC: ChamberToleranceC,
+        maxDriftCPerMinute: _setup.Settings.MaxChamberDriftCPerMinute,
         profileCode: SelectedProfile?.Code);
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;

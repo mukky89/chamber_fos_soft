@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.78] – 2026-09-04
+
+- Karta WIKA v živom prehľade teraz dynamicky zobrazuje odchýlku od cieľa, povolenú toleranciu, aktuálny drift a nazbieraný stabilný čas.
+- Každé kritérium má samostatný farebný stav a stabilný čas má priebehový indikátor; splnené hodnoty sú zelené a čakajúce oranžové.
+- Čakajúce kritériá používajú jemnú modernú animáciu bez rozmazania textu alebo rušivého blikania.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.78.
+
 ## [1.76.77] – 2026-09-04
 
 - Graf WIKA už nezobrazuje pevné `cieľ ± tolerancia` ako hranice stability; cieľ kalibračného plata je samostatná žltá čiara.
