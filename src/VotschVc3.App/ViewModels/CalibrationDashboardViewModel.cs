@@ -290,6 +290,22 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (string.IsNullOrWhiteSpace(message) || message == _lastWarning) return;
         _lastWarning = message; Alert = message; AddEvent(now, "WARNING", message); Notify();
     }
+    public void ResolveWarning(string warningPrefix, string resolutionMessage, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(warningPrefix) ||
+            !_lastWarning.StartsWith(warningPrefix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastWarning = string.Empty;
+        Alert = "Bez hlásených upozornení";
+        if (!string.IsNullOrWhiteSpace(resolutionMessage))
+        {
+            AddEvent(now, "SUCCESS", resolutionMessage);
+        }
+        Notify();
+    }
     public void End(CalibrationRunState state, string message, DateTimeOffset now)
     {
         _state = state; _running = false; _paused = false; _ended = now;

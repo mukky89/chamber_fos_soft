@@ -56,6 +56,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private double? _lastChamberTemperatureC;
     private double? _lastReferenceTemperatureC;
     private DateTimeOffset? _lastReferenceMismatchEmailAt;
+    private bool _referenceMismatchWarningActive;
     private bool _propagatingChannelSerialNumber;
     private double _calibrationProgressPercent;
     private string? _reservedF100Key;
@@ -1250,6 +1251,25 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         double difference = Math.Abs(referenceTemperature - chamberTemperature);
         if (difference <= limit)
         {
+            if (_referenceMismatchWarningActive)
+            {
+                string resolution = $"Teploty sú opäť v zhode: WIKA {referenceTemperature:F3} °C · " +
+                                    $"komora {chamberTemperature:F3} °C · rozdiel {difference:F3} °C / ±{limit:F1} °C.";
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _referenceMismatchWarningActive = false;
+                    if (WarningText.StartsWith("CHYBA TEPLOTY:", StringComparison.Ordinal))
+                    {
+                        WarningText = string.Empty;
+                    }
+                    if (StatusMessage.StartsWith("CHYBA TEPLOTY:", StringComparison.Ordinal))
+                    {
+                        StatusMessage = resolution;
+                    }
+                    Dashboard.ResolveWarning("CHYBA TEPLOTY:", resolution, DateTimeOffset.Now);
+                });
+                AppLog.Info("WIKA kontrola", resolution);
+            }
             return;
         }
 
@@ -1257,6 +1277,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                          $"{chamberTemperature:F3} °C. Rozdiel {difference:F3} °C prekročil povolených ±{limit:F1} °C.";
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
+            _referenceMismatchWarningActive = true;
             WarningText = message;
             StatusMessage = message;
         });

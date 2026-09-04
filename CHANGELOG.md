@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.90] – 2026-09-04
+
+- Upozornenie na rozdiel teploty WIKA a komory sa po návrate aktuálnych hodnôt do povolenej tolerancie automaticky zruší.
+- Dashboard zapíše návrat teplôt do zhody ako úspešnú udalosť, ale zachová pôvodné historické upozornenie v udalostiach kalibrácie.
+- Zrušenie teplotného upozornenia nevymaže inú aktívnu chybu peaku alebo zariadenia.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.90.
+
 ## [1.76.89] – 2026-09-04
 
 - Nové súbory analýzy histórie profilov boli zjednotené na projektový Windows CRLF formát, aby Visual Studio nehlásilo nekonzistentné konce riadkov.

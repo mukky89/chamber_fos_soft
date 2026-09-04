@@ -93,6 +93,21 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(count, m.Activity.Count);
         m.Begin(Start.AddDays(1)); Assert.Single(m.Activity); Assert.Equal(0, m.Samples); Assert.Equal(0, m.CompletedPoints);
     }
+    [Fact] public void ResolvedTemperatureMismatchClearsOnlyMatchingDashboardWarning()
+    {
+        var m = Model();
+        m.Warn("CHYBA TEPLOTY: starý rozdiel", Start);
+
+        m.ResolveWarning("CHYBA TEPLOTY:", "Teploty sú opäť v zhode.", Start.AddSeconds(5));
+
+        Assert.Equal("Bez hlásených upozornení", m.Alert);
+        Assert.Equal("Done", m.AlertTone);
+        Assert.Contains(m.Activity, item => item.Level == "SUCCESS" && item.Message.Contains("opäť v zhode"));
+
+        m.Warn("Peak P1: stratený signál", Start.AddSeconds(6));
+        m.ResolveWarning("CHYBA TEPLOTY:", "Teploty sú opäť v zhode.", Start.AddSeconds(7));
+        Assert.Contains("stratený signál", m.Alert);
+    }
     [Fact] public void FailedTargetIsNotShownAsSuccessfulPlateau()
     {
         var m = Model(); m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0, Target("Done", 0, CalibrationTargetState.Failed)), Start);
