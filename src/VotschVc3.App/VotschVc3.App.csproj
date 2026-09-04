@@ -19,10 +19,10 @@
       - 1.76 is the product/version line.
       - The patch number is generated from the Git commit count, so every new
         commit produces a newer application version automatically.
-      - 87 is only a fallback for source archives/build environments without Git metadata.
+      - 88 is only a fallback for source archives/build environments without Git metadata.
     -->
     <VersionPrefix>1.76</VersionPrefix>
-    <VersionFallbackRevision>87</VersionFallbackRevision>
+    <VersionFallbackRevision>88</VersionFallbackRevision>
     <Version>$(VersionPrefix).$(VersionFallbackRevision)</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>

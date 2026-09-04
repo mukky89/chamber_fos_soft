@@ -121,6 +121,24 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public ObservableCollection<CalibrationTargetProgressViewModel> TargetProgress { get; }
     public ObservableCollection<CalibrationRunRecord> History { get; }
 
+    private CalibrationProfileStatistics _profileStatistics = CalibrationProfileStatistics.Empty(Guid.Empty);
+    public CalibrationProfileStatistics ProfileStatistics
+    {
+        get => _profileStatistics;
+        private set => SetProperty(ref _profileStatistics, value);
+    }
+    public bool HasProfileHistory => ProfileStatistics.UsageCount > 0;
+    public string ProfileUsageSummary => !HasProfileHistory
+        ? "Zatiaľ bez historických behov"
+        : $"Použitý {ProfileStatistics.UsageCount}× · dokončené {ProfileStatistics.CompletedCount}× · naposledy {ProfileStatistics.LastUsedAt?.ToLocalTime():dd.MM.yyyy HH:mm}";
+    public string ProfileDurationSummary => ProfileStatistics.MedianDuration is not { } estimate
+        ? "Odhad vznikne po prvom dokončenom behu"
+        : $"Typický odhad {FormatHistoricalDuration(estimate)} · priemer {FormatHistoricalDuration(ProfileStatistics.AverageDuration!.Value)} · posledný {FormatHistoricalDuration(ProfileStatistics.LastCompletedDuration!.Value)}";
+    public string ProfileDurationRange => ProfileStatistics.MinimumDuration is not { } minimum
+        ? ""
+        : $"Historický rozsah {FormatHistoricalDuration(minimum)} – {FormatHistoricalDuration(ProfileStatistics.MaximumDuration!.Value)}";
+    public IReadOnlyList<ProfilePlateauAnalysisRow> ProfilePlateauAnalysis { get; private set; } = Array.Empty<ProfilePlateauAnalysisRow>();
+
     public ObservableCollection<ThermometerDeviceViewModel> F100Devices => _referenceThermometers.Devices;
     public IReadOnlyList<string> F100Channels => F100Protocol.ProbeChannels;
 
@@ -158,7 +176,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         get => _selectedProfile;
         set
         {
-            if (SetProperty(ref _selectedProfile, value)) LoadProfileSetup();
+            if (SetProperty(ref _selectedProfile, value))
+            {
+                LoadProfileSetup();
+                RefreshProfileStatistics();
+            }
         }
     }
 
@@ -1617,7 +1639,37 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         History.Clear();
         foreach (CalibrationRunRecord run in _calibrationStore.LoadHistory()) History.Add(run);
+        RefreshProfileStatistics();
         ExportSelectedRunCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshProfileStatistics()
+    {
+        Guid profileId = SelectedProfile?.Id ?? Guid.Empty;
+        ProfileStatistics = CalibrationProfileStatisticsAnalyzer.Analyze(History, profileId);
+        ProfilePlateauAnalysis = ProfileStatistics.Plateaus
+            .Select(plateau => new ProfilePlateauAnalysisRow(
+                $"PLATO {plateau.PlateauIndex + 1:00}",
+                $"{plateau.TargetTemperatureC:F1} °C",
+                $"typicky {FormatHistoricalDuration(plateau.MedianDuration)}",
+                $"priemer {FormatHistoricalDuration(plateau.AverageDuration)} · {plateau.SampleCount} behov",
+                $"{FormatHistoricalDuration(plateau.MinimumDuration)} – {FormatHistoricalDuration(plateau.MaximumDuration)}"))
+            .ToArray();
+        OnPropertyChanged(nameof(HasProfileHistory));
+        OnPropertyChanged(nameof(ProfileUsageSummary));
+        OnPropertyChanged(nameof(ProfileDurationSummary));
+        OnPropertyChanged(nameof(ProfileDurationRange));
+        OnPropertyChanged(nameof(ProfilePlateauAnalysis));
+    }
+
+    private static string FormatHistoricalDuration(TimeSpan duration)
+    {
+        duration = duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
+        return duration.TotalDays >= 1
+            ? $"{(int)duration.TotalDays} d {duration.Hours} h {duration.Minutes:00} min"
+            : duration.TotalHours >= 1
+                ? $"{(int)duration.TotalHours} h {duration.Minutes:00} min"
+                : $"{Math.Max(0, duration.Minutes)} min {Math.Max(0, duration.Seconds):00} s";
     }
 
     private void ExportSelectedRun()
@@ -1751,6 +1803,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _runCts?.Dispose();
     }
 }
+
+public sealed record ProfilePlateauAnalysisRow(string Number, string Target, string Typical, string Average, string Range);
 
 public sealed record CalibrationChamberOption(ChamberConfig Config)
 {

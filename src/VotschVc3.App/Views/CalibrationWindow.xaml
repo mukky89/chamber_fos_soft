@@ -109,6 +109,13 @@
                                                      SelectedProfile="{Binding SelectedProfile, Mode=TwoWay}"
                                                      Placeholder="Vyber kalibračný profil"
                                                      ToolTip="Vyber teplotný profil – v náhľade uvidíš graf, rozsah, celkový čas a podrobný prehľad plat. Kalibračné body sú jeho plata." />
+                                <Border Background="#10243A" BorderBrush="#315477" BorderThickness="1" CornerRadius="8" Padding="9,7" Margin="0,7,0,0">
+                                    <StackPanel>
+                                        <DockPanel><TextBlock Text="HISTÓRIA PROFILU" Foreground="#7DBDFF" FontSize="10" FontWeight="SemiBold"/><TextBlock DockPanel.Dock="Right" Text="● LIVE ODHAD" Foreground="#55D6A7" FontSize="9"/></DockPanel>
+                                        <TextBlock Text="{Binding ProfileUsageSummary}" Foreground="#D8E9FC" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding ProfileDurationSummary}" Style="{StaticResource Caption}" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="Komora" Style="{StaticResource Label}" />
@@ -529,14 +536,27 @@
 
             <TabItem Header="História">
                 <Grid Margin="8">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
                         <Button Content="↻ Obnoviť" Style="{StaticResource GhostButton}" Command="{Binding RefreshHistoryCommand}" />
                         <Button DockPanel.Dock="Right" Content="Export summary CSV" Style="{StaticResource AccentButton}" Command="{Binding ExportSelectedRunCommand}" />
                     </DockPanel>
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryRun}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14,12">
+                        <StackPanel>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel><TextBlock Text="Analýza vybraného profilu" Style="{StaticResource Heading}"/><TextBlock Text="{Binding ProfileUsageSummary}" Foreground="#CBE2FF"/><TextBlock Text="{Binding ProfileDurationSummary}" Foreground="#66DDB0" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0"/><TextBlock Text="{Binding ProfileDurationRange}" Style="{StaticResource Caption}" Margin="0,3,0,0"/></StackPanel>
+                                <Border Grid.Column="1" Background="#17362F" BorderBrush="#43C99A" BorderThickness="1" CornerRadius="8" Padding="10,6" VerticalAlignment="Top"><TextBlock Text="Odhad sa učí z dokončených behov" Foreground="#69E1B4" FontSize="11"/></Border>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding ProfilePlateauAnalysis}" Margin="0,11,0,0">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate><DataTemplate><Border Background="#101C2B" BorderBrush="#2A4664" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,8,6" MinWidth="205"><StackPanel><DockPanel><TextBlock Text="{Binding Number}" Foreground="#7DBDFF" FontSize="10"/><TextBlock DockPanel.Dock="Right" Text="{Binding Target}" FontWeight="SemiBold"/></DockPanel><TextBlock Text="{Binding Typical}" Foreground="#66DDB0" FontWeight="SemiBold" Margin="0,5,0,0"/><TextBlock Text="{Binding Average}" Style="{StaticResource Caption}" Margin="0,2,0,0"/><TextBlock Text="{Binding Range, StringFormat=rozsah {0}}" Foreground="#748AA4" FontSize="10"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryRun}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Začiatok" Binding="{Binding StartedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
+                            <DataGridTextColumn Header="Koniec" Binding="{Binding CompletedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
                             <DataGridTextColumn Header="RunId" Binding="{Binding RunId}" Width="220" />
                             <DataGridTextColumn Header="Profil" Binding="{Binding ProfileName}" Width="*" />
                             <DataGridTextColumn Header="Komora" Binding="{Binding ChamberName}" Width="180" />

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.88] – 2026-09-04
+
+- Ku každému kalibračnému profilu sa z uložených behov automaticky počíta počet použití, posledné použitie, posledné a priemerné trvanie aj typický odhad ďalšieho behu.
+- História zobrazuje rozpis trvania jednotlivých plató vrátane mediánu, priemeru, rozsahu a počtu dostupných meraní.
+- Analýza používa existujúce uložené výsledky ako jediný zdroj pravdy a po skončení každého behu sa automaticky obnoví.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.88.
+
 ## [1.76.87] – 2026-09-04
 
 - Karta komory v prehľade kalibrácie má nový vektorový indikátor smeru teploty s modernou šípkou a jemnou pulznou animáciou.
