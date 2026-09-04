@@ -147,10 +147,15 @@ public static class LabControlEmailTemplate
 
     private static EmailTone DetectTone(string subject, string body)
     {
-        string value = $"{subject} {body}";
-        if (ContainsAny(value, "chyba", "error", "failed", "zlyhan", "alarm")) return EmailTone.Error;
-        if (ContainsAny(value, "warning", "upozornen", "pozor", "timeout", "neustál", "nestabil")) return EmailTone.Warning;
-        if (ContainsAny(value, "completed", "dokončen", "úspešne", "success")) return EmailTone.Success;
+        // The subject is authoritative. This prevents a clean completion email containing
+        // a metadata row like "Upozornenia: 0" from being styled as a warning.
+        if (ContainsAny(subject, "chyba", "error", "failed", "zlyhan", "alarm")) return EmailTone.Error;
+        if (ContainsAny(subject, "warning", "upozornen", "pozor", "timeout", "neustál", "nestabil")) return EmailTone.Warning;
+        if (ContainsAny(subject, "completed", "dokončen", "úspešne", "success")) return EmailTone.Success;
+
+        if (ContainsAny(body, "chyba", "error", "failed", "zlyhan", "alarm")) return EmailTone.Error;
+        if (ContainsAny(body, "warning", "upozornen", "pozor", "timeout", "neustál", "nestabil")) return EmailTone.Warning;
+        if (ContainsAny(body, "completed", "dokončen", "úspešne", "success")) return EmailTone.Success;
         return EmailTone.Info;
     }
 
