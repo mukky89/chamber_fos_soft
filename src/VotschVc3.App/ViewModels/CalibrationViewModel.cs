@@ -1575,7 +1575,14 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SelectedProfile?.Name ?? "FBG kalibrácia",
         RunState,
         PlateauLabel,
-        _calibrationProgressPercent);
+        _calibrationProgressPercent,
+        Dashboard.StateLabel,
+        Dashboard.Now,
+        Dashboard.Target,
+        Dashboard.Reference,
+        Dashboard.PeakSummary,
+        Dashboard.ProgressLabel,
+        Dashboard.PhaseElapsed);
 
     private string WorkspaceName => SelectedChamber?.Config.Name ?? "Neznáme zariadenie";
 

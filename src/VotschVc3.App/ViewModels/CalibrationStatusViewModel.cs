@@ -20,9 +20,24 @@ public sealed class CalibrationStatusViewModel : ObservableObject
     public string DetailText { get => _detailText; private set => SetProperty(ref _detailText, value); }
     public double ProgressPercent { get => _progressPercent; private set => SetProperty(ref _progressPercent, value); }
 
-    public void Update(Guid chamberId, string chamberName, bool isRunning, string profileName, string runState, string plateau, double progressPercent)
+    public void Update(
+        Guid chamberId,
+        string chamberName,
+        bool isRunning,
+        string profileName,
+        string runState,
+        string plateau,
+        double progressPercent,
+        string displayState,
+        string currentActivity,
+        string target,
+        string reference,
+        string peakSummary,
+        string progressLabel,
+        string phaseElapsed)
     {
-        _workspaces[chamberId] = new(chamberName, isRunning, profileName, runState, plateau, Math.Clamp(progressPercent, 0, 100));
+        _workspaces[chamberId] = new(chamberName, isRunning, profileName, runState, plateau, Math.Clamp(progressPercent, 0, 100),
+            displayState, currentActivity, target, reference, peakSummary, progressLabel, phaseElapsed);
         WorkspaceStatus[] active = _workspaces.Values.Where(status => status.IsRunning).ToArray();
         IsRunning = active.Length > 0;
         StateText = active.Length switch
@@ -46,7 +61,8 @@ public sealed class CalibrationStatusViewModel : ObservableObject
     public CalibrationWorkspaceStatusSnapshot GetWorkspace(Guid chamberId)
     {
         if (!_workspaces.TryGetValue(chamberId, out WorkspaceStatus? status))
-            return new(chamberId, string.Empty, false, string.Empty, "Idle", string.Empty, 0);
+            return new(chamberId, string.Empty, false, string.Empty, "Idle", string.Empty, 0,
+                "READY · Pripravené", "Kalibrácia nie je spustená.", "—", "—", "0 / 0", "0 %", "—");
         return new(
             chamberId,
             status.ChamberName,
@@ -54,7 +70,14 @@ public sealed class CalibrationStatusViewModel : ObservableObject
             status.ProfileName,
             status.RunState,
             status.Plateau,
-            status.ProgressPercent);
+            status.ProgressPercent,
+            status.DisplayState,
+            status.CurrentActivity,
+            status.Target,
+            status.Reference,
+            status.PeakSummary,
+            status.ProgressLabel,
+            status.PhaseElapsed);
     }
 
     private sealed record WorkspaceStatus(
@@ -63,7 +86,14 @@ public sealed class CalibrationStatusViewModel : ObservableObject
         string ProfileName,
         string RunState,
         string Plateau,
-        double ProgressPercent);
+        double ProgressPercent,
+        string DisplayState,
+        string CurrentActivity,
+        string Target,
+        string Reference,
+        string PeakSummary,
+        string ProgressLabel,
+        string PhaseElapsed);
 }
 
 public sealed record CalibrationWorkspaceStatusSnapshot(
@@ -73,4 +103,11 @@ public sealed record CalibrationWorkspaceStatusSnapshot(
     string ProfileName,
     string RunState,
     string Plateau,
-    double ProgressPercent);
+    double ProgressPercent,
+    string DisplayState,
+    string CurrentActivity,
+    string Target,
+    string Reference,
+    string PeakSummary,
+    string ProgressLabel,
+    string PhaseElapsed);

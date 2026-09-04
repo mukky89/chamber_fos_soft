@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.84] – 2026-09-04
+
+- Kompaktná karta aktívnej FBG kalibrácie na domovskom dashboarde dostala moderný live vzhľad a zrozumiteľný slovenský stav.
+- Karta teraz priebežne ukazuje aktuálnu činnosť, plato, čas fázy, cieľovú teplotu, WIKA referenciu, počet stabilných peakov a presný postup kalibračných bodov.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.84.
+
 ## [1.76.83] – 2026-09-04
 
 - Vo všetkých grafoch možno ľavým tlačidlom myši označiť obdĺžnikovú oblasť a priblížiť ju v osi času aj meranej hodnoty.

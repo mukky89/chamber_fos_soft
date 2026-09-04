@@ -127,39 +127,51 @@ public partial class HomeView
 
     private Border CreateCalibrationStatusCard(ChamberViewModel chamber)
     {
-        Brush surfaceAlt = FindResource("SurfaceAltBrush") as Brush ?? Brushes.Transparent;
         Brush borderBrush = FindResource("BorderBrush") as Brush ?? Brushes.Gray;
         Brush muted = FindResource("MutedBrush") as Brush ?? Brushes.Gray;
 
+        var liveDot = new System.Windows.Shapes.Ellipse { Width = 7, Height = 7, Fill = Brushes.MediumSeaGreen, Margin = new Thickness(0, 0, 7, 0) };
         var title = new TextBlock
         {
-            Text = "FBG kalibrácia",
+            Text = "FBG KALIBRÁCIA · LIVE",
             FontFamily = new FontFamily("Segoe UI Semibold"),
-            FontSize = 12.5,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(139, 186, 255)),
         };
+        var liveTitle = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        liveTitle.Children.Add(liveDot);
+        liveTitle.Children.Add(title);
         var state = new TextBlock
         {
             Tag = "state",
             Text = string.Empty,
             FontFamily = new FontFamily("Segoe UI Semibold"),
-            FontSize = 12,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Foreground = muted,
+            FontSize = 10.5,
+            Foreground = Brushes.MediumSeaGreen,
         };
+        var statePill = new Border { Background = new SolidColorBrush(Color.FromRgb(21, 53, 46)), BorderBrush = Brushes.MediumSeaGreen, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 4, 8, 4), Child = state };
         var header = new DockPanel();
-        DockPanel.SetDock(state, Dock.Right);
-        header.Children.Add(state);
-        header.Children.Add(title);
+        DockPanel.SetDock(statePill, Dock.Right);
+        header.Children.Add(statePill);
+        header.Children.Add(liveTitle);
+
+        var profile = new TextBlock { Tag = "profile", FontSize = 16, FontFamily = new FontFamily("Segoe UI Semibold"), Margin = new Thickness(0, 10, 0, 2), TextTrimming = TextTrimming.CharacterEllipsis };
+        var plateau = new TextBlock { Tag = "plateau", FontSize = 11, Foreground = muted };
 
         var detail = new TextBlock
         {
             Tag = "detail",
             Text = string.Empty,
-            FontSize = 11.5,
-            Foreground = muted,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(200, 221, 250)),
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 4, 0, 6),
+            Margin = new Thickness(0, 10, 0, 10),
         };
+        var metrics = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+        metrics.ColumnDefinitions.Add(new ColumnDefinition()); metrics.ColumnDefinitions.Add(new ColumnDefinition()); metrics.ColumnDefinitions.Add(new ColumnDefinition());
+        metrics.Children.Add(CreateStatusMetric("CIEĽ", "target", 0));
+        metrics.Children.Add(CreateStatusMetric("WIKA", "reference", 1));
+        metrics.Children.Add(CreateStatusMetric("FBG PEAKY", "peaks", 2));
         var progress = new ProgressBar
         {
             Tag = "progress",
@@ -168,25 +180,42 @@ public partial class HomeView
             Maximum = 100,
             Value = 0,
         };
+        var progressText = new TextBlock { Tag = "progressText", FontSize = 10.5, Foreground = muted, Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
 
         var stack = new StackPanel();
         stack.Children.Add(header);
+        stack.Children.Add(profile);
+        stack.Children.Add(plateau);
         stack.Children.Add(detail);
+        stack.Children.Add(metrics);
         stack.Children.Add(progress);
+        stack.Children.Add(progressText);
 
         return new Border
         {
             Tag = CalibrationStatusCardTag,
             DataContext = chamber,
-            Background = surfaceAlt,
-            BorderBrush = borderBrush,
+            Background = new LinearGradientBrush(Color.FromRgb(23, 40, 62), Color.FromRgb(15, 27, 43), 35),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(56, 90, 130)),
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(10, 8, 10, 8),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(14, 12, 14, 11),
             Margin = new Thickness(0, 0, 0, 10),
             Visibility = Visibility.Collapsed,
             Child = stack,
         };
+    }
+
+    private Border CreateStatusMetric(string label, string valueTag, int column)
+    {
+        Brush muted = FindResource("MutedBrush") as Brush ?? Brushes.Gray;
+        var value = new TextBlock { Tag = valueTag, FontSize = 14, FontFamily = new FontFamily("Segoe UI Semibold"), Margin = new Thickness(0, 3, 0, 0) };
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock { Text = label, FontSize = 9.5, Foreground = muted });
+        panel.Children.Add(value);
+        var border = new Border { Background = new SolidColorBrush(Color.FromRgb(13, 25, 40)), BorderBrush = new SolidColorBrush(Color.FromRgb(41, 65, 93)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Padding = new Thickness(8, 7, 8, 7), Margin = new Thickness(column == 0 ? 0 : 4, 0, column == 2 ? 0 : 4, 0), Child = panel };
+        Grid.SetColumn(border, column);
+        return border;
     }
 
     private void UpdateCalibrationStatusCards()
@@ -200,7 +229,13 @@ public partial class HomeView
             if (card.DataContext is not ChamberViewModel chamber || card.Child is not StackPanel stack) continue;
             CalibrationWorkspaceStatusSnapshot snapshot = CalibrationStatusViewModel.Instance.GetWorkspace(chamber.Id);
             TextBlock? state = FindTagged<TextBlock>(stack, "state");
+            TextBlock? profile = FindTagged<TextBlock>(stack, "profile");
+            TextBlock? plateau = FindTagged<TextBlock>(stack, "plateau");
             TextBlock? detail = FindTagged<TextBlock>(stack, "detail");
+            TextBlock? target = FindTagged<TextBlock>(stack, "target");
+            TextBlock? reference = FindTagged<TextBlock>(stack, "reference");
+            TextBlock? peaks = FindTagged<TextBlock>(stack, "peaks");
+            TextBlock? progressText = FindTagged<TextBlock>(stack, "progressText");
             ProgressBar? progress = FindTagged<ProgressBar>(stack, "progress");
 
             // The main card already has an FBG button and control-mode chip. An idle status card
@@ -210,13 +245,19 @@ public partial class HomeView
 
             if (state is not null)
             {
-                state.Text = snapshot.RunState;
+                state.Text = snapshot.DisplayState;
                 state.Foreground = ok;
             }
+            if (profile is not null) profile.Text = snapshot.ProfileName;
+            if (plateau is not null) plateau.Text = $"{snapshot.Plateau} · čas fázy {snapshot.PhaseElapsed}";
             if (detail is not null)
-                detail.Text = $"{snapshot.ProfileName} · {snapshot.Plateau}";
+                detail.Text = snapshot.CurrentActivity;
+            if (target is not null) target.Text = snapshot.Target;
+            if (reference is not null) reference.Text = snapshot.Reference;
+            if (peaks is not null) peaks.Text = snapshot.PeakSummary;
             if (progress is not null)
                 progress.Value = snapshot.ProgressPercent;
+            if (progressText is not null) progressText.Text = snapshot.ProgressLabel;
         }
     }
 
