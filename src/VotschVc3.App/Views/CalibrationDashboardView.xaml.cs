@@ -113,25 +113,38 @@ public partial class CalibrationDashboardView : UserControl
             double minX = measured[0].X;
             double maxX = measured[^1].X;
             if (maxX <= minX) maxX = minX + 0.01;
-            TemperatureStabilityBand band = TemperatureStabilityBand.Around(target, vm.StabilityToleranceC);
             series.Add(new ChartSeries(
                 $"Cieľ plata {target:F2} °C",
                 Brushes.Goldenrod,
                 new[] { new Point(minX, target), new Point(maxX, target) },
                 dashed: true,
                 strokeThickness: 1.5));
-            series.Add(new ChartSeries(
-                $"Dolná hranica {band.LowerC:F2} °C",
-                Brushes.OrangeRed,
-                new[] { new Point(minX, band.LowerC), new Point(maxX, band.LowerC) },
-                dashed: true,
-                strokeThickness: 1.5));
-            series.Add(new ChartSeries(
-                $"Horná hranica {band.UpperC:F2} °C",
-                Brushes.OrangeRed,
-                new[] { new Point(minX, band.UpperC), new Point(maxX, band.UpperC) },
-                dashed: true,
-                strokeThickness: 1.5));
+
+            int stableSeconds = vm.TemperatureStableScoreSeconds;
+            if (stableSeconds > 0)
+            {
+                DateTimeOffset windowStart = trace[^1].Timestamp - TimeSpan.FromSeconds(stableSeconds);
+                double[] stableValues = trace.Where(point => point.Timestamp >= windowStart)
+                    .Select(point => point.TemperatureC)
+                    .ToArray();
+                if (stableValues.Length > 0)
+                {
+                    double stableMin = stableValues.Min();
+                    double stableMax = stableValues.Max();
+                    series.Add(new ChartSeries(
+                        $"Ustálené minimum {stableMin:F3} °C",
+                        Brushes.MediumSeaGreen,
+                        new[] { new Point(minX, stableMin), new Point(maxX, stableMin) },
+                        dashed: true,
+                        strokeThickness: 1.5));
+                    series.Add(new ChartSeries(
+                        $"Ustálené maximum {stableMax:F3} °C",
+                        Brushes.MediumSeaGreen,
+                        new[] { new Point(minX, stableMax), new Point(maxX, stableMax) },
+                        dashed: true,
+                        strokeThickness: 1.5));
+                }
+            }
         }
 
         ReferenceTraceChart.Series = series;

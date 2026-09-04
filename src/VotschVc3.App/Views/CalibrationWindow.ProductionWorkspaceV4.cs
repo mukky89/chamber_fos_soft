@@ -644,18 +644,34 @@ public partial class CalibrationWindow
         if (points.Count == 0 || _viewModel.Dashboard.TargetTemperatureC is not { } target)
             return points.Count == 0 ? Array.Empty<ChartSeries>() : new[] { temperature };
 
-        TemperatureStabilityBand band = TemperatureStabilityBand.Around(target, _viewModel.Dashboard.StabilityToleranceC);
         double from = points.Min(point => point.X);
         double to = Math.Max(points.Max(point => point.X), from + 0.01);
-        Brush limitBrush = TryFindResource("WarnBrush") as Brush ?? Brushes.Orange;
-        return new[]
+        Brush targetBrush = TryFindResource("WarnBrush") as Brush ?? Brushes.Orange;
+        var series = new List<ChartSeries>
         {
             temperature,
-            new ChartSeries($"Dolná hranica {band.LowerC:F2} °C", limitBrush,
-                new[] { new Point(from, band.LowerC), new Point(to, band.LowerC) }, dashed: true, strokeThickness: 1.6),
-            new ChartSeries($"Horná hranica {band.UpperC:F2} °C", limitBrush,
-                new[] { new Point(from, band.UpperC), new Point(to, band.UpperC) }, dashed: true, strokeThickness: 1.6),
+            new ChartSeries($"Cieľ plata {target:F2} °C", targetBrush,
+                new[] { new Point(from, target), new Point(to, target) }, dashed: true, strokeThickness: 1.6),
         };
+
+        int stableSeconds = _viewModel.Dashboard.TemperatureStableScoreSeconds;
+        if (stableSeconds > 0)
+        {
+            double windowStart = to - (stableSeconds / 60d);
+            Point[] stableWindow = points.Where(point => point.X >= windowStart).ToArray();
+            if (stableWindow.Length > 0)
+            {
+                double stableMin = stableWindow.Min(point => point.Y);
+                double stableMax = stableWindow.Max(point => point.Y);
+                Brush stableBrush = Brushes.MediumSeaGreen;
+                series.Add(new ChartSeries($"Ustálené minimum {stableMin:F3} °C", stableBrush,
+                    new[] { new Point(from, stableMin), new Point(to, stableMin) }, dashed: true, strokeThickness: 1.6));
+                series.Add(new ChartSeries($"Ustálené maximum {stableMax:F3} °C", stableBrush,
+                    new[] { new Point(from, stableMax), new Point(to, stableMax) }, dashed: true, strokeThickness: 1.6));
+            }
+        }
+
+        return series;
     }
 
     private void OnProductionWorkspaceV4Closed(object? sender, EventArgs e)

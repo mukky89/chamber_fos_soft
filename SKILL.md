@@ -87,6 +87,7 @@ The following settings were validated on the real production reference thermomet
 - **WIKA CTH7000 is the authoritative calibration temperature.** When a WIKA reference is assigned, FBG wavelength stability evaluation may begin only after the **WIKA reference itself** satisfies the configured target tolerance, stable duration, and maximum drift.
 - **Chamber temperature is informational for FBG stability and must not block a calibration plateau.** It may still be displayed, logged and compared to WIKA for diagnostics/alerts, but the chamber controller reading is not the stable-temperature gate.
 - A missing, invalid, or unstable WIKA reference must not be treated as a stable calibration temperature. After the configured stability timeout, require operator action rather than recording a nominally valid plateau.
+- In reference charts, keep the calibration target as a separate line. Never label `target ± tolerance` as the stability band; show dynamic stability bounds only from the WIKA samples that currently contribute to the accumulated stability score. A physically steady reference outside target tolerance is still not an acceptable calibration point.
 - The operator may explicitly bypass the temperature-stability wait for the current plateau only when a valid authoritative temperature is visible. This override must be limited to that plateau and recorded as a warning with target, WIKA and chamber temperatures in the run history.
 - Do not introduce a second chamber-stability dwell after the WIKA reference becomes stable.
 - After reference stability is achieved, **each selected PeakLogger peak must independently satisfy its own wavelength stability criteria** before its result is accepted. One stable peak must never make another peak stable.
@@ -310,6 +311,7 @@ Before declaring a USB/thermometer or FBG calibration fix complete, verify conce
 - [ ] A disconnected assigned reference never leaves a stale live temperature on the dashboard.
 - [ ] Explicit UI-selected calibration plateaus are the plateaus actually executed for FBG measurement.
 - [ ] With WIKA assigned, WIKA alone is the authoritative temperature stability gate; chamber temperature does not block peak stability.
+- [ ] WIKA charts distinguish the target from the dynamic observed stability window and do not present target tolerance as measured stability limits.
 - [ ] Every selected FBG peak is tracked independently and produces its own result/raw samples only after its own stability criteria are met.
 - [ ] `Vybrať všetky peaky` truly selects every discovered PeakLogger peak.
 - [ ] Closing/reopening the FBG workspace restores the last profile, wiring, selected peaks, SN/CHAIN, timeouts, plateau selection and exact PeakLogger endpoint.

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.77] – 2026-09-04
+
+- Graf WIKA už nezobrazuje pevné `cieľ ± tolerancia` ako hranice stability; cieľ kalibračného plata je samostatná žltá čiara.
+- Počas úspešného zbierania skóre stability sa dynamicky zobrazí zelené minimum a maximum vzoriek, ktoré patria do aktuálneho okna ustáľovania.
+- Teplota ustálená mimo povolenej odchýlky od cieľa zostáva správne zablokovaná, aby sa kalibračný bod nezaznamenal s chybnou referenčnou teplotou.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.77.
+
 ## [1.76.76] – 2026-09-04
 
 - Kontrola formátu a duplicity FBG SN sa už nespúšťa pri každom napísanom znaku, ale až po potvrdení bunky Enterom alebo po odchode z bunky.
