@@ -43,8 +43,6 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private IPeakLoggerClient? _peakLogger;
     private IChamberDevice? _chamber;
     private CalibrationProfileRunner? _runner;
-    private CancellationTokenSource? _referenceTraceCts;
-    private Task? _referenceTraceTask;
     private CancellationTokenSource? _runCts;
     private CancellationTokenSource? _peakMonitorCts;
     private CancellationTokenSource? _setupAutosaveCts;
@@ -1158,43 +1156,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         EnsureF100Reservation();
         device.SelectedChannel = SelectedF100Channel;
         CalibrationReferenceTraceStore.Instance.BeginRun(_workspaceChamberId, DateTimeOffset.Now);
-        _referenceTraceCts = CancellationTokenSource.CreateLinkedTokenSource(_runCts!.Token);
-        _referenceTraceTask = RecordReferenceTraceAsync(device, _referenceTraceCts.Token);
     }
 
-    private async Task RecordReferenceTraceAsync(ThermometerDeviceViewModel device, CancellationToken token)
+    private Task StopReferenceTraceAsync()
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-        try
-        {
-            do
-            {
-                try
-                {
-                    // The thermometer client serializes requests with its existing I/O gate.
-                    double? value = await device.ReadReferenceTemperatureAsync(token);
-                    if (value is { } temperature && double.IsFinite(temperature))
-                        CalibrationReferenceTraceStore.Instance.AppendRunSample(_workspaceChamberId,
-                            new(DateTimeOffset.Now, temperature, device.PortName, device.SelectedChannel));
-                }
-                catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
-                catch (Exception ex)
-                {
-                    AppLog.Warn("WIKA trace", $"Vzorka referencie sa nepodarila: {ex.Message}");
-                }
-            } while (await timer.WaitForNextTickAsync(token));
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-    }
-
-    private async Task StopReferenceTraceAsync()
-    {
-        _referenceTraceCts?.Cancel();
-        if (_referenceTraceTask is { } task) await task;
-        _referenceTraceTask = null;
-        _referenceTraceCts?.Dispose();
-        _referenceTraceCts = null;
         CalibrationReferenceTraceStore.Instance.EndRun(_workspaceChamberId);
+        return Task.CompletedTask;
     }
 
     private async Task<double?> ReadReferenceTemperatureAsync(CancellationToken token)
@@ -1204,6 +1171,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SelectedF100.SelectedChannel = SelectedF100Channel;
         double? value = await SelectedF100.ReadReferenceTemperatureAsync(token);
         _lastReferenceTemperatureC = value;
+        if (value is { } traceTemperature && double.IsFinite(traceTemperature))
+            CalibrationReferenceTraceStore.Instance.AppendRunSample(_workspaceChamberId,
+                new(DateTimeOffset.Now, traceTemperature, SelectedF100.PortName, SelectedF100.SelectedChannel));
         double? currentChamberTemperature = await ReadCurrentChamberTemperatureAsync(token);
         _lastChamberTemperatureC = currentChamberTemperature ?? _lastChamberTemperatureC;
         if (value is { } reference && currentChamberTemperature is { } chamber)

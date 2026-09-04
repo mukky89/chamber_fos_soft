@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.81] – 2026-09-04
+
+- Karta teplotnej stability WIKA sa dá rozbaliť a zobrazuje detailný graf posledných 50 vzoriek použitých pri stabilizácii.
+- Vedľa grafu pribudol zoznam vzoriek s presným časom, teplotou na tri desatinné miesta a odchýlkou od cieľa.
+- Graf zaznamenáva priamo vzorky použité kalibračným detektorom namiesto samostatného päťsekundového čítania WIKA.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.81.
+
 ## [1.76.80] – 2026-09-04
 
 - Zobrazovaný stabilný čas WIKA teraz medzi päťvzorkovými kontrolnými blokmi plynulo pribúda podľa skutočných časov vzoriek.

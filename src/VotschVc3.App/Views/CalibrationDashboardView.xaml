@@ -120,11 +120,32 @@
     </Grid>
     <views:ChartView x:Name="ReferenceTraceChart" Height="230" Unit="°C" MinimumYDecimals="2" ChartTitle="Ustáľovanie WIKA referencie" EmptyText="Čaká sa na dáta WIKA referencie..."/>
    </StackPanel></Border>
-   <Border Style="{StaticResource Panel}"><StackPanel>
-    <TextBlock Text="{Binding TemperatureStatus}" FontWeight="SemiBold"/>
-    <ProgressBar Value="{Binding TemperatureProgress, Mode=OneWay}" ToolTip="Skóre stability WIKA referencie."/>
-    <TextBlock Text="{Binding TemperatureScore}" Style="{StaticResource Muted}"/>
-   </StackPanel></Border>
+   <Border Style="{StaticResource Panel}">
+    <Expander Foreground="#EEF5FF" HorizontalContentAlignment="Stretch">
+     <Expander.Header>
+      <StackPanel>
+       <TextBlock Text="{Binding TemperatureStatus}" FontWeight="SemiBold"/>
+       <ProgressBar Value="{Binding TemperatureProgress, Mode=OneWay}" ToolTip="Skóre stability WIKA referencie." Margin="0,9,0,0"/>
+       <TextBlock Text="{Binding TemperatureScore}" Style="{StaticResource Muted}" Margin="0,7,0,0"/>
+       <TextBlock Text="Kliknutím zobrazíte posledné WIKA vzorky a detailný graf." Foreground="#6F91B8" FontSize="11" Margin="0,4,0,0"/>
+      </StackPanel>
+     </Expander.Header>
+     <Grid Margin="0,16,0,2">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+      <Border Background="#0B1420" BorderBrush="#29415D" BorderThickness="1" CornerRadius="9" Padding="10">
+       <StackPanel><TextBlock Text="PRIEBEH POSLEDNÝCH 50 VZORIEK" Foreground="#8BBAFF" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,8"/><views:ChartView x:Name="StabilitySamplesChart" Height="245" Unit="°C" MinimumYDecimals="3" ChartTitle="Vzorky WIKA použité pri stabilizácii" EmptyText="Čaká sa na vzorky WIKA..."/></StackPanel>
+      </Border>
+      <Border Grid.Column="2" Background="#0B1420" BorderBrush="#29415D" BorderThickness="1" CornerRadius="9" Padding="10">
+       <StackPanel><TextBlock Text="POSLEDNÉ VZORKY" Foreground="#8BBAFF" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,8"/>
+        <Grid Margin="3,0,3,5"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Čas" Style="{StaticResource Muted}"/><TextBlock Grid.Column="1" Text="Teplota" Style="{StaticResource Muted}"/><TextBlock Grid.Column="2" Text="Odchýlka" Style="{StaticResource Muted}"/></Grid>
+        <ListBox x:Name="StabilitySamplesList" Height="220" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+         <ListBox.ItemTemplate><DataTemplate><Grid Margin="3,3"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Time}" Foreground="#99ACC3"/><TextBlock Grid.Column="1" Text="{Binding Temperature}" FontWeight="SemiBold"/><TextBlock Grid.Column="2" Text="{Binding Delta}" Foreground="{Binding DeltaBrush}"/></Grid></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+       </StackPanel>
+      </Border>
+     </Grid>
+    </Expander>
+   </Border>
 
    <TextBlock Text="Kalibračný plán / roadmap" Style="{StaticResource Title}"/>
    <ItemsControl ItemsSource="{Binding Points}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>

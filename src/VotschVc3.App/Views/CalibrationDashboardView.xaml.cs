@@ -95,6 +95,8 @@ public partial class CalibrationDashboardView : UserControl
         if (trace.Count == 0)
         {
             ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
+            StabilitySamplesChart.Series = Array.Empty<ChartSeries>();
+            StabilitySamplesList.ItemsSource = null;
             return;
         }
 
@@ -148,6 +150,54 @@ public partial class CalibrationDashboardView : UserControl
         }
 
         ReferenceTraceChart.Series = series;
+        RefreshStabilitySamples(trace, vm.TargetTemperatureC, vm.StabilityToleranceC);
+    }
+
+    private void RefreshStabilitySamples(
+        IReadOnlyList<CalibrationReferenceTracePoint> trace,
+        double? targetTemperatureC,
+        double toleranceC)
+    {
+        CalibrationReferenceTracePoint[] recent = trace.TakeLast(50).ToArray();
+        if (recent.Length == 0)
+        {
+            StabilitySamplesChart.Series = Array.Empty<ChartSeries>();
+            StabilitySamplesList.ItemsSource = null;
+            return;
+        }
+
+        DateTimeOffset origin = recent[0].Timestamp;
+        var sampleSeries = new List<ChartSeries>
+        {
+            new("WIKA vzorky", Brushes.DeepSkyBlue, recent
+                .Select(sample => new Point((sample.Timestamp - origin).TotalMinutes, sample.TemperatureC))
+                .ToArray(), strokeThickness: 2.2),
+        };
+
+        if (targetTemperatureC is { } target)
+        {
+            double maxX = Math.Max(0.01, (recent[^1].Timestamp - origin).TotalMinutes);
+            sampleSeries.Add(new ChartSeries(
+                $"Cieľ {target:F2} °C",
+                Brushes.Goldenrod,
+                new[] { new Point(0, target), new Point(maxX, target) },
+                dashed: true,
+                strokeThickness: 1.4));
+        }
+
+        StabilitySamplesChart.Series = sampleSeries;
+        StabilitySamplesList.ItemsSource = recent.AsEnumerable()
+            .Reverse()
+            .Select(sample =>
+            {
+                double? delta = targetTemperatureC is { } target ? sample.TemperatureC - target : null;
+                return new StabilitySampleRow(
+                    sample.Timestamp.ToLocalTime().ToString("HH:mm:ss"),
+                    $"{sample.TemperatureC:F3} °C",
+                    delta is { } value ? $"{value:+0.000;-0.000;0.000} °C" : "—",
+                    delta is { } difference && Math.Abs(difference) <= toleranceC ? Brushes.MediumSeaGreen : Brushes.OrangeRed);
+            })
+            .ToArray();
     }
 
     private void ClearReferenceTrace()
@@ -155,5 +205,9 @@ public partial class CalibrationDashboardView : UserControl
         ReferencePortText.Text = "—";
         ReferenceCurrentTemperatureText.Text = "—";
         ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
+        StabilitySamplesChart.Series = Array.Empty<ChartSeries>();
+        StabilitySamplesList.ItemsSource = null;
     }
+
+    private sealed record StabilitySampleRow(string Time, string Temperature, string Delta, Brush DeltaBrush);
 }

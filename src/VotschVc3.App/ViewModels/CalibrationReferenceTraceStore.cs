@@ -9,7 +9,7 @@ namespace VotschVc3.App.ViewModels;
 /// </summary>
 public sealed class CalibrationReferenceTraceStore
 {
-    private const int MaxPointsPerChamber = 2880; // 4 h at 5 s sampling; longer runs are decimated below.
+    private const int MaxPointsPerChamber = 14400; // 4 h near 1 Hz; longer runs are decimated below.
     private static readonly Lazy<CalibrationReferenceTraceStore> LazyInstance = new(() => new CalibrationReferenceTraceStore());
     public static CalibrationReferenceTraceStore Instance => LazyInstance.Value;
 
@@ -45,7 +45,7 @@ public sealed class CalibrationReferenceTraceStore
         {
             if (!_activeRuns.Contains(chamberId) || !double.IsFinite(point.TemperatureC)) return;
             if (point.Timestamp < _runStarts[chamberId]) return;
-            _traces[chamberId].Add(point); // Retain every five-second sample for the entire run.
+            _traces[chamberId].Add(point); // Retain every exact sample consumed by the calibration runner.
         }
         Changed?.Invoke(this, EventArgs.Empty);
     }
