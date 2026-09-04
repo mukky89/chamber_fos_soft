@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.70] – 2026-09-04
+
+- Potvrdzovacie okno ukončenia aplikácie je väčšie, kontrastnejšie a má výrazný červený rám aj bezpečnostné upozornenie.
+- Pôvodný textový výstražný symbol nahradila čistá škálovateľná vektorová ikona, ktorá zostáva ostrá pri každom DPI.
+- Akcie „Skryť do tray“ a „Áno, ukončiť“ sú vizuálne jasnejšie odlíšené a majú väčšie plochy na ovládanie.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.70.
+
 ## [1.76.69] – 2026-09-04
 
 - Aktuálne fokusovaná bunka v tabuľke zapojenia FBG je výrazne označená červeným rámčekom, aby operátor vždy videl miesto zadávania.
