@@ -18,7 +18,7 @@ public sealed class CalibrationDeviceOptionsStore
             Dictionary<Guid, CalibrationDeviceOptions> all = LoadAllUnsafe();
             return all.TryGetValue(chamberId, out CalibrationDeviceOptions? options)
                 ? options.Normalize()
-                : new CalibrationDeviceOptions();
+                : new CalibrationDeviceOptions { ReferenceControlConfigurationVersion = 1 };
         }
     }
 
@@ -52,6 +52,7 @@ public sealed class CalibrationDeviceOptionsStore
 public sealed class CalibrationDeviceOptions
 {
     public bool ControlTemperatureByReference { get; set; }
+    public int ReferenceControlConfigurationVersion { get; set; }
     public double ReferenceControlGain { get; set; } = 0.35;
     public double ReferenceControlDeadbandC { get; set; } = 0.05;
     public double ReferenceControlMaxCorrectionC { get; set; } = 3.0;
@@ -60,6 +61,15 @@ public sealed class CalibrationDeviceOptions
 
     public CalibrationDeviceOptions Normalize()
     {
+        // Version 1 makes chamber-internal control the safe default. Existing files
+        // created before this migration may contain an automatically enabled WIKA
+        // outer loop, so require the operator to opt in again explicitly.
+        if (ReferenceControlConfigurationVersion < 1)
+        {
+            ControlTemperatureByReference = false;
+            ReferenceControlConfigurationVersion = 1;
+        }
+
         ReferenceControlGain = Math.Clamp(double.IsFinite(ReferenceControlGain) ? ReferenceControlGain : 0.35, 0.01, 2.0);
         ReferenceControlDeadbandC = Math.Clamp(double.IsFinite(ReferenceControlDeadbandC) ? Math.Abs(ReferenceControlDeadbandC) : 0.05, 0.01, 1.0);
         ReferenceControlMaxCorrectionC = Math.Clamp(double.IsFinite(ReferenceControlMaxCorrectionC) ? Math.Abs(ReferenceControlMaxCorrectionC) : 3.0, 0.1, 10.0);

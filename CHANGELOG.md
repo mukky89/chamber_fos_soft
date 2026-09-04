@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.67] – 2026-09-04
+
+- Predvolene riadi kalibračnú teplotu vlastný interný regulátor komory podľa jej internej teploty.
+- Staršie uložené konfigurácie s automaticky zapnutým vonkajším riadením podľa WIKA sa pri prvom načítaní bezpečne prepnú na interný regulátor komory.
+- Riadenie podľa WIKA zostáva dostupné ako vedomá voliteľná voľba operátora v nastaveniach stability.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.67.
+
 ## [1.76.66] – 2026-09-04
 
 - Živý terminál kalibrácie bol presunutý na úplný koniec obsahu záložky Prehľad.
