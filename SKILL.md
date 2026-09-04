@@ -31,9 +31,11 @@ For **every code change** in this repository:
 3. Keep the changelog history; never replace it with a shortened version.
 4. `CHANGELOG.md` is the **single canonical changelog** used by the application and release workflow.
 5. Do **not** create `CHANGELOG_<version>.md` files for individual releases; keep release history in the root changelog only.
-6. Verify the version and root changelog are on `main` before reporting completion.
+6. Commit every completed change directly to `main` and push it to `origin/main` (GitHub).
+7. Never force-push. If `main` has moved or is protected, integrate safely or report the blocker instead of overwriting history.
+8. Before reporting completion, verify that local `HEAD` matches GitHub `refs/heads/main` and that no task changes remain uncommitted.
 
-Current baseline at the time of this change: `1.76.31`.
+Current fallback baseline at the time of this change: `1.76.58`.
 
 ## Changelog format
 
@@ -276,7 +278,7 @@ The following settings were validated on the real production reference thermomet
 4. Update version + root changelog immediately as part of the same change.
 5. Search for old terminology and stale references when changing device identity.
 6. Build/test using the repository's GitHub Actions workflow when possible.
-7. Check the resulting commit/branch and confirm the change is actually on `main`.
+7. Commit the completed change to `main`, push it to `origin/main`, and verify the remote commit matches local `HEAD`.
 
 ## Regression checklist
 

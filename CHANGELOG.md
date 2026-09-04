@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.58] – 2026-09-04
+
+### Zmenené – povinné vydanie na GitHub
+- Každá dokončená zmena projektu sa odteraz commitne priamo do vetvy `main` a odošle na GitHub do `origin/main`.
+- Pred dokončením sa overí zhoda lokálneho commitu so vzdialenou vetvou; prepis histórie pomocou force-push zostáva zakázaný.
+- Povinné zvýšenie verzie aplikácie a slovenský zápis v hlavnom `CHANGELOG.md` zostávajú súčasťou každej zmeny.
+
 ## [1.76.57] – 2026-09-04
 
 ### Opravené – súbežné čítanie WIKA CTH7000
