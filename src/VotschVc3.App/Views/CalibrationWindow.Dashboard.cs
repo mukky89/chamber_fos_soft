@@ -8,6 +8,7 @@ namespace VotschVc3.App.Views;
 public partial class CalibrationWindow
 {
     private TabItem? _overviewTab;
+    private TabItem? _settingsTab;
     private DispatcherTimer? _dashboardTimer;
 
     // Run after the existing workspace builders have completed their ContextIdle work.
@@ -42,12 +43,13 @@ public partial class CalibrationWindow
             }
             var configuration = new TabControl();
             configuration.Items.Add(new TabItem { Header = "Zariadenia", Content = new ScrollViewer { Content = setup, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
-            foreach (TabItem item in _productionTabs.Items.OfType<TabItem>().Where(t => HeaderText(t.Header) is "Zapojenie" or "Nastavenia stability").ToArray())
+            foreach (TabItem item in _productionTabs.Items.OfType<TabItem>().Where(t => HeaderText(t.Header) == "Nastavenia stability").ToArray())
             {
                 _productionTabs.Items.Remove(item);
                 configuration.Items.Add(item);
             }
-            _productionTabs.Items.Add(new TabItem { Header = "Nastavenia", Content = configuration });
+            _settingsTab = new TabItem { Header = "Nastavenia", Content = configuration };
+            _productionTabs.Items.Add(_settingsTab);
             if (root.RowDefinitions.Count > 3) root.RowDefinitions[3].Height = new GridLength(1, GridUnitType.Star);
             if (Content is ScrollViewer outer) { outer.Content = null; Content = root; }
         }
@@ -88,7 +90,18 @@ public partial class CalibrationWindow
         }
         foreach (TabItem item in _productionTabs.Items.OfType<TabItem>())
             if (HeaderText(item.Header) == "Kalibračné plata") item.Header = "Kalibračný plán";
-        _productionTabs.SelectedItem = _overviewTab;
+        var wiring = _productionTabs.Items.OfType<TabItem>().FirstOrDefault(t => HeaderText(t.Header) == "Zapojenie");
+        if (wiring is not null)
+        {
+            _productionTabs.Items.Remove(wiring);
+            _productionTabs.Items.Insert(0, wiring);
+        }
+        if (_settingsTab is not null)
+        {
+            _productionTabs.Items.Remove(_settingsTab);
+            _productionTabs.Items.Insert(0, _settingsTab);
+        }
+        _productionTabs.SelectedItem = _viewModel.IsRunning ? _overviewTab : _settingsTab ?? _overviewTab;
         _dashboardTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromSeconds(1) };
         _dashboardTimer.Tick += DashboardTick;
         _dashboardTimer.Start();
@@ -111,7 +124,8 @@ public partial class CalibrationWindow
     {
         if (IsVisible)
         {
-            if (_productionTabs is not null) _productionTabs.SelectedItem = _overviewTab;
+            if (_productionTabs is not null)
+                _productionTabs.SelectedItem = _viewModel.IsRunning ? _overviewTab : _settingsTab ?? _overviewTab;
             DashboardTick(null, EventArgs.Empty);
             _dashboardTimer?.Start();
         }

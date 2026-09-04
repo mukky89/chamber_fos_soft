@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.49] – 2026-09-04
+
+### Zmenené – príprava FBG kalibrácie a zapojenie
+- Hlavné karty začínajú poradím `Nastavenia → Zapojenie → Prehľad`. Pri otvorení nebežiacej kalibrácie sa zobrazia Nastavenia s PeakLoggerom, teplotnou sondou a profilom.
+- Zapojenie je samostatná hlavná karta. Jednotlivé peaky majú jemné riadkovanie; spoločný rámček zvýrazňuje iba susediace peaky rovnakého kanála a obnovuje sa aj po zoradení.
+- Textovo sa upravujú iba `FBG sensor SN (kanál)`, `FBG sensor SN CHAIN` a `Poznámky`. Tieto bunky majú modré podfarbenie a ceruzku; ostatné údaje sú iba na čítanie.
+- Výber peakov checkboxom a uzamknutie úprav počas kalibrácie zostávajú zachované. Varovania sériových čísel majú prednosť pred rámčekom skupiny.
+
 ## [1.76.48] – 2026-09-04
 
 ### Pridané – operátorský prehľad FBG kalibrácie

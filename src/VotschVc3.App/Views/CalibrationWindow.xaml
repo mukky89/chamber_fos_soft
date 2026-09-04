@@ -403,11 +403,11 @@
                             <DataGridTextColumn Header="Typ FBG" Binding="{Binding FbgType}" IsReadOnly="True" Width="0.65*" />
                             <DataGridTextColumn Header="FBG sensor SN (kanál)" Binding="{Binding ChannelSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.15*" />
                             <DataGridTextColumn Header="FBG sensor SN CHAIN" Binding="{Binding ChainSerialNumber, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.15*" />
-                            <DataGridTextColumn Header="Timeout [min]" Binding="{Binding TimeoutMinutes, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.65*" />
+                            <DataGridTextColumn Header="Timeout [min]" Binding="{Binding TimeoutMinutes, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.65*" IsReadOnly="True" />
                             <DataGridTextColumn Header="Poznámky" Binding="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.95*" />
-                            <DataGridTextColumn Header="Popis produktu" Binding="{Binding ProductDescription, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.1*" />
-                            <DataGridTextColumn Header="Zákazník" Binding="{Binding Customer, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.85*" />
-                            <DataGridTextColumn Header="Zákazka" Binding="{Binding Order, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.7*" />
+                            <DataGridTextColumn Header="Popis produktu" Binding="{Binding ProductDescription, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="1.1*" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Zákazník" Binding="{Binding Customer, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.85*" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Zákazka" Binding="{Binding Order, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="0.7*" IsReadOnly="True" />
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Grid.Row="2" Margin="2,7,0,0">

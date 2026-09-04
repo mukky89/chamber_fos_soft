@@ -118,7 +118,7 @@ public partial class CalibrationWindow
 
         if (editable)
         {
-            Brush surface = TryFindResource("SurfaceAltBrush") as Brush ?? Brushes.Transparent;
+            Brush surface = new SolidColorBrush(Color.FromArgb(0x35, 0x58, 0x92, 0xE8));
             Brush accent = TryFindResource("AccentBrush") as Brush ?? Brushes.CornflowerBlue;
             style.Setters.Add(new Setter(Control.BackgroundProperty, surface));
             style.Setters.Add(new Setter(Control.BorderBrushProperty, accent));

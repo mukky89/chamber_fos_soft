@@ -97,8 +97,11 @@ public partial class CalibrationWindow
         _wiringGrid.CurrentCellChanged += WiringGridV7_CurrentCellChanged;
         _wiringGrid.LoadingRow -= WiringGridV7_LoadingRow;
         _wiringGrid.LoadingRow += WiringGridV7_LoadingRow;
+        _wiringGrid.Sorting -= WiringGridV7_Sorting;
+        _wiringGrid.Sorting += WiringGridV7_Sorting;
 
         ApplySelectedCellStyleV7(_wiringGrid);
+        ConfigureWiringGridUxV6();
         AddEditCuesToColumnsV7(_wiringGrid);
     }
 
@@ -117,6 +120,9 @@ public partial class CalibrationWindow
 
     private void WiringGridV7_LoadingRow(object? sender, DataGridRowEventArgs e) => ApplyChannelGroupBorderV7(e.Row);
 
+    private void WiringGridV7_Sorting(object? sender, DataGridSortingEventArgs e) =>
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(RefreshChannelGroupBordersV7));
+
     private void ApplyChannelGroupBorderV7(DataGridRow row)
     {
         if (_wiringGrid is null || row.Item is not CalibrationPeakRowViewModel current) return;
@@ -128,20 +134,20 @@ public partial class CalibrationWindow
         bool first = previous is null || !SameChannelV7(previous, current);
         bool last = next is null || !SameChannelV7(next, current);
 
-        Brush outline = TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue;
-        row.BorderBrush = outline;
-        row.BorderThickness = new Thickness(2, first ? 2 : 0, 2, last ? 2 : 0);
-        row.Margin = new Thickness(0, first ? 4 : 0, 0, last ? 4 : 0);
-
-        if (first)
+        // Put grouping in style setters so validation and selection triggers retain priority.
+        row.ClearValue(Control.BorderBrushProperty);
+        row.ClearValue(Control.BorderThicknessProperty);
+        row.ClearValue(FrameworkElement.MarginProperty);
+        row.ClearValue(FrameworkElement.ToolTipProperty);
+        var style = new Style(typeof(DataGridRow), _wiringGrid.RowStyle);
+        if (!first || !last)
         {
-            int count = CountChannelRowsV7(current.Channel);
-            row.ToolTip = $"Kanál {current.Channel} · {count} peak{(count == 1 ? string.Empty : "ov")} v tejto skupine";
+            style.Setters.Add(new Setter(Control.BorderBrushProperty, TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue));
+            style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(2, first ? 2 : 0, 2, last ? 2 : 0)));
+            style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0, first ? 3 : 0, 0, last ? 3 : 0)));
+            style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, $"Kanál {current.Channel} · {CountChannelRowsV7(current.Channel)} peakov"));
         }
-        else
-        {
-            row.ToolTip = $"Patrí do skupiny kanála {current.Channel}";
-        }
+        row.Style = style;
     }
 
     private static bool SameChannelV7(CalibrationPeakRowViewModel left, CalibrationPeakRowViewModel right) =>
@@ -203,6 +209,8 @@ public partial class CalibrationWindow
                 CanUserSort = source.CanUserSort,
                 SortMemberPath = path,
                 IsReadOnly = false,
+                CellStyle = source.CellStyle,
+                HeaderStyle = source.HeaderStyle,
                 CellTemplate = BuildEditCueTemplateV7(original),
                 CellEditingTemplate = BuildEditingTemplateV7(original),
             };
@@ -469,6 +477,7 @@ public partial class CalibrationWindow
             _wiringGrid.BeginningEdit -= WiringGridV7_BeginningEdit;
             _wiringGrid.CurrentCellChanged -= WiringGridV7_CurrentCellChanged;
             _wiringGrid.LoadingRow -= WiringGridV7_LoadingRow;
+            _wiringGrid.Sorting -= WiringGridV7_Sorting;
         }
         Closed -= OnOperatorUxV7Closed;
     }
