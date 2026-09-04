@@ -31,7 +31,7 @@
     </DataTrigger>
    </Style.Triggers>
   </Style>
-  <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource Node}" ToolTip="{Binding Detail}"><StackPanel><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
+  <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource Node}" ToolTip="{Binding Detail}"><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Border HorizontalAlignment="Right" Width="20" Height="20" CornerRadius="10" Background="#203650" BorderBrush="#609DE8" BorderThickness="1" ToolTip="{Binding Detail}"><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#9CC6FF" FontWeight="Bold" FontSize="12"/></Border></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
  </UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Margin="20">

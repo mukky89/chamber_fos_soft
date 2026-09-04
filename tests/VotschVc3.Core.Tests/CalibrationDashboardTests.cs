@@ -47,6 +47,23 @@ public sealed class CalibrationDashboardTests
         Assert.Equal("Active", m.Steps[4].State); Assert.Equal("Active", m.Steps[5].State);
         Assert.Equal("SN1|CH1|P1", m.ActivePeakKey);
     }
+    [Fact] public void WorkflowHelpUsesCurrentSettingsAndObservedCycleTime()
+    {
+        var m = new CalibrationDashboardViewModel();
+        m.Configure("Profil", "Komora", new[] { -40d }, true, "Rules",
+            toleranceC: 0.25, maxDriftCPerMinute: 0.1,
+            requiredStableSamples: 12, requiredMeasurementSamples: 5,
+            maxRangePm: 4, maxStdDevPm: 1.2, maxPeakDriftPmPerMinute: 0.8,
+            stableDuration: TimeSpan.FromMinutes(3), stabilityTimeout: TimeSpan.FromMinutes(20), sensorTimeout: TimeSpan.FromMinutes(40));
+        m.Begin(Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Stabilizing", 0)), Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Stabilizing", 0)), Start.AddSeconds(4));
+
+        Assert.Contains("12 vzoriek", m.Steps[4].Detail);
+        Assert.Contains("range ≤ 4,000 pm", m.Steps[4].Detail);
+        Assert.Contains("5 nových", m.Steps[5].Detail);
+        Assert.Contains("20 s", m.Steps[5].Detail);
+    }
     [Fact] public void IndividualFbgChartsTrackEachPeakAndResetForNewRun()
     {
         var m = Model();

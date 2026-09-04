@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.93] – 2026-09-04
+
+- Každý bod kalibračného workflow má viditeľný otáznik s podrobným vysvetlením podmienok, vzoriek, časov, resetov a výsledku kroku.
+- Vysvetlenia sa dynamicky skladajú z aktuálnych nastavení stability, počtov vzoriek a timeoutov; počas behu dopĺňajú odhad podľa reálne pozorovaného cyklu dát.
+- Paralelný zber teraz správne používa samostatné nastavenie počtu finálnych meracích vzoriek namiesto počtu stabilizačných vzoriek.
+- Projektový skill vyžaduje synchronizáciu workflow nápovedy pri každej budúcej zmene kalibračnej logiky.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.93.
+
 ## [1.76.92] – 2026-09-04
 
 - Voľba zvukového upozornenia pri chybnom SN bola presunutá z Live dát do záložky Zapojenie k režimom zadávania a párovania snímačov.

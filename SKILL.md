@@ -94,6 +94,7 @@ The following settings were validated on the real production reference thermomet
 - The operator may select one suggested peak per channel or explicitly select all peaks. `Vybrať všetky peaky` means every discovered peak is independently evaluated and recorded.
 - Default peak stability remains 50 samples, 5 pm max range, 1.5 pm max standard deviation, and 1 pm/min max drift unless the saved setup explicitly changes these values.
 - The operator-facing run monitor must show the planned plateau order before start and, during a run, the current step, what the runner is waiting for, current plateau, reference temperature, active peak/SN/channel, wavelength sample progress and stable-peak count.
+- Every operator-facing workflow step must expose a visible `?` help affordance. Its text must explain what the step does, its gates, sample counts, reset/failure behaviour and timing. Build these descriptions from the active `CalibrationProfileSettings` and observed acquisition cadence; whenever calibration logic or defaults change, update the workflow help in the same change so it never becomes stale documentation.
 
 ### FBG workspace persistence / restore
 
@@ -321,6 +322,7 @@ Before declaring a USB/thermometer or FBG calibration fix complete, verify conce
 - [ ] FBG page remains vertically scrollable when the reference-temperature chart is expanded.
 - [ ] `Zapojenie` table retains usable vertical/horizontal scrolling, readable column widths, and approximately 16 visible working rows.
 - [ ] Live monitor shows the planned plateaus before start and current step / wait reason / WIKA / active peak samples during a run.
+- [ ] Every workflow `?` describes the current implementation and dynamically reflects active stability limits, sample counts, timeouts and observed sampling cadence.
 - [ ] While FBG calibration is running, manual quick control and Testovací profil are disabled on that chamber.
 - [ ] During an FBG run the device mode badge reads `FBG CALIBRATION` and the FBG button uses a slow red pulse only for that chamber.
 - [ ] FBG status card is inserted above the complete `Rýchle ovládanie` section and never overlaps its title/action header.

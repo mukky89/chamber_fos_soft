@@ -32,7 +32,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.",
         toleranceC: ChamberToleranceC,
         maxDriftCPerMinute: _setup.Settings.MaxChamberDriftCPerMinute,
-        profileCode: SelectedProfile?.Code);
+        profileCode: SelectedProfile?.Code,
+        requiredStableSamples: _setup.Settings.RequiredStableSamples,
+        requiredMeasurementSamples: _setup.Settings.RequiredMeasurementSamples,
+        maxRangePm: _setup.Settings.MaxWavelengthRangePm,
+        maxStdDevPm: _setup.Settings.MaxWavelengthStdDevPm,
+        maxPeakDriftPmPerMinute: _setup.Settings.MaxWavelengthDriftPmPerMinute,
+        stableDuration: _setup.Settings.ChamberStableDuration,
+        stabilityTimeout: _setup.Settings.ChamberStabilityTimeout,
+        sensorTimeout: _setup.Settings.DefaultSensorStabilizationTimeout);
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;

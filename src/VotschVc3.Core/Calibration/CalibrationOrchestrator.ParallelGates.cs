@@ -397,7 +397,7 @@ public sealed class CalibrationOrchestrator
                 selected.Count,
                 plateauClock.Elapsed,
                 trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
-                $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredStableSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky.",
+                $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredMeasurementSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky.",
                 (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                 (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                 true,
@@ -685,7 +685,7 @@ public sealed class CalibrationOrchestrator
 
             State = CalibrationTargetState.Live;
             _measurementSamples.Add(raw);
-            int requiredMeasurementSamples = Math.Max(2, settings.RequiredStableSamples);
+            int requiredMeasurementSamples = Math.Max(2, settings.RequiredMeasurementSamples);
             if (_measurementSamples.Count >= requiredMeasurementSamples)
                 CompleteStableFromMeasurementWindow();
         }
@@ -735,8 +735,8 @@ public sealed class CalibrationOrchestrator
                 : $"ČAKÁ NA TEPLOTU · {minimumDetail} · {temperatureDetail}";
             return BuildProgress(
                 IsTerminal ? Result!.Status : CalibrationTargetState.WaitingForTemperature,
-                IsTerminal ? Math.Max(2, settings.RequiredStableSamples) : 0,
-                Math.Max(2, settings.RequiredStableSamples),
+                IsTerminal ? Math.Max(2, settings.RequiredMeasurementSamples) : 0,
+                Math.Max(2, settings.RequiredMeasurementSamples),
                 phase);
         }
 
@@ -745,9 +745,9 @@ public sealed class CalibrationOrchestrator
             if (IsTerminal)
             {
                 string terminal = Result?.Status == CalibrationTargetState.Stable
-                    ? $"HOTOVO · meranie {_measurementSamples.Count}/{Math.Max(2, settings.RequiredStableSamples)} samples ✓"
+                    ? $"HOTOVO · meranie {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples ✓"
                     : $"KONIEC · {Result?.Status}: {Result?.Problem}";
-                return BuildProgress(Result?.Status ?? State, _measurementSamples.Count, Math.Max(2, settings.RequiredStableSamples), terminal);
+                return BuildProgress(Result?.Status ?? State, _measurementSamples.Count, Math.Max(2, settings.RequiredMeasurementSamples), terminal);
             }
 
             StabilityMetrics metrics = LastMetrics ?? _stabilityDetector.Evaluate();
@@ -759,11 +759,11 @@ public sealed class CalibrationOrchestrator
             if (IsMeasuring)
             {
                 string measuring =
-                    $"MERANIE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredStableSamples)} samples · " +
+                    $"MERANIE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples · " +
                     $"stabilita stále OK: range {metrics.Range:F3}/{settings.MaxWavelengthRangePm:F3} pm {(rangeOk ? "✓" : "×")} · " +
                     $"std {metrics.StandardDeviation:F3}/{settings.MaxWavelengthStdDevPm:F3} pm {(stdOk ? "✓" : "×")} · " +
                     $"drift {Math.Abs(metrics.SlopePerMinute):F3}/{settings.MaxWavelengthDriftPmPerMinute:F3} pm/min {(driftOk ? "✓" : "×")}";
-                return BuildProgress(CalibrationTargetState.Live, _measurementSamples.Count, Math.Max(2, settings.RequiredStableSamples), measuring);
+                return BuildProgress(CalibrationTargetState.Live, _measurementSamples.Count, Math.Max(2, settings.RequiredMeasurementSamples), measuring);
             }
 
             string stabilizing =
@@ -798,7 +798,7 @@ public sealed class CalibrationOrchestrator
                 StabilitySamples: metrics.Count,
                 RequiredStabilitySamples: Math.Max(2, _settings.RequiredStableSamples),
                 MeasurementSamples: _measurementSamples.Count,
-                RequiredMeasurementSamples: Math.Max(2, _settings.RequiredStableSamples),
+                RequiredMeasurementSamples: Math.Max(2, _settings.RequiredMeasurementSamples),
                 RangePm: metrics.Range,
                 RangeLimitPm: _settings.MaxWavelengthRangePm,
                 StdDevLimitPm: _settings.MaxWavelengthStdDevPm,

@@ -18,6 +18,15 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private string _lastWarning = "";
     private string _planSignature = "";
     private double _stabilityMaxDriftCPerMinute;
+    private int _requiredStableSamples = 50;
+    private int _requiredMeasurementSamples = 50;
+    private double _maxRangePm = 5;
+    private double _maxStdDevPm = 1.5;
+    private double _maxPeakDriftPmPerMinute = 1;
+    private TimeSpan _stableDuration = TimeSpan.FromMinutes(10);
+    private TimeSpan _stabilityTimeout = TimeSpan.FromMinutes(30);
+    private TimeSpan _sensorTimeout = TimeSpan.FromMinutes(60);
+    private double? _observedCycleSeconds;
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
@@ -157,11 +166,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string TimelineNextTitle => TimelineNextNode?.Title ?? "Kalibrácia dokončená";
     public string TimelineNextDetail => TimelineNextNode?.Detail ?? "Všetky naplánované kroky sú hotové.";
 
-    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null)
+    public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null,
+        int requiredStableSamples = 50, int requiredMeasurementSamples = 50, double maxRangePm = 5, double maxStdDevPm = 1.5,
+        double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null, TimeSpan? sensorTimeout = null)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
-        string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{string.Join(",", plan)}";
+        string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{maxDriftCPerMinute}|" +
+            $"{requiredStableSamples}|{requiredMeasurementSamples}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
         ProfileDescription = profile;
@@ -172,6 +184,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         Rules = rules;
         StabilityToleranceC = Math.Abs(toleranceC);
         _stabilityMaxDriftCPerMinute = Math.Max(0, maxDriftCPerMinute);
+        _requiredStableSamples = Math.Max(2, requiredStableSamples);
+        _requiredMeasurementSamples = Math.Max(2, requiredMeasurementSamples);
+        _maxRangePm = Math.Max(0, maxRangePm);
+        _maxStdDevPm = Math.Max(0, maxStdDevPm);
+        _maxPeakDriftPmPerMinute = Math.Max(0, maxPeakDriftPmPerMinute);
+        _stableDuration = stableDuration ?? TimeSpan.Zero;
+        _stabilityTimeout = stabilityTimeout ?? TimeSpan.Zero;
+        _sensorTimeout = sensorTimeout ?? TimeSpan.Zero;
         ReferenceChamberId = referenceChamberId;
         Points.Clear();
         foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká"));
@@ -181,7 +201,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void Begin(DateTimeOffset now)
     {
         _startupDetail = "Čaká sa na prvý stav zariadení.";
-        _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null;
+        _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null; _observedCycleSeconds = null;
         _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; TrendTone = "Steady"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
@@ -198,6 +218,12 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         var previous = _snapshot;
         string previousPhase = Phase;
+        if (_lastSnapshotAt is { } previousUpdate && snapshot.State == CalibrationRunState.StabilizingSensors)
+        {
+            double seconds = (now - previousUpdate).TotalSeconds;
+            if (seconds is >= 0.2 and <= 30)
+                _observedCycleSeconds = _observedCycleSeconds is { } current ? current * 0.75 + seconds * 0.25 : seconds;
+        }
         _lastSnapshotAt = now;
         if (snapshot.ActualTemperatureC is { } actualTemperature)
         {
@@ -340,11 +366,32 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     }
     private void RefreshSteps()
     {
+        string cycle = _observedCycleSeconds is { } seconds
+            ? $"Aktuálny cyklus dát trvá približne {seconds:F1} s"
+            : "Skutočný čas závisí od odozvy WIKA a PeakLoggera";
+        string Estimate(int samples) => _observedCycleSeconds is { } seconds
+            ? $"približne {Duration(TimeSpan.FromSeconds(samples * seconds))} pri aktuálnom cykle"
+            : $"najmenej {samples} úspešných cyklov dát";
+        string[] names = { "Príprava", "Nastavenie cieľa", "Teplota komory", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
+        string[] tips =
+        {
+            "Skontroluje vybraný profil, zapojenie, SN, dostupnosť komory, WIKA a PeakLoggera. Krok nemá pevný čas; pri chybe čaká na opravu alebo zásah operátora.",
+            "Komore nastaví cieľ aktuálneho kalibračného plata. Profilové hold časy neurčujú dĺžku FBG kalibrácie.",
+            "Interná sonda komory sa zobrazuje a loguje, ale neotvára ani neblokuje FBG bránu. Slúži na kontrolu správania regulátora a porovnanie s WIKA.",
+            $"Autoritatívna WIKA musí byť v tolerancii ±{StabilityToleranceC:F3} °C, mať drift ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min a nazbierať stabilné skóre {Duration(_stableDuration)}. Timeout: {Duration(_stabilityTimeout)}.",
+            $"Každý vybraný peak má vlastný detektor. Potrebuje {_requiredStableSamples} vzoriek, range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm a drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Peaky sa kontrolujú paralelne; {Estimate(_requiredStableSamples)}. Timeout peaku: {Duration(_sensorTimeout)}. {cycle}.",
+            $"Po potvrdení stability sa stabilizačné vzorky nepoužijú ako výsledok. Každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek paralelne; {Estimate(_requiredMeasurementSamples)}. Ak peak prestane spĺňať limity, rozpracované meracie vzorky sa zahodia a vráti sa do stabilizácie. {cycle}.",
+            "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
+            "Po dokončení všetkých vybraných peakov uloží checkpoint a nastaví cieľ nasledujúceho vybraného plata. Ak žiadne nezostáva, prejde na dokončenie.",
+            "Uzavrie beh, uloží súhrn, históriu a exporty. Výsledný stav môže byť dokončené alebo dokončené s upozorneniami."
+        };
         if (Steps.Count == 0)
         {
-            string[] names = { "Príprava", "Nastavenie cieľa", "Teplota komory", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
-            string[] tips = { "Kontrola zapojenia a zariadení.", "Priamo sa nastaví cieľ vybraného plata; rampy a časy profilu sa ignorujú.", "Interná sonda komory je iba informačná a neotvára kalibračnú bránu.", "Teplotnú bránu riadi výhradne WIKA referencia.", "Všetky vybrané peaky sa kontrolujú paralelne.", "Každý stabilný peak zbiera vlastné meracie vzorky.", "Uloženie a overenie výsledku bodu.", "Prechod priamo na ďalšie vybrané plato.", "Dokončenie behu; export je v Histórii." };
             for (int i = 0; i < names.Length; i++) Steps.Add(new DashboardNode($"{i + 1:00}", names[i], tips[i]));
+        }
+        else
+        {
+            for (int i = 0; i < Steps.Count && i < tips.Length; i++) Steps[i].Detail = tips[i];
         }
         var effectiveState = _state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted ? _snapshot?.State ?? _state : _state;
         int phase = effectiveState switch
