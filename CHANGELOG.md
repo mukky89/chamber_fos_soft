@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.56] – 2026-09-04
+
+### Opravené – jednotné konce riadkov
+- Pridané pravidlá `.gitattributes`, ktoré používajú Windows CRLF pre Visual Studio/.NET súbory a LF pre skripty a dátové súbory.
+- Dotknuté zdrojové a projektové súbory už neobsahujú zmiešané konce riadkov, takže Visual Studio nežiada ich opakovanú normalizáciu.
+
 ## [1.76.55] – 2026-09-04
 
 ### Opravené – spustenie aplikácie
