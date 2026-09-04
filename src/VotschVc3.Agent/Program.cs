@@ -4,8 +4,13 @@ using VotschVc3.Core.Settings;
 
 internal static class Program
 {
+    private const string ManualStartSwitch = "--manual-start";
+
     private static async Task<int> Main(string[] args)
     {
+        bool manualStartRequested = args.Any(a =>
+            string.Equals(a, ManualStartSwitch, StringComparison.OrdinalIgnoreCase));
+
         string configPath = args.FirstOrDefault(a => !a.StartsWith('-'))
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Lab Control", "bridge.json");
         string statusPath = Path.Combine(
@@ -16,6 +21,24 @@ internal static class Program
         try
         {
             BridgeOptions options = BridgeOptions.Load(Path.GetFullPath(Environment.ExpandEnvironmentVariables(configPath)));
+
+            // Hard manual-only gate. A legacy ShellViewModel startup path or an old
+            // Scheduled Task can still try to execute this EXE, but without the switch
+            // supplied by the Administration button the agent exits before validation,
+            // device initialization or any dashboard connection.
+            if (!manualStartRequested)
+            {
+                BridgeStatusFile.Write(statusPath, new BridgeStatus
+                {
+                    Running = false,
+                    DashboardReachable = false,
+                    UpdatedUtc = DateTime.UtcNow,
+                    MachineName = Environment.MachineName,
+                    DashboardUrl = options.DashboardUrl,
+                    LastError = "FOS Dashboard Bridge je v manuálnom režime. Spusti ho iba tlačidlom v Administrácii.",
+                });
+                return 0;
+            }
 
             // Dashboard communication is opt-in. Older bridge.json files do not contain
             // the Enabled property and therefore deserialize to false as well. Exit before
