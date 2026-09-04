@@ -488,17 +488,63 @@ public partial class ChartView : UserControl
 
         DrawZoomIndicator(plotW, plotH);
 
-        // Legend, top-left: the top-right corner now holds the zoom bar, and the bottom
-        // corners are taken by the axis labels and the zoom chip.
-        double legendY = PadTop + 2;
-        foreach (ChartSeries s in series.Where(item => string.IsNullOrWhiteSpace(item.PointLabel)))
+        // Keep the legend in one opaque overlay. Target and stability-limit lines often
+        // run through this corner, so separate text elements without a background become
+        // unreadable even though they are painted after the series.
+        ChartSeries[] legendSeries = series
+            .Where(item => string.IsNullOrWhiteSpace(item.PointLabel))
+            .ToArray();
+        if (legendSeries.Length > 0)
         {
-            var swatch = new Rectangle { Width = 14, Height = 3, Fill = s.Stroke, IsHitTestVisible = false };
-            Canvas.SetLeft(swatch, PadLeft + 4);
-            Canvas.SetTop(swatch, legendY + 6);
-            PlotCanvas.Children.Add(swatch);
-            AddText(s.Name, PadLeft + 22, legendY, MutedBrush, 10);
-            legendY += 15;
+            var legendRows = new StackPanel();
+            foreach (ChartSeries s in legendSeries)
+            {
+                var row = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var swatch = new Line
+                {
+                    X1 = 1,
+                    X2 = 15,
+                    Y1 = 7,
+                    Y2 = 7,
+                    Stroke = s.Stroke,
+                    StrokeThickness = Math.Max(2, s.StrokeThickness),
+                    IsHitTestVisible = false,
+                };
+                if (s.Dashed)
+                {
+                    swatch.StrokeDashArray = new DoubleCollection { 3, 2 };
+                }
+
+                var label = new TextBlock
+                {
+                    Text = s.Name,
+                    Foreground = MutedBrush,
+                    FontSize = 10,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    IsHitTestVisible = false,
+                };
+                Grid.SetColumn(label, 1);
+                row.Children.Add(swatch);
+                row.Children.Add(label);
+                legendRows.Children.Add(row);
+            }
+
+            var legend = new Border
+            {
+                Background = TryFindResource("SurfaceBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(11, 18, 32)),
+                BorderBrush = GridBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(6, 4, 8, 4),
+                IsHitTestVisible = false,
+                Child = legendRows,
+            };
+            Canvas.SetLeft(legend, PadLeft + 3);
+            Canvas.SetTop(legend, PadTop + 2);
+            PlotCanvas.Children.Add(legend);
         }
     }
 

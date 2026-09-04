@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.86] – 2026-09-04
+
+- Legenda grafov má vlastné kontrastné pozadie, takže ju už neprekrývajú merané krivky, cieľové čiary ani hranice stability.
+- Riadky legendy majú väčšie rozostupy a prerušované čiary sa zobrazujú rovnakým štýlom ako v grafe.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.86.
+
 ## [1.76.85] – 2026-09-04
 
 - Predvolený povolený rozdiel medzi WIKA CTH7000 a internou teplotou komory bol zvýšený z ±5 °C na ±10 °C.
