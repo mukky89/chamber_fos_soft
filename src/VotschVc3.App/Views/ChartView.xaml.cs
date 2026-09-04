@@ -22,7 +22,7 @@ namespace VotschVc3.App.Views;
 /// </summary>
 public partial class ChartView : UserControl
 {
-    private const double PadLeft = 46;
+    private const double PadLeft = 72;
     private const double PadRight = 12;
     private const double PadTop = 10;
     /// <summary>Room under the plot for the time labels and the draggable mini-map strip.</summary>
@@ -97,7 +97,10 @@ public partial class ChartView : UserControl
 
     private void OnZoomOutClick(object sender, RoutedEventArgs e) => ZoomAroundCentre(1 / ButtonZoomStep);
 
-    private void OnZoomResetClick(object sender, RoutedEventArgs e)
+    private void OnZoomResetClick(object sender, RoutedEventArgs e) => ResetZoom();
+
+    /// <summary>Restore both axes to the complete data range.</summary>
+    public void ResetZoom()
     {
         if (!_viewport.IsZoomed && !_selectedMinY.HasValue)
         {
@@ -267,6 +270,9 @@ public partial class ChartView : UserControl
         if (_fullMaxX <= _fullMinX) _fullMaxX = _fullMinX + 1;
 
         _window = _viewport.Resolve(_fullMinX, _fullMaxX);
+        ZoomStateText.Text = _window.IsZoomed || _selectedMinY.HasValue
+            ? $"Priblíženie {_window.Zoom:0.#}×"
+            : "Celý rozsah";
         double minX = _window.Min;
         double maxX = _window.Max;
 
@@ -377,7 +383,7 @@ public partial class ChartView : UserControl
             AddLine(PadLeft, py, PadLeft + plotW, py, GridBrush, 1, dashed: i is not 0 && i != gridSteps);
             int decimals = NiceAxis.RequiredDecimalPlaces(_yAxis.Step, MinimumYDecimals);
             string yLabel = yVal.ToString($"F{decimals}", CultureInfo.CurrentCulture);
-            AddText($"{yLabel}{Unit}", 2, py - 8, MutedBrush, 10, PadLeft - 6, TextAlignment.Right);
+            AddText($"{yLabel}{Unit}", 2, py - 8, MutedBrush, 10.5, PadLeft - 8, TextAlignment.Right);
         }
 
         // Time axis: a gridline on a readable step (quarter hours / hours / days,

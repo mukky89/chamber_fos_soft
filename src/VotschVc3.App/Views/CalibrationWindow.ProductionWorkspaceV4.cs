@@ -200,8 +200,15 @@ public partial class CalibrationWindow
         var modes = new WrapPanel { Margin = new Thickness(0, 6, 0, 12) };
         var chartMode = new ComboBox { Width = 210, ItemsSource = new[] { "FBG peaky", "WIKA teplota", "Komora teplota" }, SelectedIndex = 0, Margin = new Thickness(0, 0, 12, 0) };
         _peakDisplayMode = new ComboBox { Width = 210, ItemsSource = new[] { "Iba aktívny peak", "Všetky peaky", "Vybrané peaky" }, SelectedIndex = 1 };
+        Button resetAllZoomButton = CreateFbgTraceFilterButton("↺ Odzoomovať všetky grafy");
+        resetAllZoomButton.Margin = new Thickness(12, 0, 0, 0);
+        resetAllZoomButton.MinWidth = 178;
+        resetAllZoomButton.Padding = new Thickness(12, 5, 12, 5);
+        resetAllZoomButton.ToolTip = "Zruší priblíženie vo všetkých grafoch Live dát naraz.";
+        resetAllZoomButton.Click += (_, _) => ResetAllLiveTraceZoom();
         modes.Children.Add(chartMode);
         modes.Children.Add(_peakDisplayMode);
+        modes.Children.Add(resetAllZoomButton);
         stack.Children.Add(modes);
         _chamberTraceChart = new ChartView { ChartTitle = "Komora · aktuálna teplota", Unit = " °C", MinimumYDecimals = 2, Height = 300, EmptyText = "Čaká na údaje z kalibrácie", Visibility = Visibility.Collapsed };
         _fbgReferenceTraceChart.Visibility = Visibility.Collapsed;
@@ -266,6 +273,16 @@ public partial class CalibrationWindow
         if (TryFindResource("AccentOutlineButton") is Style style)
             button.Style = style;
         return button;
+    }
+
+    private void ResetAllLiveTraceZoom()
+    {
+        foreach (ChartView chart in _peakCharts.Values)
+        {
+            chart.ResetZoom();
+        }
+        _fbgReferenceTraceChart?.ResetZoom();
+        _chamberTraceChart?.ResetZoom();
     }
 
     private void RefreshFbgTraceFilterPanel()

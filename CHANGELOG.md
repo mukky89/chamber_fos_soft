@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.91] – 2026-09-04
+
+- Grafy majú väčšie a čitateľnejšie ovládacie prvky na priblíženie, oddialenie a návrat na celý rozsah dát.
+- Live dáta obsahujú spoločné tlačidlo „Odzoomovať všetky grafy“, ktoré naraz obnoví úplný rozsah všetkých peakov, WIKA aj komory.
+- Stav priblíženia sa zobrazuje priamo v paneli grafu a širšia os Y už neskracuje dôležité desatinné hodnoty.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.91.
+
 ## [1.76.90] – 2026-09-04
 
 - Upozornenie na rozdiel teploty WIKA a komory sa po návrate aktuálnych hodnôt do povolenej tolerancie automaticky zruší.
