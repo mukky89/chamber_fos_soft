@@ -13,14 +13,14 @@ public partial class CalibrationDashboardView : UserControl
         InitializeComponent();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
-        DataContextChanged += (_, _) => RefreshReferenceTrace();
+        DataContextChanged += (_, _) => RequestReferenceTraceRefresh();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         CalibrationReferenceTraceStore.Instance.Changed += OnReferenceTraceChanged;
         CalibrationReferenceStatusStore.Instance.Changed += OnReferenceStatusChanged;
-        RefreshReferenceTrace();
+        RequestReferenceTraceRefresh();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -29,19 +29,42 @@ public partial class CalibrationDashboardView : UserControl
         CalibrationReferenceStatusStore.Instance.Changed -= OnReferenceStatusChanged;
     }
 
-    private void OnReferenceTraceChanged(object? sender, EventArgs e)
-    {
-        Dispatcher.BeginInvoke(RefreshReferenceTrace);
-    }
+    private void OnReferenceTraceChanged(object? sender, EventArgs e) =>
+        RequestReferenceTraceRefresh();
 
     private void OnReferenceStatusChanged(object? sender, CalibrationReferenceChangedEventArgs e)
     {
+        // The reference status bus may raise Changed from the serial/background sampling thread.
+        // Never touch DataContext (a WPF DispatcherObject graph) before switching to the UI thread.
+        if (!Dispatcher.CheckAccess())
+        {
+            _ = Dispatcher.BeginInvoke(new Action(() => OnReferenceStatusChanged(sender, e)));
+            return;
+        }
+
         if (DataContext is CalibrationDashboardViewModel vm && vm.ReferenceChamberId == e.ChamberId)
-            Dispatcher.BeginInvoke(RefreshReferenceTrace);
+            RefreshReferenceTrace();
+    }
+
+    private void RequestReferenceTraceRefresh()
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            RefreshReferenceTrace();
+            return;
+        }
+
+        _ = Dispatcher.BeginInvoke(new Action(RefreshReferenceTrace));
     }
 
     private void RefreshReferenceTrace()
     {
+        if (!Dispatcher.CheckAccess())
+        {
+            RequestReferenceTraceRefresh();
+            return;
+        }
+
         if (DataContext is not CalibrationDashboardViewModel vm || vm.ReferenceChamberId is not { } chamberId)
         {
             ReferencePortText.Text = "—";
