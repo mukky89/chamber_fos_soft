@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.73] – 2026-09-04
+
+- Live terminál kalibrácie je v záložke Prehľad predvolene skrytý a zobrazí sa až tlačidlom „Zobraziť live terminál“.
+- Rovnaké tlačidlo umožňuje diagnostický terminál opäť skryť bez zastavenia zapisovania logov do súboru.
+- Nové udalosti už neposúvajú celý Prehľad nadol ani nepreberajú fokus; pri otvorenom paneli sa posúva iba jeho vlastný vnútorný výpis.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.73.
+
 ## [1.76.72] – 2026-09-04
 
 - Opravené vypadávanie kriviek a dát peakov v záložke Live dáta pri obnovení topológie alebo krátkom výpadku PeakLoggera.
