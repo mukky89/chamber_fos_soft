@@ -1,0 +1,11 @@
+[
+  {
+    "Name": "Lab Control",
+    "Projects": [
+      {
+        "Path": "src\\VotschVc3.App\\VotschVc3.App.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

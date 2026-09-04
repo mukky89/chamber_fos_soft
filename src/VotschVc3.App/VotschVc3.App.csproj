@@ -17,12 +17,12 @@
     <!--
       Versioning policy:
       - 1.76 is the product/version line.
-      - The patch number is generated from `git rev-list --count HEAD`, so every new
+      - The patch number is generated from the Git commit count, so every new
         commit produces a newer application version automatically.
-      - 53 is only a fallback for source archives/build environments without Git metadata.
+      - 55 is only a fallback for source archives/build environments without Git metadata.
     -->
     <VersionPrefix>1.76</VersionPrefix>
-    <VersionFallbackRevision>53</VersionFallbackRevision>
+    <VersionFallbackRevision>55</VersionFallbackRevision>
     <Version>$(VersionPrefix).$(VersionFallbackRevision)</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>

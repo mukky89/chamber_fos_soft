@@ -108,7 +108,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private DateTimeOffset? _lastSnapshotAt;
     private bool AllTargetsFinished => _snapshot?.Targets.Count > 0 && _snapshot.Targets.All(t => t.Phase == "Done");
     public string Freshness { get; private set; } = "Čaká na dáta";
-    public double PointProgress => Steps.Take(8).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(8).Count(s => s.State != "Skipped"));
+    public double PointProgress => Steps.Take(9).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(9).Count(s => s.State != "Skipped"));
 
     public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null)
     {
@@ -232,25 +232,26 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         if (Steps.Count == 0)
         {
-            string[] names = { "Príprava", "Nastavenie cieľa", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
-            string[] tips = { "Kontrola zapojenia a zariadení.", "Priamo sa nastaví cieľ vybraného plata; rampy a časy profilu sa ignorujú.", "Teplotnú bránu riadi výhradne WIKA referencia; interná sonda komory je iba informatívna.", "Všetky vybrané peaky sa kontrolujú paralelne.", "Každý stabilný peak zbiera vlastné meracie vzorky.", "Uloženie a overenie výsledku bodu.", "Prechod priamo na ďalšie vybrané plato.", "Dokončenie behu; export je v Histórii." };
+            string[] names = { "Príprava", "Nastavenie cieľa", "Teplota komory", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
+            string[] tips = { "Kontrola zapojenia a zariadení.", "Priamo sa nastaví cieľ vybraného plata; rampy a časy profilu sa ignorujú.", "Interná sonda komory je iba informačná a neotvára kalibračnú bránu.", "Teplotnú bránu riadi výhradne WIKA referencia.", "Všetky vybrané peaky sa kontrolujú paralelne.", "Každý stabilný peak zbiera vlastné meracie vzorky.", "Uloženie a overenie výsledku bodu.", "Prechod priamo na ďalšie vybrané plato.", "Dokončenie behu; export je v Histórii." };
             for (int i = 0; i < names.Length; i++) Steps.Add(new DashboardNode($"{i + 1:00}", names[i], tips[i]));
         }
         var effectiveState = _state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted ? _snapshot?.State ?? _state : _state;
         int phase = effectiveState switch
         {
             CalibrationRunState.MovingToPlateau => 1,
-            CalibrationRunState.WaitingForChamberStability => 2,
-            CalibrationRunState.StabilizingSensors when AllTargetsFinished => 5,
-            CalibrationRunState.StabilizingSensors => 3,
-            CalibrationRunState.PlateauCompleted => 6,
-            CalibrationRunState.MovingToNextPlateau => 6,
-            CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => 8,
+            CalibrationRunState.WaitingForChamberStability => 3,
+            CalibrationRunState.StabilizingSensors when AllTargetsFinished => 6,
+            CalibrationRunState.StabilizingSensors => 4,
+            CalibrationRunState.PlateauCompleted => 7,
+            CalibrationRunState.MovingToNextPlateau => 7,
+            CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => 9,
             _ => 0
         };
         for (int i = 0; i < Steps.Count; i++) Steps[i].State = i < phase ? "Done" : i == phase && _running ? "Active" : "Pending";
-        if (phase == 2) Steps[2].State = "Waiting";
-        if (phase == 3 && MeasuringCount > 0) Steps[4].State = "Active";
+        if (phase == 3) Steps[3].State = "Waiting";
+        if (phase == 4 && MeasuringCount > 0) Steps[5].State = "Active";
+        if (!HasReference) Steps[3].State = "Skipped";
         if (_paused) foreach (var step in Steps.Where(s => s.State is "Active" or "Waiting")) step.State = "Waiting";
         if (_state == CalibrationRunState.Failed) Steps[Math.Min(phase, Steps.Count - 1)].State = "Error";
         if (_state == CalibrationRunState.AwaitingOperator) Steps[Math.Min(phase, Steps.Count - 1)].State = "Waiting";

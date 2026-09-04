@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.55] – 2026-09-04
+
+### Opravené – spustenie aplikácie
+- Projekt aplikácie je opäť platné XML a dá sa zostaviť aj spustiť; komentár k automatickému verzovaniu už neobsahuje nepovolenú dvojicu spojovníkov.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.55.
+- Zdieľaný Visual Studio launch profil spúšťa projekt `VotschVc3.App`, nie knižnicu `VotschVc3.Core`.
+- Nulová požadovaná doba stability WIKA už neobíde kontrolu tolerancie prvej vzorky a pri nestabilnej referencii sa správne vyžiada zásah operátora.
+- Kroky prehľadu kalibrácie správne rozlišujú teplotnú bránu, stabilizáciu FBG a meranie; bez externej referencie je krok WIKA označený ako nepoužitý.
+
 ## [1.76.52] – 2026-09-04
 
 ### Opravené – celý priebeh referenčnej teploty FBG

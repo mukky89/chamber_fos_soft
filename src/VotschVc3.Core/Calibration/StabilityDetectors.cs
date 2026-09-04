@@ -183,7 +183,11 @@ public sealed class TemperatureStabilityDetector
             _baselineTimestamp = timestamp;
             _baselineValue = value;
             _block.Clear();
-            _isStable = _requiredDuration <= TimeSpan.Zero;
+            // A zero dwell time removes only the time requirement; it must not bypass
+            // the target-tolerance gate on the very first reference sample.
+            _isStable = _requiredDuration <= TimeSpan.Zero &&
+                        (Math.Abs(value - target) < _toleranceC ||
+                         (_toleranceC == 0 && Math.Abs(value - target) <= double.Epsilon));
             return BuildMetrics(new[] { (timestamp, value) }, _isStable);
         }
 
