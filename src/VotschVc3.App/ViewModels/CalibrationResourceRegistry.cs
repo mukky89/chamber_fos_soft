@@ -28,6 +28,25 @@ internal static class CalibrationResourceRegistry
         }
     }
 
+    /// <summary>
+    /// Returns true only for a live in-process reservation owned by another calibration workspace.
+    /// Persistent WIKA assignment metadata is intentionally not considered here.
+    /// </summary>
+    public static bool IsReservedByOther(string resourceKey, Guid ownerId, out string occupiedBy)
+    {
+        lock (Sync)
+        {
+            if (Reservations.TryGetValue(resourceKey, out Reservation? reservation) && reservation.OwnerId != ownerId)
+            {
+                occupiedBy = reservation.OwnerName;
+                return true;
+            }
+
+            occupiedBy = string.Empty;
+            return false;
+        }
+    }
+
     public static void Release(string resourceKey, Guid ownerId)
     {
         lock (Sync)
