@@ -1,3 +1,4 @@
+using System.Net;
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Notifications;
 using Xunit;
@@ -12,12 +13,13 @@ public sealed class EmailTemplateAndRunIdTests
         string html = LabControlEmailTemplate.Create(
             "Kalibrácia FBG – WARNING – P-0214",
             "Run ID: 01-2026-09-04\nProfil ID: P-0214\nKomora: Komora 1\n\nWIKA sa neustálila.");
+        string decoded = WebUtility.HtmlDecode(html);
 
-        Assert.Contains("SYLEX · LAB CONTROL", html);
-        Assert.Contains("P-0214", html);
-        Assert.Contains("01-2026-09-04", html);
-        Assert.Contains("UPOZORNENIE", html);
-        Assert.Contains("WIKA sa neustálila.", html);
+        Assert.Contains("SYLEX · LAB CONTROL", decoded);
+        Assert.Contains("P-0214", decoded);
+        Assert.Contains("01-2026-09-04", decoded);
+        Assert.Contains("UPOZORNENIE", decoded);
+        Assert.Contains("WIKA sa neustálila.", decoded);
     }
 
     [Fact]
