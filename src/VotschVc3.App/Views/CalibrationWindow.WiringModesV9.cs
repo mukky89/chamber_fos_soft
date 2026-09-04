@@ -50,6 +50,7 @@ public partial class CalibrationWindow
         var table = new RadioButton
         {
             Content = "Tabuľka SN",
+            IsChecked = true,
             GroupName = "WiringEntryModeV9",
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(12, 0, 10, 0),
@@ -80,12 +81,9 @@ public partial class CalibrationWindow
         DockPanel.SetDock(modes, Dock.Right);
         header.Children.Insert(0, modes);
 
-        // Poradové párovanie je bezpečnejší výrobný postup: operátor najprv
-        // pripraví overené SN a až potom sa novo pripojený kanál priradí.
-        sequential.IsChecked = true;
-
         _wiringGrid.PreviewKeyDown -= WiringGridPreviewKeyDownV9;
         _wiringGrid.PreviewKeyDown += WiringGridPreviewKeyDownV9;
+        FocusFirstEmptySerialV9();
     }
 
     private void WiringGridPreviewKeyDownV9(object sender, KeyEventArgs e)

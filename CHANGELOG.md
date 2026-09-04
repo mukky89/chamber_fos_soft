@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.71] – 2026-09-04
+
+- Okno poradového párovania SN sa už pri otvorení FBG kalibrácie nezobrazuje automaticky.
+- Predvolený pohľad zapojenia je tabuľka SN s fokusom na prvom prázdnom sériovom čísle.
+- Tmavé okno poradového párovania sa otvorí až po vedomom zvolení režimu „Poradové párovanie“.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.71.
+
 ## [1.76.70] – 2026-09-04
 
 - Potvrdzovacie okno ukončenia aplikácie je väčšie, kontrastnejšie a má výrazný červený rám aj bezpečnostné upozornenie.
