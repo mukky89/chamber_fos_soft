@@ -9,7 +9,7 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Fact]
-    public async Task Runner_UsesExplicitUiSelectedCalibrationPlateaus()
+    public async Task Runner_UsesOnlyExplicitUiSelectedCalibrationPlateaus_AndSkipsProfileRamp()
     {
         string root = TempDirectory();
         try
@@ -31,7 +31,7 @@ public sealed class CalibrationWorkflowRegressionTests
                         IsRamp = true,
                         IsCalibrationPoint = true,
                         TargetTemperature = 20,
-                        Duration = TimeSpan.FromMilliseconds(80),
+                        Duration = TimeSpan.FromHours(1),
                     },
                     new ProfileSegment
                     {
@@ -39,7 +39,7 @@ public sealed class CalibrationWorkflowRegressionTests
                         IsRamp = false,
                         IsCalibrationPoint = true,
                         TargetTemperature = 40,
-                        Duration = TimeSpan.FromMilliseconds(80),
+                        Duration = TimeSpan.FromHours(8),
                     },
                 },
             };
@@ -58,13 +58,12 @@ public sealed class CalibrationWorkflowRegressionTests
             var updates = new List<CalibrationProgressSnapshot>();
             runner.Progress += updates.Add;
 
-            await runner.RunAsync(profile, setup, run, writer, 20, null);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            await runner.RunAsync(profile, setup, run, writer, 20, null, cancellationToken: timeout.Token);
 
             Assert.Equal(CalibrationRunState.Preflight, updates[0].State);
-            var ramp = updates.Where(s => s.State == CalibrationRunState.MovingToPlateau && s.PlateauIndex == -1).ToArray();
-            Assert.True(ramp.Length >= 2, "The UI needs repeated progress during a timed ramp.");
-            Assert.All(ramp, s => Assert.Contains("Do konca časového kroku", s.Message));
-            Assert.True(ramp[^1].PlateauElapsed >= ramp[0].PlateauElapsed);
+            Assert.DoesNotContain(updates, s => s.PlateauIndex == -1 && s.Message.Contains("Do konca časového kroku", StringComparison.Ordinal));
+            Assert.Contains(updates, s => s.PlateauIndex == 0 && s.Message.Contains("rampy", StringComparison.OrdinalIgnoreCase));
             CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
             Assert.Equal(40, plateau.TargetTemperatureC, 6);
             Assert.Single(plateau.Targets);
