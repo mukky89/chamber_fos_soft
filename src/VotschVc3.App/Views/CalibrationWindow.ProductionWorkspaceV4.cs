@@ -48,7 +48,7 @@ public partial class CalibrationWindow
     private ChartView? _chamberTraceChart;
     private ComboBox? _peakDisplayMode;
     private readonly List<(DateTimeOffset Time, double Temperature)> _chamberTrace = new();
-    private string _lastChamberSnapshot = "";
+    private DateTimeOffset? _lastChamberSnapshot;
     private TextBlock? _fbgTraceSummary;
     private WrapPanel? _fbgTraceFilterPanel;
     private TextBlock? _fbgTraceFilterSummary;
@@ -74,6 +74,7 @@ public partial class CalibrationWindow
 
         _viewModel.Peaks.CollectionChanged += OnFbgTracePeaksChanged;
         _viewModel.PropertyChanged += OnFbgTraceViewModelChanged;
+        _viewModel.Dashboard.PropertyChanged += OnFbgDashboardChanged;
         foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks) AttachFbgTraceRow(row);
 
         CalibrationReferenceStatusStore.Instance.Changed += OnFbgReferenceTraceChanged;
@@ -497,6 +498,8 @@ public partial class CalibrationWindow
             if (_viewModel.IsRunning && !_wasRunningV4)
             {
                 _fbgLiveTrace.Clear();
+                _chamberTrace.Clear();
+                _lastChamberSnapshot = null;
                 _liveTraceOrigin = DateTimeOffset.Now;
             }
             _wasRunningV4 = _viewModel.IsRunning;
@@ -507,6 +510,8 @@ public partial class CalibrationWindow
             _ = PrimeReferenceReadAsync();
         }
     }
+
+    private void OnFbgDashboardChanged(object? sender, PropertyChangedEventArgs e) => RefreshFbgLiveTraceCharts();
 
     private async Task PrimeReferenceReadAsync()
     {
@@ -536,10 +541,13 @@ public partial class CalibrationWindow
             return;
         }
         if (_fbgPeakChartsPanel is null || _fbgReferenceTraceChart is null) return;
-        if (_viewModel.IsRunning && _viewModel.Dashboard.LastUpdate != _lastChamberSnapshot && _viewModel.Dashboard.ActualTemperature is { } chamberTemperature)
+        if (_viewModel.IsRunning &&
+            _viewModel.Dashboard.LastTemperatureSampleAt is { } sampleAt &&
+            sampleAt != _lastChamberSnapshot &&
+            _viewModel.Dashboard.ActualTemperature is { } chamberTemperature)
         {
-            _lastChamberSnapshot = _viewModel.Dashboard.LastUpdate;
-            _chamberTrace.Add((DateTimeOffset.Now, chamberTemperature));
+            _lastChamberSnapshot = sampleAt;
+            _chamberTrace.Add((sampleAt, chamberTemperature));
             if (_chamberTrace.Count > 7200) _chamberTrace.RemoveRange(0, _chamberTrace.Count - 7200);
         }
 
@@ -550,9 +558,10 @@ public partial class CalibrationWindow
             .OrderBy(value => value)
             .FirstOrDefault();
         DateTimeOffset? firstRef = reference.Count > 0 ? reference[0].Timestamp : null;
+        DateTimeOffset? firstChamber = _chamberTrace.Count > 0 ? _chamberTrace[0].Time : null;
         DateTimeOffset origin = _viewModel.IsRunning
             ? _liveTraceOrigin
-            : new[] { firstFbg, firstRef }.Where(x => x.HasValue).Select(x => x!.Value).DefaultIfEmpty(_liveTraceOrigin).Min();
+            : new[] { firstFbg, firstRef, firstChamber }.Where(x => x.HasValue).Select(x => x!.Value).DefaultIfEmpty(_liveTraceOrigin).Min();
         if (_chamberTraceChart is not null)
             _chamberTraceChart.Series = new[] { new ChartSeries("Komora", Brushes.CornflowerBlue,
                 _chamberTrace.Where(p => p.Time >= _liveTraceOrigin).Select(p => new Point((p.Time - origin).TotalMinutes, p.Temperature)).ToArray(), strokeThickness: 2.3) };
@@ -623,6 +632,7 @@ public partial class CalibrationWindow
     {
         _viewModel.Peaks.CollectionChanged -= OnFbgTracePeaksChanged;
         _viewModel.PropertyChanged -= OnFbgTraceViewModelChanged;
+        _viewModel.Dashboard.PropertyChanged -= OnFbgDashboardChanged;
         foreach (CalibrationPeakRowViewModel row in _fbgLiveObservedRows.ToArray()) DetachFbgTraceRow(row);
         CalibrationReferenceStatusStore.Instance.Changed -= OnFbgReferenceTraceChanged;
         if (_sylexFosIntegration is not null)

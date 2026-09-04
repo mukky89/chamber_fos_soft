@@ -86,4 +86,17 @@ public sealed class CalibrationDashboardTests
         var empty = new CalibrationDashboardViewModel(); empty.Configure("Empty", "Chamber", Array.Empty<double>(), false, "");
         Assert.Equal(0, empty.OverallProgress); Assert.Equal("Skipped", empty.Steps[3].State);
     }
+    [Fact] public void ChamberTemperatureKeepsExactSampleTimestamp_AndInitialReadingIsVisible()
+    {
+        var m = Model();
+        var initialAt = Start.AddMilliseconds(125);
+        m.ReportChamberTemperature(-39.75, initialAt);
+        Assert.Equal(-39.75, m.ActualTemperature);
+        Assert.Equal(initialAt, m.LastTemperatureSampleAt);
+
+        var sampleAt = Start.AddMilliseconds(875);
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with { ActualTemperatureC = -39.5 }, sampleAt);
+        Assert.Equal(-39.5, m.ActualTemperature);
+        Assert.Equal(sampleAt, m.LastTemperatureSampleAt);
+    }
 }

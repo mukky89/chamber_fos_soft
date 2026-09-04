@@ -9,6 +9,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
     private CalibrationProgressSnapshot? _snapshot;
+    private double? _latestChamberTemperature;
     private DateTimeOffset? _started, _ended, _phaseStarted;
     private bool _paused;
     private bool _running;
@@ -45,7 +46,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov dokončených";
     public string Plateau => _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
-    public double? ActualTemperature => _snapshot?.ActualTemperatureC;
+    public double? ActualTemperature => _snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
     public string Actual => ActualTemperature is { } t ? $"{t:F2} °C" : "—";
     public string Reference => _snapshot?.ReferenceTemperatureC is { } t ? $"{t:F3} °C" : "—";
     public string Delta => _snapshot?.ActualTemperatureC is { } t ? $"Δ {t - _snapshot.TargetTemperatureC:+0.00;-0.00;0.00} °C" : "Čaká na údaje";
@@ -105,6 +106,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Eta { get; private set; } = "Po prvom bode";
     public string Finish { get; private set; } = "—";
     public string LastUpdate => _lastSnapshotAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—";
+    public DateTimeOffset? LastTemperatureSampleAt { get; private set; }
     private DateTimeOffset? _lastSnapshotAt;
     private bool AllTargetsFinished => _snapshot?.Targets.Count > 0 && _snapshot.Targets.All(t => t.Phase == "Done");
     public string Freshness { get; private set; } = "Čaká na dáta";
@@ -131,6 +133,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         _startupDetail = "Čaká sa na prvý stav zariadení.";
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null;
+        _latestChamberTemperature = null; LastTemperatureSampleAt = null;
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; _targetEvents.Clear(); Activity.Clear();
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
@@ -142,6 +145,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         var previous = _snapshot;
         string previousPhase = Phase;
         _lastSnapshotAt = now;
+        if (snapshot.ActualTemperatureC is { } actualTemperature)
+        {
+            _latestChamberTemperature = actualTemperature;
+            LastTemperatureSampleAt = now;
+        }
         if (snapshot.ActualTemperatureC is { } temperature && previous?.ActualTemperatureC is { } p)
             Trend = Math.Abs(temperature - p) < 0.01 ? "→ Drží" : temperature > p ? "↗ Rastie" : "↘ Klesá";
         if (previous?.State != snapshot.State) _phaseStarted = now;
@@ -186,6 +194,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         }
         if (previous?.State != snapshot.State) AddEvent(now, "INFO", Now);
         RefreshSteps(); Tick(now);
+    }
+    public void ReportChamberTemperature(double temperature, DateTimeOffset now)
+    {
+        if (!double.IsFinite(temperature)) return;
+        _latestChamberTemperature = temperature;
+        LastTemperatureSampleAt = now;
+        _lastSnapshotAt = now;
+        Notify();
     }
     public void Pause(bool paused, DateTimeOffset now)
     {

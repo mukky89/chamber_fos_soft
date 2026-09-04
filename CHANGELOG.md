@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.59] – 2026-09-04
+
+### Opravené – záznam teploty komory v kalibrácii
+- Graf „Komora teplota“ odoberá vzorky priamo z telemetrie kalibrácie s presnou časovou značkou a nevynechá ich pri skrytom okne ani pri viacerých aktualizáciách v rovnakej sekunde.
+- Prvá teplota komory načítaná pri spustení kalibrácie sa okamžite zobrazí a uloží do live priebehu.
+- Pri novom behu sa starý priebeh komory vyčistí; po skončení zostáva posledný priebeh viditeľný až do ďalšieho spustenia.
+
 ## [1.76.58] – 2026-09-04
 
 ### Zmenené – povinné vydanie na GitHub

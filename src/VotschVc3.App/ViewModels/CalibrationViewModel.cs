@@ -1352,6 +1352,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             double startTemperature = initialReading.Temperature
                 ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu pred začiatkom kalibrácie.");
             _lastChamberTemperatureC = startTemperature;
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                Dashboard.ReportChamberTemperature(startTemperature, initialReading.Timestamp));
 
             DateTimeOffset runStartedAt = DateTimeOffset.Now;
             _activeRun = new CalibrationRunRecord
