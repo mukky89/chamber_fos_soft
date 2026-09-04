@@ -54,7 +54,7 @@ public sealed class EmailNotifier
         return DeliverAsync(
             Settings.Recipient,
             "Test – Vötsch riadenie komôr",
-            "Toto je testovací e-mail z aplikácie na riadenie laboratórnych zariadení.",
+            "Typ: Test e-mailu\nZdroj: Lab Control\n\nToto je testovací e-mail z aplikácie na riadenie laboratórnych zariadení.",
             null, null, cancellationToken);
     }
 
@@ -74,7 +74,14 @@ public sealed class EmailNotifier
                 _ => new SmtpEmailSender(Settings),
             };
 
-            await sender.SendAsync(new EmailMessage(to, subject, body, htmlBody, attachments), cancellationToken).ConfigureAwait(false);
+            // Any notification that did not provide a dedicated HTML body gets the shared
+            // Lab Control template automatically. This keeps every plain warning/error/info
+            // email visually consistent without requiring individual call sites to know HTML.
+            string effectiveHtml = string.IsNullOrWhiteSpace(htmlBody)
+                ? LabControlEmailTemplate.Create(subject, body)
+                : htmlBody;
+
+            await sender.SendAsync(new EmailMessage(to, subject, body, effectiveHtml, attachments), cancellationToken).ConfigureAwait(false);
             return EmailResult.Ok();
         }
         catch (Exception ex)
