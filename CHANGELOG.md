@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.94] – 2026-09-04
+
+- Textové polia v nastaveniach stability používajú jednotný tmavý dizajn aplikácie, výrazný focus, čitateľný disabled stav a pohodlnejšie rozmery.
+- Karty nastavení dostali jemný hover, lepší kontrast a zjednotené odsadenie bez svetlosivých systémových vstupov.
+- Do finálneho merania pribudlo samostatné pole pre počet meracích samples, ktoré priamo upravuje aktívne nastavenie `RequiredMeasurementSamples`.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.94.
+
 ## [1.76.93] – 2026-09-04
 
 - Každý bod kalibračného workflow má viditeľný otáznik s podrobným vysvetlením podmienok, vzoriek, časov, resetov a výsledku kroku.

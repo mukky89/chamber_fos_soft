@@ -423,6 +423,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         set { _setup.Settings.RequiredStableSamples = Math.Clamp(value, 2, 10000); OnPropertyChanged(); }
     }
 
+    public int RequiredMeasurementSamples
+    {
+        get => _setup.Settings.RequiredMeasurementSamples;
+        set { _setup.Settings.RequiredMeasurementSamples = Math.Clamp(value, 2, 10000); OnPropertyChanged(); }
+    }
+
     public bool EnableWavelengthAveraging
     {
         get => _setup.Settings.EnableWavelengthAveraging;

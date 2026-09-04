@@ -7,7 +7,16 @@
             <Setter Property="Width" Value="360" />
             <Setter Property="MinHeight" Value="150" />
             <Setter Property="Margin" Value="0,0,10,10" />
-            <Setter Property="Padding" Value="13,11" />
+            <Setter Property="Padding" Value="15,13" />
+            <Setter Property="Background" Value="#202B42" />
+            <Setter Property="BorderBrush" Value="#344866" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#243149" />
+                    <Setter Property="BorderBrush" Value="#527BB4" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="SettingName" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI Semibold" />
@@ -20,10 +29,33 @@
             <Setter Property="Margin" Value="0,0,0,8" />
             <Setter Property="Opacity" Value="0.82" />
         </Style>
-        <Style x:Key="SettingInput" TargetType="TextBox">
-            <Setter Property="Width" Value="130" />
-            <Setter Property="MinHeight" Value="31" />
+        <Style x:Key="SettingInput" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Width" Value="160" />
+            <Setter Property="Height" Value="40" />
             <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+            <Setter Property="Background" Value="#101A29" />
+            <Setter Property="BorderBrush" Value="#405878" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#6B92C8" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.62" />
+                    <Setter Property="Background" Value="#151D2A" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SettingLongInput" TargetType="TextBox" BasedOn="{StaticResource SettingInput}">
+            <Setter Property="Width" Value="720" />
+            <Setter Property="MaxWidth" Value="900" />
+            <Setter Property="MinHeight" Value="72" />
+            <Setter Property="Height" Value="Auto" />
+            <Setter Property="Padding" Value="12,10" />
         </Style>
     </UserControl.Resources>
 
@@ -103,8 +135,15 @@
 
             <TextBlock Text="3 · Finálne meranie a logovanie" Style="{StaticResource Heading}" Margin="0,12,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
-                       Text="Stabilizačné samples sa nikdy nepoužijú ako finálny kalibračný priemer. Po potvrdení stability začne pre konkrétny peak nové meracie okno. V aktuálnej produkčnej logike používa rovnaký počet N ako pole „Počet samples pre stabilitu“; Live monitor zobrazuje stabilizačné a meracie počítadlo oddelene." />
+                       Text="Stabilizačné samples sa nikdy nepoužijú ako finálny kalibračný priemer. Po potvrdení stability začne pre konkrétny peak nové meracie okno s vlastným počtom vzoriek. Live monitor zobrazuje stabilizačné a meracie počítadlo oddelene." />
             <WrapPanel>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Počet nových vzoriek uložených do finálneho kalibračného výsledku. Stabilizačné vzorky sa do tohto počtu nezapočítavajú.">
+                    <StackPanel>
+                        <TextBlock Text="Počet finálnych samples" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Koľko nových λ vzoriek každý stabilný peak nazbiera pre výsledný priemer, medián a štatistiky." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding RequiredMeasurementSamples, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
                 <Border Style="{StaticResource SettingCard}" ToolTip="Pred ďalším spracovaním sa každý live wavelength bod môže spriemerovať z posledných N raw čítaní. Znižuje šum, ale spomaľuje reakciu na skutočnú zmenu.">
                     <StackPanel>
                         <TextBlock Text="Priemerovanie wavelength" Style="{StaticResource SettingName}" />
@@ -112,7 +151,7 @@
                         <CheckBox Content="Priemerovať wavelength vzorky" IsChecked="{Binding EnableWavelengthAveraging}" Margin="0,2,0,8" />
                         <DockPanel LastChildFill="False">
                             <TextBlock Text="N =" Style="{StaticResource Label}" Margin="0,0,8,0" />
-                            <TextBox Width="100" Text="{Binding WavelengthAveragingSamples, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox Style="{StaticResource SettingInput}" Width="110" Text="{Binding WavelengthAveragingSamples, UpdateSourceTrigger=LostFocus}" />
                         </DockPanel>
                     </StackPanel>
                 </Border>
@@ -123,7 +162,7 @@
                         <CheckBox Content="Zapisovať samostatný wavelength log" IsChecked="{Binding EnableWavelengthTraceLogging}" Margin="0,2,0,8" />
                         <DockPanel LastChildFill="False">
                             <TextBlock Text="Interval [s]" Style="{StaticResource Label}" Margin="0,0,8,0" />
-                            <TextBox Width="100" Text="{Binding WavelengthTraceIntervalSeconds, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox Style="{StaticResource SettingInput}" Width="110" Text="{Binding WavelengthTraceIntervalSeconds, UpdateSourceTrigger=LostFocus}" />
                         </DockPanel>
                     </StackPanel>
                 </Border>
@@ -156,8 +195,8 @@
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,9"
                                Text="Override nepovažuje chybu za normálny výsledok. Použi ho iba po fyzickom overení SN, zapojenia a správneho peaku. Dôvod sa uloží do warningu kalibračného runu." />
                     <TextBlock Text="Povinný dôvod override" Style="{StaticResource SettingName}" />
-                    <TextBox Text="{Binding ValidationOverrideReason, UpdateSourceTrigger=PropertyChanged}" Width="720" MaxWidth="900"
-                             MinHeight="58" HorizontalAlignment="Left" TextWrapping="Wrap" AcceptsReturn="True" />
+                    <TextBox Style="{StaticResource SettingLongInput}" Text="{Binding ValidationOverrideReason, UpdateSourceTrigger=PropertyChanged}"
+                             HorizontalAlignment="Left" TextWrapping="Wrap" AcceptsReturn="True" />
                 </StackPanel>
             </Border>
 
