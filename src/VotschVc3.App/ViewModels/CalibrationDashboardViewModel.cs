@@ -343,9 +343,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 _observedCycleSeconds = _observedCycleSeconds is { } current ? current * 0.75 + seconds * 0.25 : seconds;
         }
         _lastSnapshotAt = now;
-        CurrentPlateauTraceStart = snapshot.PlateauIndex >= 0
-            ? now - (snapshot.PlateauElapsed < TimeSpan.Zero ? TimeSpan.Zero : snapshot.PlateauElapsed)
-            : null;
+        bool plateauChanged = snapshot.PlateauIndex >= 0 && previous?.PlateauIndex != snapshot.PlateauIndex;
+        if (snapshot.PlateauIndex < 0)
+            CurrentPlateauTraceStart = null;
+        else if (plateauChanged)
+            CurrentPlateauTraceStart = now - (snapshot.PlateauElapsed < TimeSpan.Zero ? TimeSpan.Zero : snapshot.PlateauElapsed);
         if (snapshot.ActualTemperatureC is { } actualTemperature)
         {
             _latestChamberTemperature = actualTemperature;
@@ -374,13 +376,24 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _snapshot = snapshot.State == CalibrationRunState.PlateauCompleted && snapshot.Targets.Count == 0 && previous?.PlateauIndex == snapshot.PlateauIndex
             ? snapshot with { Targets = previous.Targets, TemperatureStableScoreSeconds = previous.TemperatureStableScoreSeconds, RequiredTemperatureScoreSeconds = previous.RequiredTemperatureScoreSeconds, TemperatureGateOpen = previous.TemperatureGateOpen } : snapshot;
         if (previousPhase != Phase) _phaseStarted = now;
-        if (snapshot.PlateauIndex >= 0 && previous?.PlateauIndex != snapshot.PlateauIndex)
+        if (plateauChanged)
         {
             _chamberTemperatureTrace.Clear();
             _wikaStabilityScoreTrace.Clear();
             _targetEvents.Clear();
             FbgStabilityCharts.Clear();
             AddEvent(now, "INFO", $"Začal sa bod {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount} na {Target}.");
+        }
+        int stableScoreSeconds = snapshot.TemperatureStableScoreSeconds ?? 0;
+        int requiredStableScoreSeconds = snapshot.RequiredTemperatureScoreSeconds ?? 0;
+        bool stableTimeStarted = snapshot.State == CalibrationRunState.WaitingForChamberStability && stableScoreSeconds > 0 &&
+            (previous?.PlateauIndex != snapshot.PlateauIndex || (previous?.TemperatureStableScoreSeconds ?? 0) <= 0);
+        if (stableTimeStarted && requiredStableScoreSeconds > 0)
+        {
+            DateTimeOffset stableWindowStart = now - TimeSpan.FromSeconds(stableScoreSeconds);
+            CurrentPlateauTraceStart = stableWindowStart;
+            _wikaStabilityScoreTrace.Clear();
+            AddWikaStabilityScoreSample(stableWindowStart, 0, requiredStableScoreSeconds);
         }
         if (snapshot.ActualTemperatureC is { } chamberTemperature)
             AddChamberTraceSample(now, chamberTemperature);

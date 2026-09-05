@@ -341,6 +341,7 @@ public sealed class CalibrationDashboardTests
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 2) with
         {
             PlateauElapsed = TimeSpan.FromMinutes(12),
+            TemperatureStableScoreSeconds = 0,
         }, sampleAt);
 
         Assert.Equal(sampleAt.AddMinutes(-12), m.CurrentPlateauTraceStart);
@@ -371,9 +372,32 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("±0", m.ReferenceToleranceHelp);
         Assert.Contains("bloku 5 vzoriek", m.ReferenceDriftHelp);
         Assert.Contains("dvojnásobok", m.ReferenceTimeHelp);
-        Assert.Single(m.WikaStabilityScoreTrace);
-        Assert.Equal(35, m.WikaStabilityScoreTrace[0].ScoreSeconds);
-        Assert.Equal(600, m.WikaStabilityScoreTrace[0].RequiredSeconds);
+        Assert.Equal(2, m.WikaStabilityScoreTrace.Count);
+        Assert.Equal(0, m.WikaStabilityScoreTrace[0].ScoreSeconds);
+        Assert.Equal(35, m.WikaStabilityScoreTrace[1].ScoreSeconds);
+        Assert.Equal(600, m.WikaStabilityScoreTrace[1].RequiredSeconds);
+    }
+    [Fact] public void WikaChartResetsToStableWindowWhenStableTimeStarts()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
+        {
+            PlateauElapsed = TimeSpan.FromMinutes(10),
+            TemperatureStableScoreSeconds = 0,
+            RequiredTemperatureScoreSeconds = 600,
+        }, Start);
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
+        {
+            PlateauElapsed = TimeSpan.FromMinutes(10).Add(TimeSpan.FromSeconds(7)),
+            TemperatureStableScoreSeconds = 5,
+            RequiredTemperatureScoreSeconds = 600,
+        }, Start.AddSeconds(7));
+
+        Assert.Equal(Start.AddSeconds(2), m.CurrentPlateauTraceStart);
+        Assert.Equal(2, m.WikaStabilityScoreTrace.Count);
+        Assert.Equal(0, m.WikaStabilityScoreTrace[0].ScoreSeconds);
+        Assert.Equal(Start.AddSeconds(2), m.WikaStabilityScoreTrace[0].Timestamp);
+        Assert.Equal(5, m.WikaStabilityScoreTrace[1].ScoreSeconds);
     }
     [Fact] public void ForceNextStepIsAvailableOnlyWhileWaitingWithAuthoritativeTemperature()
     {

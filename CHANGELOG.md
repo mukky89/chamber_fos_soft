@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.155] – 2026-09-06
+
+### Zmenené
+- Kompaktný graf WIKA sa pri začiatku narastania stabilného času automaticky nastaví na začiatok aktuálneho stabilného okna, takže predchádzajúci teplotný nábeh už nestláča mierku grafu.
+- Krivka stabilného času po resete začína od nuly a ďalej plynulo zobrazuje aktuálne zbierané skóre; úplné namerané dáta zostávajú zachované pre históriu a audit.
+- Záložná verzia bola zvýšená na 1.76.155.
+
 ## [1.76.154] – 2026-09-06
 
 ### Pridané
