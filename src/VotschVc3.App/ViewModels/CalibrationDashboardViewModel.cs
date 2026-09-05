@@ -618,7 +618,9 @@ public sealed class DashboardNode : INotifyPropertyChanged
 
 public sealed class FbgStabilityChartItem : INotifyPropertyChanged
 {
-    private readonly List<(DateTimeOffset Time, double Wavelength)> _samples = new();
+    private readonly List<(DateTimeOffset Time, double Wavelength)> _stabilitySamples = new();
+    private readonly List<(DateTimeOffset Time, double Wavelength)> _measurementSamples = new();
+    private int _lastMeasurementCount;
     private CalibrationTargetProgress? _progress;
 
     public FbgStabilityChartItem(string identity)
@@ -646,28 +648,56 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
     public string StateBrush => _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
         ? "#3CB371"
         : "#DAA520";
-    public IReadOnlyList<FbgStabilitySample> ChartPoints
+    public string MeasurementSamples => _progress is null ? "Finálne vzorky —" : $"Finálne vzorky {_progress.MeasurementSamples} / {_progress.RequiredMeasurementSamples}";
+    public double MeasurementProgress => _progress?.RequiredMeasurementSamples > 0
+        ? Math.Clamp(100d * _progress.MeasurementSamples / _progress.RequiredMeasurementSamples, 0, 100)
+        : 0;
+    public string MeasurementState => _progress?.Phase switch
     {
-        get
-        {
-            if (_samples.Count == 0) return Array.Empty<FbgStabilitySample>();
-            DateTimeOffset origin = _samples[0].Time;
-            return _samples.Select(sample => new FbgStabilitySample(
-                (sample.Time - origin).TotalMinutes,
-                sample.Wavelength)).ToArray();
-        }
-    }
+        "Measuring" => "MERANIE",
+        "Done" when _progress.State == CalibrationTargetState.Stable => "HOTOVO",
+        _ => "ČAKÁ",
+    };
+    public string MeasurementStateBrush => _progress?.Phase == "Measuring" ||
+        _progress is { Phase: "Done", State: CalibrationTargetState.Stable }
+        ? "#3CB371"
+        : "#DAA520";
+    public IReadOnlyList<FbgStabilitySample> ChartPoints => Project(_stabilitySamples);
+    public IReadOnlyList<FbgStabilitySample> MeasurementChartPoints => Project(_measurementSamples);
 
     public void Update(CalibrationTargetProgress progress, DateTimeOffset now)
     {
         _progress = progress;
-        if (progress.Phase is "Stabilizing" or "Measuring" &&
+        if (progress.Phase == "Stabilizing" &&
             progress.CurrentWavelengthNm is { } wavelength && double.IsFinite(wavelength))
         {
-            _samples.Add((now, wavelength));
-            if (_samples.Count > 180) _samples.RemoveRange(0, _samples.Count - 180);
+            AddBounded(_stabilitySamples, now, wavelength);
         }
+
+        if (progress.MeasurementSamples < _lastMeasurementCount)
+            _measurementSamples.Clear();
+        if (progress.MeasurementSamples > _lastMeasurementCount &&
+            progress.CurrentWavelengthNm is { } measured && double.IsFinite(measured))
+        {
+            AddBounded(_measurementSamples, now, measured);
+        }
+        _lastMeasurementCount = progress.MeasurementSamples;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
+
+    private static void AddBounded(List<(DateTimeOffset Time, double Wavelength)> samples, DateTimeOffset now, double wavelength)
+    {
+        samples.Add((now, wavelength));
+        if (samples.Count > 180) samples.RemoveRange(0, samples.Count - 180);
+    }
+
+    private static IReadOnlyList<FbgStabilitySample> Project(List<(DateTimeOffset Time, double Wavelength)> samples)
+    {
+        if (samples.Count == 0) return Array.Empty<FbgStabilitySample>();
+        DateTimeOffset origin = samples[0].Time;
+        return samples.Select(sample => new FbgStabilitySample(
+            (sample.Time - origin).TotalMinutes,
+            sample.Wavelength)).ToArray();
     }
 
     private static string Metric(string name, double? value, double? limit, string unit) =>

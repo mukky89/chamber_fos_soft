@@ -179,6 +179,25 @@
        </Border>
       </DataTemplate></ItemsControl.ItemTemplate>
      </ItemsControl>
+   </Expander>
+  </Border>
+   <Border Style="{StaticResource Panel}">
+    <Expander IsExpanded="True" Foreground="#EEF5FF" HorizontalContentAlignment="Stretch">
+     <Expander.Header><StackPanel><TextBlock Text="Finálne meranie jednotlivých FBG peakov" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Iba nové výsledkové vzorky po potvrdení stability · graf posledných 180 vzoriek" Style="{StaticResource Muted}" Margin="0,4,0,0"/></StackPanel></Expander.Header>
+     <ItemsControl ItemsSource="{Binding FbgStabilityCharts}" Margin="0,14,0,0">
+      <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate><DataTemplate>
+       <Border Style="{StaticResource FbgPeakCard}">
+        <StackPanel>
+         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="{Binding Wavelength}" Foreground="#8BBAFF" FontSize="17" Margin="0,4,0,0"/></StackPanel><Border Grid.Column="1" Background="#172A3E" BorderBrush="{Binding MeasurementStateBrush}" BorderThickness="1" CornerRadius="6" Padding="9,5" VerticalAlignment="Top"><TextBlock Text="{Binding MeasurementState}" Foreground="{Binding MeasurementStateBrush}" FontWeight="SemiBold" FontSize="11"/></Border></Grid>
+         <ProgressBar Value="{Binding MeasurementProgress, Mode=OneWay}" Margin="0,10,0,5"/>
+         <TextBlock Text="{Binding MeasurementSamples}" Foreground="#BBD8FF"/>
+         <TextBlock Text="Stabilizačné vzorky sa v tomto grafe nezobrazujú." Style="{StaticResource Muted}" Margin="0,7,0,6"/>
+         <views:ChartView Series="{Binding MeasurementChartPoints, Converter={StaticResource FbgStabilitySeriesConverter}}" Height="205" Unit="nm" MinimumYDecimals="4" ChartTitle="Finálne meranie FBG peaku" EmptyText="Čaká sa na potvrdenie stability a prvú finálnu vzorku..."/>
+        </StackPanel>
+       </Border>
+      </DataTemplate></ItemsControl.ItemTemplate>
+     </ItemsControl>
     </Expander>
    </Border>
    <Border Style="{StaticResource Panel}"><StackPanel>

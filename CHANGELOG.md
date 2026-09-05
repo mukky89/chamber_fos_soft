@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.117] – 2026-09-05
+
+### Pridané
+- Živý prehľad obsahuje samostatnú sekciu grafov finálneho merania pre každý vybraný FBG peak vrátane individuálneho počítadla, progresu a stavu.
+- Graf finálneho merania prijíma iba nové výsledkové vzorky po potvrdení stability; stabilizačné dáta sa s nimi nemiešajú.
+- Ak peak počas finálneho merania stratí stabilitu, jeho rozpracovaný merací graf sa vyčistí spolu so vzorkami, ktoré runner zahodil.
+- Karty meracích grafov používajú rovnaké rýchle hover zvýraznenie rámčeka ako stabilizačné grafy.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.117.
+
 ## [1.76.116] – 2026-09-05
 
 ### Zmenené

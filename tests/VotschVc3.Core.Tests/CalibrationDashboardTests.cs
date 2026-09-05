@@ -184,6 +184,22 @@ public sealed class CalibrationDashboardTests
         Assert.All(m.FbgStabilityCharts, chart => Assert.Equal(2, chart.ChartPoints.Count));
         Assert.Contains("P2", m.FbgStabilityCharts[1].Title);
 
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Measuring", 1) with { CurrentWavelengthNm = 1550.005 },
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2", CurrentWavelengthNm = 1551.006 }), Start.AddSeconds(2));
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Measuring", 2) with { CurrentWavelengthNm = 1550.007 },
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2", CurrentWavelengthNm = 1551.008 }), Start.AddSeconds(3));
+
+        Assert.Equal(2, m.FbgStabilityCharts[0].MeasurementChartPoints.Count);
+        Assert.Empty(m.FbgStabilityCharts[1].MeasurementChartPoints);
+        Assert.Equal(2, m.FbgStabilityCharts[0].ChartPoints.Count);
+
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { CurrentWavelengthNm = 1550.009 },
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2", CurrentWavelengthNm = 1551.010 }), Start.AddSeconds(4));
+        Assert.Empty(m.FbgStabilityCharts[0].MeasurementChartPoints);
+
         m.Begin(Start.AddHours(1));
         Assert.Empty(m.FbgStabilityCharts);
     }
