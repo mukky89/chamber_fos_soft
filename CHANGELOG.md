@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.128] – 2026-09-05
+
+### Pridané
+- Karta „Komora“ v živom prehľade kalibrácie zobrazuje vedľa aktuálnej teploty aj výrazný cieľ, na ktorý komora smeruje.
+- Záložná verzia bola zvýšená na 1.76.128.
+
 ## [1.76.127] – 2026-09-05
 
 ### Pridané
