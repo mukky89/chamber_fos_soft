@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using VotschVc3.App.Charting;
@@ -28,12 +29,60 @@ public sealed class FbgStabilitySeriesConverter : IValueConverter
 
 public partial class CalibrationDashboardView : UserControl
 {
+    private Popup? _helpPopup;
+
     public CalibrationDashboardView()
     {
         InitializeComponent();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         DataContextChanged += (_, _) => RequestReferenceTraceRefresh();
+    }
+
+    private void HelpButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string text || string.IsNullOrWhiteSpace(text)) return;
+
+        if (_helpPopup?.IsOpen == true && ReferenceEquals(_helpPopup.PlacementTarget, button))
+        {
+            _helpPopup.IsOpen = false;
+            return;
+        }
+
+        if (_helpPopup is not null) _helpPopup.IsOpen = false;
+        var content = new Border
+        {
+            MaxWidth = 560,
+            Padding = new Thickness(13, 10, 13, 10),
+            CornerRadius = new CornerRadius(7),
+            Background = new SolidColorBrush(Color.FromRgb(42, 43, 76)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(66, 76, 116)),
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = text,
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 20,
+                Foreground = Brushes.White,
+            },
+        };
+        var popup = new Popup
+        {
+            PlacementTarget = button,
+            Placement = PlacementMode.Bottom,
+            HorizontalOffset = -12,
+            StaysOpen = true,
+            AllowsTransparency = true,
+            Child = content,
+        };
+        content.MouseLeave += (_, _) => popup.IsOpen = false;
+        popup.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_helpPopup, popup)) _helpPopup = null;
+        };
+        _helpPopup = popup;
+        popup.IsOpen = true;
+        e.Handled = true;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -45,6 +94,7 @@ public partial class CalibrationDashboardView : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        if (_helpPopup is not null) _helpPopup.IsOpen = false;
         CalibrationReferenceTraceStore.Instance.Changed -= OnReferenceTraceChanged;
         CalibrationReferenceStatusStore.Instance.Changed -= OnReferenceStatusChanged;
     }

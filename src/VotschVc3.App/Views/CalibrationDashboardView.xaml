@@ -30,17 +30,13 @@
     </Trigger>
    </Style.Triggers>
   </Style>
-  <Style x:Key="WorkflowHelpBadge" TargetType="Border">
-   <Setter Property="Width" Value="20"/><Setter Property="Height" Value="20"/><Setter Property="CornerRadius" Value="10"/>
+  <Style x:Key="WorkflowHelpButton" TargetType="Button">
+   <Setter Property="Width" Value="20"/><Setter Property="Height" Value="20"/>
    <Setter Property="Background" Value="#203650"/><Setter Property="BorderBrush" Value="#609DE8"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Foreground" Value="#D6EAFF"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="12"/>
+   <Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
    <Setter Property="Cursor" Value="Help"/>
-   <Style.Triggers>
-    <Trigger Property="IsMouseOver" Value="True">
-     <Setter Property="Background" Value="#2E6FB5"/>
-     <Setter Property="BorderBrush" Value="#D6EAFF"/>
-     <Setter Property="BorderThickness" Value="2"/>
-    </Trigger>
-   </Style.Triggers>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Badge" CornerRadius="10" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Badge" Property="Background" Value="#2E6FB5"/><Setter TargetName="Badge" Property="BorderBrush" Value="#D6EAFF"/><Setter TargetName="Badge" Property="BorderThickness" Value="2"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Badge" Property="BorderBrush" Value="White"/><Setter TargetName="Badge" Property="BorderThickness" Value="2"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style TargetType="ProgressBar"><Setter Property="Height" Value="7"/><Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/><Setter Property="Foreground" Value="#589EFF"/><Setter Property="Background" Value="#26364B"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Margin" Value="0,8,0,8"/></Style>
   <Style x:Key="CriterionPill" TargetType="Border">
@@ -103,7 +99,7 @@
     </StackPanel>
    </Border>
   </DataTemplate>
-  <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource WorkflowNode}"><Border.ToolTip><ToolTip MaxWidth="560" Placement="Mouse"><TextBlock Text="{Binding Detail}" TextWrapping="Wrap" LineHeight="20" Padding="3"/></ToolTip></Border.ToolTip><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Border HorizontalAlignment="Right" Style="{StaticResource WorkflowHelpBadge}"><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D6EAFF" FontWeight="Bold" FontSize="12"/></Border></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
+  <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource WorkflowNode}"><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Button HorizontalAlignment="Right" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding Detail}" Click="HelpButton_Click"/></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
  </UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Margin="20">
@@ -207,9 +203,9 @@
       <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="02 / WIKA REFERENCIA" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding ReferenceCardTone}"><TextBlock Text="{Binding ReferenceCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid>
       <TextBlock Text="{Binding Reference}" Style="{StaticResource Metric}"/>
       <TextBlock Text="{Binding ReferenceStatus}" Style="{StaticResource Muted}"/>
-      <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceToleranceTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceToleranceLabel}" FontSize="11.5" VerticalAlignment="Center"/><Border Grid.Column="1" Style="{StaticResource WorkflowHelpBadge}" Margin="8,0,0,0" ToolTipService.ShowDuration="30000"><Border.ToolTip><ToolTip MaxWidth="520" Placement="Mouse"><TextBlock Text="{Binding ReferenceToleranceHelp}" TextWrapping="Wrap" LineHeight="19" Padding="3"/></ToolTip></Border.ToolTip><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D6EAFF" FontWeight="Bold" FontSize="12"/></Border></Grid></Border>
-      <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceDriftTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceDriftLabel}" FontSize="11.5" VerticalAlignment="Center"/><Border Grid.Column="1" Style="{StaticResource WorkflowHelpBadge}" Margin="8,0,0,0" ToolTipService.ShowDuration="30000"><Border.ToolTip><ToolTip MaxWidth="520" Placement="Mouse"><TextBlock Text="{Binding ReferenceDriftHelp}" TextWrapping="Wrap" LineHeight="19" Padding="3"/></ToolTip></Border.ToolTip><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D6EAFF" FontWeight="Bold" FontSize="12"/></Border></Grid></Border>
-      <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceTimeTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding ReferenceTimeLabel}" FontSize="11.5"/><ProgressBar Value="{Binding TemperatureProgress, Mode=OneWay}" Margin="0,5,0,0" Height="5"/></StackPanel><Border Grid.Column="1" Style="{StaticResource WorkflowHelpBadge}" Margin="8,0,0,0" VerticalAlignment="Top" ToolTipService.ShowDuration="30000"><Border.ToolTip><ToolTip MaxWidth="520" Placement="Mouse"><TextBlock Text="{Binding ReferenceTimeHelp}" TextWrapping="Wrap" LineHeight="19" Padding="3"/></ToolTip></Border.ToolTip><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D6EAFF" FontWeight="Bold" FontSize="12"/></Border></Grid></Border>
+      <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceToleranceTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceToleranceLabel}" FontSize="11.5" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceToleranceHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
+      <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceDriftTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceDriftLabel}" FontSize="11.5" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceDriftHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
+      <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceTimeTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding ReferenceTimeLabel}" FontSize="11.5"/><ProgressBar Value="{Binding TemperatureProgress, Mode=OneWay}" Margin="0,5,0,0" Height="5"/></StackPanel><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceTimeHelp}" Margin="8,0,0,0" VerticalAlignment="Top" Click="HelpButton_Click"/></Grid></Border>
       <TextBlock Text="Zelené = splnené · oranžové = čaká" Style="{StaticResource Muted}" Margin="0,7,0,0"/>
      </StackPanel>
     </Border>

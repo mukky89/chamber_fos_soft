@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.133] – 2026-09-05
+
+### Zmenené
+- Nápoveda workflow a kritérií WIKA sa zobrazí až po kliknutí na otáznik; samotný prechod myšou ju už neotvára.
+- Otvorená nápoveda sa automaticky zavrie po odchode kurzora z jej plochy a opakovaným kliknutím na rovnaký otáznik ju možno zavrieť okamžite.
+- Záložná verzia bola zvýšená na 1.76.133.
+
 ## [1.76.132] – 2026-09-05
 
 ### Opravené
