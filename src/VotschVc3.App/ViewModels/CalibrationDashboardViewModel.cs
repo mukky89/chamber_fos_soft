@@ -72,6 +72,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public double OverallProgress => Points.Count == 0 ? 0 : 100d * CompletedPoints / Points.Count;
     public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov dokončených";
     public string Plateau => _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
+    public int CurrentPlateauIndex => _snapshot?.PlateauIndex ?? -1;
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
     public double? TargetTemperatureC => _snapshot?.TargetTemperatureC;
     public double? ActualTemperature => _snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
@@ -343,7 +344,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 _observedCycleSeconds = _observedCycleSeconds is { } current ? current * 0.75 + seconds * 0.25 : seconds;
         }
         _lastSnapshotAt = now;
-        bool plateauChanged = snapshot.PlateauIndex >= 0 && previous?.PlateauIndex != snapshot.PlateauIndex;
+        bool plateauChanged = snapshot.PlateauIndex >= 0 &&
+            (previous?.PlateauIndex != snapshot.PlateauIndex ||
+             previous is not null && Math.Abs(previous.TargetTemperatureC - snapshot.TargetTemperatureC) > 0.001);
         if (snapshot.PlateauIndex < 0)
             CurrentPlateauTraceStart = null;
         else if (plateauChanged)

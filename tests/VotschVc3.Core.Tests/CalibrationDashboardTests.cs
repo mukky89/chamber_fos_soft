@@ -351,6 +351,36 @@ public sealed class CalibrationDashboardTests
         }, sampleAt.AddMinutes(6));
         Assert.Equal(sampleAt.AddMinutes(-12), m.CurrentPlateauTraceStart);
     }
+    [Fact] public void DashboardResetsAllLiveChartDataWhenTargetChangesToNewPlateau()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 0) with
+        {
+            TargetTemperatureC = 10,
+            ActualTemperatureC = 10.1,
+            TemperatureStableScoreSeconds = 500,
+            RequiredTemperatureScoreSeconds = 600,
+        }, Start);
+        Assert.NotEmpty(m.ChamberTemperatureTrace);
+        Assert.NotEmpty(m.WikaStabilityScoreTrace);
+
+        DateTimeOffset nextPlateauAt = Start.AddMinutes(20);
+        m.Apply(Snapshot(CalibrationRunState.MovingToPlateau, 0) with
+        {
+            TargetTemperatureC = 0,
+            ActualTemperatureC = 9.9,
+            PlateauElapsed = TimeSpan.Zero,
+            TemperatureStableScoreSeconds = 0,
+            RequiredTemperatureScoreSeconds = 0,
+        }, nextPlateauAt);
+
+        Assert.Equal(nextPlateauAt, m.CurrentPlateauTraceStart);
+        Assert.Equal(0, m.TargetTemperatureC);
+        Assert.Single(m.ChamberTemperatureTrace);
+        Assert.Equal(nextPlateauAt, m.ChamberTemperatureTrace[0].Timestamp);
+        Assert.Empty(m.WikaStabilityScoreTrace);
+        Assert.Empty(m.FbgStabilityCharts);
+    }
     [Fact] public void WikaCardExposesLiveToleranceDriftAndTimeCriteria()
     {
         var m = Model();

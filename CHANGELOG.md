@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.158] – 2026-09-06
+
+### Opravené
+- Pri prechode na nové kalibračné plato sa živé grafy komory, referencie WIKA, stabilného času a FBG peakov okamžite vyčistia a ich časová os začne znovu od nuly.
+- Reset sa vykoná aj pri zmene cieľovej teploty počas prechodového stavu, aj keby ešte runner dočasne hlásil rovnaký index plata.
+- Historické a auditné dáta predchádzajúceho plata zostávajú zachované v súboroch behu a nových reportoch.
+- Záložná verzia bola zvýšená na 1.76.158.
+
 ## [1.76.157] – 2026-09-06
 
 ### Pridané

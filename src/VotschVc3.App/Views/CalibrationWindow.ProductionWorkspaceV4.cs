@@ -58,6 +58,7 @@ public partial class CalibrationWindow
     private WrapPanel? _fbgTraceFilterPanel;
     private TextBlock? _fbgTraceFilterSummary;
     private DateTimeOffset _liveTraceOrigin = DateTimeOffset.Now;
+    private (int PlateauIndex, double TargetTemperatureC)? _liveTracePlateauV4;
     private bool _wasRunningV4;
     private CancellationTokenSource? _primeReferenceCts;
     private DispatcherOperation? _fbgTopologyReconcileOperation;
@@ -560,6 +561,7 @@ public partial class CalibrationWindow
             return;
         }
         if (_fbgPeakChartsPanel is null || _fbgReferenceTraceChart is null) return;
+        ResetLiveChartsForNewPlateauV4();
         if (_viewModel.IsRunning &&
             _viewModel.Dashboard.LastTemperatureSampleAt is { } sampleAt &&
             sampleAt != _lastChamberSnapshot &&
@@ -674,6 +676,32 @@ public partial class CalibrationWindow
             _fbgTraceSummary.Text = $"Peaky: {calibrationSelected} · stabilné: {_viewModel.Dashboard.StableCount} · aktívny: {_viewModel.Dashboard.ActivePeak} · WIKA: {referenceValue} · komora: {_viewModel.Dashboard.Actual}";
         }
         UpdateFbgTraceFilterSummary();
+    }
+
+    private void ResetLiveChartsForNewPlateauV4()
+    {
+        if (!_viewModel.IsRunning || _viewModel.Dashboard.CurrentPlateauIndex < 0 ||
+            _viewModel.Dashboard.TargetTemperatureC is not { } target)
+            return;
+
+        var current = (PlateauIndex: _viewModel.Dashboard.CurrentPlateauIndex, TargetTemperatureC: target);
+        if (_liveTracePlateauV4 is null)
+        {
+            _liveTracePlateauV4 = current;
+            return;
+        }
+        if (_liveTracePlateauV4.Value.PlateauIndex == current.PlateauIndex &&
+            Math.Abs(_liveTracePlateauV4.Value.TargetTemperatureC - current.TargetTemperatureC) <= 0.001)
+            return;
+
+        _liveTracePlateauV4 = current;
+        _fbgLiveTrace.Clear();
+        _chamberTrace.Clear();
+        _lastChamberSnapshot = null;
+        _liveTraceOrigin = _viewModel.Dashboard.CurrentPlateauTraceStart ?? DateTimeOffset.Now;
+        foreach (ChartView chart in _peakCharts.Values) chart.Series = Array.Empty<ChartSeries>();
+        if (_fbgReferenceTraceChart is not null) _fbgReferenceTraceChart.Series = Array.Empty<ChartSeries>();
+        if (_chamberTraceChart is not null) _chamberTraceChart.Series = Array.Empty<ChartSeries>();
     }
 
     private static UIElement GetPeakChartCard(ChartView chart)
