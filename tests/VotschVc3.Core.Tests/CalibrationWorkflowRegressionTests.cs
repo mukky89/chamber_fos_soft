@@ -291,6 +291,8 @@ public sealed class CalibrationWorkflowRegressionTests
             setup.CalibrationSegmentIndices.Add(0);
             setup.Settings.ChamberStableDuration = TimeSpan.Zero;
             setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(200);
+            setup.Settings.ChamberStabilityExtensionStep = TimeSpan.FromMilliseconds(100);
+            setup.Settings.MaxAutomaticChamberStabilityExtension = TimeSpan.FromMilliseconds(200);
 
             var store = new CalibrationStore(root);
             var run = new CalibrationRunRecord
@@ -300,7 +302,10 @@ public sealed class CalibrationWorkflowRegressionTests
                 ChamberId = Guid.NewGuid(),
             };
             await using CalibrationRunWriter writer = store.CreateRunWriter(run);
-            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            var warnings = new List<CalibrationWarning>();
+            orchestrator.WarningRaised += warnings.Add;
+            var runner = new CalibrationProfileRunner(chamber, orchestrator, store);
 
             CalibrationOperatorActionRequiredException ex = await Assert.ThrowsAsync<CalibrationOperatorActionRequiredException>(
                 () => runner.RunAsync(
@@ -310,9 +315,14 @@ public sealed class CalibrationWorkflowRegressionTests
                     writer,
                     20,
                     null,
-                    _ => Task.FromResult<double?>(35.0)));
+                    _ => Task.FromResult<double?>(35.0),
+                    CancellationToken.None,
+                    resumeFrom: null));
 
             Assert.Equal("REFERENCE_STABILITY_TIMEOUT", ex.Warning.Code);
+            Assert.Equal(2, warnings.Count(warning => warning.Code == "REFERENCE_STABILITY_TIMEOUT_EXTENDED"));
+            Assert.Contains("maximálnom čase", ex.Message);
+            Assert.Contains("Automatický postup bol bezpečne zastavený", ex.Message);
             Assert.Empty(run.Plateaus);
         }
         finally

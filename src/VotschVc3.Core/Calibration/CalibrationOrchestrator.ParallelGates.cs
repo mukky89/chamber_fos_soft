@@ -155,6 +155,7 @@ public sealed class CalibrationOrchestrator
         bool temperatureGateEverOpened = false;
         DateTimeOffset? temperatureRecoveryStartedAt = null;
         DateTimeOffset previousLoopAt = DateTimeOffset.UtcNow;
+        TimeSpan automaticTemperatureExtensionUsed = TimeSpan.Zero;
 
         while (true)
         {
@@ -229,6 +230,9 @@ public sealed class CalibrationOrchestrator
                 string minimumDetail = minimumPlateauDuration <= TimeSpan.Zero
                     ? "minimum hold: bez minima"
                     : $"minimum hold {FormatTime(plateauClock.Elapsed < minimumPlateauDuration ? plateauClock.Elapsed : minimumPlateauDuration)}/{FormatTime(minimumPlateauDuration)} {(minimumElapsed ? "✓" : "…")}";
+                string extensionDetail = automaticTemperatureExtensionUsed > TimeSpan.Zero
+                    ? $" · automatické predĺženie {FormatTime(automaticTemperatureExtensionUsed)}/{FormatTime(settings.MaxAutomaticChamberStabilityExtension)}"
+                    : string.Empty;
 
                 progress?.Invoke(new CalibrationProgressSnapshot(
                     CalibrationRunState.WaitingForChamberStability,
@@ -241,7 +245,7 @@ public sealed class CalibrationOrchestrator
                     selected.Count,
                     plateauClock.Elapsed,
                     trackers.Values.Select(t => t.ToWaitingForTemperatureProgress(settings, temperatureDetail, minimumDetail)).ToArray(),
-                    $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov.",
+                    $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{extensionDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov.",
                     (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                     (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                     false,
@@ -250,16 +254,28 @@ public sealed class CalibrationOrchestrator
                 if (!temperatureGateEverOpened)
                 {
                     if (settings.ChamberStabilityTimeout > TimeSpan.Zero &&
-                        plateauClock.Elapsed >= minimumPlateauDuration + settings.ChamberStabilityTimeout)
+                        plateauClock.Elapsed >= minimumPlateauDuration + settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed)
                     {
-                        throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature, settings.ChamberStabilityTimeout, hasExternalReference);
+                        if (TryExtendTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
+                            settings, hasExternalReference, ref automaticTemperatureExtensionUsed))
+                            continue;
+                        throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
+                            settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed, hasExternalReference,
+                            (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
+                            (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds);
                     }
                 }
                 else if (temperatureRecoveryStartedAt is { } recoveryStart &&
                          settings.ChamberStabilityTimeout > TimeSpan.Zero &&
-                         loopAt - recoveryStart >= settings.ChamberStabilityTimeout)
+                         loopAt - recoveryStart >= settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed)
                 {
-                    throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature, settings.ChamberStabilityTimeout, hasExternalReference);
+                    if (TryExtendTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
+                        settings, hasExternalReference, ref automaticTemperatureExtensionUsed))
+                        continue;
+                    throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
+                        settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed, hasExternalReference,
+                        (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
+                        (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds);
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
@@ -485,7 +501,9 @@ public sealed class CalibrationOrchestrator
         double? referenceTemperature,
         double chamberTemperature,
         TimeSpan timeout,
-        bool hasExternalReference)
+        bool hasExternalReference,
+        int stableScoreSeconds,
+        int requiredStableScoreSeconds)
     {
         string source = hasExternalReference ? "WIKA CTH7000" : "interná sonda komory";
         string measured = hasExternalReference
@@ -494,10 +512,53 @@ public sealed class CalibrationOrchestrator
         CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
         {
             Code = "REFERENCE_STABILITY_TIMEOUT",
-            Message = $"{source} sa neustálila na {targetTemperatureC:F1} °C do {timeout}. Posledná hodnota: {measured}.",
+            Message = $"{source} sa neustálila na {targetTemperatureC:F1} °C ani po maximálnom čase {FormatTime(timeout)}. " +
+                      $"Posledná hodnota: {measured}; stabilné skóre {stableScoreSeconds}/{requiredStableScoreSeconds} s. " +
+                      "Automatický postup bol bezpečne zastavený a kalibračný bod nebol prijatý. " +
+                      "Skontrolujte pripojenie a polohu WIKA sondy, rozloženie alebo tepelnú kapacitu náplne komory a nastavené limity. " +
+                      "Potom obnovte kontrolu; zdôvodnené vynútenie ďalšieho kroku použite iba po odbornom posúdení.",
             PlateauIndex = plateauIndex,
         });
         return new CalibrationOperatorActionRequiredException(warning.Message, warning);
+    }
+
+    private bool TryExtendTemperatureTimeout(
+        CalibrationRunRecord run,
+        int plateauIndex,
+        double targetTemperatureC,
+        double? referenceTemperature,
+        double chamberTemperature,
+        CalibrationProfileSettings settings,
+        bool hasExternalReference,
+        ref TimeSpan extensionUsed)
+    {
+        TimeSpan step = settings.ChamberStabilityExtensionStep < TimeSpan.Zero
+            ? TimeSpan.Zero
+            : settings.ChamberStabilityExtensionStep;
+        TimeSpan maximum = settings.MaxAutomaticChamberStabilityExtension < TimeSpan.Zero
+            ? TimeSpan.Zero
+            : settings.MaxAutomaticChamberStabilityExtension;
+        bool hasValidTemperature = hasExternalReference
+            ? referenceTemperature is { } value && double.IsFinite(value)
+            : double.IsFinite(chamberTemperature);
+        TimeSpan remaining = maximum - extensionUsed;
+        if (!hasValidTemperature || step <= TimeSpan.Zero || remaining <= TimeSpan.Zero) return false;
+
+        TimeSpan granted = step <= remaining ? step : remaining;
+        extensionUsed += granted;
+        string source = hasExternalReference ? "WIKA CTH7000" : "interná sonda komory";
+        string measured = hasExternalReference
+            ? $"{referenceTemperature!.Value:F3} °C"
+            : $"{chamberTemperature:F3} °C";
+        RaiseWarning(run, new CalibrationWarning
+        {
+            Code = "REFERENCE_STABILITY_TIMEOUT_EXTENDED",
+            PlateauIndex = plateauIndex,
+            Message = $"{source} pri cieli {targetTemperatureC:F1} °C ešte nie je stabilná (aktuálne {measured}). " +
+                      $"Čakanie sa automaticky predĺžilo o {FormatTime(granted)}; spolu je využitých {FormatTime(extensionUsed)} " +
+                      $"z maximálneho automatického predĺženia {FormatTime(maximum)}. Kalibrácia ďalej bezpečne čaká a zbiera stabilné skóre.",
+        });
+        return true;
     }
 
     private static PeakLoggerMeasurement? FindMeasurement(

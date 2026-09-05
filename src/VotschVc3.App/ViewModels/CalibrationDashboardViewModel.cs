@@ -29,6 +29,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private double _maxPeakDriftPmPerMinute = 1;
     private TimeSpan _stableDuration = TimeSpan.FromMinutes(10);
     private TimeSpan _stabilityTimeout = TimeSpan.FromMinutes(30);
+    private TimeSpan _stabilityExtensionStep = TimeSpan.FromMinutes(15);
+    private TimeSpan _maxAutomaticStabilityExtension = TimeSpan.FromHours(1);
     private TimeSpan _sensorTimeout = TimeSpan.FromMinutes(60);
     private bool _enableSetpointRamp = true;
     private double _setpointRampCPerMinute = 1;
@@ -108,8 +110,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         $"Takto treba nazbierať {Duration(_stableDuration)} stabilného skóre. Úspešný blok 5 vzoriek pripočíta jeho skutočne uplynutý čas. " +
         "Ak odchýlka alebo drift nevyhovuje, blok je neúspešný: od skóre sa odpočíta dvojnásobok času bloku, najviac po nulu, a začne sa nový blok. " +
         $"Aplikácia ďalej čaká a kontroluje nové bloky, kým odchýlka aj drift nebudú súčasne vyhovovať a stabilné skóre nedosiahne {Duration(_stableDuration)}; až potom pokračuje stabilizáciou FBG peakov. " +
-        $"Nečaká však neobmedzene: ak sa WIKA brána neotvorí do {Duration(_stabilityTimeout)}, automatický postup sa zastaví v stave ČAKÁ NA ZÁSAH OPERÁTORA. " +
-        "Operátor musí skontrolovať WIKA, komoru alebo nastavené limity a potom kontrolu spustiť znovu; nevyhovujúci bod sa automaticky neprijme.";
+        $"Po základnom limite {Duration(_stabilityTimeout)} sa čakanie pri platných dátach WIKA automaticky predlžuje po {Duration(_stabilityExtensionStep)}, najviac spolu o {Duration(_maxAutomaticStabilityExtension)}. " +
+        "Predĺženie sa nikdy neopakuje nad tento strop. " +
+        "Po vyčerpaní predĺženia operátor dostane upozornenie aj e-mail, musí skontrolovať WIKA, komoru alebo nastavené limity a potom kontrolu spustiť znovu; nevyhovujúci bod sa automaticky neprijme.";
     public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
     public int TemperatureStableScoreSeconds => _snapshot?.TemperatureStableScoreSeconds ?? 0;
@@ -218,14 +221,15 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null,
         int requiredStableSamples = 50, int requiredMeasurementSamples = 50, double maxRangePm = 5, double maxStdDevPm = 1.5,
         int sampleAcquisitionIntervalSeconds = 1,
-        double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null, TimeSpan? sensorTimeout = null,
+        double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null,
+        TimeSpan? stabilityExtensionStep = null, TimeSpan? maxAutomaticStabilityExtension = null, TimeSpan? sensorTimeout = null,
         bool enableSetpointRamp = true, double setpointRampCPerMinute = 1,
         IReadOnlyList<CalibrationPlateauStatistics>? historicalPlateaus = null)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
         string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{maxDriftCPerMinute}|" +
-            $"{requiredStableSamples}|{requiredMeasurementSamples}|{sampleAcquisitionIntervalSeconds}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|" +
+            $"{requiredStableSamples}|{requiredMeasurementSamples}|{sampleAcquisitionIntervalSeconds}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{stabilityExtensionStep}|{maxAutomaticStabilityExtension}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|" +
             $"{string.Join(",", historicalPlateaus?.Select(item => $"{item.PlateauIndex}:{item.SampleCount}:{item.MedianDuration.Ticks}:{item.MaximumDuration.Ticks}") ?? Array.Empty<string>())}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
@@ -245,6 +249,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _maxPeakDriftPmPerMinute = Math.Max(0, maxPeakDriftPmPerMinute);
         _stableDuration = stableDuration ?? TimeSpan.Zero;
         _stabilityTimeout = stabilityTimeout ?? TimeSpan.Zero;
+        _stabilityExtensionStep = stabilityExtensionStep ?? TimeSpan.FromMinutes(15);
+        _maxAutomaticStabilityExtension = maxAutomaticStabilityExtension ?? TimeSpan.FromHours(1);
         _sensorTimeout = sensorTimeout ?? TimeSpan.Zero;
         _enableSetpointRamp = enableSetpointRamp;
         _setpointRampCPerMinute = Math.Clamp(Math.Abs(setpointRampCPerMinute), 0.1, 20.0);

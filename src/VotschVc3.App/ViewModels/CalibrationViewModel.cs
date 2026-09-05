@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using Microsoft.Win32;
 using VotschVc3.App.Mvvm;
+using VotschVc3.App.Notifications;
 using VotschVc3.App.Thermometers;
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Communication;
@@ -41,6 +42,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         sampleAcquisitionIntervalSeconds: _setup.Settings.SampleAcquisitionIntervalSeconds,
         stableDuration: _setup.Settings.ChamberStableDuration,
         stabilityTimeout: _setup.Settings.ChamberStabilityTimeout,
+        stabilityExtensionStep: _setup.Settings.ChamberStabilityExtensionStep,
+        maxAutomaticStabilityExtension: _setup.Settings.MaxAutomaticChamberStabilityExtension,
         sensorTimeout: _setup.Settings.DefaultSensorStabilizationTimeout,
         enableSetpointRamp: _setup.Settings.EnableSetpointRamp,
         setpointRampCPerMinute: _setup.Settings.SetpointRampCPerMinute,
@@ -1571,6 +1574,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             writer.WriteDiagnostic("INFO", "STABILITY_CONFIGURATION",
                 $"temperatureToleranceC={diagnosticSettings.ChamberToleranceC:G17}; temperatureStableSeconds={diagnosticSettings.ChamberStableDuration.TotalSeconds:G17}; " +
                 $"temperatureMaxDriftCPerMinute={diagnosticSettings.MaxChamberDriftCPerMinute:G17}; temperatureTimeoutSeconds={diagnosticSettings.ChamberStabilityTimeout.TotalSeconds:G17}; " +
+                $"temperatureExtensionStepSeconds={diagnosticSettings.ChamberStabilityExtensionStep.TotalSeconds:G17}; temperatureMaxExtensionSeconds={diagnosticSettings.MaxAutomaticChamberStabilityExtension.TotalSeconds:G17}; " +
                 $"wavelengthStableSamples={diagnosticSettings.RequiredStableSamples}; measurementSamples={diagnosticSettings.RequiredMeasurementSamples}; sampleIntervalSeconds={diagnosticSettings.SampleAcquisitionIntervalSeconds}; " +
                 $"rangeLimitPm={diagnosticSettings.MaxWavelengthRangePm:G17}; stdDevLimitPm={diagnosticSettings.MaxWavelengthStdDevPm:G17}; driftLimitPmPerMinute={diagnosticSettings.MaxWavelengthDriftPmPerMinute:G17}");
             foreach (CalibrationPeakRowViewModel peak in Peaks.Where(p => p.Selected))
@@ -1590,7 +1594,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
                 AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {warning.Code} · {warning.Message}");
                 _ = Application.Current.Dispatcher.InvokeAsync(() => WarningText = warning.Message);
-                _ = SendWarningEmailAsync(_activeRun, warning);
+                bool automaticExtension = warning.Code == "REFERENCE_STABILITY_TIMEOUT_EXTENDED";
+                DesktopNotifier.Notify(
+                    automaticExtension ? "Čakanie na stabilitu WIKA bolo predĺžené" : "FBG kalibrácia – upozornenie",
+                    warning.Message,
+                    automaticExtension ? DesktopNotificationKind.Warning : DesktopNotificationKind.Alarm);
+                if (!automaticExtension)
+                    _ = SendWarningEmailAsync(_activeRun, warning);
             };
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
             _runner.Progress += snapshot =>
@@ -1933,9 +1943,26 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         string peak = string.IsNullOrWhiteSpace(warning.PeakId) ? "—" : warning.PeakId;
         string sensor = string.IsNullOrWhiteSpace(warning.SerialNumber) ? "—" : warning.SerialNumber;
 
-        await _email.SendAsync(
-            $"Kalibrácia FBG – WARNING – {run.DisplayProfileId}",
+        bool operatorAction = warning.Code == "REFERENCE_STABILITY_TIMEOUT";
+        EmailResult result = await _email.SendAsync(
+            operatorAction
+                ? $"ZÁSAH OPERÁTORA – FBG kalibrácia – {run.DisplayProfileId}"
+                : $"Kalibrácia FBG – WARNING – {run.DisplayProfileId}",
             $"Run ID: {run.DisplayRunId}\nProfil ID: {run.DisplayProfileId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nPlato: {plateau}\nSnímač: {sensor}\nPeak: {peak}\nČas: {warning.Timestamp:yyyy-MM-dd HH:mm:ss}\n\n{warning.Message}");
+        if (result.Error is { Length: > 0 } error)
+        {
+            AppLog.Warn("FBG kalibrácia", $"Run {run.DisplayRunId}: e-mail upozornenia sa nepodarilo odoslať · {error}");
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                WarningText = $"{warning.Message} E-mail operátorovi sa nepodarilo odoslať: {error}");
+            DesktopNotifier.Notify("E-mail operátorovi nebol odoslaný", error, DesktopNotificationKind.Alarm);
+        }
+        else if (operatorAction && result.Skipped)
+        {
+            const string emailDisabled = "E-mail operátorovi nebol odoslaný, pretože e-mailové upozornenia nie sú zapnuté alebo nemajú nastaveného adresáta.";
+            AppLog.Warn("FBG kalibrácia", $"Run {run.DisplayRunId}: {emailDisabled}");
+            await Application.Current.Dispatcher.InvokeAsync(() => WarningText = $"{warning.Message} {emailDisabled}");
+            DesktopNotifier.Notify("E-mail operátorovi nie je nastavený", emailDisabled, DesktopNotificationKind.Alarm);
+        }
     }
 
     private async Task SendCompletionEmailAsync(CalibrationRunRecord run)

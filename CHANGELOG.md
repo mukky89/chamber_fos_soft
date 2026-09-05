@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.139] – 2026-09-05
+
+### Zmenené
+- Čakanie na stabilitu WIKA sa po základnom limite automaticky predlžuje po 15 minútach, najviac spolu o jednu hodinu nad základný timeout; predĺženie sa nikdy neopakuje nad tento strop.
+- Každé automatické predĺženie sa zaznamená a zobrazí operátorovi vrátane využitého a zostávajúceho rozpočtu predĺženia.
+- Po vyčerpaní maximálneho času sa automatický postup bezpečne zastaví, bod sa neprijme a upozornenie obsahuje stabilné skóre aj konkrétne ďalšie kroky.
+- Nutný zásah operátora vyvolá výrazné upozornenie a e-mail s predmetom „ZÁSAH OPERÁTORA“; pri vypnutom alebo chybnom e-maile aplikácia zreteľne oznámi, že správa nebola doručená.
+- Záložná verzia bola zvýšená na 1.76.139.
+
 ## [1.76.138] – 2026-09-05
 
 ### Pridané

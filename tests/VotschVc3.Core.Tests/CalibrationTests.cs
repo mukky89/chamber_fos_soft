@@ -9,6 +9,15 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationTests
 {
     [Fact]
+    public void StabilityTimeoutExtensionDefaultsToFifteenMinuteStepsWithOneHourMaximum()
+    {
+        var settings = new CalibrationProfileSettings();
+
+        Assert.Equal(TimeSpan.FromMinutes(15), settings.ChamberStabilityExtensionStep);
+        Assert.Equal(TimeSpan.FromHours(1), settings.MaxAutomaticChamberStabilityExtension);
+    }
+
+    [Fact]
     public void RollingStability_RequiresExactlyConfiguredSampleCount()
     {
         var detector = new RollingStabilityDetector(50, maxRangePm: 2, maxStdDevPm: 1, maxDriftPmPerMinute: 1);

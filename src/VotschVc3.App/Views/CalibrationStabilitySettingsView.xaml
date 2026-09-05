@@ -110,6 +110,12 @@
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding ChamberStableMinutes, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Po základnom timeoute sa čakanie pri platných dátach WIKA predĺži po 15 minútach. Celkové automatické predĺženie nikdy neprekročí 60 minút.">
+                    <StackPanel>
+                        <TextBlock Text="Automatické predĺženie stability" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Kroky +15 min · maximálne +60 min nad základný timeout. Potom sa postup zastaví a odošle sa výzva operátorovi." Style="{StaticResource SettingHelp}" />
+                    </StackPanel>
+                </Border>
             </WrapPanel>
 
             <TextBlock Text="2 · Stabilita jednotlivých FBG peakov" Style="{StaticResource Heading}" Margin="0,12,0,8" />
