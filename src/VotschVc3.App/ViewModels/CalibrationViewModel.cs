@@ -110,7 +110,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         ResumeCalibrationCommand = new AsyncRelayCommand(ResumeCalibrationAsync, () => CanStartCalibration() && HasResumableCalibration, ReportError);
         PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null);
         ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending);
-        StopCalibrationCommand = new RelayCommand(StopCalibration, () => IsRunning);
+        StopCalibrationCommand = new RelayCommand(StopCalibration, CanStopOrFinalizeCalibration);
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
 
@@ -393,6 +393,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _isRunning, value))
             {
+                OnPropertyChanged(nameof(StopCalibrationLabel));
+                OnPropertyChanged(nameof(StopCalibrationDetail));
                 RefreshCommands();
                 PublishCalibrationStatus();
             }
@@ -404,6 +406,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private CalibrationCheckpoint? _resumeCheckpoint;
     public bool HasResumableCalibration => _resumeCheckpoint is not null;
+    public string StopCalibrationLabel => IsRunning ? "Stop a uložiť" : "Ukončiť a uložiť";
+    public string StopCalibrationDetail => IsRunning
+        ? "Bezpečne zastaví komoru a uloží checkpoint. Dokončené plata zostanú zachované na pokračovanie."
+        : "Definitívne ukončí zastavený beh, zachová dokončené plata a namerané súbory a odstráni checkpoint na pokračovanie.";
     public string ResumeCalibrationLabel => _resumeCheckpoint is null
         ? "Pokračovať v kalibrácii"
         : $"Pokračovať od plata č. {_resumeCheckpoint.CompletedPlateaus.Count + 1}";
@@ -626,6 +632,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ResumeCalibrationLabel));
         OnPropertyChanged(nameof(ResumeCalibrationDetail));
         ResumeCalibrationCommand.RaiseCanExecuteChanged();
+        StopCalibrationCommand.RaiseCanExecuteChanged();
     }
 
     private void ApplyRecoveredMappingsToVisiblePeaks(IEnumerable<CalibrationSensorMapping> mappings)
@@ -1778,6 +1785,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private void StopCalibration()
     {
+        if (!IsRunning)
+        {
+            FinalizeStoppedCalibration();
+            return;
+        }
+
         string target = Dashboard.TargetTemperatureC is { } targetTemperature
             ? $" pri cieli {targetTemperature:F1} °C"
             : string.Empty;
@@ -1806,6 +1819,61 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             : "Zastavujem kalibráciu a komoru. Checkpoint sa nepodarilo uložiť; skontrolujte diagnostiku.";
     }
 
+    private bool CanStopOrFinalizeCalibration()
+    {
+        if (IsRunning || HasResumableCalibration) return true;
+        return _activeRun is not null &&
+               Enum.TryParse<CalibrationRunState>(RunState, out var state) &&
+               state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator;
+    }
+
+    private void FinalizeStoppedCalibration()
+    {
+        CalibrationCheckpoint? checkpoint = _resumeCheckpoint;
+        CalibrationRunRecord? run = _activeRun ?? (checkpoint is null ? null : _calibrationStore.LoadRun(checkpoint.RunId));
+        if (run is null)
+        {
+            StatusMessage = "Zastavený kalibračný beh sa nenašiel. Uložené súbory zostali bez zmeny.";
+            RefreshResumeCheckpoint();
+            return;
+        }
+
+        if (!Views.ConfirmDialog.Ask(
+                "Naozaj chcete definitívne ukončiť túto zastavenú kalibráciu?\n\n" +
+                "Doteraz dokončené plata a namerané súbory sa zachovajú vo výsledkoch. " +
+                "Checkpoint sa odstráni a v tejto kalibrácii už nebude možné pokračovať.",
+                "Ukončiť a uložiť kalibráciu?",
+                confirmText: "Ukončiť a uložiť",
+                danger: true,
+                cancelText: "Ponechať na pokračovanie"))
+        {
+            StatusMessage = "Kalibrácia zostáva uložená na neskoršie pokračovanie.";
+            return;
+        }
+
+        run.State = CalibrationRunState.Aborted;
+        run.CompletedAt = DateTimeOffset.Now;
+        if (!run.Warnings.Any(warning => warning.Code == "OPERATOR_FINALIZED_STOPPED_RUN"))
+        {
+            run.Warnings.Add(new CalibrationWarning
+            {
+                Code = "OPERATOR_FINALIZED_STOPPED_RUN",
+                Message = "Operátor definitívne ukončil zastavenú kalibráciu. Dokončené plata a dovtedy uložené merania zostali zachované.",
+            });
+        }
+        _calibrationStore.SaveRun(run);
+        _calibrationStore.DeleteCheckpoint(run.ChamberId);
+        _activeRun = run;
+        _resumeCheckpoint = null;
+        RunState = CalibrationRunState.Aborted.ToString();
+        StatusMessage = "Kalibrácia bola definitívne ukončená. Dokončené plata a namerané súbory sú uložené v Histórii / výsledkoch.";
+        Dashboard.End(CalibrationRunState.Aborted, StatusMessage, DateTimeOffset.Now);
+        RefreshResumeCheckpoint();
+        RefreshHistory();
+        PublishCalibrationStatus();
+        RefreshCommands();
+    }
+
     private bool TrySaveResumeCheckpoint(string reason)
     {
         if (_activeRun is null || SelectedChamber is null) return false;
@@ -1816,6 +1884,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             // keeps only completed plateaus; an in-progress plateau is re-stabilized and measured
             // from fresh samples after hardware has been reconnected.
             _activeWriter?.SaveSummary();
+            CalibrationCheckpoint? existingCheckpoint = _calibrationStore.LoadCheckpoint(_activeRun.ChamberId);
             _calibrationStore.SaveCheckpoint(new CalibrationCheckpoint
             {
                 RunId = _activeRun.RunId,
@@ -1825,6 +1894,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 CurrentTargetTemperatureC = Dashboard.TargetTemperatureC,
                 State = Enum.TryParse<CalibrationRunState>(RunState, out var state) ? state : _activeRun.State,
                 CompletedPlateaus = _activeRun.Plateaus.ToList(),
+                DeferredPlateauIndices = existingCheckpoint?.DeferredPlateauIndices.ToList() ?? new List<int>(),
                 Mappings = Peaks.Select(peak => peak.ToMapping()).ToList(),
                 SettingsSnapshot = CalibrationCheckpointRecovery.CloneSettings(_setup.Settings),
                 CalibrationSegmentIndices = _setup.CalibrationSegmentIndices.ToList(),

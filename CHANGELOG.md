@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.142] – 2026-09-05
+
+### Opravené
+- Po chybe alebo zastavení na zásah operátora zostáva dostupné tlačidlo „Ukončiť a uložiť“; operátor môže beh definitívne uzavrieť aj vtedy, keď už runner nebeží.
+- Definitívne ukončenie zachová dokončené plata a všetky dovtedy namerané súbory v histórii, označí beh ako zastavený a až po potvrdení odstráni checkpoint na pokračovanie.
+- Bežné „Stop a uložiť“ počas aktívneho behu pri prepise checkpointu zachová aj zoznam odložených plat, aby sa po aktualizácii nestratilo poradie návratov.
+- Text tlačidla a nápoveda rozlišujú aktívne zastavenie od definitívneho uzavretia už zastaveného behu.
+- Záložná verzia bola zvýšená na 1.76.142.
+
 ## [1.76.141] – 2026-09-05
 
 ### Zmenené

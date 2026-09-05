@@ -74,10 +74,10 @@
                             <TextBlock Text="Vynútiť ďalší krok" Style="{StaticResource IconLabel}" />
                         </Button>
                         <Button Style="{StaticResource DangerButton}" Command="{Binding StopCalibrationCommand}" Margin="0"
-                                ToolTip="Bezpečne zastaví komoru a uloží checkpoint. Po aktualizácii aplikácie sa dokončené plata zachovajú a rozpracované plato sa znovu stabilizuje a zmeria.">
+                                ToolTip="{Binding StopCalibrationDetail}">
                             <StackPanel Orientation="Horizontal">
                                 <Path Style="{StaticResource RunGlyph}" Data="{StaticResource Icon.Stop}" />
-                                <TextBlock Text="Stop a uložiť" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                                <TextBlock Text="{Binding StopCalibrationLabel}" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
                             </StackPanel>
                         </Button>
                     </StackPanel>

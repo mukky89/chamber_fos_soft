@@ -105,6 +105,7 @@ The following settings were validated on the real production reference thermomet
 
 - Detailed wiring is persisted per chamber+profile through `CalibrationStore`: selected peaks, production FBG SN, channel SN, CHAIN override SN, core metadata, notes, product/customer/order fields, per-peak timeout, stability settings, and selected calibration segment indices.
 - Closing/hiding the FBG calibration window must force a final setup save when the run is not active; do not rely only on the debounce autosave.
+- After a run fails or waits for operator action, keep `Ukončiť a uložiť` available. Finalizing must preserve completed plateaus and measured files in history, mark the run aborted, and remove only its resume checkpoint after explicit confirmation. A manual stop intended for restart must preserve any deferred-plateau queue already stored in the checkpoint.
 - Production SN/CHAIN editing must remain continuously protected by the existing short debounce autosave; a completed cell edit may additionally force a final setup save.
 - `CalibrationWorkspaceStateStore` stores the last selected calibration profile and exact PeakLogger host/port per chamber in `fbg-calibration-workspaces.json`.
 - Reopening the FBG workspace or restarting the application must restore the last profile for that chamber.
