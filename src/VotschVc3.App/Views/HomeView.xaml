@@ -574,12 +574,14 @@
                                                             </Style>
                                                         </TextBlock.Style>
                                                     </TextBlock>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}"
-                                                                   Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
-                                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource TemperatureBrush}" />
-                                                    </StackPanel>
+                                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}"
+                                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
+                                                                       FontFamily="Segoe UI Semibold" Foreground="{StaticResource TemperatureBrush}" />
+                                                        </StackPanel>
+                                                    </Viewbox>
                                                 </StackPanel>
                                             </Border>
                                             <Border Style="{StaticResource DashboardMetricTile}">

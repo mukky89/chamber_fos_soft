@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.149] – 2026-09-05
+
+### Opravené
+- Hodnota teploty komory sa v kompaktnej dlaždici automaticky zmenší spolu s jednotkou, takže sa celé číslo zmestí do rámčeka aj pri zobrazení vlhkosti a referencie.
+- Záložná verzia bola zvýšená na 1.76.149.
+
 ## [1.76.148] – 2026-09-05
 
 ### Zmenené
