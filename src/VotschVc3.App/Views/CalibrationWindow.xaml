@@ -461,15 +461,15 @@
                         <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16" DataContext="{Binding SelectedWiringPeak}">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel>
-                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Detail senzora" FontSize="19" FontWeight="SemiBold"/><TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"><Run Text="Kanál "/><Run Text="{Binding Channel}" FontWeight="SemiBold"/><Run Text=" · "/><Run Text="{Binding PeakId}" FontWeight="SemiBold"/><Run Text=" · index "/><Run Text="{Binding PeakIndex}"/></TextBlock></StackPanel><Border Grid.Column="1" Background="#173A32" BorderBrush="#3CB990" BorderThickness="1" CornerRadius="6" Padding="8,4"><TextBlock Text="VYBRANÝ" Foreground="#63E6B6" FontSize="10" FontWeight="SemiBold"/></Border></Grid>
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Detail senzora" FontSize="19" FontWeight="SemiBold"/><TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"><Run Text="Kanál "/><Run Text="{Binding Channel, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" · "/><Run Text="{Binding PeakId, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" · index "/><Run Text="{Binding PeakIndex, Mode=OneWay}"/></TextBlock></StackPanel><Border Grid.Column="1" Background="#173A32" BorderBrush="#3CB990" BorderThickness="1" CornerRadius="6" Padding="8,4"><TextBlock Text="VYBRANÝ" Foreground="#63E6B6" FontSize="10" FontWeight="SemiBold"/></Border></Grid>
                                     <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,14,0,12"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Aktuálna vlnová dĺžka" Style="{StaticResource Caption}"/><TextBlock Text="{Binding CurrentWavelengthNm, StringFormat={}{0:F6} nm}" FontSize="21" Foreground="#75B4FF" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="Intenzita" Style="{StaticResource Caption}" HorizontalAlignment="Right"/><TextBlock Text="{Binding Intensity, StringFormat={}{0:F2}}" FontSize="16" Margin="0,5,0,0"/></StackPanel></Grid></Border>
                                     <TextBlock Text="FBG sensor SN (kanál)" Style="{StaticResource Label}"/><TextBox Text="{Binding ChannelSerialNumber, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,10" IsReadOnly="{Binding DataContext.IsRunning, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                     <TextBlock Text="FBG sensor SN CHAIN" Style="{StaticResource Label}"/><TextBox Text="{Binding ChainSerialNumber, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,10" IsReadOnly="{Binding DataContext.IsRunning, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                     <TextBlock Text="Sylex SN" Style="{StaticResource Label}"/><TextBox Text="{Binding Mode=OneWay, Converter={StaticResource WiringSylexSnConverter}}" IsReadOnly="True" Margin="0,4,0,10"/>
-                                    <TextBlock Text="Zákazka" Style="{StaticResource Label}"/><TextBox Text="{Binding Order}" IsReadOnly="True" Margin="0,4,0,10"/>
+                                    <TextBlock Text="Zákazka" Style="{StaticResource Label}"/><TextBox Text="{Binding Order, Mode=OneWay}" IsReadOnly="True" Margin="0,4,0,10"/>
                                     <TextBlock Text="Názov snímača" Style="{StaticResource Label}"/><TextBox Text="{Binding Mode=OneWay, Converter={StaticResource WiringSensorNameConverter}}" IsReadOnly="True" Margin="0,4,0,10"/>
-                                    <TextBlock Text="Popis výrobku" Style="{StaticResource Label}"/><TextBox Text="{Binding ProductDescription}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,4,0,10"/>
-                                    <TextBlock Text="Zákazník" Style="{StaticResource Label}"/><TextBox Text="{Binding Customer}" IsReadOnly="True" Margin="0,4,0,10"/>
+                                    <TextBlock Text="Popis výrobku" Style="{StaticResource Label}"/><TextBox Text="{Binding ProductDescription, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                    <TextBlock Text="Zákazník" Style="{StaticResource Label}"/><TextBox Text="{Binding Customer, Mode=OneWay}" IsReadOnly="True" Margin="0,4,0,10"/>
                                     <TextBlock Text="Poznámky" Style="{StaticResource Label}"/><TextBox Text="{Binding Notes, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" Margin="0,4,0,8" IsReadOnly="{Binding DataContext.IsRunning, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                     <TextBlock Text="{Binding SerialNumberWarning}" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" Margin="0,2,0,10"/>
                                     <Button Content="Uložiť zmeny" Style="{StaticResource AccentButton}" HorizontalAlignment="Left" Padding="14,7" Command="{Binding DataContext.SaveSetupCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
@@ -594,8 +594,13 @@
                 <Grid Margin="8">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <Button Content="↻ Obnoviť" Style="{StaticResource GhostButton}" Command="{Binding RefreshHistoryCommand}" />
-                        <Button DockPanel.Dock="Right" Content="Export summary CSV" Style="{StaticResource AccentButton}" Command="{Binding ExportSelectedRunCommand}" />
+                        <Button Content="↻ Obnoviť zoznam" Style="{StaticResource GhostButton}" Command="{Binding RefreshHistoryCommand}" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="Pokračovať od vybraného behu" Style="{StaticResource AccentOutlineButton}" Margin="0,0,8,0"
+                                    Command="{Binding RestoreSelectedRunCommand}"
+                                    ToolTip="Znovu vytvorí checkpoint z dokončených plat vybraného prerušeného behu. Rozpracované plato sa zmeria nanovo." />
+                            <Button Content="Export summary CSV" Style="{StaticResource AccentButton}" Command="{Binding ExportSelectedRunCommand}" />
+                        </StackPanel>
                     </DockPanel>
                     <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14,12">
                         <StackPanel>

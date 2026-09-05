@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.76.147] – 2026-09-05
+
+### Pridané
+- V histórii kalibrácií pribudlo tlačidlo „Pokračovať od vybraného behu“, ktoré z dokončených plat prerušeného alebo omylom uzavretého behu znovu vytvorí checkpoint.
+- Obnovenie zachová hotové plata, pôvodné nastavenia a zapojenie; rozpracované plato sa po spustení stabilizuje a zmeria nanovo.
+
+### Opravené
+- V detaile senzora sú všetky informačné väzby na vlastnosti iba na čítanie explicitne jednosmerné, takže otvorenie ani prepínanie obrazovky už nevyvolá chybu `TwoWay binding`.
+- Druhé deštruktívne tlačidlo po zastavení sa teraz volá „Zrušiť pokračovanie“ a potvrdenie výslovne upozorňuje, že odstráni checkpoint.
+- Záložná verzia bola zvýšená na 1.76.147.
+
 ## [1.76.146] – 2026-09-05
 
 ### Opravené

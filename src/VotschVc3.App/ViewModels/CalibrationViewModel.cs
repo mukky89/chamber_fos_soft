@@ -118,6 +118,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StopCalibrationCommand = new RelayCommand(StopCalibration, CanStopOrFinalizeCalibration);
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
+        RestoreSelectedRunCommand = new RelayCommand(RestoreSelectedHistoricalRun, CanRestoreSelectedHistoricalRun);
 
         RefreshF100PortsCommand = new AsyncRelayCommand(RefreshF100PortsAsync, () => !IsRunning, ReportError);
         CheckF100Command = new AsyncRelayCommand(CheckF100Async, () => SelectedF100 is not null, ReportError);
@@ -191,6 +192,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand StopCalibrationCommand { get; }
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ExportSelectedRunCommand { get; }
+    public RelayCommand RestoreSelectedRunCommand { get; }
     public AsyncRelayCommand RefreshF100PortsCommand { get; }
     public AsyncRelayCommand CheckF100Command { get; }
     public RelayCommand ToggleF100ChartCommand { get; }
@@ -275,7 +277,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         get => _selectedHistoryRun;
         set
         {
-            if (SetProperty(ref _selectedHistoryRun, value)) ExportSelectedRunCommand.RaiseCanExecuteChanged();
+            if (SetProperty(ref _selectedHistoryRun, value))
+            {
+                ExportSelectedRunCommand.RaiseCanExecuteChanged();
+                RestoreSelectedRunCommand.RaiseCanExecuteChanged();
+            }
         }
     }
 
@@ -428,10 +434,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private CalibrationCheckpoint? _resumeCheckpoint;
     public bool HasResumableCalibration => _resumeCheckpoint is not null;
-    public string StopCalibrationLabel => IsRunning ? "Stop a uložiť" : "Ukončiť a uložiť";
+    public string StopCalibrationLabel => IsRunning ? "Stop a uložiť" : "Zrušiť pokračovanie";
     public string StopCalibrationDetail => IsRunning
         ? "Bezpečne zastaví komoru a uloží checkpoint. Dokončené plata zostanú zachované na pokračovanie."
-        : "Definitívne ukončí zastavený beh, zachová dokončené plata a namerané súbory a odstráni checkpoint na pokračovanie.";
+        : "Definitívne ukončí zastavený beh a odstráni možnosť pokračovať. Dokončené plata a namerané súbory zostanú zachované.";
     public string ResumeCalibrationLabel => _resumeCheckpoint is null
         ? "Pokračovať v kalibrácii"
         : $"Pokračovať od plata č. {_resumeCheckpoint.CompletedPlateaus.Count + 1}";
@@ -1881,11 +1887,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
 
         if (!Views.ConfirmDialog.Ask(
-                "Naozaj chcete definitívne ukončiť túto zastavenú kalibráciu?\n\n" +
+                "Naozaj chcete zrušiť možnosť pokračovať v tejto kalibrácii?\n\n" +
                 "Doteraz dokončené plata a namerané súbory sa zachovajú vo výsledkoch. " +
-                "Checkpoint sa odstráni a v tejto kalibrácii už nebude možné pokračovať.",
-                "Ukončiť a uložiť kalibráciu?",
-                confirmText: "Ukončiť a uložiť",
+                "Checkpoint sa odstráni. Pokračovanie bude možné obnoviť už iba manuálne z Histórie / výsledkov.",
+                "Zrušiť možnosť pokračovania?",
+                confirmText: "Zrušiť pokračovanie",
                 danger: true,
                 cancelText: "Ponechať na pokračovanie"))
         {
@@ -2006,6 +2012,49 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         foreach (CalibrationRunRecord run in _calibrationStore.LoadHistory()) History.Add(run);
         RefreshProfileStatistics();
         ExportSelectedRunCommand.RaiseCanExecuteChanged();
+        RestoreSelectedRunCommand.RaiseCanExecuteChanged();
+    }
+
+    private bool CanRestoreSelectedHistoricalRun()
+    {
+        CalibrationRunRecord? run = SelectedHistoryRun;
+        if (IsRunning || HasResumableCalibration || run is null || SelectedProfile is null || SelectedChamber is null)
+            return false;
+        if (run.ProfileId != SelectedProfile.Id || run.ChamberId != SelectedChamber.Config.Id || run.Plateaus.Count == 0)
+            return false;
+        if (run.State is not (CalibrationRunState.Aborted or CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator))
+            return false;
+
+        int plannedPlateaus = CalibrationPoints.Count(point => point.Selected);
+        int completedPlateaus = run.Plateaus.Select(plateau => plateau.PlateauIndex).Distinct().Count();
+        return plannedPlateaus > completedPlateaus;
+    }
+
+    private void RestoreSelectedHistoricalRun()
+    {
+        CalibrationRunRecord? run = SelectedHistoryRun;
+        if (run is null || !CanRestoreSelectedHistoricalRun()) return;
+
+        int completedPlateaus = run.Plateaus.Select(plateau => plateau.PlateauIndex).Distinct().Count();
+        int plannedPlateaus = CalibrationPoints.Count(point => point.Selected);
+        if (!Views.ConfirmDialog.Ask(
+                $"Obnoviť kalibráciu „{run.DisplayRunId}“ z uložených výsledkov?\n\n" +
+                $"Zachová sa {completedPlateaus} dokončených plat z {plannedPlateaus}. " +
+                $"Pokračovanie začne platom č. {completedPlateaus + 1}; rozpracované plato sa stabilizuje a zmeria nanovo.",
+                "Obnoviť historickú kalibráciu?",
+                confirmText: "Obnoviť pokračovanie",
+                cancelText: "Zrušiť"))
+        {
+            return;
+        }
+
+        CalibrationCheckpoint checkpoint = CalibrationCheckpointRecovery.CreateFromHistoricalRun(run, _setup);
+        _calibrationStore.SaveCheckpoint(checkpoint);
+        _activeRun = run;
+        RunState = CalibrationRunState.Aborted.ToString();
+        RefreshResumeCheckpoint();
+        StatusMessage = $"Pokračovanie kalibrácie „{run.DisplayRunId}“ bolo obnovené. Použite {ResumeCalibrationLabel}.";
+        RefreshCommands();
     }
 
     private void RefreshProfileStatistics()
@@ -2212,6 +2261,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshF100PortsCommand.RaiseCanExecuteChanged();
         DiagnoseF100TalkOnlyCommand.RaiseCanExecuteChanged();
         CheckF100Command.RaiseCanExecuteChanged();
+        RestoreSelectedRunCommand.RaiseCanExecuteChanged();
     }
 
     public async ValueTask DisposeAsync()
