@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.130] – 2026-09-05
+
+### Pridané
+- Kliknutie na „Stop a uložiť“ počas FBG kalibrácie najprv zobrazí potvrdzovacie okno s cieľovou teplotou a vysvetlením následkov zastavenia.
+- Operátor môže zvoliť „Ukončiť a uložiť“ alebo „Pokračovať v kalibrácii“; bez potvrdenia sa kalibrácia ani komora nezastavia.
+- Potvrdzovacie okno sa otvorí nad práve aktívnym oknom kalibrácie, aby nezostalo skryté za maximalizovaným pracovným priestorom.
+- Záložná verzia bola zvýšená na 1.76.130.
+
 ## [1.76.129] – 2026-09-05
 
 ### Pridané

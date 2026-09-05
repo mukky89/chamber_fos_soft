@@ -52,7 +52,8 @@ public partial class ConfirmDialog : Window
         bool danger = true, string? cancelText = null)
     {
         var dialog = new ConfirmDialog(message, title, confirmText, danger, cancelText);
-        Window? owner = Application.Current?.MainWindow;
+        Window? owner = Application.Current?.Windows.OfType<Window>().FirstOrDefault(window => window.IsActive)
+            ?? Application.Current?.MainWindow;
         if (owner is not null && owner.IsVisible && !ReferenceEquals(owner, dialog))
         {
             dialog.Owner = owner;

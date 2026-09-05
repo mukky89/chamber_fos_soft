@@ -1756,6 +1756,22 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private void StopCalibration()
     {
+        string target = Dashboard.TargetTemperatureC is { } targetTemperature
+            ? $" pri cieli {targetTemperature:F1} °C"
+            : string.Empty;
+        if (!Views.ConfirmDialog.Ask(
+                $"Naozaj chcete ukončiť prebiehajúcu FBG kalibráciu{target}?\n\n" +
+                "Komora sa bezpečne zastaví a uloží sa checkpoint. Dokončené plata zostanú zachované. " +
+                "Rozpracované plato sa po obnovení znovu stabilizuje a zmeria z čerstvých vzoriek.",
+                "Ukončiť kalibráciu?",
+                confirmText: "Ukončiť a uložiť",
+                danger: true,
+                cancelText: "Pokračovať v kalibrácii"))
+        {
+            StatusMessage = "Ukončenie bolo zrušené. Kalibrácia pokračuje bez zmeny.";
+            return;
+        }
+
         bool checkpointSaved = TrySaveResumeCheckpoint("OPERATOR_STOP_FOR_RESTART");
         _stopRequested = true;
         _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_STOP", checkpointSaved
