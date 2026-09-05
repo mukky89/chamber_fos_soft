@@ -282,11 +282,28 @@ public partial class CalibrationDashboardView : UserControl
         }
 
         ReferenceTraceChart.Series = series;
-        CompactReferenceChart.Series = new[]
+        var combinedSeries = new List<ChartSeries>
         {
             new ChartSeries("WIKA CTH7000", Brushes.DeepSkyBlue,
                 TimeSeriesEnvelopeReducer.Reduce(measured, point => point.Y, 240), strokeThickness: 1.8),
         };
+        IReadOnlyList<DashboardStabilityScoreSample> stabilityTrace = vm.WikaStabilityScoreTrace;
+        if (stabilityTrace.Count > 0)
+        {
+            IReadOnlyList<DashboardStabilityScoreSample> visibleScore = TimeSeriesEnvelopeReducer.Reduce(
+                stabilityTrace, sample => sample.ScoreSeconds, 240);
+            Point[] scorePoints = visibleScore
+                .Select(sample => new Point((sample.Timestamp - origin).TotalMinutes, sample.ScoreSeconds))
+                .ToArray();
+            combinedSeries.Add(new ChartSeries("Stabilný čas", Brushes.Orange,
+                scorePoints, strokeThickness: 2, useSecondaryAxis: true));
+            double required = stabilityTrace[^1].RequiredSeconds;
+            double maxMinutes = Math.Max(measured[^1].X, scorePoints[^1].X);
+            combinedSeries.Add(new ChartSeries($"Cieľ {required:0} s", Brushes.MediumSeaGreen,
+                new[] { new Point(0, required), new Point(maxMinutes, required) },
+                dashed: true, strokeThickness: 1.4, useSecondaryAxis: true));
+        }
+        CompactReferenceChart.Series = combinedSeries;
         RefreshStabilitySamples(trace, vm.TargetTemperatureC, vm.StabilityToleranceC);
     }
 

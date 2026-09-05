@@ -12,7 +12,8 @@ public sealed class ChartSeries
         IReadOnlyList<Point> points,
         bool dashed = false,
         string? pointLabel = null,
-        double strokeThickness = 2)
+        double strokeThickness = 2,
+        bool useSecondaryAxis = false)
     {
         Name = name;
         Stroke = stroke;
@@ -20,6 +21,7 @@ public sealed class ChartSeries
         Dashed = dashed;
         PointLabel = pointLabel;
         StrokeThickness = strokeThickness;
+        UseSecondaryAxis = useSecondaryAxis;
     }
 
     /// <summary>Legend label.</summary>
@@ -38,4 +40,7 @@ public sealed class ChartSeries
     public string? PointLabel { get; }
 
     public double StrokeThickness { get; }
+
+    /// <summary>Render against the right-hand Y axis instead of the primary left axis.</summary>
+    public bool UseSecondaryAxis { get; }
 }

@@ -20,6 +20,7 @@ public partial class ChartZoomWindow : Window
 
         Mirror(ChartView.SeriesProperty, source, nameof(ChartView.Series));
         Mirror(ChartView.UnitProperty, source, nameof(ChartView.Unit));
+        Mirror(ChartView.SecondaryUnitProperty, source, nameof(ChartView.SecondaryUnit));
         Mirror(ChartView.YMinProperty, source, nameof(ChartView.YMin));
         Mirror(ChartView.YMaxProperty, source, nameof(ChartView.YMax));
         Mirror(ChartView.MinimumYDecimalsProperty, source, nameof(ChartView.MinimumYDecimals));

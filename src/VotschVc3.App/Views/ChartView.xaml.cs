@@ -179,6 +179,17 @@ public partial class ChartView : UserControl
         set => SetValue(UnitProperty, value);
     }
 
+    public static readonly DependencyProperty SecondaryUnitProperty = DependencyProperty.Register(
+        nameof(SecondaryUnit), typeof(string), typeof(ChartView),
+        new PropertyMetadata(string.Empty, OnVisualChanged));
+
+    /// <summary>Unit suffix for series rendered against the right-hand Y axis.</summary>
+    public string SecondaryUnit
+    {
+        get => (string)GetValue(SecondaryUnitProperty);
+        set => SetValue(SecondaryUnitProperty, value);
+    }
+
     public static readonly DependencyProperty MinimumYDecimalsProperty = DependencyProperty.Register(
         nameof(MinimumYDecimals), typeof(int), typeof(ChartView),
         new PropertyMetadata(0, OnVisualChanged));
@@ -301,8 +312,11 @@ public partial class ChartView : UserControl
         // zoomed into a plateau a window-scaled axis showed a flat line in the middle of
         // a 59…61 °C axis, and there was no way to tell where the profile's real maximum
         // and minimum are.
-        double visibleMinY = series.Min(s => s.Points.Min(p => p.Y));
-        double visibleMaxY = series.Max(s => s.Points.Max(p => p.Y));
+        List<ChartSeries> primarySeries = series.Where(s => !s.UseSecondaryAxis).ToList();
+        List<ChartSeries> secondarySeries = series.Where(s => s.UseSecondaryAxis).ToList();
+        if (primarySeries.Count == 0) primarySeries = series;
+        double visibleMinY = primarySeries.Min(s => s.Points.Min(p => p.Y));
+        double visibleMaxY = primarySeries.Max(s => s.Points.Max(p => p.Y));
         double minY;
         double maxY;
         if (_selectedMinY is { } selectedMinY && _selectedMaxY is { } selectedMaxY)
@@ -335,7 +349,14 @@ public partial class ChartView : UserControl
             _yAxis = new ValueAxis(minY, maxY, (maxY - minY) / 4, 4);
         }
 
-        double plotW = width - PadLeft - PadRight;
+        ValueAxis? secondaryAxis = secondarySeries.Count == 0
+            ? null
+            : NiceAxis.Scale(
+                secondarySeries.Min(s => s.Points.Min(p => p.Y)),
+                secondarySeries.Max(s => s.Points.Max(p => p.Y)));
+        ValueAxis secondaryAxisValue = secondaryAxis.GetValueOrDefault();
+        double padRight = secondaryAxis is null ? PadRight : 72;
+        double plotW = width - PadLeft - padRight;
         double plotH = height - PadTop - PadBottom;
         if (plotW <= 0 || plotH <= 0)
         {
@@ -344,6 +365,9 @@ public partial class ChartView : UserControl
 
         double ToPx(double x) => PadLeft + (x - minX) / (maxX - minX) * plotW;
         double ToPy(double y) => PadTop + (1 - (y - minY) / (maxY - minY)) * plotH;
+        double ToSecondaryPy(double y) => secondaryAxis is null
+            ? ToPy(y)
+            : PadTop + (1 - (y - secondaryAxisValue.Min) / (secondaryAxisValue.Max - secondaryAxisValue.Min)) * plotH;
 
         // Remember the transform so the hover read-out can map cursor -> data.
         _minX = minX; _maxX = maxX; _minY = minY; _maxY = maxY; _plotW = plotW; _plotH = plotH;
@@ -407,6 +431,19 @@ public partial class ChartView : UserControl
             AddText($"{yLabel}{Unit}", 2, py - 8, MutedBrush, 10.5, PadLeft - 8, TextAlignment.Right);
         }
 
+        if (secondaryAxis is { } rightAxis)
+        {
+            int rightSteps = Math.Max(1, rightAxis.Intervals);
+            for (int i = 0; i <= rightSteps; i++)
+            {
+                double value = rightAxis.LabelAt(i);
+                double py = ToSecondaryPy(value);
+                int decimals = NiceAxis.RequiredDecimalPlaces(rightAxis.Step, 0);
+                AddText($"{value.ToString($"F{decimals}", CultureInfo.CurrentCulture)}{SecondaryUnit}",
+                    PadLeft + plotW + 6, py - 8, MutedBrush, 10.5, padRight - 8, TextAlignment.Left);
+            }
+        }
+
         // Time axis: a gridline on a readable step (quarter hours / hours / days,
         // depending on the window) with the elapsed time under each one. Only the two
         // ends used to be labelled, so nothing in between could be placed in time.
@@ -461,7 +498,7 @@ public partial class ChartView : UserControl
                 Stroke = s.Stroke,
                 StrokeThickness = s.StrokeThickness,
                 StrokeLineJoin = PenLineJoin.Round,
-                Points = new PointCollection(s.Points.Select(p => new Point(ToPx(p.X), ToPy(p.Y)))),
+                Points = new PointCollection(s.Points.Select(p => new Point(ToPx(p.X), s.UseSecondaryAxis ? ToSecondaryPy(p.Y) : ToPy(p.Y)))),
                 IsHitTestVisible = false,
             };
             if (s.Dashed)

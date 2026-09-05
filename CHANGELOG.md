@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.144] – 2026-09-05
+
+### Zmenené
+- Dva kompaktné grafy v karte WIKA referencie boli spojené do jedného orámovaného grafu so spoločnou časovou osou.
+- Ľavá os spoločného grafu zobrazuje teplotu WIKA v °C a pravá os stabilný čas v sekundách vrátane cieľovej hranice.
+- Graf komory aj spoločný graf WIKA majú zreteľný, ostrý rámček bez rozmazaného efektu; karta pritom zaberá menej výšky.
+- Záložná verzia bola zvýšená na 1.76.144.
+
 ## [1.76.143] – 2026-09-05
 
 ### Pridané
