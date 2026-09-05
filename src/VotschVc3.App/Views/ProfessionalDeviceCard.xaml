@@ -169,16 +169,15 @@
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="Teplota zariadenia" Style="{StaticResource Caption}"
                                    ToolTip="Teplota meraná interným snímačom zariadenia, nie referenčnou kalibračnou sondou." />
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource MetricSmall}"
-                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="2,0,0,3" Foreground="{StaticResource MutedBrush}" />
-                        </StackPanel>
+                        <TextBlock Style="{StaticResource MetricSmall}">
+                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                        </TextBlock>
                     </StackPanel>
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="Setpoint" Style="{StaticResource Caption}" />
-                        <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}"
-                                   Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
+                        <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}">
+                            <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                        </TextBlock>
                     </StackPanel>
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="Odchýlka" Style="{StaticResource Caption}" />
@@ -194,12 +193,13 @@
                     <StackPanel Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Text="Vlhkosť RH" Style="{StaticResource Caption}" />
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource MetricSmall}"
-                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                            <TextBlock Text="%" VerticalAlignment="Bottom" Margin="2,0,6,3" Foreground="{StaticResource MutedBrush}" />
-                            <TextBlock Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}"
-                                       Foreground="{StaticResource WarnBrush}" FontFamily="Segoe UI Semibold" FontSize="14" VerticalAlignment="Bottom"
-                                       ToolTip="Setpoint vlhkosti" />
+                            <TextBlock Style="{StaticResource MetricSmall}">
+                                <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                            </TextBlock>
+                            <TextBlock Foreground="{StaticResource WarnBrush}" FontFamily="Segoe UI Semibold" FontSize="14"
+                                       VerticalAlignment="Bottom" ToolTip="Setpoint vlhkosti">
+                                <Run Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                            </TextBlock>
                         </StackPanel>
                     </StackPanel>
                 </WrapPanel>

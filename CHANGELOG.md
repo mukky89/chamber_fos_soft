@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.161] – 2026-09-06
+
+### Opravené
+- Jednotky `°C` a `%` sú na kartách komôr súčasťou rovnakého textu ako nameraná hodnota, takže majú rovnakú veľkosť, farbu a zarovnanie.
+- Hodnota a jednotka sa pri nedostatku miesta zmenšujú spoločne; `°C` sa už pri dlhšej teplote neodreže ani nestratí.
+- Rovnaké zobrazenie sa používa na hlavnom dashboarde, profesionálnej karte aj v detaile komory.
+- Záložná verzia bola zvýšená na 1.76.161.
+
 ## [1.76.160] – 2026-09-06
 
 ### Opravené

@@ -179,11 +179,9 @@
                                 <Border Grid.Column="0" Style="{StaticResource Card}" Background="{StaticResource SurfaceAltBrush}">
                                     <StackPanel>
                                         <TextBlock Text="TEPLOTA" Style="{StaticResource Caption}" />
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource Metric}"
-                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                            <TextBlock Text="°C" Margin="6,0,0,8" VerticalAlignment="Bottom" Foreground="{StaticResource MutedBrush}" />
-                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource Metric}">
+                                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                                        </TextBlock>
                                         <TextBlock Style="{StaticResource Caption}">
                                             <Run Text="Setpoint: " />
                                             <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" />
@@ -195,11 +193,9 @@
                                         Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                                     <StackPanel>
                                         <TextBlock Text="VLHKOSŤ" Style="{StaticResource Caption}" />
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource Metric}"
-                                                       Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                            <TextBlock Text="%" Margin="6,0,0,8" VerticalAlignment="Bottom" Foreground="{StaticResource MutedBrush}" />
-                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource Metric}">
+                                            <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                                        </TextBlock>
                                         <TextBlock Style="{StaticResource Caption}">
                                             <Run Text="Setpoint: " />
                                             <Run Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" />

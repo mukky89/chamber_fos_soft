@@ -575,12 +575,9 @@
                                                         </TextBlock.Style>
                                                     </TextBlock>
                                                     <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}"
-                                                                       Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
-                                                                       FontFamily="Segoe UI Semibold" Foreground="{StaticResource TemperatureBrush}" />
-                                                        </StackPanel>
+                                                        <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}">
+                                                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                                                        </TextBlock>
                                                     </Viewbox>
                                                 </StackPanel>
                                             </Border>
@@ -598,24 +595,18 @@
                                                             </Style>
                                                         </TextBlock.Style>
                                                     </TextBlock>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource TemperatureSetpointBrush}"
-                                                                   Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                        <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
-                                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource TemperatureSetpointBrush}" />
-                                                    </StackPanel>
+                                                    <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource TemperatureSetpointBrush}">
+                                                        <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                                                    </TextBlock>
                                                 </StackPanel>
                                             </Border>
                                             <Border Style="{StaticResource DashboardMetricTile}"
                                                     Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                                                 <StackPanel>
                                                     <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource HumidityBrush}"
-                                                                   Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" />
-                                                        <TextBlock Text="%" VerticalAlignment="Bottom" Margin="4,0,0,2" FontSize="15"
-                                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource HumidityBrush}" />
-                                                    </StackPanel>
+                                                    <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource HumidityBrush}">
+                                                        <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                                                    </TextBlock>
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
