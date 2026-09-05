@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.119] – 2026-09-05
+
+### Opravené
+- Lokálny výstup priečinka `publish` sa už nezobrazuje medzi nezaradenými súbormi repozitára po overení rovnakého publikačného kroku, aký používa GitHub Actions.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.119.
+
 ## [1.76.118] – 2026-09-05
 
 ### Opravené

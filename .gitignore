@@ -3,6 +3,7 @@ bin/
 obj/
 [Dd]ebug/
 [Rr]elease/
+publish/
 x64/
 x86/
 [Aa][Rr][Mm]/
