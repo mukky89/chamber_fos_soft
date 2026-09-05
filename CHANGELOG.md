@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.129] – 2026-09-05
+
+### Pridané
+- Tlačidlo „Stop a uložiť“ bezpečne zastaví FBG kalibráciu a pred zastavením uloží obnovovací checkpoint vhodný na aktualizáciu aplikácie.
+- Po reštarte možno pokračovať aj v kalibrácii, ktorá ešte nemala dokončené prvé plato; dokončené plata sa zachovajú a rozpracované plato sa z bezpečnostných dôvodov znovu stabilizuje a zmeria z čerstvých vzoriek.
+- Checkpoint sa uloží aj pri riadnom ukončovaní aplikácie počas aktívnej kalibrácie a diagnostika zaznamená dôvod jeho vytvorenia.
+- Záložná verzia bola zvýšená na 1.76.129.
+
 ## [1.76.128] – 2026-09-05
 
 ### Pridané

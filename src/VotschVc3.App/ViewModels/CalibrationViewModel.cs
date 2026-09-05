@@ -601,8 +601,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             ? null
             : _calibrationStore.LoadCheckpoint(SelectedChamber.Config.Id);
         _resumeCheckpoint = checkpoint is not null && SelectedProfile is not null &&
-                            checkpoint.ProfileId == SelectedProfile.Id &&
-                            checkpoint.CompletedPlateaus.Count > 0
+                            checkpoint.ProfileId == SelectedProfile.Id
             ? checkpoint
             : null;
         if (_resumeCheckpoint is not null && CalibrationCheckpointRecovery.RestoreMappingsIfMissing(_setup, _resumeCheckpoint))
@@ -1757,11 +1756,49 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private void StopCalibration()
     {
+        bool checkpointSaved = TrySaveResumeCheckpoint("OPERATOR_STOP_FOR_RESTART");
         _stopRequested = true;
-        _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_STOP", "Operátor stlačil STOP; ruším beh a požadujem bezpečné zastavenie komory.");
+        _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_STOP", checkpointSaved
+            ? "Operátor stlačil STOP; checkpoint je uložený pre pokračovanie po reštarte a komora sa bezpečne zastavuje."
+            : "Operátor stlačil STOP; checkpoint sa nepodarilo uložiť a komora sa bezpečne zastavuje.");
         AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: operátor stlačil STOP.");
         _runCts?.Cancel();
-        StatusMessage = "Zastavujem kalibráciu a posielam bezpečný STOP komore…";
+        StatusMessage = checkpointSaved
+            ? "Checkpoint je uložený. Zastavujem kalibráciu a komoru; po aktualizácii použite Pokračovať v kalibrácii."
+            : "Zastavujem kalibráciu a komoru. Checkpoint sa nepodarilo uložiť; skontrolujte diagnostiku.";
+    }
+
+    private bool TrySaveResumeCheckpoint(string reason)
+    {
+        if (_activeRun is null || SelectedChamber is null) return false;
+
+        try
+        {
+            // The run summary must exist before the checkpoint becomes visible. Resume deliberately
+            // keeps only completed plateaus; an in-progress plateau is re-stabilized and measured
+            // from fresh samples after hardware has been reconnected.
+            _activeWriter?.SaveSummary();
+            _calibrationStore.SaveCheckpoint(new CalibrationCheckpoint
+            {
+                RunId = _activeRun.RunId,
+                ProfileId = _activeRun.ProfileId,
+                ChamberId = _activeRun.ChamberId,
+                CurrentPlateauIndex = _activeRun.Plateaus.Count,
+                CurrentTargetTemperatureC = Dashboard.TargetTemperatureC,
+                State = Enum.TryParse<CalibrationRunState>(RunState, out var state) ? state : _activeRun.State,
+                CompletedPlateaus = _activeRun.Plateaus.ToList(),
+                Mappings = Peaks.Select(peak => peak.ToMapping()).ToList(),
+            });
+            _activeWriter?.WriteDiagnostic("INFO", "RECOVERY_CHECKPOINT_SAVED",
+                $"reason={reason}; completedPlateaus={_activeRun.Plateaus.Count}; nextPlateau={_activeRun.Plateaus.Count + 1}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Recovery must never prevent the requested physical STOP or application shutdown.
+            AppLog.Error("FBG kalibrácia", $"Checkpoint pre pokračovanie po reštarte sa nepodarilo uložiť: {ex}");
+            return false;
+        }
     }
 
     private void PublishCalibrationStatus() => CalibrationStatusViewModel.Instance.Update(
@@ -1963,6 +2000,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             PersistSetup(showStatus: false);
         }
         StopPeakMonitor();
+        if (IsRunning)
+        {
+            TrySaveResumeCheckpoint("APPLICATION_SHUTDOWN");
+        }
         _activeWriter = null;
         _stopRequested = IsRunning;
         _runCts?.Cancel();
