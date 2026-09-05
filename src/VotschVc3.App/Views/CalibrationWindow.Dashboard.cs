@@ -10,16 +10,19 @@ public partial class CalibrationWindow
     private TabItem? _overviewTab;
     private TabItem? _settingsTab;
     private DispatcherTimer? _dashboardTimer;
+    private CalibrationDashboardView? _dashboardView;
 
     // Run after the existing workspace builders have completed their ContextIdle work.
     private void InitializeDashboardLayout()
     {
         if (_overviewTab is not null || _productionTabs is null) return;
         _viewModel.RefreshDashboardPlan();
+        _dashboardView = new CalibrationDashboardView { DataContext = _viewModel.Dashboard };
+        _dashboardView.ReferenceControlToggleRequested += DashboardReferenceControlToggleRequested;
         _overviewTab = new TabItem
         {
             Header = "Prehľad",
-            Content = new CalibrationDashboardView { DataContext = _viewModel.Dashboard }
+            Content = _dashboardView
         };
         _productionTabs.Items.Insert(0, _overviewTab);
 
@@ -112,8 +115,33 @@ public partial class CalibrationWindow
     private void DashboardTick(object? sender, EventArgs e)
     {
         if (!_viewModel.IsRunning) _viewModel.RefreshDashboardPlan();
+        RefreshDashboardReferenceControlState();
         _viewModel.Dashboard.Tick(DateTimeOffset.Now);
         RefreshFbgLiveTraceCharts();
+    }
+    private void DashboardReferenceControlToggleRequested(bool enabled)
+    {
+        if (_viewModel.IsRunning)
+        {
+            RefreshDashboardReferenceControlState();
+            return;
+        }
+
+        _calibrationDeviceOptions ??= _calibrationDeviceOptionsStore.Load(_chamberId);
+        _calibrationDeviceOptions.ControlTemperatureByReference = enabled;
+        _calibrationDeviceOptionsStore.Save(_chamberId, _calibrationDeviceOptions);
+        Core.Calibration.CalibrationReferenceControlRegistry.Configure(_chamberId, _calibrationDeviceOptions.ToCoreOptions());
+        if (_referenceControlToggle is not null)
+            _referenceControlToggle.IsChecked = enabled;
+        RefreshDashboardReferenceControlState();
+    }
+    private void RefreshDashboardReferenceControlState()
+    {
+        if (_dashboardView is null) return;
+        _calibrationDeviceOptions ??= _calibrationDeviceOptionsStore.Load(_chamberId);
+        _dashboardView.SetReferenceControlState(
+            _calibrationDeviceOptions.ControlTemperatureByReference,
+            !_viewModel.IsRunning);
     }
     private void DashboardPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -134,6 +162,8 @@ public partial class CalibrationWindow
     private void DashboardClosed(object? sender, EventArgs e)
     {
         if (_dashboardTimer is not null) { _dashboardTimer.Stop(); _dashboardTimer.Tick -= DashboardTick; }
+        if (_dashboardView is not null)
+            _dashboardView.ReferenceControlToggleRequested -= DashboardReferenceControlToggleRequested;
         _viewModel.PropertyChanged -= DashboardPropertyChanged;
         IsVisibleChanged -= DashboardVisibilityChanged;
         Closed -= DashboardClosed;

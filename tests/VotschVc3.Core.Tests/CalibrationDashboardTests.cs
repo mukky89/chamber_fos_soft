@@ -112,6 +112,10 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("10 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("30 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("súčasne splnené obe podmienky", m.ReferenceTimeHelp);
+        Assert.Contains("Automaticky jemne dorovnať setpoint komory podľa WIKA", m.ReferenceToleranceHelp);
+        Assert.Contains("0,30 °C každých 10 s", m.ReferenceToleranceHelp);
+        Assert.Contains("±3,0 °C", m.ReferenceToleranceHelp);
+        Assert.Contains("predvolene vypnutá", m.ReferenceToleranceHelp);
         Assert.Contains("odchýlka alebo drift nevyhovuje", m.ReferenceTimeHelp);
         Assert.Contains("ďalej čaká a kontroluje nové bloky", m.ReferenceTimeHelp);
         Assert.Contains("Predĺženie sa nikdy neopakuje nad tento strop", m.ReferenceTimeHelp);

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.140] – 2026-09-05
+
+### Pridané
+- Pri odchýlke WIKA je priamo v karte referencie dostupná voliteľná bezpečne obmedzená korekcia setpointu komory, ktorá zasiahne iba mimo povoleného rozsahu a pomôže fyzickú referenciu dorovnať späť.
+- Ovládanie zobrazuje limity korekcie a počas prebiehajúcej kalibrácie je uzamknuté; komora naďalej používa vlastný interný regulátor.
+- Nápoveda odchýlky vysvetľuje krok 0,30 °C za 10 sekúnd, maximálnu celkovú korekciu ±3,0 °C a predvolene vypnutý bezpečný režim.
+- Záložná verzia bola zvýšená na 1.76.140.
+
 ## [1.76.139] – 2026-09-05
 
 ### Zmenené

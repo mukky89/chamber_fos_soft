@@ -283,6 +283,7 @@ public sealed class CalibrationProfileRunner
         if (!options.Enabled) return null;
 
         double biasC = 0;
+        double correctionThresholdC = Math.Max(options.DeadbandC, Math.Abs(setup.Settings.ChamberToleranceC));
         DateTimeOffset nextUpdate = DateTimeOffset.MinValue;
         double lastCommandedSetpoint = double.NaN;
 
@@ -294,7 +295,7 @@ public sealed class CalibrationProfileRunner
             if (double.IsNaN(lastCommandedSetpoint)) lastCommandedSetpoint = targetTemperatureC;
             DateTimeOffset now = DateTimeOffset.UtcNow;
             double errorC = targetTemperatureC - reference;
-            if (now >= nextUpdate && Math.Abs(errorC) > options.DeadbandC)
+            if (now >= nextUpdate && Math.Abs(errorC) > correctionThresholdC)
             {
                 double requestedStep = Math.Clamp(errorC * options.Gain, -options.MaxStepC, options.MaxStepC);
                 biasC = Math.Clamp(biasC + requestedStep, -options.MaxCorrectionC, options.MaxCorrectionC);
@@ -303,7 +304,10 @@ public sealed class CalibrationProfileRunner
                 nextUpdate = now + options.UpdateInterval;
             }
 
-            return $" · WIKA control: setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
+            string state = Math.Abs(errorC) <= correctionThresholdC
+                ? "WIKA je v tolerancii, bez ďalšej korekcie"
+                : "dorovnáva WIKA do tolerancie";
+            return $" · WIKA control: {state} · setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
         };
     }
 

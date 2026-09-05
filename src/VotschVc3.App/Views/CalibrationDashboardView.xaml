@@ -202,6 +202,12 @@
       <TextBlock Text="{Binding Reference}" Style="{StaticResource Metric}"/>
       <TextBlock Text="{Binding ReferenceStatus}" Style="{StaticResource Muted}"/>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceToleranceTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceToleranceLabel}" FontSize="11.5" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceToleranceHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
+      <Border Background="#172A3E" BorderBrush="#3D6D9D" BorderThickness="1" CornerRadius="7" Padding="9,7" Margin="0,5,0,0">
+       <StackPanel>
+        <CheckBox x:Name="ReferenceControlToggle" Content="Automaticky jemne dorovnať setpoint komory podľa WIKA" FontSize="11.5" FontWeight="SemiBold" Click="ReferenceControlToggle_Click" ToolTip="Voliteľná bezpečne obmedzená korekcia. Zasiahne iba vtedy, keď je WIKA mimo povolenej odchýlky. Komora naďalej používa vlastný regulátor; aplikácia iba pomaly posúva jej setpoint, aby sa WIKA dostala do rozsahu."/>
+        <TextBlock Text="Krok max. 0,30 °C / 10 s · celkom max. ±3,0 °C · počas behu sa nastavenie nemení" Style="{StaticResource Muted}" FontSize="10.5" Margin="22,3,0,0"/>
+       </StackPanel>
+      </Border>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceDriftTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceDriftLabel}" FontSize="11.5" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceDriftHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceTimeTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding ReferenceTimeLabel}" FontSize="11.5"/><ProgressBar Value="{Binding TemperatureProgress, Mode=OneWay}" Margin="0,5,0,0" Height="5"/></StackPanel><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceTimeHelp}" Margin="8,0,0,0" VerticalAlignment="Top" Click="HelpButton_Click"/></Grid></Border>
       <TextBlock Text="Zelené = splnené · oranžové = čaká" Style="{StaticResource Muted}" Margin="0,7,0,7"/>

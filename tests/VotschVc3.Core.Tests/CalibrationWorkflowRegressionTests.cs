@@ -332,6 +332,50 @@ public sealed class CalibrationWorkflowRegressionTests
     }
 
     [Fact]
+    public async Task Runner_ReferenceControlCorrectsOnlyOutsideToleranceAndKeepsStepBounded()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "WIKA correction",
+                ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments = { new ProfileSegment { Name = "20 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 20 } },
+            };
+            Guid chamberId = Guid.NewGuid();
+            var setup = StableSetup(profile.Id);
+            setup.ChamberId = chamberId;
+            setup.CalibrationSegmentIndices.Add(0);
+            setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(200);
+            setup.Settings.MaxAutomaticChamberStabilityExtension = TimeSpan.Zero;
+            CalibrationReferenceControlRegistry.Configure(chamberId, new CalibrationReferenceControlOptions(
+                true, 0.35, 0.05, 3.0, 0.30, TimeSpan.FromSeconds(10)));
+
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ProfileName = profile.Name, ChamberId = chamberId };
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+
+            await Assert.ThrowsAsync<CalibrationOperatorActionRequiredException>(() => runner.RunAsync(
+                profile, setup, run, writer, 20, null,
+                _ => Task.FromResult<double?>(20.6), CancellationToken.None, resumeFrom: null));
+
+            Assert.True(chamber.WrittenTemperatures.Count >= 2);
+            Assert.Equal(20, chamber.WrittenTemperatures[0], 6);
+            Assert.InRange(chamber.WrittenTemperatures[1], 19.70, 19.999999);
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task Runner_OperatorCanForceCurrentTemperatureGate_AndOverrideIsAudited()
     {
         string root = TempDirectory();
