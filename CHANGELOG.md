@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.104] – 2026-09-05
+
+### Opravené
+- Roadmapa obnoveného kalibračného behu načíta dokončené plata z checkpointu a už ich nesprávne nezobrazuje ako `PENDING`.
+- Každé obnovené plato zobrazuje stav `DONE`, skutočný lokálny dátum a čas dokončenia a reálne trvanie bodu; body s neúspešným peakom sú označené upozornením.
+- Obnovené dokončenia sa doplnia aj do udalostí kalibrácie, takže operátor vidí auditnú časovú stopu pred pokračovaním od ďalšieho plata.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.104.
+
 ## [1.76.103] – 2026-09-05
 
 ### Opravené

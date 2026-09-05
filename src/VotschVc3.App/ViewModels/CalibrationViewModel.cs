@@ -1484,6 +1484,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         Dashboard.ResetPlan();
         RefreshDashboardPlan();
         Dashboard.Begin(DateTimeOffset.Now);
+        if (resume is not null)
+        {
+            Dashboard.RestoreCompletedPoints(resume.CompletedPlateaus);
+        }
         RunState = CalibrationRunState.Preflight.ToString();
         IsRunning = true;
         _lastChamberTemperatureC = null;

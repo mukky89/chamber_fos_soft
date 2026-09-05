@@ -225,6 +225,28 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
         AddEvent(now, "INFO", "Kalibrácia spustená."); RefreshSteps(); Tick(now);
     }
+    public void RestoreCompletedPoints(IEnumerable<CalibrationPlateauResult> completedPlateaus)
+    {
+        foreach (CalibrationPlateauResult plateau in completedPlateaus.OrderBy(item => item.PlateauIndex))
+        {
+            if (plateau.PlateauIndex < 0 || plateau.PlateauIndex >= Points.Count) continue;
+
+            DashboardNode point = Points[plateau.PlateauIndex];
+            TimeSpan duration = plateau.CompletedAt >= plateau.StartedAt
+                ? plateau.CompletedAt - plateau.StartedAt
+                : TimeSpan.Zero;
+            bool warning = plateau.Targets.Any(target => target.Status != CalibrationTargetState.Stable);
+            string completedAt = plateau.CompletedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss");
+            point.State = warning ? "Warning" : "Done";
+            point.Duration = duration;
+            point.Detail = $"{(warning ? "!" : "✓")} {completedAt} · {Duration(duration)}";
+            AddEvent(plateau.CompletedAt, warning ? "WARNING" : "SUCCESS",
+                $"Obnovený bod {plateau.PlateauIndex + 1} bol dokončený {completedAt}; trvanie {Duration(duration)}.");
+        }
+
+        RefreshSteps();
+        Notify();
+    }
     public void SetRunId(string runId)
     {
         RunId = string.IsNullOrWhiteSpace(runId) ? "—" : runId;
