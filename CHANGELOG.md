@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.152] – 2026-09-05
+
+### Opravené
+- Formulár „Nastavenia stability“ po obnovení kalibrácie znovu načíta aktuálne hodnoty zo setupu alebo checkpointu pri vytvorení aj pri návrate na túto kartu.
+- Uložené limity kalibrácie sa už v zamknutom formulári nezobrazia ako prázdne pomlčky; rozhodovacia logika bežiacej kalibrácie zostáva nezmenená.
+- Záložná verzia bola zvýšená na 1.76.152.
+
 ## [1.76.151] – 2026-09-05
 
 ### Pridané

@@ -2194,6 +2194,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ValidationOverrideReason));
     }
 
+    /// <summary>
+    /// Re-publishes the current persisted/checkpoint settings for dynamically created views.
+    /// A settings view can be realized after checkpoint recovery and would otherwise miss
+    /// the earlier PropertyChanged notifications even though the underlying values are valid.
+    /// </summary>
+    public void RefreshSettingsDisplay() => RefreshSettingsBindings();
+
     private void RefreshCommands()
     {
         ConnectPeakLoggerCommand.RaiseCanExecuteChanged();
