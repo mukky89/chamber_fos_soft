@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.127] – 2026-09-05
+
+### Pridané
+- Každá karta v sekcii „Stabilita jednotlivých FBG peakov“ zobrazuje samostatne označený progress stability aj zelený progress finálneho merania.
+- Pri oboch progress baroch je priamo uvedený aktuálny a požadovaný počet vzoriek daného peaku.
+- Záložná verzia bola zvýšená na 1.76.127.
+
 ## [1.76.126] – 2026-09-05
 
 ### Pridané
