@@ -172,6 +172,16 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string TimelineNextNumber => TimelineNextNode?.Number ?? "✓";
     public string TimelineNextTitle => TimelineNextNode?.Title ?? "Kalibrácia dokončená";
     public string TimelineNextDetail => TimelineNextNode?.Detail ?? "Všetky naplánované kroky sú hotové.";
+    public string TimelineNextTiming => TimelineNextNode?.Title switch
+    {
+        "Stabilita FBG" => SampleTiming(_requiredStableSamples),
+        "Meranie samples" => SampleTiming(_requiredMeasurementSamples),
+        _ => string.Empty,
+    };
+
+    private string SampleTiming(int samples) => _observedCycleSeconds is { } seconds
+        ? $"Odhad {samples} vzoriek: {Duration(TimeSpan.FromSeconds(Math.Round(samples * seconds)))} · 1 cyklus ≈ {seconds:F1} s"
+        : $"Odhad {samples} vzoriek: čaká na zmeranie dátového cyklu";
 
     public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null,
         int requiredStableSamples = 50, int requiredMeasurementSamples = 50, double maxRangePm = 5, double maxStdDevPm = 1.5,

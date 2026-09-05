@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.112] – 2026-09-05
+
+### Opravené
+- Karta nasledujúceho kroku už neorezáva dlhý popis stability FBG na jednom riadku; celý text sa zalomí a zostane čitateľný.
+- Pre kroky stability a finálneho merania sa samostatne zobrazuje odhad času požadovaného počtu vzoriek aj aktuálne pozorovaná dĺžka jedného dátového cyklu.
+- Kým aplikácia nemá reálnu kadenciu PeakLoggera, karta namiesto zavádzajúceho času jasne oznámi, že čaká na zmeranie dátového cyklu.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.112.
+
 ## [1.76.111] – 2026-09-05
 
 ### Opravené

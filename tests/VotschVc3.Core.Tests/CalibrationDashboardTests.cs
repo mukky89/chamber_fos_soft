@@ -92,6 +92,23 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("5 nových", m.Steps[5].Detail);
         Assert.Contains("20 s", m.Steps[5].Detail);
     }
+    [Fact] public void NextFbgStepShowsSeparateObservedSampleDuration()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);
+        Assert.Equal("Stabilita FBG", m.TimelineNextTitle);
+        Assert.Contains("čaká na zmeranie", m.TimelineNextTiming);
+
+        DateTimeOffset restarted = Start.AddMinutes(1);
+        m.Begin(restarted);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors), restarted);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors), restarted.AddSeconds(3.4));
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), restarted.AddSeconds(4));
+
+        Assert.Contains("Odhad 50 vzoriek", m.TimelineNextTiming);
+        Assert.Contains("2 min 50 s", m.TimelineNextTiming);
+        Assert.Contains("1 cyklus", m.TimelineNextTiming);
+    }
     [Fact] public void IndividualFbgChartsTrackEachPeakAndResetForNewRun()
     {
         var m = Model();
