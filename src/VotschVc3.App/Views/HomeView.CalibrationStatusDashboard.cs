@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -156,6 +158,31 @@ public partial class HomeView
         header.Children.Add(liveTitle);
 
         var profile = new TextBlock { Tag = "profile", FontSize = 16, FontFamily = new FontFamily("Segoe UI Semibold"), Margin = new Thickness(0, 10, 0, 2), TextTrimming = TextTrimming.CharacterEllipsis };
+        var runId = new TextBlock
+        {
+            Tag = "runId",
+            FontSize = 11,
+            FontFamily = new FontFamily("Segoe UI Semibold"),
+            Foreground = new SolidColorBrush(Color.FromRgb(187, 216, 255)),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        var openRunFolder = new Button
+        {
+            Tag = "openRunFolder",
+            Content = "📁 Otvoriť súbory",
+            Style = FindResource("AccentOutlineButton") as Style,
+            FontSize = 10.5,
+            Padding = new Thickness(8, 4, 8, 4),
+            Margin = new Thickness(8, 4, 0, 4),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            ToolTip = "Otvorí priečinok so summary, výsledkami, raw samples, wavelength trace a diagnostickým logom tejto kalibrácie.",
+        };
+        openRunFolder.Click += OpenCalibrationRunFolder_Click;
+        var runMeta = new DockPanel { LastChildFill = true };
+        DockPanel.SetDock(openRunFolder, Dock.Right);
+        runMeta.Children.Add(openRunFolder);
+        runMeta.Children.Add(runId);
         var plateau = new TextBlock { Tag = "plateau", FontSize = 11, Foreground = muted };
 
         var detail = new TextBlock
@@ -185,6 +212,7 @@ public partial class HomeView
         var stack = new StackPanel();
         stack.Children.Add(header);
         stack.Children.Add(profile);
+        stack.Children.Add(runMeta);
         stack.Children.Add(plateau);
         stack.Children.Add(detail);
         stack.Children.Add(metrics);
@@ -230,6 +258,8 @@ public partial class HomeView
             CalibrationWorkspaceStatusSnapshot snapshot = CalibrationStatusViewModel.Instance.GetWorkspace(chamber.Id);
             TextBlock? state = FindTagged<TextBlock>(stack, "state");
             TextBlock? profile = FindTagged<TextBlock>(stack, "profile");
+            TextBlock? runId = FindTagged<TextBlock>(stack, "runId");
+            Button? openRunFolder = FindTagged<Button>(stack, "openRunFolder");
             TextBlock? plateau = FindTagged<TextBlock>(stack, "plateau");
             TextBlock? detail = FindTagged<TextBlock>(stack, "detail");
             TextBlock? target = FindTagged<TextBlock>(stack, "target");
@@ -249,6 +279,12 @@ public partial class HomeView
                 state.Foreground = ok;
             }
             if (profile is not null) profile.Text = snapshot.ProfileName;
+            if (runId is not null) runId.Text = $"ID kalibrácie: {snapshot.RunId}";
+            if (openRunFolder is not null)
+            {
+                openRunFolder.CommandParameter = snapshot.RunDirectory;
+                openRunFolder.IsEnabled = !string.IsNullOrWhiteSpace(snapshot.RunDirectory);
+            }
             if (plateau is not null) plateau.Text = $"{snapshot.Plateau} · čas fázy {snapshot.PhaseElapsed}";
             if (detail is not null)
                 detail.Text = snapshot.CurrentActivity;
@@ -263,4 +299,18 @@ public partial class HomeView
 
     private static T? FindTagged<T>(DependencyObject root, string tag) where T : FrameworkElement =>
         FindVisualDescendants<T>(root).FirstOrDefault(x => string.Equals(x.Tag?.ToString(), tag, StringComparison.Ordinal));
+
+    private static void OpenCalibrationRunFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { CommandParameter: string path } || string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            Directory.CreateDirectory(path);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Notifications.AppNotificationService.Warning("Súbory kalibrácie", $"Priečinok sa nepodarilo otvoriť: {ex.Message}", $"calibration-folder:{path}");
+        }
+    }
 }

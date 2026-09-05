@@ -25,6 +25,8 @@ public sealed class CalibrationStatusViewModel : ObservableObject
         string chamberName,
         bool isRunning,
         string profileName,
+        string runId,
+        string runDirectory,
         string runState,
         string plateau,
         double progressPercent,
@@ -36,7 +38,7 @@ public sealed class CalibrationStatusViewModel : ObservableObject
         string progressLabel,
         string phaseElapsed)
     {
-        _workspaces[chamberId] = new(chamberName, isRunning, profileName, runState, plateau, Math.Clamp(progressPercent, 0, 100),
+        _workspaces[chamberId] = new(chamberName, isRunning, profileName, runId, runDirectory, runState, plateau, Math.Clamp(progressPercent, 0, 100),
             displayState, currentActivity, target, reference, peakSummary, progressLabel, phaseElapsed);
         WorkspaceStatus[] active = _workspaces.Values.Where(status => status.IsRunning).ToArray();
         IsRunning = active.Length > 0;
@@ -61,13 +63,15 @@ public sealed class CalibrationStatusViewModel : ObservableObject
     public CalibrationWorkspaceStatusSnapshot GetWorkspace(Guid chamberId)
     {
         if (!_workspaces.TryGetValue(chamberId, out WorkspaceStatus? status))
-            return new(chamberId, string.Empty, false, string.Empty, "Idle", string.Empty, 0,
+            return new(chamberId, string.Empty, false, string.Empty, "—", string.Empty, "Idle", string.Empty, 0,
                 "READY · Pripravené", "Kalibrácia nie je spustená.", "—", "—", "0 / 0", "0 %", "—");
         return new(
             chamberId,
             status.ChamberName,
             status.IsRunning,
             status.ProfileName,
+            status.RunId,
+            status.RunDirectory,
             status.RunState,
             status.Plateau,
             status.ProgressPercent,
@@ -84,6 +88,8 @@ public sealed class CalibrationStatusViewModel : ObservableObject
         string ChamberName,
         bool IsRunning,
         string ProfileName,
+        string RunId,
+        string RunDirectory,
         string RunState,
         string Plateau,
         double ProgressPercent,
@@ -101,6 +107,8 @@ public sealed record CalibrationWorkspaceStatusSnapshot(
     string ChamberName,
     bool IsRunning,
     string ProfileName,
+    string RunId,
+    string RunDirectory,
     string RunState,
     string Plateau,
     double ProgressPercent,

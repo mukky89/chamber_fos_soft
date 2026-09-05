@@ -1769,6 +1769,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SelectedChamber?.Config.Name ?? "Komora",
         IsRunning,
         SelectedProfile?.Name ?? "FBG kalibrácia",
+        _activeRun?.DisplayRunId ?? "—",
+        _activeRun is null ? string.Empty : Path.Combine(_calibrationStore.RunsDirectory, _activeRun.RunId.ToString("N")),
         RunState,
         PlateauLabel,
         _calibrationProgressPercent,

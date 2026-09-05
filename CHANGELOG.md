@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.124] – 2026-09-05
+
+### Pridané
+- Živá FBG karta na dashboarde zobrazuje ID aktuálnej kalibrácie priamo pod názvom profilu.
+- Tlačidlo „Otvoriť súbory“ otvorí presný priečinok aktuálneho behu so súhrnom, výsledkami, raw samples, wavelength trace a diagnostickým logom.
+- Tlačidlo používa kompaktný výrazný hover stav bez rozmazania a záložná verzia bola zvýšená na 1.76.124.
+
 ## [1.76.123] – 2026-09-05
 
 ### Pridané
