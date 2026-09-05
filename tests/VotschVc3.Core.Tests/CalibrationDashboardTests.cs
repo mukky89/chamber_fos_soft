@@ -1,3 +1,4 @@
+using System.Globalization;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Calibration;
 using Xunit;
@@ -88,7 +89,7 @@ public sealed class CalibrationDashboardTests
         m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Stabilizing", 0)), Start.AddSeconds(4));
 
         Assert.Contains("12 vzoriek", m.Steps[4].Detail);
-        Assert.Contains("range ≤ 4,000 pm", m.Steps[4].Detail);
+        Assert.Contains($"range ≤ {4d.ToString("F3", CultureInfo.CurrentCulture)} pm", m.Steps[4].Detail);
         Assert.Contains("5 nových", m.Steps[5].Detail);
         Assert.Contains("20 s", m.Steps[5].Detail);
     }
@@ -102,8 +103,8 @@ public sealed class CalibrationDashboardTests
         string help = m.Steps[3].Detail;
 
         Assert.Contains("blokoch 5 vzoriek", help);
-        Assert.Contains("±0,250 °C", help);
-        Assert.Contains("≤ 0,100 °C/min", help);
+        Assert.Contains($"±{0.25d.ToString("F3", CultureInfo.CurrentCulture)} °C", help);
+        Assert.Contains($"≤ {0.1d.ToString("F3", CultureInfo.CurrentCulture)} °C/min", help);
         Assert.Contains("pripočíta reálne uplynuté sekundy", help);
         Assert.Contains("odpočíta dvojnásobok", help);
         Assert.Contains("10 min 00 s", help);
@@ -309,9 +310,9 @@ public sealed class CalibrationDashboardTests
         }, Start);
 
         Assert.Equal("Done", m.ReferenceToleranceTone);
-        Assert.Contains("0,200", m.ReferenceToleranceLabel);
+        Assert.Contains(0.2d.ToString("F3", CultureInfo.CurrentCulture), m.ReferenceToleranceLabel);
         Assert.Equal("Done", m.ReferenceDriftTone);
-        Assert.Contains("0,080 / ≤ 0,100", m.ReferenceDriftLabel);
+        Assert.Contains($"{0.08d.ToString("F3", CultureInfo.CurrentCulture)} / ≤ {0.1d.ToString("F3", CultureInfo.CurrentCulture)}", m.ReferenceDriftLabel);
         Assert.Equal("Waiting", m.ReferenceTimeTone);
         Assert.Contains("35 / 600 s", m.ReferenceTimeLabel);
     }

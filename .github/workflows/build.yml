@@ -9,6 +9,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Pri rychlych po sebe iducich pushoch nema zmysel dokoncovat kontrolu
+# starsieho commitu. Jedna vetva tak ma naraz iba jeden aktualny CI beh.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: windows-latest

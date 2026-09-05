@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.118] – 2026-09-05
+
+### Opravené
+- GitHub Actions používa jediný spoločný build namiesto dvoch prekrývajúcich sa workflowov, čím sa odstránia duplicitné e-mailové hlásenia ku každému commitu.
+- Novší push automaticky zruší rozpracovanú kontrolu staršieho commitu na rovnakej vetve, takže sa nekopia zastarané buildy.
+- Testy slovenských číselných textov už nezávisia od regionálneho nastavenia počítača a prejdú aj na anglickom GitHub runneri.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.118.
+
 ## [1.76.117] – 2026-09-05
 
 ### Pridané
