@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.109] – 2026-09-05
+
+### Pridané
+- Projektové skills pre vlastné WPF grafy, perzistenciu nastavení a MVVM navigáciu s presnými pravidlami podľa aktuálnej architektúry aplikácie.
+- Referenčné inventáre kontraktov grafov, gest, JSON úložísk, migrácií, navigačných trás a hraníc viewmodelov.
+
+### Zmenené
+- Skill pre WPF UX/UI je užší, používa progresívne načítavané referencie a rešpektuje poradie tém, centrálny systém notifikácií aj laboratórnu ergonómiu.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.109.
+
 ## [1.76.108] – 2026-09-05
 
 ### Zmenené
