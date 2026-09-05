@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.121] – 2026-09-05
+
+### Zmenené
+- Workflow karta sa pri prejdení myšou zvýrazní jasnejším modrým rámčekom a kontrastnejším pozadím bez rozmazania alebo tieňa.
+- Otáznik v každej workflow karte má samostatný výrazný hover stav a kurzor pomoci, aby bolo zrejmé, že obsahuje vysvetlenie kroku.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.121.
+
 ## [1.76.120] – 2026-09-05
 
 ### Pridané

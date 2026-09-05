@@ -20,6 +20,28 @@
     <DataTrigger Binding="{Binding State}" Value="Error"><Setter Property="BorderBrush" Value="#FA6F79"/><Setter Property="Background" Value="#412631"/></DataTrigger>
    </Style.Triggers>
   </Style>
+  <Style x:Key="WorkflowNode" TargetType="Border" BasedOn="{StaticResource Node}">
+   <Setter Property="Cursor" Value="Hand"/>
+   <Style.Triggers>
+    <Trigger Property="IsMouseOver" Value="True">
+     <Setter Property="Background" Value="#203C60"/>
+     <Setter Property="BorderBrush" Value="#8CC2FF"/>
+     <Setter Property="BorderThickness" Value="2"/>
+    </Trigger>
+   </Style.Triggers>
+  </Style>
+  <Style x:Key="WorkflowHelpBadge" TargetType="Border">
+   <Setter Property="Width" Value="20"/><Setter Property="Height" Value="20"/><Setter Property="CornerRadius" Value="10"/>
+   <Setter Property="Background" Value="#203650"/><Setter Property="BorderBrush" Value="#609DE8"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Cursor" Value="Help"/>
+   <Style.Triggers>
+    <Trigger Property="IsMouseOver" Value="True">
+     <Setter Property="Background" Value="#2E6FB5"/>
+     <Setter Property="BorderBrush" Value="#D6EAFF"/>
+     <Setter Property="BorderThickness" Value="2"/>
+    </Trigger>
+   </Style.Triggers>
+  </Style>
   <Style TargetType="ProgressBar"><Setter Property="Height" Value="7"/><Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/><Setter Property="Foreground" Value="#589EFF"/><Setter Property="Background" Value="#26364B"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Margin" Value="0,8,0,8"/></Style>
   <Style x:Key="CriterionPill" TargetType="Border">
    <Setter Property="Background" Value="#1B2A3D"/><Setter Property="BorderBrush" Value="#40536A"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="7"/><Setter Property="Padding" Value="9,6"/><Setter Property="Margin" Value="0,4,0,0"/>
@@ -49,7 +71,7 @@
     </Trigger>
    </Style.Triggers>
   </Style>
-  <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource Node}"><Border.ToolTip><ToolTip MaxWidth="560" Placement="Mouse"><TextBlock Text="{Binding Detail}" TextWrapping="Wrap" LineHeight="20" Padding="3"/></ToolTip></Border.ToolTip><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Border HorizontalAlignment="Right" Width="20" Height="20" CornerRadius="10" Background="#203650" BorderBrush="#609DE8" BorderThickness="1"><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#9CC6FF" FontWeight="Bold" FontSize="12"/></Border></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
+  <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource WorkflowNode}"><Border.ToolTip><ToolTip MaxWidth="560" Placement="Mouse"><TextBlock Text="{Binding Detail}" TextWrapping="Wrap" LineHeight="20" Padding="3"/></ToolTip></Border.ToolTip><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Border HorizontalAlignment="Right" Style="{StaticResource WorkflowHelpBadge}"><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D6EAFF" FontWeight="Bold" FontSize="12"/></Border></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
  </UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Margin="20">
