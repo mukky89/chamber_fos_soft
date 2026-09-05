@@ -45,9 +45,8 @@ public partial class CalibrationWindow
 
     private void ConfigureWiringModesV9()
     {
-        if (_wiringGrid is null) return;
-        DockPanel header = WiringActionsPanel;
-        if (header.Children.OfType<FrameworkElement>().Any(x => Equals(x.Tag, "WIRING_MODES_V9"))) return;
+        if (_wiringGrid?.Parent is not Grid root || root.Children.OfType<FrameworkElement>().Any(x => Equals(x.Tag, "WIRING_MODES_V9"))) return;
+        if (root.Children.OfType<DockPanel>().FirstOrDefault(x => Grid.GetRow(x) == 0) is not DockPanel header) return;
 
         var table = new RadioButton
         {

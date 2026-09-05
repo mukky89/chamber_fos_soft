@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.148] – 2026-09-05
+
+### Zmenené
+- Záložka „Zapojenie“ bola na žiadosť operátora vrátená na pôvodné rozloženie s jednou širokou tabuľkou a všetkými údajmi priamo v stĺpcoch.
+- Odstránený bol pravý panel „Detail senzora“, súhrnné karty a vyhľadávacie pole z redizajnu; obnova kalibrácie a ostatné novšie opravy zostali zachované.
+- Záložná verzia bola zvýšená na 1.76.148.
+
 ## [1.76.147] – 2026-09-05
 
 ### Pridané
