@@ -66,8 +66,9 @@ public sealed class CalibrationDashboardTests
         m.ReportChamberTemperature(20, Start);
         m.Tick(Start);
 
-        Assert.Equal("≈ 2 h 30 min", m.Eta);
+        Assert.Equal("≈ 3 h 55 min", m.Eta);
         Assert.Contains("historické mediány", m.EtaBasis);
+        Assert.Equal("Temperovanie 25 °C", m.Steps[8].Title);
     }
     [Fact] public void ParallelMeasurementDoesNotCountStabilitySamplesAsMeasurement()
     {

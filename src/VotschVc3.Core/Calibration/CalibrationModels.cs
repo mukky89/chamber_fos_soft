@@ -14,6 +14,7 @@ public enum CalibrationRunState
     StabilizingSensors,
     PlateauCompleted,
     MovingToNextPlateau,
+    FinalConditioning,
     Paused,
     AwaitingOperator,
     Completed,
@@ -110,6 +111,12 @@ public sealed class CalibrationProfileSettings
     public TimeSpan ChamberStabilityExtensionStep { get; set; } = TimeSpan.FromMinutes(15);
     /// <summary>Maximum accumulated automatic extension above the base timeout.</summary>
     public TimeSpan MaxAutomaticChamberStabilityExtension { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>Mandatory product-conditioning target after all selected calibration plateaus.</summary>
+    public double FinalConditioningTemperatureC { get; set; } = 25.0;
+    /// <summary>Continuous time the chamber must remain inside the final conditioning tolerance.</summary>
+    public TimeSpan FinalConditioningDuration { get; set; } = TimeSpan.FromHours(1);
+    public double FinalConditioningToleranceC { get; set; } = 0.5;
 
     public TimeSpan DefaultSensorStabilizationTimeout { get; set; } = TimeSpan.FromMinutes(60);
     public CalibrationFailurePolicy SensorTimeoutPolicy { get; set; } = CalibrationFailurePolicy.ContinueAndFlag;
@@ -309,6 +316,10 @@ public sealed class CalibrationRunRecord
     public string ReferenceThermometerChannel { get; set; } = string.Empty;
     public List<CalibrationPlateauResult> Plateaus { get; set; } = new();
     public List<CalibrationWarning> Warnings { get; set; } = new();
+    public double FinalConditioningTemperatureC { get; set; }
+    public TimeSpan FinalConditioningRequiredDuration { get; set; }
+    public DateTimeOffset? FinalConditioningStartedAt { get; set; }
+    public DateTimeOffset? FinalConditioningCompletedAt { get; set; }
 
     [JsonIgnore]
     public string DisplayRunId => string.IsNullOrWhiteSpace(HumanRunId)

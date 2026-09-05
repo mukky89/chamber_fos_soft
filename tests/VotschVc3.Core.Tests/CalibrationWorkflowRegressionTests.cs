@@ -173,10 +173,18 @@ public sealed class CalibrationWorkflowRegressionTests
                         TargetTemperature = 40,
                         Duration = TimeSpan.FromHours(8),
                     },
+                    new ProfileSegment
+                    {
+                        Name = "Unchecked final 25 C calibration plateau",
+                        IsRamp = false,
+                        IsCalibrationPoint = true,
+                        TargetTemperature = 25,
+                    },
                 },
             };
             var setup = StableSetup(profile.Id);
             setup.CalibrationSegmentIndices.Add(1);
+            setup.Settings.FinalConditioningDuration = TimeSpan.FromMilliseconds(25);
 
             var store = new CalibrationStore(root);
             var run = new CalibrationRunRecord
@@ -199,6 +207,15 @@ public sealed class CalibrationWorkflowRegressionTests
             CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
             Assert.Equal(40, plateau.TargetTemperatureC, 6);
             Assert.Single(plateau.Targets);
+            Assert.DoesNotContain(run.Plateaus, item => Math.Abs(item.TargetTemperatureC - 25) < 0.001);
+            Assert.Equal(25, chamber.WrittenTemperatures[^1], 6);
+            Assert.Equal(25, run.FinalConditioningTemperatureC, 6);
+            Assert.NotNull(run.FinalConditioningStartedAt);
+            Assert.NotNull(run.FinalConditioningCompletedAt);
+            Assert.Contains(updates, update => update.State == CalibrationRunState.FinalConditioning &&
+                                               update.PlateauIndex == -1 &&
+                                               Math.Abs(update.TargetTemperatureC - 25) < 0.001 &&
+                                               update.Targets.Count == 0);
         }
         finally
         {
@@ -549,6 +566,7 @@ public sealed class CalibrationWorkflowRegressionTests
             ChamberStableDuration = TimeSpan.Zero,
             MaxChamberDriftCPerMinute = 0,
             ChamberStabilityTimeout = TimeSpan.FromSeconds(5),
+            FinalConditioningDuration = TimeSpan.Zero,
             DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(5),
             SensorTimeoutPolicy = CalibrationFailurePolicy.AbortCalibration,
             PeakLostPolicy = CalibrationFailurePolicy.AbortCalibration,

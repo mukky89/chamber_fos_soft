@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.76.159] – 2026-09-06
+
+### Pridané
+- Po dokončení všetkých vybraných kalibračných bodov sa komora vždy vráti na 25 °C a výrobky sa temperujú najmenej jednu súvislú hodinu v pásme 25 ± 0,5 °C.
+- Záverečné temperovanie je v pláne, pracovnom postupe, odhade času a histórii behu zobrazené ako samostatný krok bez merania WIKA a FBG a bez vytvorenia kalibračného bodu.
+- Pri opustení povoleného teplotného pásma sa súvislý čas temperovania začne počítať odznova; rozpracovaný krok sa ukladá do checkpointu a po obnovení sa bezpečne zopakuje.
+
+### Opravené
+- Zrušenie plata v kalibračnom pláne okamžite aktualizuje počet bodov, poradie, progress aj odhadovaný čas; odškrtnuté plato sa nekalibruje ani neuloží medzi výsledky.
+- Záložná verzia bola zvýšená na 1.76.159.
+
 ## [1.76.158] – 2026-09-06
 
 ### Opravené

@@ -429,7 +429,7 @@ public partial class CalibrationWindow
 
         _productionPlanText.Text =
             $"PLÁN · {profile} · {points.Length} plat: {temperatures} · {peaks.Length} FBG peakov · {reference} · " +
-            $"{_viewModel.RequiredStableSamples} stabilných samples / peak";
+            $"{_viewModel.RequiredStableSamples} stabilných samples / peak · ZÁVER: 25 °C, temperovanie min. 1 h bez FBG merania";
 
         CalibrationTargetProgressViewModel? active = _viewModel.TargetProgress.FirstOrDefault(target =>
             target.State is not CalibrationTargetState.Stable and not CalibrationTargetState.Overridden)
@@ -475,6 +475,8 @@ public partial class CalibrationWindow
                      : $"ČAKÁM NA · {active.SerialNumber}, CH {active.Channel}, {active.PeakId}: {active.SamplesLabel} samples, stav {active.State}."),
             nameof(CalibrationRunState.PlateauCompleted) =>
                 ($"AKTUÁLNY KROK · {plateau} dokončené", "Výsledky plata sú uložené; pokračujem na ďalšie vybrané plato."),
+            nameof(CalibrationRunState.FinalConditioning) =>
+                ("AKTUÁLNY KROK · Záverečné temperovanie 25 °C", "ČAKÁM NA · súvislú 1 hodinu výrobkov pri 25 °C. WIKA ani FBG sa už nevyhodnocujú."),
             nameof(CalibrationRunState.Paused) =>
                 ("AKTUÁLNY KROK · PAUZA", "ČAKÁM NA · pokračovanie operátorom."),
             nameof(CalibrationRunState.AwaitingOperator) =>

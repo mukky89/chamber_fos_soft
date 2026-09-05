@@ -234,6 +234,15 @@ public sealed class CalibrationProfileRunner
                 });
             }
 
+            await RunFinalConditioningAsync(
+                setup,
+                run,
+                writer,
+                calibrationSteps.Count,
+                previousCommandedTemperature,
+                previousHumidity,
+                cancellationToken).ConfigureAwait(false);
+
             run.CompletedAt = DateTimeOffset.Now;
             run.State = run.Warnings.Count == 0 ? CalibrationRunState.Completed : CalibrationRunState.CompletedWithWarnings;
             writer.SaveSummary();
@@ -395,7 +404,9 @@ public sealed class CalibrationProfileRunner
         double fromTemperature,
         double targetTemperature,
         double? targetHumidity,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CalibrationRunState progressState = CalibrationRunState.MovingToPlateau,
+        string? progressContext = null)
     {
         if (!settings.EnableSetpointRamp || Math.Abs(targetTemperature - fromTemperature) < 0.001)
         {
@@ -422,7 +433,7 @@ public sealed class CalibrationProfileRunner
             catch (InvalidOperationException) { }
 
             Progress?.Invoke(new CalibrationProgressSnapshot(
-                CalibrationRunState.MovingToPlateau,
+                progressState,
                 plateauIndex,
                 plateauCount,
                 targetTemperature,
@@ -432,12 +443,86 @@ public sealed class CalibrationProfileRunner
                 0,
                 DateTimeOffset.UtcNow - startedAt,
                 Array.Empty<CalibrationTargetProgress>(),
-                $"Plynulý nábeh {rateCPerMinute:F2} °C/min · setpoint {commanded:F2} °C · cieľ {targetTemperature:F2} °C. " +
+                $"{progressContext ?? "Plynulý nábeh"} · {rateCPerMinute:F2} °C/min · setpoint {commanded:F2} °C · cieľ {targetTemperature:F2} °C. " +
                 "Komora sa reguluje vlastným snímačom; WIKA zatiaľ iba meria."));
 
             if (Math.Abs(targetTemperature - commanded) > 0.001)
                 await Task.Delay(_updateInterval, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private async Task RunFinalConditioningAsync(
+        CalibrationSetup setup,
+        CalibrationRunRecord run,
+        CalibrationRunWriter writer,
+        int calibrationPlateauCount,
+        double fromTemperature,
+        double? humidity,
+        CancellationToken cancellationToken)
+    {
+        double target = double.IsFinite(setup.Settings.FinalConditioningTemperatureC)
+            ? setup.Settings.FinalConditioningTemperatureC
+            : 25.0;
+        TimeSpan required = setup.Settings.FinalConditioningDuration < TimeSpan.Zero
+            ? TimeSpan.FromHours(1)
+            : setup.Settings.FinalConditioningDuration;
+        if (required == TimeSpan.Zero) return;
+        double tolerance = double.IsFinite(setup.Settings.FinalConditioningToleranceC)
+            ? Math.Max(0.05, Math.Abs(setup.Settings.FinalConditioningToleranceC))
+            : 0.5;
+
+        run.State = CalibrationRunState.FinalConditioning;
+        run.FinalConditioningTemperatureC = target;
+        run.FinalConditioningRequiredDuration = required;
+        run.FinalConditioningStartedAt = DateTimeOffset.Now;
+        run.FinalConditioningCompletedAt = null;
+        SaveCheckpoint(run, setup, Math.Max(0, calibrationPlateauCount - 1), target, Array.Empty<int>());
+        writer.SaveSummary();
+
+        await MoveSetpointToPlateauAsync(
+            setup.Settings,
+            -1,
+            calibrationPlateauCount,
+            fromTemperature,
+            target,
+            humidity,
+            cancellationToken,
+            CalibrationRunState.FinalConditioning,
+            "Záverečný návrat na 25 °C").ConfigureAwait(false);
+
+        DateTimeOffset? inToleranceSince = null;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
+            double actual = await ReadTemperatureAsync(cancellationToken).ConfigureAwait(false);
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            bool inTolerance = Math.Abs(actual - target) <= tolerance;
+            if (inTolerance) inToleranceSince ??= now;
+            else inToleranceSince = null;
+            TimeSpan held = inToleranceSince is { } started ? now - started : TimeSpan.Zero;
+
+            Progress?.Invoke(new CalibrationProgressSnapshot(
+                CalibrationRunState.FinalConditioning,
+                -1,
+                calibrationPlateauCount,
+                target,
+                actual,
+                null,
+                0,
+                0,
+                held,
+                Array.Empty<CalibrationTargetProgress>(),
+                inTolerance
+                    ? $"Záverečné temperovanie výrobkov pri {target:F1} °C · potvrdené {held:hh\\:mm\\:ss} / {required:hh\\:mm\\:ss}. FBG sa nemeria."
+                    : $"Záverečné temperovanie čaká, kým komora dosiahne {target:F1} °C ± {tolerance:F1} °C. Hodina sa začne počítať až v pásme; FBG sa nemeria."));
+
+            if (held >= required) break;
+            await Task.Delay(_updateInterval, cancellationToken).ConfigureAwait(false);
+        }
+
+        run.FinalConditioningCompletedAt = DateTimeOffset.Now;
+        writer.SaveSummary();
     }
 
     private static double NormalizeSetpointRate(double value) =>

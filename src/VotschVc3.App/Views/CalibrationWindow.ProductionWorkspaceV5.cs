@@ -295,6 +295,26 @@ public partial class CalibrationWindow
                 Opacity = isDone ? 0.65 : 1,
             });
         }
+
+        bool conditioningActive = string.Equals(_viewModel.RunState, nameof(CalibrationRunState.FinalConditioning), StringComparison.Ordinal);
+        bool conditioningDone = _viewModel.RunState is nameof(CalibrationRunState.Completed) or nameof(CalibrationRunState.CompletedWithWarnings);
+        _timelineV5.Children.Add(new Border
+        {
+            Child = new TextBlock
+            {
+                Text = $"{points.Length + 1}. Záver – temperovanie výrobkov\n25,0 °C · min. 1 h · bez FBG merania\n{(conditioningDone ? "✓ hotovo" : conditioningActive ? "▶ aktuálne" : "○ čaká")}",
+                TextWrapping = TextWrapping.Wrap,
+                Width = 210,
+            },
+            Padding = new Thickness(9, 7, 9, 7),
+            Margin = new Thickness(0, 0, 7, 3),
+            BorderBrush = conditioningActive
+                ? TryFindResource("AccentBrush") as Brush ?? Brushes.CornflowerBlue
+                : TryFindResource("BorderBrush") as Brush ?? Brushes.Gray,
+            BorderThickness = new Thickness(conditioningActive ? 2 : 1),
+            CornerRadius = new CornerRadius(6),
+            Opacity = conditioningDone ? 0.65 : 1,
+        });
     }
 
     private void HideProfileDurationColumnV5()

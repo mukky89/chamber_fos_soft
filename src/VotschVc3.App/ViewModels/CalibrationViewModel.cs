@@ -43,6 +43,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         sampleAcquisitionIntervalSeconds: _setup.Settings.SampleAcquisitionIntervalSeconds,
         stableDuration: _setup.Settings.ChamberStableDuration,
         stabilityTimeout: _setup.Settings.ChamberStabilityTimeout,
+        finalConditioningTemperatureC: _setup.Settings.FinalConditioningTemperatureC,
+        finalConditioningDuration: _setup.Settings.FinalConditioningDuration,
         stabilityExtensionStep: _setup.Settings.ChamberStabilityExtensionStep,
         maxAutomaticStabilityExtension: _setup.Settings.MaxAutomaticChamberStabilityExtension,
         sensorTimeout: _setup.Settings.DefaultSensorStabilizationTimeout,
@@ -603,6 +605,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                     if (e.PropertyName == nameof(CalibrationPointRowViewModel.Selected))
                     {
                         StartCalibrationCommand.RaiseCanExecuteChanged();
+                        RefreshDashboardPlan();
                     }
                 };
                 CalibrationPoints.Add(point);

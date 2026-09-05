@@ -34,6 +34,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private TimeSpan _sensorTimeout = TimeSpan.FromMinutes(60);
     private bool _enableSetpointRamp = true;
     private double _setpointRampCPerMinute = 1;
+    private double _finalConditioningTemperatureC = 25;
+    private TimeSpan _finalConditioningDuration = TimeSpan.FromHours(1);
     private double[] _plannedTemperatures = Array.Empty<double>();
     private IReadOnlyDictionary<int, CalibrationPlateauStatistics> _historicalPlateaus =
         new Dictionary<int, CalibrationPlateauStatistics>();
@@ -61,6 +63,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationRunState.Aborted => "STOPPED · Zastavené",
         CalibrationRunState.AwaitingOperator => "BLOCKED · Zásah operátora",
         CalibrationRunState.WaitingForChamberStability => "WAITING · Čaká na stabilitu",
+        CalibrationRunState.FinalConditioning => "CONDITIONING · Temperovanie 25 °C",
         CalibrationRunState.StabilizingSensors when MeasuringCount > 0 => "MEASURING · Meria",
         _ when _running => "RUNNING · Beží",
         _ => "READY · Pripravené"
@@ -71,7 +74,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int CompletedPoints => Points.Count(p => p.State is "Done" or "Warning");
     public double OverallProgress => Points.Count == 0 ? 0 : 100d * CompletedPoints / Points.Count;
     public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov dokončených";
-    public string Plateau => _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
+    public string Plateau => _state == CalibrationRunState.FinalConditioning
+        ? $"Záverečné temperovanie {_finalConditioningTemperatureC:F1} °C"
+        : _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
     public int CurrentPlateauIndex => _snapshot?.PlateauIndex ?? -1;
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
     public double? TargetTemperatureC => _snapshot?.TargetTemperatureC;
@@ -178,6 +183,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationRunState.MovingToPlateau => "Nastavenie cieľovej teploty",
         CalibrationRunState.PlateauCompleted => "Bod dokončený",
         CalibrationRunState.MovingToNextPlateau => "Presun na ďalšie plato",
+        CalibrationRunState.FinalConditioning => $"Temperovanie výrobkov pri {_finalConditioningTemperatureC:F1} °C",
         CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => "Kalibrácia ukončená",
         CalibrationRunState.Failed => "Kalibrácia zlyhala",
         CalibrationRunState.Aborted => "Kalibrácia zastavená",
@@ -194,6 +200,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? $"Meria {MeasuringCount} peakov. Ostatné peaky pokračujú v stabilizácii. Namerané vzorky: {SampleSummary}." : $"Stabilizuje sa {TotalTargets} peakov. Aktuálne stabilné: {StableCount} / {TotalTargets}.",
         CalibrationRunState.MovingToPlateau => $"Komore sa nastavuje cieľ {Target}. Profilové rampy a časy sa ignorujú.",
         CalibrationRunState.PlateauCompleted => "Kalibračný bod je dokončený. Pripravuje sa ďalšie vybrané plato.",
+        CalibrationRunState.FinalConditioning => _snapshot?.Message ?? $"Po meraní sa výrobky temperujú pri {_finalConditioningTemperatureC:F1} °C. FBG sa už nemeria.",
         CalibrationRunState.Completed => "Všetky kalibračné body sú dokončené. Výsledky a export nájdete v Histórii.",
         CalibrationRunState.CompletedWithWarnings => "Beh sa skončil s upozorneniami. Pred použitím výsledkov skontrolujte diagnostiku a históriu.",
         CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted => Alert,
@@ -212,7 +219,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private DateTimeOffset? _lastSnapshotAt;
     private bool AllTargetsFinished => _snapshot?.Targets.Count > 0 && _snapshot.Targets.All(t => t.Phase == "Done");
     public string Freshness { get; private set; } = "Čaká na dáta";
-    public double PointProgress => Steps.Take(9).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(9).Count(s => s.State != "Skipped"));
+    public double PointProgress => Steps.Take(10).Count(s => s.State == "Done") * 100d / Math.Max(1, Steps.Take(10).Count(s => s.State != "Skipped"));
     private int TimelineCurrentIndex
     {
         get
@@ -252,12 +259,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null,
         TimeSpan? stabilityExtensionStep = null, TimeSpan? maxAutomaticStabilityExtension = null, TimeSpan? sensorTimeout = null,
         bool enableSetpointRamp = true, double setpointRampCPerMinute = 1,
+        double finalConditioningTemperatureC = 25, TimeSpan? finalConditioningDuration = null,
         IReadOnlyList<CalibrationPlateauStatistics>? historicalPlateaus = null)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
         string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{maxDriftCPerMinute}|" +
-            $"{requiredStableSamples}|{requiredMeasurementSamples}|{sampleAcquisitionIntervalSeconds}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{stabilityExtensionStep}|{maxAutomaticStabilityExtension}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|" +
+            $"{requiredStableSamples}|{requiredMeasurementSamples}|{sampleAcquisitionIntervalSeconds}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{stabilityExtensionStep}|{maxAutomaticStabilityExtension}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|{finalConditioningTemperatureC}|{finalConditioningDuration}|" +
             $"{string.Join(",", historicalPlateaus?.Select(item => $"{item.PlateauIndex}:{item.SampleCount}:{item.MedianDuration.Ticks}:{item.MaximumDuration.Ticks}") ?? Array.Empty<string>())}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
@@ -282,6 +290,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _sensorTimeout = sensorTimeout ?? TimeSpan.Zero;
         _enableSetpointRamp = enableSetpointRamp;
         _setpointRampCPerMinute = Math.Clamp(Math.Abs(setpointRampCPerMinute), 0.1, 20.0);
+        _finalConditioningTemperatureC = double.IsFinite(finalConditioningTemperatureC) ? finalConditioningTemperatureC : 25;
+        _finalConditioningDuration = finalConditioningDuration is { } duration && duration >= TimeSpan.Zero ? duration : TimeSpan.FromHours(1);
         _plannedTemperatures = plan;
         _historicalPlateaus = (historicalPlateaus ?? Array.Empty<CalibrationPlateauStatistics>())
             .GroupBy(item => item.PlateauIndex)
@@ -531,6 +541,17 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         }
         if (!_running || Points.Count == 0) return;
 
+        if (_state == CalibrationRunState.FinalConditioning)
+        {
+            double conditioningSeconds = Math.Max(0, (_finalConditioningDuration - (_snapshot?.PlateauElapsed ?? TimeSpan.Zero)).TotalSeconds);
+            if (_enableSetpointRamp && ActualTemperature is { } actual && Math.Abs(actual - _finalConditioningTemperatureC) > StabilityToleranceC)
+                conditioningSeconds += Math.Abs(actual - _finalConditioningTemperatureC) / (_setpointRampCPerMinute / 60d);
+            Eta = "≈ " + Duration(TimeSpan.FromSeconds(conditioningSeconds));
+            Finish = "≈ " + now.AddSeconds(conditioningSeconds).ToLocalTime().ToString("dd.MM. HH:mm");
+            EtaBasis = $"Zostáva návrat na {_finalConditioningTemperatureC:F1} °C a súvislé temperovanie {Duration(_finalConditioningDuration)}; FBG sa už nemeria.";
+            return;
+        }
+
         double[] completedDurations = Points
             .Where(point => point.Duration.HasValue)
             .Select(point => point.Duration!.Value.TotalSeconds)
@@ -598,6 +619,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         }
 
         seconds += EstimateRemainingRampSeconds(currentIndex, currentIsActive);
+        seconds += _finalConditioningDuration.TotalSeconds;
         if (seconds <= 0)
         {
             Eta = "Dokončuje sa";
@@ -627,6 +649,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 
         for (int index = firstTransition; index < _plannedTemperatures.Length; index++)
             seconds += Math.Abs(_plannedTemperatures[index] - _plannedTemperatures[index - 1]) / ratePerSecond;
+        seconds += Math.Abs(_finalConditioningTemperatureC - _plannedTemperatures[^1]) / ratePerSecond;
         return seconds;
     }
     private void RefreshSteps()
@@ -637,7 +660,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         string Estimate(int samples) => _observedCycleSeconds is { } seconds
             ? $"približne {Duration(TimeSpan.FromSeconds(samples * seconds))} pri aktuálnom cykle"
             : $"odhad {Duration(TimeSpan.FromSeconds(samples * _sampleAcquisitionIntervalSeconds))} pri nastavenom intervale";
-        string[] names = { "Príprava", "Nastavenie cieľa", "Teplota komory", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
+        string[] names = { "Príprava", "Nastavenie cieľa", "Teplota komory", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Temperovanie 25 °C", "Dokončenie" };
         string[] tips =
         {
             "Skontroluje vybraný profil, zapojenie, SN, dostupnosť komory, WIKA a PeakLoggera. Krok nemá pevný čas; pri chybe čaká na opravu alebo zásah operátora.",
@@ -655,7 +678,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             $"Každý vybraný peak má vlastný detektor. Potrebuje {_requiredStableSamples} vzoriek, range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm a drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Peaky sa kontrolujú paralelne; {Estimate(_requiredStableSamples)}. Timeout peaku: {Duration(_sensorTimeout)}. {cycle}.",
             $"Po potvrdení stability sa stabilizačné vzorky nepoužijú ako výsledok. Každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek paralelne; {Estimate(_requiredMeasurementSamples)}. Ak peak prestane spĺňať limity, rozpracované meracie vzorky sa zahodia a vráti sa do stabilizácie. {cycle}.",
             "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
-            "Po dokončení všetkých vybraných peakov uloží checkpoint a nastaví cieľ nasledujúceho vybraného plata. Ak žiadne nezostáva, prejde na dokončenie.",
+            "Po dokončení všetkých vybraných peakov uloží checkpoint a nastaví cieľ nasledujúceho vybraného plata. Ak žiadne nezostáva, prejde na záverečné temperovanie.",
+            $"Po poslednom kalibračnom bode nastaví komoru na {_finalConditioningTemperatureC:F1} °C. Až po vstupe internej teploty komory do povoleného pásma začne počítať súvislé temperovanie {Duration(_finalConditioningDuration)}; pri opustení pásma sa čas počíta odznova. WIKA ani FBG sa v tomto kroku nevyhodnocujú a nevzniká kalibračný bod.",
             "Uzavrie beh, uloží súhrn, históriu a exporty. Výsledný stav môže byť dokončené alebo dokončené s upozorneniami."
         };
         if (Steps.Count == 0)
@@ -675,7 +699,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             CalibrationRunState.StabilizingSensors => 4,
             CalibrationRunState.PlateauCompleted => 7,
             CalibrationRunState.MovingToNextPlateau => 7,
-            CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => 9,
+            CalibrationRunState.FinalConditioning => 8,
+            CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings => 10,
             _ => 0
         };
         for (int i = 0; i < Steps.Count; i++) Steps[i].State = i < phase ? "Done" : i == phase && _running ? "Active" : "Pending";
@@ -699,7 +724,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationProgressSnapshot? snapshot = _snapshot;
         int effectiveIndex = plateauIndex ?? snapshot?.PlateauIndex ?? -1;
         int effectiveCount = plateauCount ?? snapshot?.PlateauCount ?? Points.Count;
-        string plateau = effectiveIndex >= 0
+        string plateau = _state == CalibrationRunState.FinalConditioning
+            ? "TEMPEROVANIE 25 °C"
+            : effectiveIndex >= 0
             ? $"PLATO {effectiveIndex + 1} / {Math.Max(effectiveIndex + 1, effectiveCount)}"
             : "PRÍPRAVA";
         double? target = targetTemperatureC ?? snapshot?.TargetTemperatureC;

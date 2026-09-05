@@ -51,6 +51,7 @@ public sealed class CalibrationReferenceGateRegressionTests
                     ChamberStableDuration = TimeSpan.Zero,
                     MaxChamberDriftCPerMinute = 0,
                     ChamberStabilityTimeout = TimeSpan.FromSeconds(2),
+                    FinalConditioningDuration = TimeSpan.Zero,
                     DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(5),
                     SensorTimeoutPolicy = CalibrationFailurePolicy.AbortCalibration,
                     PeakLostPolicy = CalibrationFailurePolicy.AbortCalibration,
