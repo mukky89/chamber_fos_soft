@@ -69,6 +69,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private DateTimeOffset? _lastReferenceMismatchEmailAt;
     private bool _referenceMismatchWarningActive;
     private bool _propagatingChannelSerialNumber;
+    private bool _applyingRecoveredMappings;
     private double _calibrationProgressPercent;
     private string? _reservedF100Key;
     private string? _reservedPeakLoggerKey;
@@ -594,6 +595,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             : null;
         if (_resumeCheckpoint is not null && CalibrationCheckpointRecovery.RestoreMappingsIfMissing(_setup, _resumeCheckpoint))
         {
+            ApplyRecoveredMappingsToVisiblePeaks(_setup.Mappings);
             _calibrationStore.SaveSetup(_setup);
             StatusMessage = $"Zapojenie a SN pre {_resumeCheckpoint.Mappings.Count(mapping => mapping.Selected)} peakov boli obnovené z checkpointu.";
         }
@@ -601,6 +603,35 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ResumeCalibrationLabel));
         OnPropertyChanged(nameof(ResumeCalibrationDetail));
         ResumeCalibrationCommand.RaiseCanExecuteChanged();
+    }
+
+    private void ApplyRecoveredMappingsToVisiblePeaks(IEnumerable<CalibrationSensorMapping> mappings)
+    {
+        if (Peaks.Count == 0) return;
+
+        Dictionary<string, CalibrationSensorMapping> saved = mappings
+            .GroupBy(mapping => mapping.SourceIdentity, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        _applyingRecoveredMappings = true;
+        try
+        {
+            foreach (CalibrationPeakRowViewModel row in Peaks)
+            {
+                string sourceIdentity = $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}|{row.PeakId}";
+                if (saved.TryGetValue(sourceIdentity, out CalibrationSensorMapping? mapping))
+                {
+                    row.ApplySavedMapping(mapping);
+                }
+            }
+        }
+        finally
+        {
+            _applyingRecoveredMappings = false;
+        }
+
+        ValidateSerialNumbers();
+        RefreshCommands();
     }
 
     private async Task ConnectPeakLoggerAsync()
@@ -810,7 +841,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 StartCalibrationCommand.RaiseCanExecuteChanged();
             }
 
-            if (e.PropertyName is not nameof(CalibrationPeakRowViewModel.CurrentWavelengthNm)
+            if (!_applyingRecoveredMappings &&
+                e.PropertyName is not nameof(CalibrationPeakRowViewModel.CurrentWavelengthNm)
                 and not nameof(CalibrationPeakRowViewModel.Intensity)
                 and not nameof(CalibrationPeakRowViewModel.LastWavelengthUpdate)
                 and not nameof(CalibrationPeakRowViewModel.SerialNumber)
@@ -1386,6 +1418,21 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _setup.ProfileId = SelectedProfile.Id;
         _setup.ChamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
         _setup.Mappings = Peaks.Select(p => p.ToMapping()).ToList();
+        CalibrationCheckpoint? checkpoint = _resumeCheckpoint;
+        if (checkpoint is null && SelectedChamber is not null)
+        {
+            CalibrationCheckpoint? storedCheckpoint = _calibrationStore.LoadCheckpoint(SelectedChamber.Config.Id);
+            if (storedCheckpoint is not null && storedCheckpoint.ProfileId == SelectedProfile.Id &&
+                storedCheckpoint.CompletedPlateaus.Count > 0)
+            {
+                checkpoint = storedCheckpoint;
+            }
+        }
+        if (checkpoint is not null && CalibrationCheckpointRecovery.RestoreMappingsIfMissing(_setup, checkpoint))
+        {
+            _resumeCheckpoint = checkpoint;
+            ApplyRecoveredMappingsToVisiblePeaks(_setup.Mappings);
+        }
         _setup.CalibrationSegmentIndices = CalibrationPoints
             .Where(point => point.Selected)
             .Select(point => point.SegmentIndex)
@@ -2033,6 +2080,22 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     }
 
     public void SetSerialNumberWarning(string warning) => SerialNumberWarning = warning;
+
+    public void ApplySavedMapping(CalibrationSensorMapping mapping)
+    {
+        ChannelSerialNumber = mapping.ChannelSerialNumber
+            ?? (string.IsNullOrWhiteSpace(mapping.ChainSerialNumber) ? mapping.SerialNumber : string.Empty)
+            ?? string.Empty;
+        ChainSerialNumber = mapping.ChainSerialNumber ?? string.Empty;
+        Core1 = mapping.Core1;
+        Core2 = mapping.Core2;
+        Selected = mapping.Selected;
+        Notes = mapping.Notes ?? string.Empty;
+        ProductDescription = mapping.ProductDescription ?? string.Empty;
+        Customer = mapping.Customer ?? string.Empty;
+        Order = mapping.Order ?? string.Empty;
+        TimeoutMinutes = mapping.StabilizationTimeoutOverride?.TotalMinutes ?? 0;
+    }
 
     public void AddSerialNumberWarning(string warning) => SerialNumberWarning =
         string.IsNullOrWhiteSpace(SerialNumberWarning) ? warning : $"{SerialNumberWarning} {warning}";

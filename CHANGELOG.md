@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.103] – 2026-09-05
+
+### Opravené
+- Obnova prerušeného behu premietne zapojenie a SN z checkpointu aj do peakov, ktoré PeakLogger vytvoril skôr než sa checkpoint načítal.
+- Autosave už nemôže platné checkpointové zapojenie prepísať prázdnymi live riadkami; ochrana funguje nezávisle od poradia načítania profilu, zariadení a dát.
+- Tlačidlo `Pokračovať od plata č. N` sa po obnove povolí aj pri tomto súbehu inicializácie bez potreby ručného opätovného zadania ôsmich SN.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.103.
+
 ## [1.76.102] – 2026-09-05
 
 ### Opravené
