@@ -86,6 +86,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public bool CanForceTemperatureGate => _running &&
         _state == CalibrationRunState.WaitingForChamberStability &&
         (!HasReference || _snapshot?.ReferenceTemperatureC is not null);
+    public bool CanExtendStabilityTime => _running && _state == CalibrationRunState.WaitingForChamberStability;
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
     public string ReferenceToleranceLabel => _snapshot?.ReferenceTemperatureC is not { } reference
         ? "Odchýlka od cieľa · čaká na vzorku"

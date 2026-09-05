@@ -482,6 +482,58 @@ public sealed class CalibrationWorkflowRegressionTests
         }
     }
 
+    [Fact]
+    public async Task Orchestrator_OperatorExtension_DelaysTimeoutAndIsAudited()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(100);
+            setup.Settings.ChamberStabilityExtensionStep = TimeSpan.Zero;
+            setup.Settings.MaxAutomaticChamberStabilityExtension = TimeSpan.Zero;
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ProfileId = setup.ProfileId, ProfileName = "Manual extension", ChamberId = Guid.NewGuid() };
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            bool requested = false;
+
+            async Task<double?> ReadUnstableReference(CancellationToken cancellationToken)
+            {
+                await Task.Yield();
+                if (!requested)
+                {
+                    requested = true;
+                    orchestrator.RequestTemperatureStabilityExtension(TimeSpan.FromSeconds(2));
+                }
+                return 35;
+            }
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(1300));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => orchestrator.WaitForPlateauAsync(
+                run,
+                setup,
+                plateauIndex: 0,
+                plateauCount: 1,
+                targetTemperatureC: 20,
+                minimumPlateauDuration: TimeSpan.Zero,
+                _ => Task.FromResult(20d),
+                ReadUnstableReference,
+                referenceControlAsync: null,
+                writer,
+                progress: null,
+                timeout.Token));
+
+            Assert.Contains(run.Warnings, warning => warning.Code == "OPERATOR_STABILITY_TIMEOUT_EXTENDED");
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
     private static CalibrationSetup StableSetup(Guid profileId) => new()
     {
         ProfileId = profileId,

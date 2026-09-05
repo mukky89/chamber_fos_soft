@@ -49,6 +49,9 @@ public sealed class CalibrationProfileRunner
 
     public void RequestTemperatureGateOverride() => _orchestrator.RequestTemperatureGateOverride();
 
+    public void RequestTemperatureStabilityExtension(TimeSpan extension) =>
+        _orchestrator.RequestTemperatureStabilityExtension(extension);
+
     public async Task RunAsync(
         TestProfile profile,
         CalibrationSetup setup,

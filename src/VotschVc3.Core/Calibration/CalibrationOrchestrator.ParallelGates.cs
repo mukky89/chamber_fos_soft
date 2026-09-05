@@ -22,6 +22,7 @@ public sealed class CalibrationOrchestrator
 {
     private readonly IPeakLoggerClient _peakLogger;
     private int _temperatureGateOverrideRequested;
+    private long _manualTemperatureExtensionTicksRequested;
 
     public CalibrationOrchestrator(IPeakLoggerClient peakLogger)
     {
@@ -33,6 +34,13 @@ public sealed class CalibrationOrchestrator
     /// <summary>Requests an audited one-time bypass of the stability gate for the current plateau.</summary>
     public void RequestTemperatureGateOverride() =>
         Interlocked.Exchange(ref _temperatureGateOverrideRequested, 1);
+
+    /// <summary>Adds operator-requested settling time to the current temperature gate.</summary>
+    public void RequestTemperatureStabilityExtension(TimeSpan extension)
+    {
+        if (extension <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(extension));
+        Interlocked.Add(ref _manualTemperatureExtensionTicksRequested, extension.Ticks);
+    }
 
     public async Task<IReadOnlyList<PeakLoggerSensor>> PreflightAsync(
         CalibrationSetup setup,
@@ -157,6 +165,8 @@ public sealed class CalibrationOrchestrator
         DateTimeOffset? temperatureRecoveryStartedAt = null;
         DateTimeOffset previousLoopAt = DateTimeOffset.UtcNow;
         TimeSpan automaticTemperatureExtensionUsed = TimeSpan.Zero;
+        TimeSpan manualTemperatureExtensionUsed = TimeSpan.Zero;
+        Interlocked.Exchange(ref _manualTemperatureExtensionTicksRequested, 0);
 
         while (true)
         {
@@ -169,6 +179,21 @@ public sealed class CalibrationOrchestrator
             referenceTemperature = hasExternalReference
                 ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false)
                 : null;
+
+            long requestedExtensionTicks = Interlocked.Exchange(ref _manualTemperatureExtensionTicksRequested, 0);
+            if (requestedExtensionTicks > 0)
+            {
+                TimeSpan granted = TimeSpan.FromTicks(requestedExtensionTicks);
+                manualTemperatureExtensionUsed += granted;
+                RaiseWarning(run, new CalibrationWarning
+                {
+                    Code = "OPERATOR_STABILITY_TIMEOUT_EXTENDED",
+                    PlateauIndex = plateauIndex,
+                    Message = $"Operátor ručne predĺžil čakanie na ustálenie plata {plateauIndex + 1} pri cieli {targetTemperatureC:F1} °C " +
+                              $"o {FormatTime(granted)}. Ručné predĺženie na tomto plate je spolu {FormatTime(manualTemperatureExtensionUsed)}. " +
+                              "Kalibrácia ďalej čaká a stabilné skóre pokračuje bez vynulovania.",
+                });
+            }
 
             string controlDetail = referenceControlAsync is null
                 ? string.Empty
@@ -234,6 +259,8 @@ public sealed class CalibrationOrchestrator
                 string extensionDetail = automaticTemperatureExtensionUsed > TimeSpan.Zero
                     ? $" · automatické predĺženie {FormatTime(automaticTemperatureExtensionUsed)}/{FormatTime(settings.MaxAutomaticChamberStabilityExtension)}"
                     : string.Empty;
+                if (manualTemperatureExtensionUsed > TimeSpan.Zero)
+                    extensionDetail += $" · ručné predĺženie +{FormatTime(manualTemperatureExtensionUsed)}";
 
                 progress?.Invoke(new CalibrationProgressSnapshot(
                     CalibrationRunState.WaitingForChamberStability,
@@ -255,13 +282,13 @@ public sealed class CalibrationOrchestrator
                 if (!temperatureGateEverOpened)
                 {
                     if (settings.ChamberStabilityTimeout > TimeSpan.Zero &&
-                        plateauClock.Elapsed >= minimumPlateauDuration + settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed)
+                        plateauClock.Elapsed >= minimumPlateauDuration + settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed + manualTemperatureExtensionUsed)
                     {
                         if (TryExtendTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
                             settings, hasExternalReference, ref automaticTemperatureExtensionUsed))
                             continue;
                         throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
-                            settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed, hasExternalReference,
+                            settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed + manualTemperatureExtensionUsed, hasExternalReference,
                             (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                             (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                             deferOnTemperatureTimeout);
@@ -269,13 +296,13 @@ public sealed class CalibrationOrchestrator
                 }
                 else if (temperatureRecoveryStartedAt is { } recoveryStart &&
                          settings.ChamberStabilityTimeout > TimeSpan.Zero &&
-                         loopAt - recoveryStart >= settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed)
+                         loopAt - recoveryStart >= settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed + manualTemperatureExtensionUsed)
                 {
                     if (TryExtendTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
                         settings, hasExternalReference, ref automaticTemperatureExtensionUsed))
                         continue;
                     throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
-                        settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed, hasExternalReference,
+                        settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed + manualTemperatureExtensionUsed, hasExternalReference,
                         (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                         (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                         deferOnTemperatureTimeout);

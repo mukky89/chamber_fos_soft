@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.143] – 2026-09-05
+
+### Pridané
+- Do karty WIKA referencie pribudlo tlačidlo „+30 min na ustálenie“, dostupné iba počas aktívneho čakania na stabilitu teploty.
+- Každé stlačenie predĺži limit aktuálneho plata o ďalších 30 minút bez vynulovania stabilného skóre alebo doterajších dát a zapíše zásah operátora do udalostí kalibrácie.
+- Ručné predĺženie sa zobrazuje v aktuálnych podmienkach oddelene od automatického predĺženia; tlačidlo možno vedome použiť opakovane.
+- Záložná verzia bola zvýšená na 1.76.143.
+
 ## [1.76.142] – 2026-09-05
 
 ### Opravené
