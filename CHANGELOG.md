@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.105] – 2026-09-05
+
+### Opravené
+- Prvý plynulý setpoint po obnove kalibrácie vždy vychádza z čerstvo odmeranej teploty komory, nie z cieľa posledného dokončeného plata uloženého v checkpointe.
+- Ak je komora pri obnove už na cieli ďalšieho plata, aplikácia cieľ iba potvrdí a nevyvolá zbytočné ochladenie ani opätovný nábeh.
+- Doplnený regresný test scenára, v ktorom checkpoint končí na 30 °C, komora je fyzicky na 40 °C a obnovené plato má cieľ 40 °C.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.105.
+
 ## [1.76.104] – 2026-09-05
 
 ### Opravené

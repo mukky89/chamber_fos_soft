@@ -97,7 +97,11 @@ public sealed class CalibrationProfileRunner
         run.State = CalibrationRunState.Preparing;
 
         double? previousHumidity = startHumidity;
-        double previousCommandedTemperature = resumeFrom?.CurrentTargetTemperatureC ?? startTemperature;
+        // A checkpoint target describes the last completed plateau, not the chamber's
+        // current setpoint after a restart. Always shape the first command from the
+        // fresh chamber reading supplied by the caller so resume cannot command a
+        // needless excursion back to the previous plateau.
+        double previousCommandedTemperature = startTemperature;
         CalibrationPlateauResult? validationBaseline = run.Plateaus.FirstOrDefault();
         bool responseValidated = false;
 
