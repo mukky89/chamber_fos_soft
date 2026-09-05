@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using VotschVc3.App.Calibration;
 using VotschVc3.App.Charting;
@@ -619,7 +620,7 @@ public partial class CalibrationWindow
                 peakContent.Children.Add(chart);
                 var peakCard = new Border
                 {
-                    Background = TryFindResource("SurfaceBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(17, 29, 47)),
+                    Background = new SolidColorBrush(Color.FromRgb(17, 29, 47)),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(51, 78, 108)),
                     BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(11),
@@ -627,6 +628,7 @@ public partial class CalibrationWindow
                     Margin = new Thickness(5, 5, 7, 9),
                     Child = peakContent,
                 };
+                AttachPeakCardHover(peakCard, GetFbgTraceBrush(row));
                 _peakCharts.Add(row, chart);
             }
             UIElement card = GetPeakChartCard(chart);
@@ -683,6 +685,39 @@ public partial class CalibrationWindow
         }
 
         return chart;
+    }
+
+    private static void AttachPeakCardHover(Border card, Brush peakBrush)
+    {
+        if (card.BorderBrush is not SolidColorBrush borderBrush ||
+            card.Background is not SolidColorBrush backgroundBrush)
+        {
+            return;
+        }
+
+        Color normalBorder = borderBrush.Color;
+        Color normalBackground = backgroundBrush.Color;
+        Color peakColor = peakBrush is SolidColorBrush solidPeak
+            ? solidPeak.Color
+            : Color.FromRgb(91, 141, 239);
+        Color hoverBorder = Color.FromArgb(255, peakColor.R, peakColor.G, peakColor.B);
+        Color hoverBackground = Color.FromRgb(21, 36, 57);
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+        card.MouseEnter += (_, _) =>
+        {
+            borderBrush.BeginAnimation(SolidColorBrush.ColorProperty,
+                new ColorAnimation(hoverBorder, TimeSpan.FromMilliseconds(150)) { EasingFunction = easing });
+            backgroundBrush.BeginAnimation(SolidColorBrush.ColorProperty,
+                new ColorAnimation(hoverBackground, TimeSpan.FromMilliseconds(150)) { EasingFunction = easing });
+        };
+        card.MouseLeave += (_, _) =>
+        {
+            borderBrush.BeginAnimation(SolidColorBrush.ColorProperty,
+                new ColorAnimation(normalBorder, TimeSpan.FromMilliseconds(210)) { EasingFunction = easing });
+            backgroundBrush.BeginAnimation(SolidColorBrush.ColorProperty,
+                new ColorAnimation(normalBackground, TimeSpan.FromMilliseconds(210)) { EasingFunction = easing });
+        };
     }
 
     private static void CompactTraceIfNeeded<T>(List<T> trace, Func<T, double> valueSelector)

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.107] – 2026-09-05
+
+### Pridané
+- Karty jednotlivých FBG grafov majú jemný plynulý hover: rámček sa zvýrazní farbou príslušného peaku a pozadie sa mierne zosvetlí.
+- Hover nemení rozmery karty ani polohu grafu a nepoužíva rozmazanie, takže ovládacie prvky a krivka zostávajú ostré a stabilné.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.107.
+
 ## [1.76.106] – 2026-09-05
 
 ### Zmenené
