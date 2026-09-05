@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.101] – 2026-09-05
+
+### Opravené
+- Progress bary stability WIKA a jednotlivých FBG peakov používajú explicitný jednosmerný binding a už sa nepokúšajú zapisovať do read-only vlastností dashboardu.
+- Otvorenie obnoveného kalibračného dashboardu už nevyvolá modálnu chybu `TwoWay or OneWayToSource binding cannot work on the read-only property`.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.101.
+
 ## [1.76.100] – 2026-09-05
 
 ### Pridané

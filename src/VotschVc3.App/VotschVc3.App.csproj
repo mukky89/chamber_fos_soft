@@ -22,7 +22,7 @@
       - 98 is only a fallback for source archives/build environments without Git metadata.
     -->
     <VersionPrefix>1.76</VersionPrefix>
-    <VersionFallbackRevision>100</VersionFallbackRevision>
+    <VersionFallbackRevision>101</VersionFallbackRevision>
     <Version>$(VersionPrefix).$(VersionFallbackRevision)</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
