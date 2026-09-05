@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.134] – 2026-09-05
+
+### Zmenené
+- Horný live prehľad FBG kalibrácie bol prepracovaný na kompaktný trojstĺpcový panel s profilom, aktuálnym platom, stavom, cieľom, ETA a spoločným progressom bez veľkých prázdnych plôch.
+- Sekcia aktuálneho diania má nižšie karty dokončeného, aktívneho a nasledujúceho kroku; podmienky, časy, aktívny peak a upozornenia zostali zachované v hustejšom rozložení.
+- Dlhšie doplnkové texty majú plné znenie dostupné v nápovede a detailné pravidlá zostávajú rozbaľovacie.
+- Záložná verzia bola zvýšená na 1.76.134.
+
 ## [1.76.133] – 2026-09-05
 
 ### Zmenené
