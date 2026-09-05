@@ -81,14 +81,24 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ReferenceToleranceLabel => _snapshot?.ReferenceTemperatureC is not { } reference
         ? "Odchýlka od cieľa · čaká na vzorku"
         : $"Odchýlka |Δ| {Math.Abs(reference - _snapshot.TargetTemperatureC):F3} / ≤ {StabilityToleranceC:F3} °C";
+    public string ReferenceToleranceHelp =>
+        $"WIKA musí byť pri cieľovej teplote {Target} v povolenej odchýlke ±{StabilityToleranceC:F3} °C. " +
+        "Ak je odchýlka väčšia, stabilný čas sa nezbiera a FBG stabilizácia sa ešte nespustí.";
     public string ReferenceToleranceTone => _snapshot?.ReferenceTemperatureC is { } reference &&
         Math.Abs(reference - _snapshot.TargetTemperatureC) <= StabilityToleranceC ? "Done" : "Waiting";
     public string ReferenceDriftLabel => _snapshot?.TemperatureDriftCPerMinute is not { } drift
         ? "Drift · čaká na blok 5 vzoriek"
         : $"Drift {Math.Abs(drift):F3} / ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min";
+    public string ReferenceDriftHelp =>
+        $"Drift vyjadruje priemernú rýchlosť zmeny WIKA teploty v bloku 5 vzoriek. " +
+        $"Blok vyhovuje, iba ak absolútny drift neprekročí {_stabilityMaxDriftCPerMinute:F3} °C/min a posledná vzorka je v tolerancii cieľa.";
     public string ReferenceDriftTone => _snapshot?.TemperatureDriftCPerMinute is { } drift &&
         (_stabilityMaxDriftCPerMinute <= 0 || Math.Abs(drift) <= _stabilityMaxDriftCPerMinute) ? "Done" : "Waiting";
     public string ReferenceTimeLabel => $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
+    public string ReferenceTimeHelp =>
+        $"Na otvorenie WIKA brány treba nazbierať {Duration(_stableDuration)} stabilného skóre. " +
+        "Úspešný blok 5 vzoriek pripočíta jeho skutočne uplynutý čas. Neúspešný blok odpočíta dvojnásobok svojho času, najviac po nulu, a začne nový blok. " +
+        $"Ak sa brána neotvorí do {Duration(_stabilityTimeout)}, kalibrácia vyžiada zásah operátora.";
     public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
     public int TemperatureStableScoreSeconds => _snapshot?.TemperatureStableScoreSeconds ?? 0;

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.122] – 2026-09-05
+
+### Pridané
+- Kritériá WIKA odchýlky, driftu a stabilného času majú vlastné otázniky s výrazným hover stavom.
+- Pomocník odchýlky vysvetľuje toleranciu cieľa, pomocník driftu výpočet z blokov piatich vzoriek a pomocník času spôsob pripočítania aj penalizácie stabilného skóre.
+- Vysvetlenia používajú aktuálne nastavené limity a timeout, takže zodpovedajú práve spustenej kalibrácii.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.122.
+
 ## [1.76.121] – 2026-09-05
 
 ### Zmenené

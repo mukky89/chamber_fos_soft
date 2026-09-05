@@ -109,6 +109,8 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("odpočíta dvojnásobok", help);
         Assert.Contains("10 min 00 s", help);
         Assert.Contains("Timeout: 30 min 00 s", help);
+        Assert.Contains("10 min 00 s", m.ReferenceTimeHelp);
+        Assert.Contains("30 min 00 s", m.ReferenceTimeHelp);
     }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
@@ -331,6 +333,9 @@ public sealed class CalibrationDashboardTests
         Assert.Contains($"{0.08d.ToString("F3", CultureInfo.CurrentCulture)} / ≤ {0.1d.ToString("F3", CultureInfo.CurrentCulture)}", m.ReferenceDriftLabel);
         Assert.Equal("Waiting", m.ReferenceTimeTone);
         Assert.Contains("35 / 600 s", m.ReferenceTimeLabel);
+        Assert.Contains("±0", m.ReferenceToleranceHelp);
+        Assert.Contains("bloku 5 vzoriek", m.ReferenceDriftHelp);
+        Assert.Contains("dvojnásobok", m.ReferenceTimeHelp);
     }
     [Fact] public void ForceNextStepIsAvailableOnlyWhileWaitingWithAuthoritativeTemperature()
     {
