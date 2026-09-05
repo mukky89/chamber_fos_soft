@@ -969,9 +969,11 @@ public partial class ChartView : UserControl
         AddOverlay(dot);
 
         var chipContent = new StackPanel();
+        int hoverDecimals = NiceAxis.RequiredDecimalPlaces(_yAxis.Step, MinimumYDecimals);
+        string hoverValue = yv.ToString($"F{hoverDecimals}", CultureInfo.CurrentCulture);
         chipContent.Children.Add(new TextBlock
         {
-            Text = $"{yv:0.0}{Unit}  ·  {FormatMinutes(dataX)}",
+            Text = $"{hoverValue}{Unit}  ·  {FormatMinutes(dataX)}",
             Foreground = Brushes.White,
             FontSize = 11,
             FontFamily = new FontFamily("Segoe UI Semibold"),

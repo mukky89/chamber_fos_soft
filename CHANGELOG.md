@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.108] – 2026-09-05
+
+### Zmenené
+- WIKA referenčné teplotné grafy zobrazujú na osi Y minimálne tri desatinné miesta, napríklad `60,001 °C`.
+- Hodnota v informačnej bubline pod kurzorom rešpektuje rovnakú presnosť ako os grafu, takže tisíciny zostávajú viditeľné aj pri odčítaní konkrétnej vzorky.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.108.
+
 ## [1.76.107] – 2026-09-05
 
 ### Pridané

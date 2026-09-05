@@ -119,7 +119,7 @@ public partial class CalibrationWindow
         {
             ChartTitle = "WIKA referenčná teplota",
             Unit = " °C",
-            MinimumYDecimals = 2,
+            MinimumYDecimals = 3,
             EmptyText = "Čakám na prvú automatickú WIKA vzorku…",
             Height = 185,
             MinHeight = 160,

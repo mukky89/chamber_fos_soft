@@ -35,7 +35,7 @@ public sealed class ReferenceTemperatureChartWindow : Window
         {
             ChartTitle = $"WIKA CTH7000 · {chamberName}",
             Unit = " °C",
-            MinimumYDecimals = 2,
+            MinimumYDecimals = 3,
             EmptyText = "Čakám na prvú automatickú vzorku z WIKA CTH7000…",
             MinHeight = 360,
         };
