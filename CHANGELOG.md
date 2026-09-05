@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.97] – 2026-09-05
+
+### Opravené
+- Graf ustáľovania WIKA sa počas kalibrácie škáluje iba z dát aktuálneho plata, aby sa cieľ a dynamické limitné čiary pri veľkom počte bodov nezlievali.
+- Rovnaké oddelenie plat bolo použité aj v rozšírenom Live data grafe; kompletný WIKA trace zostáva naďalej uložený pre históriu a audit.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.97.
+
 ## [1.76.96] – 2026-09-05
 
 ### Opravené

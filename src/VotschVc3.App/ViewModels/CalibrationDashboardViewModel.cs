@@ -140,6 +140,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Elapsed { get; private set; } = "—";
     public string PhaseElapsed { get; private set; } = "—";
     public string PointElapsed => _snapshot is null ? "—" : Duration(_snapshot.PlateauElapsed);
+    public DateTimeOffset? CurrentPlateauTraceStart { get; private set; }
     public string Eta { get; private set; } = "Po prvom bode";
     public string Finish { get; private set; } = "—";
     public string EtaBasis { get; private set; } = "Odhad sa spresní po dokončení prvého bodu alebo z historických behov tohto profilu.";
@@ -218,6 +219,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _startupDetail = "Čaká sa na prvý stav zariadení.";
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null; _observedCycleSeconds = null;
         _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
+        CurrentPlateauTraceStart = null;
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; TrendTone = "Steady"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
@@ -240,6 +242,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 _observedCycleSeconds = _observedCycleSeconds is { } current ? current * 0.75 + seconds * 0.25 : seconds;
         }
         _lastSnapshotAt = now;
+        CurrentPlateauTraceStart = snapshot.PlateauIndex >= 0
+            ? now - (snapshot.PlateauElapsed < TimeSpan.Zero ? TimeSpan.Zero : snapshot.PlateauElapsed)
+            : null;
         if (snapshot.ActualTemperatureC is { } actualTemperature)
         {
             _latestChamberTemperature = actualTemperature;

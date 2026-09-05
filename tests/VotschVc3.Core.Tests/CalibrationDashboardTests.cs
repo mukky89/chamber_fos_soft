@@ -186,6 +186,22 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(-40, m.TargetTemperatureC);
         Assert.Equal(0.25, m.StabilityToleranceC);
     }
+    [Fact] public void DashboardExposesOnlyCurrentPlateauWindowForReferenceChart()
+    {
+        var m = Model();
+        DateTimeOffset sampleAt = Start.AddHours(5);
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 2) with
+        {
+            PlateauElapsed = TimeSpan.FromMinutes(12),
+        }, sampleAt);
+
+        Assert.Equal(sampleAt.AddMinutes(-12), m.CurrentPlateauTraceStart);
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 2) with
+        {
+            PlateauElapsed = TimeSpan.FromMinutes(18),
+        }, sampleAt.AddMinutes(6));
+        Assert.Equal(sampleAt.AddMinutes(-12), m.CurrentPlateauTraceStart);
+    }
     [Fact] public void WikaCardExposesLiveToleranceDriftAndTimeCriteria()
     {
         var m = Model();

@@ -110,7 +110,10 @@ public partial class CalibrationDashboardView : UserControl
             ? $"{temperature:F3} °C"
             : "—";
 
-        IReadOnlyList<CalibrationReferenceTracePoint> trace = CalibrationReferenceTraceStore.Instance.GetTrace(chamberId);
+        IReadOnlyList<CalibrationReferenceTracePoint> fullTrace = CalibrationReferenceTraceStore.Instance.GetTrace(chamberId);
+        IReadOnlyList<CalibrationReferenceTracePoint> trace = vm.CurrentPlateauTraceStart is { } plateauStart
+            ? fullTrace.Where(point => point.Timestamp >= plateauStart).ToArray()
+            : fullTrace;
         if (trace.Count == 0)
         {
             ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
@@ -119,7 +122,7 @@ public partial class CalibrationDashboardView : UserControl
             return;
         }
 
-        DateTimeOffset origin = CalibrationReferenceTraceStore.Instance.GetRunStart(chamberId) ?? trace[0].Timestamp;
+        DateTimeOffset origin = trace[0].Timestamp;
         var measured = trace
             .Select(point => new Point((point.Timestamp - origin).TotalMinutes, point.TemperatureC))
             .ToArray();
