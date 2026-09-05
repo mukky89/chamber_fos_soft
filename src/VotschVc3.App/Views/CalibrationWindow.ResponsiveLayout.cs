@@ -78,8 +78,6 @@ public partial class CalibrationWindow
             HardenWiringColumnWidths(wiringGrid);
         }
 
-        FixReferenceChartHeader(rootGrid);
-
         // The root Grid keeps all existing bindings and overlays. We only place it into a
         // page-level vertical ScrollViewer so chart expansion never makes lower content
         // unreachable. Horizontal scrolling belongs to individual wide DataGrids, not the page.
@@ -108,45 +106,6 @@ public partial class CalibrationWindow
             }
 
             TabControl? nested = FindCalibrationTabs(child);
-            if (nested is not null) return nested;
-        }
-
-        return null;
-    }
-
-    private static void FixReferenceChartHeader(DependencyObject root)
-    {
-        TextBlock? title = FindTextBlock(root, "Priebeh USB referenčnej teploty");
-        if (title?.Parent is not DockPanel header) return;
-
-        // DockPanel.LastChildFill=True caused the right-hand Port/kanál label to occupy the
-        // remaining area instead of staying docked right, producing the visible concatenation
-        // "...teplotyPort: COM7...".
-        header.LastChildFill = false;
-        title.TextTrimming = TextTrimming.CharacterEllipsis;
-
-        TextBlock? details = header.Children
-            .OfType<TextBlock>()
-            .FirstOrDefault(block => !ReferenceEquals(block, title));
-        if (details is not null)
-        {
-            details.Margin = new Thickness(18, 0, 0, 0);
-            details.TextAlignment = TextAlignment.Right;
-        }
-    }
-
-    private static TextBlock? FindTextBlock(DependencyObject root, string exactText)
-    {
-        int count = VisualTreeHelper.GetChildrenCount(root);
-        for (int i = 0; i < count; i++)
-        {
-            DependencyObject child = VisualTreeHelper.GetChild(root, i);
-            if (child is TextBlock text && string.Equals(text.Text, exactText, StringComparison.Ordinal))
-            {
-                return text;
-            }
-
-            TextBlock? nested = FindTextBlock(child, exactText);
             if (nested is not null) return nested;
         }
 

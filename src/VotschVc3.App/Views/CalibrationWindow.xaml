@@ -314,13 +314,23 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="220" />
                 </Grid.RowDefinitions>
-                <DockPanel Grid.Row="0" Margin="0,0,0,6">
-                    <TextBlock Text="Priebeh USB referenčnej teploty" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
-                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center">
-                        <Run Text="Port: " /><Run Text="{Binding SelectedF100.PortName, Mode=OneWay, TargetNullValue=—}" />
-                        <Run Text=" · kanál " /><Run Text="{Binding SelectedF100Channel, Mode=OneWay}" />
-                    </TextBlock>
-                </DockPanel>
+                <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Priebeh USB referenčnej teploty"
+                               Style="{StaticResource Heading}" Margin="0,0,16,0"
+                               TextTrimming="CharacterEllipsis" />
+                    <Border Grid.Column="1" Background="{StaticResource SurfaceAltBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="10,4" VerticalAlignment="Top">
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="NoWrap">
+                            <Run Text="Port: " /><Run Text="{Binding SelectedF100.PortName, Mode=OneWay, TargetNullValue=—}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                            <Run Text="  ·  kanál " /><Run Text="{Binding SelectedF100Channel, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                        </TextBlock>
+                    </Border>
+                </Grid>
                 <views:ChartView Grid.Row="1" Series="{Binding SelectedF100.LiveSeries}" Unit=" °C"
                                  EmptyText="Stlač Načítať teplotu alebo spusti kalibráciu…"
                                  ChartTitle="USB referenčný teplomer" />

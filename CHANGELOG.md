@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.111] – 2026-09-05
+
+### Opravené
+- Nadpis grafu USB referenčnej teploty a údaj o COM porte/kanáli sa už neprekrývajú ani nezlievajú do jedného textu.
+- Port a kanál sú oddelené v kontrastnom badge, zatiaľ čo nadpis má vlastný pružný priestor a pri užšom okne sa bezpečne skráti.
+- Odstránený bol krehký runtime zásah do hlavičky; rozloženie je teraz jednoznačne definované priamo v XAML bez dodatočnej práce pri načítaní okna.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.111.
+
 ## [1.76.110] – 2026-09-05
 
 ### Pridané
