@@ -49,6 +49,32 @@ public sealed class ChamberTemperatureSeriesConverter : IValueConverter
         Binding.DoNothing;
 }
 
+public sealed class WikaStabilityScoreSeriesConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value is not IReadOnlyList<DashboardStabilityScoreSample> samples || samples.Count == 0)
+            return Array.Empty<ChartSeries>();
+        DateTimeOffset origin = samples[0].Timestamp;
+        IReadOnlyList<DashboardStabilityScoreSample> visible = TimeSeriesEnvelopeReducer.Reduce(
+            samples, sample => sample.ScoreSeconds, 240);
+        Point[] score = visible
+            .Select(sample => new Point((sample.Timestamp - origin).TotalMinutes, sample.ScoreSeconds))
+            .ToArray();
+        double endMinutes = Math.Max(score[^1].X, 1d / 60d);
+        double required = samples[^1].RequiredSeconds;
+        return new[]
+        {
+            new ChartSeries("Stabilné skóre", Brushes.DodgerBlue, score, strokeThickness: 2),
+            new ChartSeries($"Cieľ {required:0} s", Brushes.MediumSeaGreen,
+                new[] { new Point(0, required), new Point(endMinutes, required) }, dashed: true, strokeThickness: 1.4),
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+        Binding.DoNothing;
+}
+
 public partial class CalibrationDashboardView : UserControl
 {
     private Popup? _helpPopup;

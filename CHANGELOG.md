@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.138] – 2026-09-05
+
+### Pridané
+- Karta WIKA referencie obsahuje kompaktný graf vývoja stabilného skóre v sekundách vrátane čiarkovanej hranice požadovaného času.
+- Graf zobrazuje aj pokles skóre po neúspešnom bloku, používa existujúce kalibračné snapshoty bez ďalšieho čítania hardvéru a vykresľuje najviac 240 reprezentatívnych bodov.
+- Záložná verzia bola zvýšená na 1.76.138.
+
 ## [1.76.137] – 2026-09-05
 
 ### Zmenené

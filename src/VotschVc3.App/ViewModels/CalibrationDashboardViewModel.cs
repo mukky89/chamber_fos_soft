@@ -5,6 +5,7 @@ using VotschVc3.Core.Calibration;
 namespace VotschVc3.App.ViewModels;
 
 public sealed record DashboardTemperatureSample(DateTimeOffset Timestamp, double TemperatureC);
+public sealed record DashboardStabilityScoreSample(DateTimeOffset Timestamp, int ScoreSeconds, int RequiredSeconds);
 
 /// <summary>UI-only projection of runner snapshots. Never controls calibration gates.</summary>
 public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
@@ -36,6 +37,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         new Dictionary<int, CalibrationPlateauStatistics>();
     private double? _observedCycleSeconds;
     private readonly List<DashboardTemperatureSample> _chamberTemperatureTrace = new();
+    private readonly List<DashboardStabilityScoreSample> _wikaStabilityScoreTrace = new();
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
@@ -72,6 +74,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public double? TargetTemperatureC => _snapshot?.TargetTemperatureC;
     public double? ActualTemperature => _snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
     public IReadOnlyList<DashboardTemperatureSample> ChamberTemperatureTrace => _chamberTemperatureTrace.ToArray();
+    public IReadOnlyList<DashboardStabilityScoreSample> WikaStabilityScoreTrace => _wikaStabilityScoreTrace.ToArray();
     public string Actual => ActualTemperature is { } t ? $"{t:F2} °C" : "—";
     public string Reference => _snapshot?.ReferenceTemperatureC is { } t ? $"{t:F3} °C" : "—";
     public string Delta => _snapshot?.ActualTemperatureC is { } t ? $"Δ {t - _snapshot.TargetTemperatureC:+0.00;-0.00;0.00} °C" : "Čaká na údaje";
@@ -341,12 +344,15 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (snapshot.PlateauIndex >= 0 && previous?.PlateauIndex != snapshot.PlateauIndex)
         {
             _chamberTemperatureTrace.Clear();
+            _wikaStabilityScoreTrace.Clear();
             _targetEvents.Clear();
             FbgStabilityCharts.Clear();
             AddEvent(now, "INFO", $"Začal sa bod {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount} na {Target}.");
         }
         if (snapshot.ActualTemperatureC is { } chamberTemperature)
             AddChamberTraceSample(now, chamberTemperature);
+        if (snapshot.TemperatureStableScoreSeconds is { } score && snapshot.RequiredTemperatureScoreSeconds is { } required && required > 0)
+            AddWikaStabilityScoreSample(now, score, required);
         if (snapshot.PlateauIndex >= 0 && snapshot.PlateauIndex < Points.Count)
         {
             var point = Points[snapshot.PlateauIndex];
@@ -401,6 +407,12 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         if (_chamberTemperatureTrace.Count > 0 && timestamp <= _chamberTemperatureTrace[^1].Timestamp) return;
         _chamberTemperatureTrace.Add(new DashboardTemperatureSample(timestamp, temperature));
+    }
+
+    private void AddWikaStabilityScoreSample(DateTimeOffset timestamp, int scoreSeconds, int requiredSeconds)
+    {
+        if (_wikaStabilityScoreTrace.Count > 0 && timestamp <= _wikaStabilityScoreTrace[^1].Timestamp) return;
+        _wikaStabilityScoreTrace.Add(new DashboardStabilityScoreSample(timestamp, scoreSeconds, requiredSeconds));
     }
     public void Pause(bool paused, DateTimeOffset now)
     {

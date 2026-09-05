@@ -341,6 +341,9 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("±0", m.ReferenceToleranceHelp);
         Assert.Contains("bloku 5 vzoriek", m.ReferenceDriftHelp);
         Assert.Contains("dvojnásobok", m.ReferenceTimeHelp);
+        Assert.Single(m.WikaStabilityScoreTrace);
+        Assert.Equal(35, m.WikaStabilityScoreTrace[0].ScoreSeconds);
+        Assert.Equal(600, m.WikaStabilityScoreTrace[0].RequiredSeconds);
     }
     [Fact] public void ForceNextStepIsAvailableOnlyWhileWaitingWithAuthoritativeTemperature()
     {
