@@ -1595,11 +1595,14 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {warning.Code} · {warning.Message}");
                 _ = Application.Current.Dispatcher.InvokeAsync(() => WarningText = warning.Message);
                 bool automaticExtension = warning.Code == "REFERENCE_STABILITY_TIMEOUT_EXTENDED";
+                bool automaticDeferral = warning.Code == "REFERENCE_STABILITY_DEFERRED";
                 DesktopNotifier.Notify(
-                    automaticExtension ? "Čakanie na stabilitu WIKA bolo predĺžené" : "FBG kalibrácia – upozornenie",
+                    automaticExtension
+                        ? "Čakanie na stabilitu WIKA bolo predĺžené"
+                        : automaticDeferral ? "Plato sa odložilo na neskôr" : "FBG kalibrácia – upozornenie",
                     warning.Message,
-                    automaticExtension ? DesktopNotificationKind.Warning : DesktopNotificationKind.Alarm);
-                if (!automaticExtension)
+                    automaticExtension || automaticDeferral ? DesktopNotificationKind.Warning : DesktopNotificationKind.Alarm);
+                if (!automaticExtension && !automaticDeferral)
                     _ = SendWarningEmailAsync(_activeRun, warning);
             };
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);

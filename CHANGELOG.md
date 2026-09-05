@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.141] – 2026-09-05
+
+### Zmenené
+- Plato, ktoré sa ani po základnom limite a maximálnom hodinovom predĺžení neustáli, sa pri prvom neúspechu odloží namiesto zastavenia celej kalibrácie.
+- Kalibrácia pokračuje ďalšími dostupnými platami a po ich prejdení sa k odloženému platu automaticky raz vráti; nekonečné opakovanie nie je povolené.
+- Zoznam odložených plat sa ukladá do checkpointu, takže poradie návratov zostane zachované aj po obnove aplikácie alebo výpadku.
+- Až neúspešný opakovaný pokus zastaví automatický postup a odošle e-mail s výzvou na zásah operátora; odloženie samotné zobrazí informatívne upozornenie bez e-mailu.
+- Záložná verzia bola zvýšená na 1.76.141.
+
 ## [1.76.140] – 2026-09-05
 
 ### Pridané

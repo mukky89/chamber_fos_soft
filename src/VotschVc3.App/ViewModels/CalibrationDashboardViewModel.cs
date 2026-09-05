@@ -114,7 +114,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         $"Aplikácia ďalej čaká a kontroluje nové bloky, kým odchýlka aj drift nebudú súčasne vyhovovať a stabilné skóre nedosiahne {Duration(_stableDuration)}; až potom pokračuje stabilizáciou FBG peakov. " +
         $"Po základnom limite {Duration(_stabilityTimeout)} sa čakanie pri platných dátach WIKA automaticky predlžuje po {Duration(_stabilityExtensionStep)}, najviac spolu o {Duration(_maxAutomaticStabilityExtension)}. " +
         "Predĺženie sa nikdy neopakuje nad tento strop. " +
-        "Po vyčerpaní predĺženia operátor dostane upozornenie aj e-mail, musí skontrolovať WIKA, komoru alebo nastavené limity a potom kontrolu spustiť znovu; nevyhovujúci bod sa automaticky neprijme.";
+        "Po vyčerpaní predĺženia sa neustálené plato odloží, kalibrácia pokračuje ďalším platom a po prejdení ostatných bodov sa k nemu automaticky raz vráti. " +
+        "Ak neprejde ani opakovaný pokus, operátor dostane upozornenie aj e-mail a automatický postup sa zastaví; nevyhovujúci bod sa nikdy automaticky neprijme.";
     public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
     public int TemperatureStableScoreSeconds => _snapshot?.TemperatureStableScoreSeconds ?? 0;

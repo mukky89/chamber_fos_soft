@@ -330,6 +330,8 @@ public sealed class CalibrationCheckpoint
     public double? CurrentTargetTemperatureC { get; set; }
     public CalibrationRunState State { get; set; }
     public List<CalibrationPlateauResult> CompletedPlateaus { get; set; } = new();
+    /// <summary>Plateaus that already exhausted their first stability wait and are queued for one final retry.</summary>
+    public List<int> DeferredPlateauIndices { get; set; } = new();
     public List<CalibrationSensorMapping> Mappings { get; set; } = new();
     /// <summary>
     /// Immutable copy of the decision limits used by the interrupted run. Older checkpoints do not
@@ -390,6 +392,17 @@ public sealed record CalibrationProgressSnapshot(
 public sealed class CalibrationOperatorActionRequiredException : Exception
 {
     public CalibrationOperatorActionRequiredException(string message, CalibrationWarning warning)
+        : base(message)
+    {
+        Warning = warning;
+    }
+
+    public CalibrationWarning Warning { get; }
+}
+
+public sealed class CalibrationPlateauDeferredException : Exception
+{
+    public CalibrationPlateauDeferredException(string message, CalibrationWarning warning)
         : base(message)
     {
         Warning = warning;

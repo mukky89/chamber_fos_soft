@@ -76,8 +76,8 @@ public sealed class CalibrationProfileRunner
         if (calibrationSteps.Count == 0)
             throw new InvalidOperationException("Kalibračný profil nemá označené žiadne kalibračné plato.");
 
-        int firstPlateau = PrepareResume(run, profile, setup, calibrationSteps.Count, resumeFrom);
-        int progressPlateau = Math.Min(firstPlateau, calibrationSteps.Count - 1);
+        List<PlateauWorkItem> workItems = PrepareResume(run, profile, setup, calibrationSteps.Count, resumeFrom);
+        int progressPlateau = workItems.Count > 0 ? workItems[0].PlateauIndex : calibrationSteps.Count - 1;
 
         run.State = CalibrationRunState.Preflight;
         Progress?.Invoke(new CalibrationProgressSnapshot(
@@ -107,8 +107,10 @@ public sealed class CalibrationProfileRunner
 
         try
         {
-            for (int currentPlateau = firstPlateau; currentPlateau < calibrationSteps.Count; currentPlateau++)
+            for (int workPosition = 0; workPosition < workItems.Count; workPosition++)
             {
+                PlateauWorkItem workItem = workItems[workPosition];
+                int currentPlateau = workItem.PlateauIndex;
                 cancellationToken.ThrowIfCancellationRequested();
                 await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
 
@@ -148,36 +150,51 @@ public sealed class CalibrationProfileRunner
                 Func<double, double?, CancellationToken, Task<string?>>? referenceControl =
                     CreateReferenceControl(setup, targetHumidity);
 
-                CalibrationPlateauResult plateau = await _orchestrator.WaitForPlateauAsync(
-                    run,
-                    setup,
-                    currentPlateau,
-                    calibrationSteps.Count,
-                    step.Segment.TargetTemperature,
-                    TimeSpan.Zero,
-                    ReadTemperatureAsync,
-                    readReferenceTemperatureAsync,
-                    referenceControl,
-                    writer,
-                    snapshot => Progress?.Invoke(snapshot),
-                    cancellationToken).ConfigureAwait(false);
+                CalibrationPlateauResult plateau;
+                try
+                {
+                    plateau = await _orchestrator.WaitForPlateauAsync(
+                        run,
+                        setup,
+                        currentPlateau,
+                        calibrationSteps.Count,
+                        step.Segment.TargetTemperature,
+                        TimeSpan.Zero,
+                        ReadTemperatureAsync,
+                        readReferenceTemperatureAsync,
+                        referenceControl,
+                        writer,
+                        snapshot => Progress?.Invoke(snapshot),
+                        cancellationToken,
+                        deferOnTemperatureTimeout: !workItem.IsRetry && workPosition < workItems.Count - 1).ConfigureAwait(false);
+                }
+                catch (CalibrationPlateauDeferredException deferred)
+                {
+                    workItems.Add(new PlateauWorkItem(currentPlateau, IsRetry: true));
+                    run.State = CalibrationRunState.MovingToNextPlateau;
+                    SaveCheckpoint(run, setup, currentPlateau, step.Segment.TargetTemperature,
+                        workItems.Skip(workPosition + 1).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
+                    writer.SaveSummary();
+                    Progress?.Invoke(new CalibrationProgressSnapshot(
+                        run.State,
+                        currentPlateau,
+                        calibrationSteps.Count,
+                        step.Segment.TargetTemperature,
+                        null,
+                        null,
+                        0,
+                        setup.Mappings.Count(mapping => mapping.Selected),
+                        TimeSpan.Zero,
+                        Array.Empty<CalibrationTargetProgress>(),
+                        $"Plato {currentPlateau + 1} / {calibrationSteps.Count} sa odložilo: {deferred.Message} Nasleduje ďalšie dostupné plato."));
+                    continue;
+                }
 
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
 
-                _store.SaveCheckpoint(new CalibrationCheckpoint
-                {
-                    RunId = run.RunId,
-                    ProfileId = run.ProfileId,
-                    ChamberId = run.ChamberId,
-                    CurrentPlateauIndex = currentPlateau,
-                    CurrentTargetTemperatureC = step.Segment.TargetTemperature,
-                    State = run.State,
-                    CompletedPlateaus = run.Plateaus.ToList(),
-                    Mappings = setup.Mappings.Select(CloneMapping).ToList(),
-                    SettingsSnapshot = CalibrationCheckpointRecovery.CloneSettings(setup.Settings),
-                    CalibrationSegmentIndices = setup.CalibrationSegmentIndices.ToList(),
-                });
+                SaveCheckpoint(run, setup, currentPlateau, step.Segment.TargetTemperature,
+                    workItems.Skip(workPosition + 1).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
 
                 if (validationBaseline is null)
                 {
@@ -254,14 +271,15 @@ public sealed class CalibrationProfileRunner
         }
     }
 
-    private static int PrepareResume(
+    private List<PlateauWorkItem> PrepareResume(
         CalibrationRunRecord run,
         TestProfile profile,
         CalibrationSetup setup,
         int plateauCount,
         CalibrationCheckpoint? checkpoint)
     {
-        if (checkpoint is null) return 0;
+        if (checkpoint is null)
+            return Enumerable.Range(0, plateauCount).Select(index => new PlateauWorkItem(index, IsRetry: false)).ToList();
         if (checkpoint.RunId != run.RunId || checkpoint.ProfileId != profile.Id || checkpoint.ChamberId != run.ChamberId)
             throw new InvalidOperationException("Checkpoint nepatrí k vybranému profilu, komore alebo kalibračnému behu.");
         if (checkpoint.CompletedPlateaus.Count > plateauCount)
@@ -272,8 +290,41 @@ public sealed class CalibrationProfileRunner
         run.Plateaus.Clear();
         run.Plateaus.AddRange(checkpoint.CompletedPlateaus);
         run.CompletedAt = null;
-        return checkpoint.CompletedPlateaus.Count;
+        HashSet<int> completed = checkpoint.CompletedPlateaus.Select(plateau => plateau.PlateauIndex).ToHashSet();
+        HashSet<int> deferred = checkpoint.DeferredPlateauIndices
+            .Where(index => index >= 0 && index < plateauCount && !completed.Contains(index))
+            .ToHashSet();
+        return Enumerable.Range(0, plateauCount)
+            .Where(index => !completed.Contains(index) && !deferred.Contains(index))
+            .Select(index => new PlateauWorkItem(index, IsRetry: false))
+            .Concat(deferred.OrderBy(index => index).Select(index => new PlateauWorkItem(index, IsRetry: true)))
+            .ToList();
     }
+
+    private void SaveCheckpoint(
+        CalibrationRunRecord run,
+        CalibrationSetup setup,
+        int currentPlateau,
+        double targetTemperature,
+        IEnumerable<int> deferredPlateaus)
+    {
+        _store.SaveCheckpoint(new CalibrationCheckpoint
+        {
+            RunId = run.RunId,
+            ProfileId = run.ProfileId,
+            ChamberId = run.ChamberId,
+            CurrentPlateauIndex = currentPlateau,
+            CurrentTargetTemperatureC = targetTemperature,
+            State = run.State,
+            CompletedPlateaus = run.Plateaus.ToList(),
+            DeferredPlateauIndices = deferredPlateaus.Distinct().ToList(),
+            Mappings = setup.Mappings.Select(CloneMapping).ToList(),
+            SettingsSnapshot = CalibrationCheckpointRecovery.CloneSettings(setup.Settings),
+            CalibrationSegmentIndices = setup.CalibrationSegmentIndices.ToList(),
+        });
+    }
+
+    private sealed record PlateauWorkItem(int PlateauIndex, bool IsRetry);
 
     private Func<double, double?, CancellationToken, Task<string?>>? CreateReferenceControl(
         CalibrationSetup setup,

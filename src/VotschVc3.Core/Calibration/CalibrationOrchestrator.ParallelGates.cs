@@ -118,7 +118,8 @@ public sealed class CalibrationOrchestrator
         Func<double, double?, CancellationToken, Task<string?>>? referenceControlAsync,
         CalibrationRunWriter writer,
         Action<CalibrationProgressSnapshot>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool deferOnTemperatureTimeout = false)
     {
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(setup);
@@ -262,7 +263,8 @@ public sealed class CalibrationOrchestrator
                         throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
                             settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed, hasExternalReference,
                             (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
-                            (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds);
+                            (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
+                            deferOnTemperatureTimeout);
                     }
                 }
                 else if (temperatureRecoveryStartedAt is { } recoveryStart &&
@@ -275,7 +277,8 @@ public sealed class CalibrationOrchestrator
                     throw BuildTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
                         settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed, hasExternalReference,
                         (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
-                        (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds);
+                        (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
+                        deferOnTemperatureTimeout);
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
@@ -494,7 +497,7 @@ public sealed class CalibrationOrchestrator
         return allValid || settings.AllowValidationOverride;
     }
 
-    private CalibrationOperatorActionRequiredException BuildTemperatureTimeout(
+    private Exception BuildTemperatureTimeout(
         CalibrationRunRecord run,
         int plateauIndex,
         double targetTemperatureC,
@@ -503,7 +506,8 @@ public sealed class CalibrationOrchestrator
         TimeSpan timeout,
         bool hasExternalReference,
         int stableScoreSeconds,
-        int requiredStableScoreSeconds)
+        int requiredStableScoreSeconds,
+        bool deferPlateau)
     {
         string source = hasExternalReference ? "WIKA CTH7000" : "interná sonda komory";
         string measured = hasExternalReference
@@ -511,14 +515,16 @@ public sealed class CalibrationOrchestrator
             : $"{chamberTemperature:F3} °C";
         CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
         {
-            Code = "REFERENCE_STABILITY_TIMEOUT",
+            Code = deferPlateau ? "REFERENCE_STABILITY_DEFERRED" : "REFERENCE_STABILITY_TIMEOUT",
             Message = $"{source} sa neustálila na {targetTemperatureC:F1} °C ani po maximálnom čase {FormatTime(timeout)}. " +
                       $"Posledná hodnota: {measured}; stabilné skóre {stableScoreSeconds}/{requiredStableScoreSeconds} s. " +
-                      "Automatický postup bol bezpečne zastavený a kalibračný bod nebol prijatý. " +
-                      "Skontrolujte pripojenie a polohu WIKA sondy, rozloženie alebo tepelnú kapacitu náplne komory a nastavené limity. " +
-                      "Potom obnovte kontrolu; zdôvodnené vynútenie ďalšieho kroku použite iba po odbornom posúdení.",
+                      (deferPlateau
+                          ? "Kalibračný bod sa zatiaľ neprijal; odloží sa, beh pokračuje ďalším platom a po prejdení ostatných bodov sa k nemu automaticky raz vráti."
+                          : "Automatický postup bol bezpečne zastavený a kalibračný bod nebol prijatý. Skontrolujte pripojenie a polohu WIKA sondy, rozloženie alebo tepelnú kapacitu náplne komory a nastavené limity. Potom obnovte kontrolu; zdôvodnené vynútenie ďalšieho kroku použite iba po odbornom posúdení."),
             PlateauIndex = plateauIndex,
         });
+        if (deferPlateau)
+            return new CalibrationPlateauDeferredException(warning.Message, warning);
         return new CalibrationOperatorActionRequiredException(warning.Message, warning);
     }
 

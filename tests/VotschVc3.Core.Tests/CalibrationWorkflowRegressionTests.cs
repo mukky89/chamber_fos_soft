@@ -332,6 +332,67 @@ public sealed class CalibrationWorkflowRegressionTests
     }
 
     [Fact]
+    public async Task Runner_DefersUnstablePlateau_CompletesNextPlateau_ThenRetriesOnce()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "Deferred plateau",
+                ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments =
+                {
+                    new ProfileSegment { Name = "20 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 20 },
+                    new ProfileSegment { Name = "30 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 30 },
+                },
+            };
+            var setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.Add(0);
+            setup.CalibrationSegmentIndices.Add(1);
+            setup.Settings.RequiredStableSamples = 1;
+            setup.Settings.RequiredMeasurementSamples = 1;
+            setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(100);
+            setup.Settings.MaxAutomaticChamberStabilityExtension = TimeSpan.Zero;
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ProfileName = profile.Name, ChamberId = Guid.NewGuid() };
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            var warningCodes = new List<string>();
+            orchestrator.WarningRaised += warning => warningCodes.Add(warning.Code);
+            var runner = new CalibrationProfileRunner(chamber, orchestrator, store, TimeSpan.FromMilliseconds(10));
+            var movedTo = new List<int>();
+            runner.Progress += snapshot =>
+            {
+                if (snapshot.State == CalibrationRunState.MovingToPlateau)
+                    movedTo.Add(snapshot.PlateauIndex);
+            };
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            CalibrationOperatorActionRequiredException failure = await Assert.ThrowsAsync<CalibrationOperatorActionRequiredException>(() =>
+                runner.RunAsync(profile, setup, run, writer, 20, null,
+                    _ => Task.FromResult<double?>(chamber.WrittenTemperatures.LastOrDefault() >= 25 ? 30 : 35),
+                    timeout.Token, resumeFrom: null));
+
+            Assert.Equal(new[] { 0, 1, 0 }, movedTo);
+            Assert.Contains("REFERENCE_STABILITY_DEFERRED", warningCodes);
+            Assert.Equal("REFERENCE_STABILITY_TIMEOUT", failure.Warning.Code);
+            Assert.Contains(run.Plateaus, plateau => plateau.PlateauIndex == 1);
+            CalibrationCheckpoint checkpoint = Assert.IsType<CalibrationCheckpoint>(store.LoadCheckpoint(run.ChamberId));
+            Assert.Contains(0, checkpoint.DeferredPlateauIndices);
+            Assert.Contains(checkpoint.CompletedPlateaus, plateau => plateau.PlateauIndex == 1);
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task Runner_ReferenceControlCorrectsOnlyOutsideToleranceAndKeepsStepBounded()
     {
         string root = TempDirectory();

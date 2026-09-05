@@ -121,7 +121,9 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("Predĺženie sa nikdy neopakuje nad tento strop", m.ReferenceTimeHelp);
         Assert.Contains("15 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("1 h 00 min", m.ReferenceTimeHelp);
-        Assert.Contains("nevyhovujúci bod sa automaticky neprijme", m.ReferenceTimeHelp);
+        Assert.Contains("nevyhovujúci bod sa nikdy automaticky neprijme", m.ReferenceTimeHelp);
+        Assert.Contains("pokračuje ďalším platom", m.ReferenceTimeHelp);
+        Assert.Contains("automaticky raz vráti", m.ReferenceTimeHelp);
     }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
