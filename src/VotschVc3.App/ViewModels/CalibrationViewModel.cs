@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -64,6 +66,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private CalibrationRunRecord? _activeRun;
     private CalibrationRunWriter? _activeWriter;
     private readonly SemaphoreSlim _wavelengthTraceGate = new(1, 1);
+    private readonly HashSet<CalibrationPeakRowViewModel> _wiringObservedPeaks = new();
     private DateTimeOffset _nextWavelengthTraceAt = DateTimeOffset.MinValue;
     private CalibrationSetup _setup = new();
     private bool _stopRequested;
@@ -99,6 +102,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         CalibrationPoints = new ObservableCollection<CalibrationPointRowViewModel>();
         TargetProgress = new ObservableCollection<CalibrationTargetProgressViewModel>();
         History = new ObservableCollection<CalibrationRunRecord>(_calibrationStore.LoadHistory());
+        Peaks.CollectionChanged += OnWiringPeaksChanged;
 
         ConnectPeakLoggerCommand = new AsyncRelayCommand(ConnectPeakLoggerAsync, () => !IsRunning, ReportError);
         DiscoverPeakLoggerApisCommand = new AsyncRelayCommand(DiscoverPeakLoggerApisAsync, () => !IsRunning && !UseSimulator, ReportError);
@@ -136,6 +140,18 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public ObservableCollection<TestProfile> Profiles { get; }
     public ObservableCollection<CalibrationChamberOption> Chambers { get; }
     public ObservableCollection<CalibrationPeakRowViewModel> Peaks { get; }
+    private CalibrationPeakRowViewModel? _selectedWiringPeak;
+    public CalibrationPeakRowViewModel? SelectedWiringPeak
+    {
+        get => _selectedWiringPeak;
+        set => SetProperty(ref _selectedWiringPeak, value);
+    }
+    public int SelectedWiringPeakCount => Peaks.Count(peak => peak.Selected);
+    public int AssignedWiringSerialCount => Peaks.Count(peak => !peak.NeedsSensorSerialNumber);
+    public int WiringErrorCount => Peaks.Count(peak => peak.NeedsSensorSerialNumber || peak.HasSerialNumberWarning);
+    public string WiringSelectionSummary => $"{SelectedWiringPeakCount} / {Peaks.Count}";
+    public string WiringSerialSummary => $"{AssignedWiringSerialCount} / {Peaks.Count}";
+    public string WiringConnectionSummary => PeakLoggerConnected ? "PeakLogger pripojený" : "PeakLogger nepripojený";
     public ObservableCollection<CalibrationPointRowViewModel> CalibrationPoints { get; }
     public ObservableCollection<CalibrationTargetProgressViewModel> TargetProgress { get; }
     public ObservableCollection<CalibrationRunRecord> History { get; }
@@ -380,7 +396,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         get => _peakLoggerConnected;
         private set
         {
-            if (SetProperty(ref _peakLoggerConnected, value)) RefreshCommands();
+            if (SetProperty(ref _peakLoggerConnected, value))
+            {
+                OnPropertyChanged(nameof(WiringConnectionSummary));
+                RefreshCommands();
+            }
         }
     }
 
@@ -944,6 +964,14 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SerialNumberValidationMessage = warnings.Count == 0
             ? string.Empty
             : $"⚠ Kontrola SN: {warnings.Count} riadkov vyžaduje kontrolu. Prejdi myšou na zvýraznené SN.";
+    }
+
+    public void ValidateWiringSerialNumbers()
+    {
+        ValidateSerialNumbers();
+        StatusMessage = WiringErrorCount == 0
+            ? $"Kontrola zapojenia dokončená: všetkých {Peaks.Count} riadkov je bez chyby SN."
+            : $"Kontrola zapojenia našla {WiringErrorCount} riadkov, ktoré treba skontrolovať.";
     }
 
     private void ScheduleSetupAutosave()
@@ -2115,6 +2143,59 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(ValidationOverrideReason));
     }
 
+    private void OnWiringPeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            foreach (CalibrationPeakRowViewModel peak in _wiringObservedPeaks)
+                peak.PropertyChanged -= OnWiringPeakPropertyChanged;
+            _wiringObservedPeaks.Clear();
+        }
+        if (e.OldItems is not null)
+        {
+            foreach (CalibrationPeakRowViewModel peak in e.OldItems)
+            {
+                peak.PropertyChanged -= OnWiringPeakPropertyChanged;
+                _wiringObservedPeaks.Remove(peak);
+            }
+        }
+        if (e.NewItems is not null)
+        {
+            foreach (CalibrationPeakRowViewModel peak in e.NewItems)
+            {
+                if (_wiringObservedPeaks.Add(peak))
+                    peak.PropertyChanged += OnWiringPeakPropertyChanged;
+            }
+        }
+        foreach (CalibrationPeakRowViewModel peak in Peaks)
+        {
+            if (_wiringObservedPeaks.Add(peak))
+                peak.PropertyChanged += OnWiringPeakPropertyChanged;
+        }
+        if (SelectedWiringPeak is null || !Peaks.Contains(SelectedWiringPeak))
+            SelectedWiringPeak = Peaks.FirstOrDefault();
+        NotifyWiringSummaryChanged();
+    }
+
+    private void OnWiringPeakPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CalibrationPeakRowViewModel.Selected)
+            or nameof(CalibrationPeakRowViewModel.ChannelSerialNumber)
+            or nameof(CalibrationPeakRowViewModel.ChainSerialNumber)
+            or nameof(CalibrationPeakRowViewModel.NeedsSensorSerialNumber)
+            or nameof(CalibrationPeakRowViewModel.HasSerialNumberWarning))
+            NotifyWiringSummaryChanged();
+    }
+
+    private void NotifyWiringSummaryChanged()
+    {
+        OnPropertyChanged(nameof(SelectedWiringPeakCount));
+        OnPropertyChanged(nameof(AssignedWiringSerialCount));
+        OnPropertyChanged(nameof(WiringErrorCount));
+        OnPropertyChanged(nameof(WiringSelectionSummary));
+        OnPropertyChanged(nameof(WiringSerialSummary));
+    }
+
     private void RefreshCommands()
     {
         ConnectPeakLoggerCommand.RaiseCanExecuteChanged();
@@ -2135,6 +2216,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        Peaks.CollectionChanged -= OnWiringPeaksChanged;
+        foreach (CalibrationPeakRowViewModel peak in _wiringObservedPeaks)
+            peak.PropertyChanged -= OnWiringPeakPropertyChanged;
+        _wiringObservedPeaks.Clear();
         _setupAutosaveCts?.Cancel();
         _setupAutosaveCts?.Dispose();
         _setupAutosaveCts = null;

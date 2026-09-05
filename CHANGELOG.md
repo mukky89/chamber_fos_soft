@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.145] – 2026-09-05
+
+### Zmenené
+- Obrazovka „Zapojenie“ dostala moderný master-detail dizajn: kompaktná tabuľka najdôležitejších údajov vľavo a detail vybraného senzora vpravo.
+- Horný súhrn zobrazuje počet vybraných peakov, priradených SN, chýb a aktuálny stav PeakLoggera; pribudlo rýchle vyhľadávanie a samostatná kontrola SN.
+- Zriedkavejšie výrobné údaje, CHAIN SN a poznámky sa presunuli do detailu bez odstránenia dát; existujúce automatické ukladanie, API dopĺňanie a validácia zostali zachované.
+- Tabuľka používa virtualizáciu, čitateľné pevné stĺpce, jasný vybraný riadok a naďalej chráni rozpracovanú editáciu pred obnovou dát na pozadí.
+- Záložná verzia bola zvýšená na 1.76.145.
+
 ## [1.76.144] – 2026-09-05
 
 ### Zmenené

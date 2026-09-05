@@ -9,8 +9,8 @@ namespace VotschVc3.App.Views;
 
 /// <summary>
 /// Focused UX layer for the Zapojenie grid.
-/// All existing columns stay visible. Only the two production SN fields and Notes are text-editable;
-/// the calibration checkbox remains interactive. Editable text cells enter edit mode on the first click.
+/// The compact master table keeps scanning-critical columns visible; remaining production fields live
+/// in the selected-sensor detail panel. Editable grid cells enter edit mode on the first click.
 /// </summary>
 internal static class CalibrationWindowWiringGridUxV6Bootstrap
 {
@@ -58,8 +58,8 @@ public partial class CalibrationWindow
     {
         if (_wiringGrid is null) return;
 
-        // Keep every column that the production workspace currently exposes. Horizontal scrolling is
-        // preferable to squeezing sixteen+ fields into unreadable slivers.
+        // Keep scanning-critical fields in the master table. Less frequent production fields remain
+        // available in the selected-sensor detail panel instead of creating a very wide grid.
         _wiringGrid.RowHeight = 36;
         _wiringGrid.ColumnHeaderHeight = 46;
         _wiringGrid.MinRowHeight = 34;
@@ -84,6 +84,9 @@ public partial class CalibrationWindow
         foreach (DataGridColumn column in _wiringGrid.Columns)
         {
             string header = HeaderText(column.Header);
+            column.Visibility = WiringMainTableHeadersV10.Contains(header)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
             bool isEditableText = WiringEditableTextHeadersV6.Contains(header);
             bool isCalibrationCheckbox =
                 column is DataGridCheckBoxColumn &&
@@ -105,6 +108,12 @@ public partial class CalibrationWindow
         _wiringGrid.PreparingCellForEdit -= WiringGrid_PreparingCellForEditV6;
         _wiringGrid.PreparingCellForEdit += WiringGrid_PreparingCellForEditV6;
     }
+
+    private static readonly HashSet<string> WiringMainTableHeadersV10 = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Kalibrovať", "Kanál", "Peak ID", "FBG index", "Aktuálna λ [nm]", "Intenzita",
+        "Sylex SN", "FBG sensor SN (kanál)",
+    };
 
     private Style BuildWiringCellStyleV6(bool editable)
     {

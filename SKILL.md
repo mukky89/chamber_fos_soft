@@ -186,6 +186,7 @@ The following settings were validated on the real production reference thermomet
 - Expanding the reference-temperature chart must never make the `Zapojenie` table unreachable.
 - Keep a page-level vertical scrollbar for content overflow and independent scrollbars for wide/long DataGrids.
 - The `Zapojenie` workspace should provide enough vertical space to see approximately **16 production rows** at once when the operator scrolls to that section; extra rows remain independently scrollable.
+- Keep the `Zapojenie` workspace as a master-detail layout: a virtualized compact table of scanning-critical fields on the left and the selected sensor's SN/CHAIN/production metadata/notes on the right. Filtering must be debounced and must never refresh the collection view during a DataGrid edit transaction.
 - Do not compress production table columns until headers/text overlap; prefer column minimum widths plus horizontal scrolling.
 - Dynamic status/port text must not visually collide with section headings.
 - The dashboard FBG run card must be a separate sibling **above the entire `Rýchle ovládanie` section**. Never inject it into the Quick-control header/DockPanel where it can overlap `Rýchle ovládanie` or `Upraviť predvoľby`.
