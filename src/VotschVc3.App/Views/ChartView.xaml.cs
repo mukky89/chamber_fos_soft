@@ -969,7 +969,13 @@ public partial class ChartView : UserControl
         AddOverlay(dot);
 
         var chipContent = new StackPanel();
-        int hoverDecimals = NiceAxis.RequiredDecimalPlaces(_yAxis.Step, MinimumYDecimals);
+        // FBG wavelengths are stored in nm, where 0.001 nm is already 1 pm. Keep the
+        // hover read-out at the same six-decimal precision as the live measurement
+        // tables; axis labels may stay shorter so they do not overlap.
+        int hoverMinimumDecimals = string.Equals(Unit.Trim(), "nm", StringComparison.OrdinalIgnoreCase)
+            ? 6
+            : MinimumYDecimals;
+        int hoverDecimals = NiceAxis.RequiredDecimalPlaces(_yAxis.Step, hoverMinimumDecimals);
         string hoverValue = yv.ToString($"F{hoverDecimals}", CultureInfo.CurrentCulture);
         chipContent.Children.Add(new TextBlock
         {

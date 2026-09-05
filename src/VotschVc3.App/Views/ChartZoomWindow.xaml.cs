@@ -22,6 +22,7 @@ public partial class ChartZoomWindow : Window
         Mirror(ChartView.UnitProperty, source, nameof(ChartView.Unit));
         Mirror(ChartView.YMinProperty, source, nameof(ChartView.YMin));
         Mirror(ChartView.YMaxProperty, source, nameof(ChartView.YMax));
+        Mirror(ChartView.MinimumYDecimalsProperty, source, nameof(ChartView.MinimumYDecimals));
         Mirror(ChartView.EmptyTextProperty, source, nameof(ChartView.EmptyText));
 
         // Without these the fullscreen view dropped everything that makes a profile

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.125] – 2026-09-05
+
+### Opravené
+- Tooltip na krivke FBG grafu zobrazuje vlnovú dĺžku na šesť desatinných miest v nm, takže sú viditeľné aj pikometrové zmeny, napríklad `1552,464100 nm`.
+- Osi grafov jednotlivých FBG peakov zachovávajú najmenej štyri desatinné miesta a rovnaká presnosť sa prenesie aj do zväčšeného grafu.
+- Záložná verzia bola zvýšená na 1.76.125.
+
 ## [1.76.124] – 2026-09-05
 
 ### Pridané

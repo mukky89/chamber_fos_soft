@@ -603,6 +603,7 @@ public partial class CalibrationWindow
                 chart = new ChartView
                 {
                     Unit = " nm", Height = 220, MinHeight = 180,
+                    MinimumYDecimals = 4,
                     Margin = new Thickness(0, 4, 0, 0),
                     EmptyText = "Čakám na prvé vzorky tohto peaku…",
                 };
