@@ -83,9 +83,7 @@ public sealed class BridgeOptions
     public void SyncDesktopConfiguration()
     {
         string file = Path.GetFullPath(Environment.ExpandEnvironmentVariables(ChambersFile));
-        List<ChamberConfig> sources = new ChamberConfigStore(file).LoadAll()
-            .Where(c => c.Protocol != ChamberProtocol.PolEkoModbus)
-            .ToList();
+        List<ChamberConfig> sources = new ChamberConfigStore(file).LoadAll();
 
         var existing = Devices ?? new List<DeviceOptions>();
         var result = new List<DeviceOptions>();
@@ -124,9 +122,7 @@ public sealed class BridgeOptions
     public IReadOnlyList<ChamberConfigSnapshot> GetChamberSnapshots()
     {
         string file = Path.GetFullPath(Environment.ExpandEnvironmentVariables(ChambersFile));
-        List<ChamberConfig> configs = new ChamberConfigStore(file).LoadAll()
-            .Where(c => c.Protocol != ChamberProtocol.PolEkoModbus)
-            .ToList();
+        List<ChamberConfig> configs = new ChamberConfigStore(file).LoadAll();
 
         var snapshots = new List<ChamberConfigSnapshot>();
         foreach (ChamberConfig c in configs)

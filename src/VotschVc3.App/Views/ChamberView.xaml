@@ -92,10 +92,10 @@
                                 <StackPanel Grid.Column="2" Style="{StaticResource FieldStack}">
                                     <TextBlock Text="Adresa komory" Style="{StaticResource Label}" />
                                     <TextBox Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Vötsch: 2-miestna adresa v rámci ASCII-2. POL-EKO: MODBUS unit ID (zvyčajne 1)." />
+                                             ToolTip="Vötsch: 2-miestna adresa v rámci ASCII-2. POL-EKO LabDesk RPC adresu nepoužíva." />
                                 </StackPanel>
                             </Grid>
-                            <!-- ASCII-2 specific settings – meaningless for a MODBUS (POL-EKO) or REST-API (SIKA) device. -->
+                            <!-- ASCII-2 specific settings – meaningless for POL-EKO LabDesk RPC or SIKA REST. -->
                             <StackPanel Visibility="{Binding IsAsciiProtocol, Converter={StaticResource BoolToVisibility}}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -119,7 +119,7 @@
                             </StackPanel>
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
                                        Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}"
-                                       Text="POL-EKO SMART · MODBUS TCP (port 502). Meraná teplota sa číta z input registra; setpoint a štart cez holding registre." />
+                                       Text="POL-EKO LabDesk RPC · AES/Eneter TCP (port 56506). Teplota sa číta cez GET_STATUS; ovládanie používa programové segmenty a LAUNCH_BY_ID." />
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
                                        Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}"
                                        Text="SIKA TP Premium · REST-API cez HTTP (port 8081). Meraná teplota a setpoint sa čítajú príkazom getRegister; zápis cez setSP. Kúpeľ nemá vzdialené vypnutie – beží nepretržite." />
@@ -721,17 +721,17 @@
                     </StackPanel>
                 </Border>
 
-                <!-- MODBUS diagnostics (POL-EKO only) -->
+                <!-- LabDesk RPC diagnostics (POL-EKO only) -->
                 <Border DockPanel.Dock="Top" Style="{StaticResource Card}"
                         Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
-                        <TextBlock Text="MODBUS diagnostika" Style="{StaticResource Heading}" />
+                        <TextBlock Text="POL-EKO LabDesk RPC diagnostika" Style="{StaticResource Heading}" />
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
                                    Text="Sken prečíta holding (FC03) a input (FC04) registre 0–63. Sprav sken počas behu programu (z inej appky) aj bez neho a porovnaj, ktorý register sa zmenil – tak nájdeme register bežiaceho programu/segmentu." />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button Content="▶ MODBUS sken registrov" Style="{StaticResource AccentButton}"
+                            <Button Content="▶ Načítať stav a konfiguráciu" Style="{StaticResource AccentButton}"
                                     Command="{Binding ModbusScanCommand}"
-                                    ToolTip="Prečíta blok MODBUS registrov a vypíše hodnoty – na nájdenie registra bežiaceho programu." />
+                                    ToolTip="Pošle bezpečné GET_STATUS a GET_CONFIG cez LabDesk RPC." />
                         </StackPanel>
                         <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,8">
                             <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
@@ -809,7 +809,7 @@
                                Text="Príklady:  $01I  (čítať)   ·   $01E 0050.0 0000.0 0000.0 0000.0 0000.0 0000.0 10000000000000000000000000000000  (zápis)   ·   terminátor sa dopĺňa automaticky." />
                     <TextBlock Grid.Row="2" Style="{StaticResource Caption}" Margin="6,8,6,0" TextWrapping="Wrap"
                                Visibility="{Binding IsPolEko, Converter={StaticResource BoolToVisibility}}"
-                               Text="MODBUS PDU v HEX (funkcia + dáta):  04 0000 0001 = čítať input register 0 (teplota)   ·   03 0001 0001 = čítať holding register 1   ·   odpoveď je HEX ADU." />
+                               Text="POL-EKO: zadaj názov LabDesk RPC príkazu (napr. GET_STATUS) alebo celý JSON request. Odpoveď sa zobrazí ako JSON." />
                     <TextBlock Grid.Row="2" Style="{StaticResource Caption}" Margin="6,8,6,0" TextWrapping="Wrap"
                                Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}"
                                Text="Príkaz ajax/… (bez alebo s parametrami):  getRegister?register=TRset_TR  (nameraná teplota)   ·   getRegister?register=TRset_SP  (setpoint)   ·   setSP?value=25  (nastaviť a naskočiť na 25 °C)   ·   odpoveď je JSON." />

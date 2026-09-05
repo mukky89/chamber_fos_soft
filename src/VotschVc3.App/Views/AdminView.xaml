@@ -85,7 +85,7 @@
                     <StackPanel Width="200" Margin="0,0,10,0">
                         <TextBlock Text="Protokol" Style="{StaticResource Label}" />
                         <ComboBox ItemsSource="{Binding ChamberProtocols}" SelectedItem="{Binding NewChamberProtocol}"
-                                  ToolTip="Vötsch ASCII-2 (TCP) · POL-EKO MODBUS (SMART, port 502, len teplota) · SIKA RestApi (TP Premium REST-API, port 8081, len teplota)." />
+                                  ToolTip="Vötsch ASCII-2 (TCP) · POL-EKO LabDesk RPC (AES/Eneter, port 56506, len teplota) · SIKA RestApi (TP Premium REST-API)." />
                     </StackPanel>
                     <StackPanel Width="170" Margin="0,0,10,0">
                         <TextBlock Text="Typ" Style="{StaticResource Label}" />
@@ -161,7 +161,7 @@
                     <CheckBox Content="Zobraziť sušiareň POL-EKO" Margin="0,12,0,0"
                               IsChecked="{Binding ShowPolEko}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
-                               Text="Predvolene je sušiareň POL-EKO skrytá (laboratórium ju bežne nepoužíva) a nepripája sa. Zapni, keď ju chceš vidieť na nástenke, na časovej osi a automaticky pripojiť." />
+                               Text="Sušiareň POL-EKO je po aktivácii LabDesk TCP predvolene zobrazená a automaticky sa pripája. Vypnutím ju môžeš dočasne skryť aj odpojiť." />
                 </StackPanel>
             </Border>
 

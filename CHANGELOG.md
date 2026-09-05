@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.164] – 2026-09-06
+
+### Pridané
+- POL-EKO SLN 115 teraz komunikuje rovnakou TCP/IP cestou ako LabDesk: Eneter duplex, AES heslo zariadenia, port 56506 a JSON RPC.
+- Čítanie aktuálneho stavu cez `GET_STATUS`, spustenie cieľovej teploty cez programový segment a `LAUNCH_BY_ID` a bezpečné zastavenie cez `STOP`.
+- Protokolové testy overujú názvy JSON polí, prihlásenie, škálovanie teploty ×10 a bodkované polia rampy.
+
+### Zmenené
+- Existujúca konfigurácia POL-EKO na starom porte 502 sa pri prvom štarte automaticky presunie na 56506 a sušiareň sa zobrazí na hlavnom paneli.
+- Bridge už POL-EKO nevynecháva a diagnostika zobrazuje odpovede LabDesk `GET_STATUS` a `GET_CONFIG` namiesto registračného skenu.
+- Záložná verzia bola zvýšená na 1.76.164.
+
 ## [1.76.163] – 2026-09-06
 
 ### Pridané
@@ -125,7 +137,6 @@
 - Záložka „Zapojenie“ bola na žiadosť operátora vrátená na pôvodné rozloženie s jednou širokou tabuľkou a všetkými údajmi priamo v stĺpcoch.
 - Odstránený bol pravý panel „Detail senzora“, súhrnné karty a vyhľadávacie pole z redizajnu; obnova kalibrácie a ostatné novšie opravy zostali zachované.
 - Záložná verzia bola zvýšená na 1.76.148.
-
 ## [1.76.147] – 2026-09-05
 
 ### Pridané

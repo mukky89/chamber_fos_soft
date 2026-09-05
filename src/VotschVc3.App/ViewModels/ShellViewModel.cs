@@ -9,6 +9,7 @@ using VotschVc3.Core.Protocol;
 using VotschVc3.Core.Security;
 using VotschVc3.Core.Settings;
 using VotschVc3.Core.Calibration;
+using VotschVc3.Core.Communication.PolEko;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -155,6 +156,22 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         List<ChamberConfig> configs = _configStore.LoadAll();
         bool seeded = configs.Count == 0;
 
+        // Migrate the earlier placeholder protocol configuration to the actual
+        // LabDesk RPC endpoint and reveal the now-supported oven once.
+        string polEkoRpcMarker = System.IO.Path.Combine(dir, ".poleko_labdesk_rpc_v1");
+        bool polEkoRpcMigrated = false;
+        if (!System.IO.File.Exists(polEkoRpcMarker))
+        {
+            foreach (ChamberConfig config in configs.Where(c => c.Protocol == ChamberProtocol.PolEkoModbus))
+            {
+                if (config.Port is <= 0 or 502) config.Port = PolEkoClient.DefaultPort;
+                polEkoRpcMigrated = true;
+            }
+            _ui.ShowPolEko = true;
+            SaveUiSettings();
+            System.IO.File.WriteAllText(polEkoRpcMarker, "POL-EKO LabDesk RPC 56506 enabled");
+        }
+
         // One-time reseed to the real lab layout (VT3 7034, VC3 7034, POL-EKO with
         // their fixed IP addresses / ports). Guarded by a marker so a user who later
         // edits IPs or removes a chamber keeps their changes on the next start.
@@ -231,7 +248,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         Chambers.CollectionChanged += (_, _) => RebuildVisibleChambers();
         RebuildVisibleChambers();
 
-        if (seeded || reseeded || renamed || addedExtras || sikaReset || reordered)
+        if (seeded || reseeded || renamed || addedExtras || sikaReset || reordered || polEkoRpcMigrated)
         {
             SaveConfigs();
         }
@@ -894,8 +911,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>
     /// Admin toggle (persisted): whether the POL-EKO drying oven (Sušiareň) appears
-    /// on the dashboard / timeline and is connected automatically. Off by default –
-    /// the lab does not normally use it. Turning it on brings the oven online.
+    /// on the dashboard / timeline and is connected automatically.
     /// </summary>
     public bool ShowPolEko
     {
@@ -1481,7 +1497,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Chamber types for the "add chamber" picker.</summary>
     public Array ChamberKinds { get; } = Enum.GetValues(typeof(ChamberKind));
 
-    /// <summary>Protocols for the "add chamber" picker (Vötsch ASCII-2, POL-EKO MODBUS).</summary>
+    /// <summary>Protocols for the "add chamber" picker.</summary>
     public Array ChamberProtocols { get; } = Enum.GetValues(typeof(ChamberProtocol));
 
     private string _newChamberName = string.Empty;
@@ -1614,14 +1630,14 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
               + "setpoint cez setRegister, START/STOP cez startCurrentTask/stopCurrentTask + System_ReglerOnOff.",
     }, port: 80, tempMin: -60, tempMax: 200);
 
-    /// <summary>The pre-configured POL-EKO SLN 115 drying oven (MODBUS TCP).</summary>
+    /// <summary>The pre-configured POL-EKO SLN 115 drying oven (LabDesk RPC).</summary>
     private static ChamberConfig DefaultPolEkoConfig() => new()
     {
         Name = "Sušiareň — POL-EKO SLN 115 (teplota)",
         Kind = ChamberKind.TemperatureOnly,
         Protocol = ChamberProtocol.PolEkoModbus,
         Host = "10.88.5.162",
-        Port = 502,
+        Port = PolEkoClient.DefaultPort,
         Address = 1,
         TempMin = 0,
         TempMax = 300, // SLN drying oven range is up to +300 °C
@@ -1702,11 +1718,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             // POL-EKO ovens and SIKA baths are temperature-only.
             Kind = (polEko || sika) ? ChamberKind.TemperatureOnly : NewChamberKind,
             Protocol = NewChamberProtocol,
-            // POL-EKO speaks MODBUS TCP on port 502, SIKA's REST-API is fixed on port 8081.
-            Port = polEko ? 502 : sika ? SikaRestApiProtocol.DefaultPort : 1080,
+            // POL-EKO LabDesk RPC uses 56506; SIKA REST uses its device endpoint.
+            Port = polEko ? PolEkoClient.DefaultPort : sika ? SikaRestApiProtocol.DefaultPort : 1080,
             Host = string.IsNullOrWhiteSpace(NewChamberHost) ? "192.168.0.1" : NewChamberHost.Trim(),
             // Vötsch start channel is digital channel 1 (verified running bit);
-            // POL-EKO (MODBUS) and SIKA (REST-API) do not use this field.
+            // POL-EKO LabDesk RPC and SIKA REST do not use this field.
             StartChannelIndex = (polEko || sika) ? 0 : 1,
             // Allowed temperature range: POL-EKO ovens up to +300 °C, SIKA TP baths
             // -50…+165 °C; Vötsch keeps the ChamberConfig default (editable per device).

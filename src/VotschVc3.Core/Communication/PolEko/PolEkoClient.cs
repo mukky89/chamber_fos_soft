@@ -1,260 +1,259 @@
-using VotschVc3.Core.Communication.Modbus;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Eneter.Messaging.DataProcessing.Serializing;
+using Eneter.Messaging.EndPoints.TypedMessages;
+using Eneter.Messaging.MessagingSystems.Composites.MonitoredMessagingComposit;
+using Eneter.Messaging.MessagingSystems.MessagingSystemBase;
+using Eneter.Messaging.MessagingSystems.TcpMessagingSystem;
 using VotschVc3.Core.Protocol;
 
 namespace VotschVc3.Core.Communication.PolEko;
 
-/// <summary>
-/// <see cref="IChamberDevice"/> for a POL-EKO SMART drying oven (e.g. SLN 115)
-/// over MODBUS TCP. Reads the measured temperature from an input register and
-/// the set point / on-off state from holding registers; writing a set point
-/// updates the holding registers. Temperature only – no humidity channel.
-/// </summary>
+/// <summary>POL-EKO LabDesk RPC over an AES-encrypted Eneter duplex TCP channel.</summary>
 public sealed class PolEkoClient : IChamberDevice
 {
-    private readonly PolEkoRegisterMap _map;
+    public const int DefaultPort = 56506;
+    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private ISyncDuplexTypedMessageSender<string, string>? _sender;
+    private IDuplexOutputChannel? _channel;
+    private long? _activeProgramId;
+    private double? _lastSetpoint;
 
-    private ModbusTcpClient? _modbus;
-    private string _lastResponseHex = string.Empty;
-    private bool _holdingReadsDisabled;
-
-    public PolEkoClient(PolEkoRegisterMap? map = null)
-    {
-        _map = map ?? PolEkoRegisterMap.SmartDefault();
-        Settings = new ChamberConnectionSettings();
-    }
-
-    public ChamberConnectionSettings Settings { get; private set; }
-
-    public bool IsConnected => _modbus?.IsConnected == true;
-
+    public ChamberConnectionSettings Settings { get; private set; } = new() { Port = DefaultPort };
+    public bool IsConnected => _channel?.IsConnected == true;
     public event EventHandler<FrameExchangedEventArgs>? FrameExchanged;
-
-    private byte Unit => (byte)Math.Clamp(Settings.Address, 0, 255);
 
     public async Task ConnectAsync(ChamberConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
-
-        await DisposeModbusAsync().ConfigureAwait(false);
-        Settings = settings.Clone();
-        _holdingReadsDisabled = false;
-
-        var modbus = new ModbusTcpClient(Settings.Host, Settings.Port, Settings.ConnectTimeout, Settings.ReadTimeout);
-        modbus.Exchanged += (_, resp) => _lastResponseHex = resp;
-        await modbus.ConnectAsync(cancellationToken).ConfigureAwait(false);
-        _modbus = modbus;
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            DisconnectCore();
+            Settings = settings.Clone();
+            if (Settings.Port is <= 0 or 502) Settings.Port = DefaultPort;
+            await Task.Run(() =>
+            {
+                var tcp = new TcpMessagingSystemFactory { ConnectTimeout = Settings.ConnectTimeout, ReceiveTimeout = Settings.ReadTimeout, SendTimeout = Settings.ReadTimeout };
+                var monitored = new MonitoredMessagingFactory(tcp, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(7));
+                var factory = new DuplexTypedMessagesFactory(new AesSerializer("poleko")) { SyncResponseReceiveTimeout = Settings.ReadTimeout };
+                var sender = factory.CreateSyncDuplexTypedMessageSender<string, string>();
+                var channel = monitored.CreateDuplexOutputChannel($"tcp://{Settings.Host}:{Settings.Port}/");
+                sender.AttachDuplexOutputChannel(channel);
+                _sender = sender;
+                _channel = channel;
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch { DisconnectCore(); throw; }
+        finally { _gate.Release(); }
     }
 
-    public async Task DisconnectAsync() => await DisposeModbusAsync().ConfigureAwait(false);
+    public async Task DisconnectAsync()
+    {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try { DisconnectCore(); } finally { _gate.Release(); }
+    }
 
     public async Task<ChamberReading> ReadAsync(CancellationToken cancellationToken = default)
     {
-        ModbusTcpClient modbus = _modbus ?? throw new InvalidOperationException("Not connected to the POL-EKO device.");
-
-        ushort[] measuredRegs = await modbus.ReadInputRegistersAsync(Unit, _map.MeasuredTemperatureInput, 1, cancellationToken)
-            .ConfigureAwait(false);
-        double measured = Decode(measuredRegs[0]);
-
-        // Set point and on/off live in holding registers, which some SMART firmware
-        // does not expose. Treat those reads as best-effort so monitoring keeps
-        // working even when only the input register is available.
-        ushort[]? setpointRegs = await TryReadHoldingAsync(modbus, _map.SetpointHolding, cancellationToken).ConfigureAwait(false);
-        double? setpoint = setpointRegs is null ? null : Decode(setpointRegs[0]);
-
-        ushort[]? onOffRegs = await TryReadHoldingAsync(modbus, _map.OnOffHolding, cancellationToken).ConfigureAwait(false);
-        bool? running = onOffRegs is null ? null : onOffRegs[0] != 0;
-
-        var analog = new List<double> { measured };
-        if (setpoint is { } sp)
-        {
-            analog.Add(sp);
-        }
-
-        var digital = new DigitalChannels { StartChannelIndex = 0 };
-        string stateText;
-        if (running is { } r)
-        {
-            digital.Start = r;
-            // Include the 32-bit digital block so the app trusts this on/off state.
-            stateText = $" · {(r ? "ON" : "OFF")} · DIG={digital.ToProtocolString()}";
-        }
-        else
-        {
-            stateText = " · stav neznámy";
-        }
-
-        string raw = $"POL-EKO · T={measured:0.0} °C" +
-            (setpoint is { } s ? $" · SP={s:0.0} °C" : string.Empty) + stateText;
-
+        PolEkoRpcResponse response = await SendAsync("GET_STATUS", "version-2", false, cancellationToken).ConfigureAwait(false);
+        using JsonDocument status = ParseDataObject(response, "GET_STATUS");
+        bool hasMeasured = TryFindElement(status.RootElement, "TEMPERATURE_MAIN", out JsonElement mainProbe)
+            ? TryFindNumber(mainProbe, out double measuredValue, "valueProbe", "value")
+            : TryFindNumber(status.RootElement, out measuredValue, "TEMPERATURE_MAIN_VALUE", "temperatureMain", "temperature");
+        if (!hasMeasured)
+            throw new InvalidDataException("POL-EKO GET_STATUS neobsahuje platnú hlavnú teplotu.");
+        double measured = measuredValue;
+        double? setpoint = TryFindNumber(status.RootElement, out double sp, "TEMPERATURE_SET", "SET_TEMPERATURE", "temperatureSetpoint", "setpoint") ? sp : _lastSetpoint;
+        bool running = TryFindBoolean(status.RootElement, out bool active, "IS_RUNNING") && active;
+        var digital = new DigitalChannels { StartChannelIndex = 0, Start = running };
+        IReadOnlyList<double> analog = setpoint is { } target ? new[] { measured, target } : new[] { measured };
+        string raw = $"POL-EKO LabDesk · T={measured:0.0} °C" + (setpoint is { } s ? $" · SP={s:0.0} °C" : "") + $" · {(running ? "RUNNING" : "STOPPED")}";
         return new ChamberReading(DateTimeOffset.Now, raw, analog, digital);
     }
 
-    public async Task WriteSetpointsAsync(
-        IReadOnlyList<double> setpoints,
-        DigitalChannels digital,
-        CancellationToken cancellationToken = default)
+    public async Task WriteSetpointsAsync(IReadOnlyList<double> setpoints, DigitalChannels digital, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(setpoints);
         ArgumentNullException.ThrowIfNull(digital);
-        ModbusTcpClient modbus = _modbus ?? throw new InvalidOperationException("Not connected to the POL-EKO device.");
+        if (!digital.Start) { await StopAsync(cancellationToken).ConfigureAwait(false); return; }
+        if (setpoints.Count == 0 || !double.IsFinite(setpoints[0])) throw new ArgumentException("POL-EKO vyžaduje platnú cieľovú teplotu.", nameof(setpoints));
 
-        double temperature = setpoints.Count > 0 ? setpoints[0] : 0d;
-        await modbus.WriteSingleRegisterAsync(Unit, _map.SetpointHolding, Encode(temperature), cancellationToken)
-            .ConfigureAwait(false);
-        await modbus.WriteSingleRegisterAsync(Unit, _map.OnOffHolding, (ushort)(digital.Start ? 1 : 0), cancellationToken)
-            .ConfigureAwait(false);
+        double temperature = setpoints[0];
+        if (_activeProgramId is { } oldId)
+        {
+            await SendAllowingAsync("STOP", null, true, cancellationToken, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
+            await SendAllowingAsync("DELETE_PROGRAM", oldId.ToString(), true, cancellationToken, "NO_DATA", "CURRENT_PROGRAM_IS_USER").ConfigureAwait(false);
+            _activeProgramId = null;
+        }
 
-        RaiseFrame($"SET {temperature:0.0} °C · {(digital.Start ? "ON" : "OFF")}");
+        long programId = ParseLongData(await SendAsync("GET_NEXT_PROGRAM_ID", null, true, cancellationToken).ConfigureAwait(false), "GET_NEXT_PROGRAM_ID");
+        string programJson = PolEkoLabDeskProtocol.BuildSingleSetpointProgram(programId, temperature);
+        PolEkoRpcResponse save = await SendAsync("SAVE_PROGRAM", programJson, true, cancellationToken).ConfigureAwait(false);
+        if (TryParseLong(save.Data, out long savedId)) programId = savedId;
+        await SendAsync("LAUNCH_BY_ID", programId.ToString(), false, cancellationToken).ConfigureAwait(false);
+        _activeProgramId = programId;
+        _lastSetpoint = temperature;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        ModbusTcpClient modbus = _modbus ?? throw new InvalidOperationException("Not connected to the POL-EKO device.");
-        // Switch the oven off (on/off holding register = 0). The set point is left
-        // untouched so it is remembered for the next start.
-        await modbus.WriteSingleRegisterAsync(Unit, _map.OnOffHolding, 0, cancellationToken).ConfigureAwait(false);
-        RaiseFrame("STOP · OFF");
-    }
-
-    /// <summary>
-    /// Reads a block of holding (FC03) and input (FC04) registers and returns a
-    /// human-readable dump, for finding an undocumented register (e.g. the running
-    /// program number / segment) empirically: scan while a program runs and again
-    /// while idle, then compare which value changed.
-    /// </summary>
-    public async Task<string> ScanRegistersAsync(int count = 64, CancellationToken cancellationToken = default)
-    {
-        ModbusTcpClient modbus = _modbus ?? throw new InvalidOperationException("Not connected to the POL-EKO device.");
-
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"MODBUS sken (unit {Unit}) – registre 0..{count - 1}.");
-        sb.AppendLine("Sprav sken počas behu programu aj bez neho a porovnaj, ktorá hodnota sa zmenila.");
-        sb.AppendLine();
-
-        await ScanBlockAsync(sb, "Holding (FC03)",
-            (a, ct) => modbus.ReadHoldingRegistersAsync(Unit, a, 1, ct), count, cancellationToken).ConfigureAwait(false);
-        sb.AppendLine();
-        await ScanBlockAsync(sb, "Input (FC04)",
-            (a, ct) => modbus.ReadInputRegistersAsync(Unit, a, 1, ct), count, cancellationToken).ConfigureAwait(false);
-
-        return sb.ToString();
-    }
-
-    private async Task ScanBlockAsync(
-        System.Text.StringBuilder sb,
-        string title,
-        Func<ushort, CancellationToken, Task<ushort[]>> read,
-        int count,
-        CancellationToken cancellationToken)
-    {
-        sb.AppendLine(title + ":");
-        int found = 0;
-        for (ushort a = 0; a < count; a++)
-        {
-            try
-            {
-                ushort[] r = await read(a, cancellationToken).ConfigureAwait(false);
-                ushort raw = r[0];
-                sb.AppendLine($"  [{a}] = {raw}  (0x{raw:X4}, signed {(short)raw}, ~{(short)raw * _map.TemperatureScale:0.0})");
-                found++;
-            }
-            catch (ModbusException)
-            {
-                // Register not present – skip quietly.
-            }
-            catch (TimeoutException)
-            {
-                sb.AppendLine($"  [{a}] timeout – blok ukončený.");
-                break;
-            }
-        }
-
-        if (found == 0)
-        {
-            sb.AppendLine("  (žiadny register v tomto rozsahu neodpovedal)");
-        }
+        await SendAllowingAsync("STOP", null, true, cancellationToken, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
+        _activeProgramId = null;
     }
 
     public async Task<string> SendRawAsync(string frame, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(frame);
-        ModbusTcpClient modbus = _modbus ?? throw new InvalidOperationException("Not connected to the POL-EKO device.");
-
-        byte[]? pdu = ParseHex(frame);
-        if (pdu is null || pdu.Length == 0)
+        ArgumentException.ThrowIfNullOrWhiteSpace(frame);
+        string command = frame.Trim();
+        string? data = null;
+        if (command.StartsWith('{'))
         {
-            return "Zadaj MODBUS PDU v HEX (funkcia + dáta), napr. \"04 0000 0001\" = čítať input register 0.";
+            using JsonDocument doc = JsonDocument.Parse(command);
+            command = doc.RootElement.GetProperty("requestCommand").GetString() ?? throw new InvalidDataException("Chýba requestCommand.");
+            if (doc.RootElement.TryGetProperty("data", out JsonElement value) && value.ValueKind != JsonValueKind.Null)
+                data = value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
         }
-
-        byte[] response = await modbus.SendRawPduAsync(Unit, pdu, cancellationToken).ConfigureAwait(false);
-        RaiseFrame($"RAW {Convert.ToHexString(pdu)}");
-        return Convert.ToHexString(response);
+        return JsonSerializer.Serialize(await SendAsync(command, data, true, cancellationToken).ConfigureAwait(false), Json);
     }
 
-    private async Task<ushort[]?> TryReadHoldingAsync(ModbusTcpClient modbus, ushort address, CancellationToken ct)
+    /// <summary>Compatibility entry point for the existing diagnostics button.</summary>
+    public async Task<string> ScanRegistersAsync(int count = 64, CancellationToken cancellationToken = default)
     {
-        if (_holdingReadsDisabled)
-        {
-            return null;
-        }
+        PolEkoRpcResponse status = await SendAsync("GET_STATUS", "version-2", false, cancellationToken).ConfigureAwait(false);
+        PolEkoRpcResponse config = await SendAsync("GET_CONFIG", null, true, cancellationToken).ConfigureAwait(false);
+        return "LabDesk RPC GET_STATUS:\r\n" + status.Data + "\r\n\r\nLabDesk RPC GET_CONFIG:\r\n" + config.Data;
+    }
 
+    private async Task<PolEkoRpcResponse> SendAsync(string command, string? data, bool credentials, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return await modbus.ReadHoldingRegistersAsync(Unit, address, 1, ct).ConfigureAwait(false);
+            var sender = _sender ?? throw new InvalidOperationException("POL-EKO nie je pripojené.");
+            string request = PolEkoLabDeskProtocol.BuildRequest(command, data, credentials);
+            string raw = await Task.Run(() => sender.SendRequestMessage(request), ct).ConfigureAwait(false);
+            FrameExchanged?.Invoke(this, new FrameExchangedEventArgs(request, raw));
+            var response = JsonSerializer.Deserialize<PolEkoRpcResponse>(raw, Json) ?? throw new InvalidDataException("POL-EKO vrátilo prázdnu RPC odpoveď.");
+            if (!response.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase)) throw new PolEkoRpcException(command, response.ResponseStatus, response.Data);
+            return response;
         }
-        catch (ModbusException)
-        {
-            // Firmware that doesn't expose this holding register answers with an
-            // exception (fast); keep monitoring the measured value.
-            return null;
-        }
-        catch (TimeoutException)
-        {
-            // A timeout is slow to hit, so stop probing holding registers for this
-            // connection to keep polling responsive.
-            _holdingReadsDisabled = true;
-            return null;
-        }
+        finally { _gate.Release(); }
     }
 
-    private double Decode(ushort raw) =>
-        (_map.TemperatureSigned ? (short)raw : raw) * _map.TemperatureScale;
-
-    private ushort Encode(double celsius)
+    private async Task<PolEkoRpcResponse> SendAllowingAsync(string command, string? data, bool credentials, CancellationToken ct, params string[] allowed)
     {
-        double scaled = Math.Round(celsius / _map.TemperatureScale);
-        return _map.TemperatureSigned ? (ushort)(short)scaled : (ushort)Math.Clamp(scaled, 0, ushort.MaxValue);
+        try { return await SendAsync(command, data, credentials, ct).ConfigureAwait(false); }
+        catch (PolEkoRpcException ex) when (allowed.Contains(ex.ResponseStatus, StringComparer.OrdinalIgnoreCase))
+        { return new PolEkoRpcResponse { RequestCommand = command, ResponseStatus = ex.ResponseStatus, Data = ex.ResponseData }; }
     }
 
-    private void RaiseFrame(string request) =>
-        FrameExchanged?.Invoke(this, new FrameExchangedEventArgs(request, _lastResponseHex));
-
-    private static byte[]? ParseHex(string text)
+    private void DisconnectCore()
     {
-        string clean = new(text.Where(Uri.IsHexDigit).ToArray());
-        if (clean.Length == 0 || clean.Length % 2 != 0)
-        {
-            return null;
-        }
-
-        try
-        {
-            return Convert.FromHexString(clean);
-        }
-        catch (FormatException)
-        {
-            return null;
-        }
+        try { _channel?.CloseConnection(); } catch { }
+        try { _sender?.DetachDuplexOutputChannel(); } catch { }
+        _sender = null; _channel = null; _activeProgramId = null;
     }
 
-    private async Task DisposeModbusAsync()
+    private static JsonDocument ParseDataObject(PolEkoRpcResponse response, string command) =>
+        string.IsNullOrWhiteSpace(response.Data) ? throw new InvalidDataException($"POL-EKO {command} vrátilo prázdne Data.") : JsonDocument.Parse(response.Data);
+    private static long ParseLongData(PolEkoRpcResponse response, string command) => TryParseLong(response.Data, out long value) ? value : throw new InvalidDataException($"POL-EKO {command} nevrátilo platné ID programu.");
+    private static bool TryParseLong(string? text, out long value)
     {
-        if (_modbus is not null)
-        {
-            await _modbus.DisposeAsync().ConfigureAwait(false);
-            _modbus = null;
-        }
+        if (long.TryParse(text?.Trim().Trim('"'), out value)) return true;
+        try { using JsonDocument doc = JsonDocument.Parse(text ?? ""); return doc.RootElement.ValueKind == JsonValueKind.Number && doc.RootElement.TryGetInt64(out value); }
+        catch (JsonException) { value = 0; return false; }
     }
 
-    public async ValueTask DisposeAsync() => await DisposeModbusAsync().ConfigureAwait(false);
+    private static bool TryFindNumber(JsonElement e, out double value, params string[] names)
+    {
+        if (e.ValueKind == JsonValueKind.Object) foreach (JsonProperty p in e.EnumerateObject())
+        {
+            if (names.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                if (p.Value.ValueKind == JsonValueKind.Number && p.Value.TryGetDouble(out value)) return true;
+                if (p.Value.ValueKind == JsonValueKind.String && double.TryParse(p.Value.GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value)) return true;
+                if (p.Value.ValueKind == JsonValueKind.Object && TryFindNumber(p.Value, out value, "value", "Value", "valueProbe")) return true;
+            }
+            if (TryFindNumber(p.Value, out value, names)) return true;
+        }
+        else if (e.ValueKind == JsonValueKind.Array) foreach (JsonElement item in e.EnumerateArray()) if (TryFindNumber(item, out value, names)) return true;
+        value = 0; return false;
+    }
+
+    private static bool TryFindElement(JsonElement e, string name, out JsonElement value)
+    {
+        if (e.ValueKind == JsonValueKind.Object) foreach (JsonProperty p in e.EnumerateObject())
+        {
+            if (p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) { value = p.Value; return true; }
+            if (TryFindElement(p.Value, name, out value)) return true;
+        }
+        else if (e.ValueKind == JsonValueKind.Array) foreach (JsonElement item in e.EnumerateArray()) if (TryFindElement(item, name, out value)) return true;
+        value = default; return false;
+    }
+
+    private static bool TryFindBoolean(JsonElement e, out bool value, params string[] names)
+    {
+        if (e.ValueKind == JsonValueKind.Object) foreach (JsonProperty p in e.EnumerateObject())
+        {
+            if (names.Contains(p.Name, StringComparer.OrdinalIgnoreCase) && p.Value.ValueKind is JsonValueKind.True or JsonValueKind.False) { value = p.Value.GetBoolean(); return true; }
+            if (TryFindBoolean(p.Value, out value, names)) return true;
+        }
+        value = false; return false;
+    }
+
+    public async ValueTask DisposeAsync() { await DisconnectAsync().ConfigureAwait(false); _gate.Dispose(); }
 }
+
+/// <summary>Pure LabDesk JSON helpers, separated for protocol regression tests.</summary>
+public static class PolEkoLabDeskProtocol
+{
+    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    public static string BuildRequest(string command, string? data, bool credentials) => JsonSerializer.Serialize(new PolEkoRpcRequest
+    {
+        RequestCommand = command,
+        UserCredential = credentials ? new PolEkoCredential() : null,
+        Data = data,
+    }, Json);
+    public static string BuildSingleSetpointProgram(long id, double temperatureC)
+    {
+        if (!double.IsFinite(temperatureC)) throw new ArgumentOutOfRangeException(nameof(temperatureC));
+        int wire = checked((int)Math.Round(temperatureC * 10d, MidpointRounding.AwayFromZero));
+        return JsonSerializer.Serialize(new PolEkoProgram
+        {
+            ProgramId = id,
+            Name = $"LabControl {temperatureC:0.0}C",
+            Segments = [new PolEkoProgramSegment { Temperature = wire, IsInfinityEnabled = true }],
+        }, Json);
+    }
+}
+
+public sealed class PolEkoRpcException : IOException
+{
+    public PolEkoRpcException(string command, string? status, string? data) : base($"POL-EKO {command}: {status ?? "GENERAL_ERROR"}" + (string.IsNullOrWhiteSpace(data) ? "" : $" · {data}")) { ResponseStatus = status ?? "GENERAL_ERROR"; ResponseData = data; }
+    public string ResponseStatus { get; }
+    public string? ResponseData { get; }
+}
+public sealed class PolEkoRpcRequest { public string RequestCommand { get; set; } = ""; public PolEkoCredential? UserCredential { get; set; } public string? Data { get; set; } }
+public sealed class PolEkoRpcResponse { public string RequestCommand { get; set; } = ""; public string ResponseStatus { get; set; } = ""; public string? Data { get; set; } }
+public sealed class PolEkoCredential { public string Username { get; set; } = "admin"; public string Password { get; set; } = ""; }
+public sealed class PolEkoProgram
+{
+    public long ProgramId { get; set; } public string Name { get; set; } = "LabControl"; public int Interval { get; set; } = 60; public int Owner { get; set; } = 1;
+    public string ProgramMode { get; set; } = "Advanced"; public long ParentId { get; set; } public List<long> ChildrenProgram { get; set; } = [];
+    public PolEkoLoop Loop { get; set; } = new(); public PolEkoTemperatureProtection TempProtection { get; set; } = new(); public List<PolEkoProgramSegment> Segments { get; set; } = [];
+}
+public sealed class PolEkoLoop { public bool Enabled { get; set; } public bool Infinity { get; set; } public int Number { get; set; } = 1; }
+public sealed class PolEkoTemperatureProtection { public string ProtectionMode { get; set; } = "Class_3_1"; public double OverTemperatureLimit { get; set; } = 50; public double UnderTemperatureLimit { get; set; } = 50; }
+public sealed class PolEkoProgramSegment
+{
+    public long Duration { get; set; } public string Priority { get; set; } = "Parameters"; public int Temperature { get; set; } public short Fan { get; set; } = 100; public short Flap { get; set; } public bool Bolt { get; set; }
+    [JsonPropertyName("edge.duration")] public int EdgeDuration { get; set; }
+    [JsonPropertyName("edge.fan")] public int EdgeFan { get; set; } = 100;
+    [JsonPropertyName("edge.airFlap")] public short EdgeAirFlap { get; set; }
+    [JsonPropertyName("edge.enable")] public bool EdgeEnable { get; set; }
+    [JsonPropertyName("IsInfinityEnabled")] public bool IsInfinityEnabled { get; set; }
+    public PolEkoHumidity Humidity { get; set; } = new();
+}
+public sealed class PolEkoHumidity { public bool Enable { get; set; } public double Parameter { get; set; } }

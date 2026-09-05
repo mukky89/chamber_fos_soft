@@ -19,7 +19,7 @@ public sealed class ChamberConfig
 
     public ChamberKind Kind { get; set; }
 
-    /// <summary>Wire protocol (Vötsch ASCII-2 by default, or POL-EKO MODBUS).</summary>
+    /// <summary>Wire protocol (Vötsch ASCII-2 by default, or POL-EKO LabDesk RPC).</summary>
     public ChamberProtocol Protocol { get; set; } = ChamberProtocol.VotschAscii2;
 
     public string Host { get; set; } = string.Empty;

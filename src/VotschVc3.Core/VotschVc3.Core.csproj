@@ -11,6 +11,10 @@
     <AssemblyName>VotschVc3.Core</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Eneter.Messaging.Framework" Version="8.0.10" />
+  </ItemGroup>
+
   <!-- Production FBG calibration uses the parallel minimum-time/WIKA/FBG gate implementation. -->
   <ItemGroup>
     <Compile Remove="Calibration\CalibrationOrchestrator.cs" />

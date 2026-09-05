@@ -4,7 +4,7 @@ namespace VotschVc3.Core.Communication;
 
 /// <summary>
 /// Protocol-agnostic view of a controllable chamber / oven. Both the Vötsch
-/// ASCII-2 <see cref="ChamberClient"/> and the POL-EKO MODBUS
+/// ASCII-2 <see cref="ChamberClient"/> and the POL-EKO LabDesk RPC
 /// <see cref="PolEko.PolEkoClient"/> implement it, so the view models and the
 /// <see cref="Profiles.ProfileRunner"/> can drive either device the same way.
 /// </summary>

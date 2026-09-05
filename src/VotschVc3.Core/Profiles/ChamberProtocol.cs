@@ -7,8 +7,8 @@ public enum ChamberProtocol
     VotschAscii2,
 
     /// <summary>
-    /// POL-EKO SMART controller over MODBUS TCP (e.g. the SLN / SLW drying ovens,
-    /// SLW / CLW incubators). Port 502, one temperature channel, no humidity.
+    /// POL-EKO LabDesk RPC over an AES-encrypted Eneter TCP channel (default port
+    /// 56506). The historic enum name is retained so saved chamber files migrate.
     /// </summary>
     PolEkoModbus,
 

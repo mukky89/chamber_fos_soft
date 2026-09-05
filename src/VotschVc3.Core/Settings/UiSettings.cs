@@ -47,9 +47,9 @@ public sealed class UiSettings
     /// <summary>
     /// When <c>true</c> the POL-EKO drying oven (Sušiareň) is shown on the dashboard
     /// and connected automatically. Off by default – the lab does not normally use
-    /// it, so it stays hidden until an admin turns it on.
+    /// it. Enabled by default now that LabDesk TCP support is available.
     /// </summary>
-    public bool ShowPolEko { get; set; }
+    public bool ShowPolEko { get; set; } = true;
 
     /// <summary>
     /// Tolerance (°C) for the guaranteed soak on SIKA thermal baths: on every hold the

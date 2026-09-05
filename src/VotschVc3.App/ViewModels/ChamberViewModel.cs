@@ -169,8 +169,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ApplyConfig(config);
         if (IsPolEko)
         {
-            // A sensible first command for the MODBUS terminal (read input register 0).
-            _terminalInput = "04 0000 0001";
+            // Safe read-only LabDesk RPC diagnostic.
+            _terminalInput = "GET_STATUS";
         }
         else if (IsSika)
         {
@@ -203,7 +203,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Wire protocol used to talk to this chamber / oven.</summary>
     public ChamberProtocol Protocol { get; }
 
-    /// <summary><c>true</c> for a POL-EKO MODBUS oven (temperature only).</summary>
+    /// <summary><c>true</c> for a POL-EKO LabDesk RPC oven (temperature only).</summary>
     public bool IsPolEko => Protocol == ChamberProtocol.PolEkoModbus;
 
     /// <summary><c>true</c> for a SIKA TP Premium bath / dry block (REST-API, temperature only).</summary>
@@ -3482,21 +3482,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     }
 
     /// <summary>
-    /// Dumps a block of POL-EKO MODBUS registers so an undocumented value (e.g. the
-    /// running program number) can be found empirically by comparing a scan taken
-    /// while a program runs with one taken while idle.
+    /// Reads the POL-EKO LabDesk status and configuration payload for diagnostics.
     /// </summary>
     private async Task ModbusScanAsync()
     {
         if (_client is not VotschVc3.Core.Communication.PolEko.PolEkoClient poleko)
         {
-            DiagResult = "MODBUS sken je len pre POL-EKO.";
+            DiagResult = "LabDesk RPC diagnostika je len pre POL-EKO.";
             return;
         }
 
-        DiagResult = "MODBUS sken prebieha… (môže trvať pár sekúnd)";
+        DiagResult = "LabDesk RPC diagnostika prebieha…";
         DiagResult = await poleko.ScanRegistersAsync(64);
-        AppLog.Info(Name, "[MODBUS] Sken registrov dokončený.");
+        AppLog.Info(Name, "[POL-EKO RPC] Diagnostika dokončená.");
     }
 
     /// <summary>Reads and shows the SIKA <c>getInfoReport</c> (device details, calibration dates, temp range).</summary>

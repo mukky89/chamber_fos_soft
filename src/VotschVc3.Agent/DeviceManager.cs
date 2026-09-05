@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using VotschVc3.Core.Communication;
 using VotschVc3.Core.Communication.Sika;
+using VotschVc3.Core.Communication.PolEko;
 using VotschVc3.Core.Profiles;
 using VotschVc3.Core.Protocol;
 
@@ -78,7 +79,12 @@ internal sealed class DeviceRuntime : IAsyncDisposable
     public DeviceRuntime(DeviceOptions config)
     {
         _config = config;
-        _client = config.Kind == DeviceKind.Sika ? new SikaTpClient() : new ChamberClient();
+        _client = config.Protocol switch
+        {
+            ChamberProtocol.PolEkoModbus => new PolEkoClient(),
+            ChamberProtocol.SikaRestApi => new SikaTpClient(),
+            _ => new ChamberClient(),
+        };
     }
     private ChamberConnectionSettings Settings => new()
     {
