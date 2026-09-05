@@ -28,6 +28,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         nameof(ChamberViewModel.AnalogChannelCount), nameof(ChamberViewModel.StartChannelIndex),
         nameof(ChamberViewModel.SelectedTerminator), nameof(ChamberViewModel.PollIntervalSeconds),
         nameof(ChamberViewModel.AlarmsEnabled), nameof(ChamberViewModel.TempMin), nameof(ChamberViewModel.TempMax),
+        nameof(ChamberViewModel.SafetyTempMin), nameof(ChamberViewModel.SafetyTempMax),
         nameof(ChamberViewModel.HumMin), nameof(ChamberViewModel.HumMax),
         nameof(ChamberViewModel.AutoStopOnAlarm), nameof(ChamberViewModel.AutoReconnect),
         nameof(ChamberViewModel.AutoRecoverProfile),

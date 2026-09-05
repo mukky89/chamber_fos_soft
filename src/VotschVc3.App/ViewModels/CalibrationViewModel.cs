@@ -204,6 +204,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _selectedProfile, value))
             {
+                if (value is not null) AdoptTemperatureSafetyFromProfile(value);
                 LoadProfileSetup();
                 RefreshProfileStatistics();
             }
@@ -2153,12 +2154,49 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
-    private static IChamberDevice CreateChamberClient(ChamberConfig config) => config.Protocol switch
+    private IChamberDevice CreateChamberClient(ChamberConfig config)
     {
-        ChamberProtocol.PolEkoModbus => new PolEkoClient(),
-        ChamberProtocol.SikaRestApi => new SikaTpClient(),
-        _ => new ChamberClient(),
-    };
+        IChamberDevice raw = config.Protocol switch
+        {
+            ChamberProtocol.PolEkoModbus => new PolEkoClient(),
+            ChamberProtocol.SikaRestApi => new SikaTpClient(),
+            _ => new ChamberClient(),
+        };
+        TemperatureSafetyPolicy policy = TemperatureSafetyRegistry.Get(config.Id, config.SafetyTempMin, config.SafetyTempMax);
+        var guarded = new TemperatureSafetyChamberDevice(raw, policy);
+        guarded.SafetyTripped += OnTemperatureSafetyTripped;
+        return guarded;
+    }
+
+    private void AdoptTemperatureSafetyFromProfile(TestProfile profile)
+    {
+        if (SelectedChamber is not { } chamber || profile.Segments.Count == 0) return;
+        const double marginC = 5;
+        double profileMin = profile.Segments.Min(segment => segment.TargetTemperature);
+        double profileMax = profile.Segments.Max(segment => segment.TargetTemperature);
+        chamber.Config.SafetyTempMin = Math.Max(chamber.Config.TempMin, profileMin - marginC);
+        chamber.Config.SafetyTempMax = Math.Min(chamber.Config.TempMax, profileMax + marginC);
+        TemperatureSafetyRegistry.Get(chamber.Config.Id, chamber.Config.SafetyTempMin, chamber.Config.SafetyTempMax)
+            .Configure(chamber.Config.SafetyTempMin, chamber.Config.SafetyTempMax);
+        _chamberStore.SaveAll(Chambers.Select(item => item.Config));
+    }
+
+    private void OnTemperatureSafetyTripped(object? sender, TemperatureSafetyTrippedEventArgs e)
+    {
+        _stopRequested = true;
+        _activeWriter?.WriteDiagnostic("ERROR", "TEMPERATURE_SAFETY_TRIPPED",
+            $"actualC={e.ActualC:G17}; minimumC={e.MinimumC:G17}; maximumC={e.MaximumC:G17}; stopSucceeded={e.StopSucceeded}; stopError={e.StopError}");
+        _runCts?.Cancel();
+        string stopResult = e.StopSucceeded ? "Výkon komory bol vypnutý." : $"VYPNUTIE ZLYHALO: {e.StopError}";
+        string message = $"TEPLOTNÁ POISTKA: {e.ActualC:0.###} °C mimo [{e.MinimumC:0.###}; {e.MaximumC:0.###}] °C. {stopResult}";
+        AppLog.Error("FBG kalibrácia", message);
+        DesktopNotifier.Notify("TEPLOTNÁ POISTKA · zásah operátora", message, DesktopNotificationKind.Alarm);
+        _ = Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            WarningText = message;
+            StatusMessage = "Kalibrácia bola zastavená teplotnou poistkou. Skontrolujte komoru a limity.";
+        });
+    }
 
     private static ChamberConnectionSettings ToConnectionSettings(ChamberConfig config) => new()
     {

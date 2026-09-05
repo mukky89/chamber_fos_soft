@@ -133,6 +133,13 @@ The following settings were validated on the real production reference thermomet
 - The active chamber's `FBG Kalibrácia` button should use a slow, smooth red pulse as a visible run indicator and return to its normal style immediately after the run ends.
 - These rules are per chamber: an FBG run on one chamber must not disable another chamber's independent controls.
 
+### Temperature safety interlock
+
+- Every chamber command path (manual, profile and FBG calibration) must use `TemperatureSafetyChamberDevice`; never bypass it with a raw chamber client.
+- The interlock evaluates the chamber's internal measured temperature. Outside the armed inclusive minimum/maximum it must issue `StopAsync` before reporting the trip and latch further setpoint writes.
+- Selecting a profile arms limits from its complete temperature range with the configured safety margin; manual edits re-arm only when minimum is strictly lower than maximum.
+- The active limits and tripped state must remain visible on the main device card. A failed physical stop must be reported as a high-priority operator alarm, never as a successful safety action.
+
 ### Concurrency and COM ownership
 
 - All physical `SerialPort` operations must be serialized.

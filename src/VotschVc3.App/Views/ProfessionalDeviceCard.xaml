@@ -204,6 +204,16 @@
                     </StackPanel>
                 </WrapPanel>
             </Border>
+            <Border BorderThickness="1"
+                    ToolTip="Nadradená poistka pre manuál, profil aj FBG kalibráciu. Prekročenie zastaví výkon komory.">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource ProSection}">
+                        <Setter Property="BorderBrush" Value="{StaticResource OkBrush}" />
+                        <Style.Triggers><DataTrigger Binding="{Binding IsTemperatureSafetyTripped}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" /><Setter Property="Background" Value="#33EF5364" /></DataTrigger></Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding TemperatureSafetyLabel}" FontFamily="Segoe UI Semibold" FontSize="11.5" TextWrapping="Wrap" />
+            </Border>
 
             <!-- ===== Current profile: name, step, remaining time, progress ===== -->
             <Border Style="{StaticResource ProSection}" Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}">
@@ -252,6 +262,13 @@
                     <!-- Manual control is off while a profile runs (and the profile picker below
                          is hidden then), so the two never fight over the set point. -->
                     <StackPanel IsEnabled="{Binding IsManualControlEnabled}">
+                        <DockPanel Margin="0,0,0,7">
+                            <TextBlock Text="Poistka" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <views:NumericStepper Width="68" Value="{Binding SafetyTempMin, Mode=TwoWay}" Step="1" />
+                            <TextBlock Text="…" VerticalAlignment="Center" Margin="4,0" />
+                            <views:NumericStepper Width="68" Value="{Binding SafetyTempMax, Mode=TwoWay}" Step="1" />
+                            <TextBlock Text=" °C" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        </DockPanel>
                         <ItemsControl ItemsSource="{Binding QuickPresets}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.163] – 2026-09-06
+
+### Pridané
+- Pribudla trvalo aktívna teplotná poistka nadradená manuálnemu ovládaniu, testovacím profilom aj FBG kalibrácii.
+- Pri prekročení nastaveného minima alebo maxima poistka odošle fyzický STOP komore, zablokuje ďalšie setpointy, ukončí riadenie a zobrazí výrazný alarm s výsledkom vypnutia.
+- Výber profilu automaticky nastaví bezpečnostné limity podľa najnižšej a najvyššej teploty profilu s rezervou 5 °C; operátor ich môže upraviť ručne.
+- Aktuálny rozsah poistky je viditeľný na klasickej aj profesionálnej karte zariadenia a v detaile bezpečnosti.
+- Limity poistky sa ukladajú samostatne pre každú komoru a zdieľajú sa aj so samostatným FBG kalibračným oknom.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.163.
+
 ## [1.76.162] – 2026-09-06
 
 ### Opravené

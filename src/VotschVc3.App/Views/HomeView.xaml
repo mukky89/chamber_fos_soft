@@ -615,6 +615,16 @@
                                             <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
                                             <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
                                         </TextBlock>
+                                        <Border Margin="0,7,0,0" Padding="8,5" CornerRadius="7" BorderThickness="1"
+                                                ToolTip="Nadradená poistka pre manuál, profily aj FBG kalibráciu. Pri prekročení fyzicky zastaví výkon komory a zablokuje ďalšie riadenie.">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="{StaticResource OkBrush}" />
+                                                    <Style.Triggers><DataTrigger Binding="{Binding IsTemperatureSafetyTripped}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" /><Setter Property="Background" Value="#33EF5364" /></DataTrigger></Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding TemperatureSafetyLabel}" FontFamily="Segoe UI Semibold" FontSize="11.5" />
+                                        </Border>
                                     </StackPanel>
                                 </Border>
 
@@ -641,6 +651,14 @@
                                                     Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
                                                     ToolTip="Admin: uprav teploty rýchleho ovládania pre toto zariadenie." />
                                         </DockPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,7,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Teplotná poistka" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <views:NumericStepper Width="78" Value="{Binding SafetyTempMin, Mode=TwoWay}" Step="1" ToolTip="Minimálna bezpečná teplota" />
+                                            <TextBlock Text=" až " VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                                            <views:NumericStepper Width="78" Value="{Binding SafetyTempMax, Mode=TwoWay}" Step="1" ToolTip="Maximálna bezpečná teplota" />
+                                            <TextBlock Text=" °C" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                                            <TextBlock Text="  · profil nastaví automaticky s rezervou ±5 °C" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                                        </StackPanel>
 
                                         <!-- Admin preset editor -->
                                         <StackPanel Margin="0,6,0,0" Visibility="{Binding IsEditingPresets, Converter={StaticResource BoolToVisibility}}">

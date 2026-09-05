@@ -33,6 +33,8 @@ public sealed class ChamberConfig
     public bool AlarmsEnabled { get; set; }
     public double TempMin { get; set; } = -45;
     public double TempMax { get; set; } = 190;
+    public double SafetyTempMin { get; set; } = -45;
+    public double SafetyTempMax { get; set; } = 190;
     public double HumMin { get; set; }
     public double HumMax { get; set; } = 100;
     public bool AutoStopOnAlarm { get; set; } = true;

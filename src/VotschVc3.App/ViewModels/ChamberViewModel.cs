@@ -28,6 +28,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private const int MaxTerminalLines = 1000;
 
     private readonly IChamberDevice _client;
+    private readonly TemperatureSafetyPolicy _temperatureSafety;
+    private readonly TemperatureSafetyChamberDevice _safetyClient;
     private readonly ProfileStore _store;
     private readonly EmailNotifier _email;
     private readonly ThermometersViewModel _thermometers;
@@ -65,12 +67,18 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _checkpointStore = checkpointStore;
 
-        _client = Protocol switch
+        IChamberDevice rawClient = Protocol switch
         {
             ChamberProtocol.PolEkoModbus => new PolEkoClient(),
             ChamberProtocol.SikaRestApi => new SikaTpClient(),
             _ => new ChamberClient(),
         };
+        _temperatureSafety = TemperatureSafetyRegistry.Get(Id, config.SafetyTempMin, config.SafetyTempMax);
+        _temperatureSafety.Configured += OnTemperatureSafetyConfigured;
+        _temperatureSafety.Configure(config.SafetyTempMin, config.SafetyTempMax);
+        _safetyClient = new TemperatureSafetyChamberDevice(rawClient, _temperatureSafety);
+        _safetyClient.SafetyTripped += OnTemperatureSafetyTripped;
+        _client = _safetyClient;
         _client.FrameExchanged += OnFrameExchanged;
 
         Segments = new ObservableCollection<SegmentViewModel>();
@@ -1048,6 +1056,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task ApplySetpointAsync()
     {
+        if (!IsTemperatureSafetyValid)
+            throw new InvalidOperationException("Najprv nastavte platné minimum a maximum teplotnej poistky.");
+
         // Enforce the device's allowed temperature range before anything is sent.
         if (!IsTemperatureInRange(ManualTemperature))
         {
@@ -1960,6 +1971,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private async Task StartChainAsync()
     {
         List<TestProfile> profiles = ProfileChain.ToList();
+        AdoptTemperatureSafetyFromProfiles(profiles);
         await RunSequenceAsync(profiles);
         ProfileChain.Clear();
     }
@@ -2060,7 +2072,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private Task StartProfileAsync() => RunSequenceAsync(new List<TestProfile> { BuildProfile() });
 
-    private Task StartQueueAsync() => RunSequenceAsync(Queue.Select(q => q.Profile).ToList());
+    private Task StartQueueAsync()
+    {
+        List<TestProfile> profiles = Queue.Select(q => q.Profile).ToList();
+        AdoptTemperatureSafetyFromProfiles(profiles);
+        return RunSequenceAsync(profiles);
+    }
 
     private bool CanStartSelectedProfile() =>
         IsConnected && IsOperable && !IsProfileRunning &&
@@ -2995,6 +3012,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _selectedHistoryProfile, value))
             {
+                if (value is not null) AdoptTemperatureSafetyFromProfiles(new[] { value });
                 DisarmDelete(); // a different profile is selected – confirmation no longer applies
                 LoadFromHistoryCommand.RaiseCanExecuteChanged();
                 DeleteFromHistoryCommand.RaiseCanExecuteChanged();
@@ -3815,6 +3833,84 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private double _tempMax = 190;
     public double TempMax { get => _tempMax; set { if (SetProperty(ref _tempMax, value)) OnPropertyChanged(nameof(RangeLabel)); } }
 
+    private double _safetyTempMin = -45;
+    public double SafetyTempMin
+    {
+        get => _safetyTempMin;
+        set { if (SetProperty(ref _safetyTempMin, value)) RefreshTemperatureSafety(); }
+    }
+
+    private double _safetyTempMax = 190;
+    public double SafetyTempMax
+    {
+        get => _safetyTempMax;
+        set { if (SetProperty(ref _safetyTempMax, value)) RefreshTemperatureSafety(); }
+    }
+
+    public bool IsTemperatureSafetyValid => double.IsFinite(SafetyTempMin) && double.IsFinite(SafetyTempMax) && SafetyTempMin < SafetyTempMax;
+    public bool IsTemperatureSafetyTripped => _temperatureSafety.IsTripped;
+    public string TemperatureSafetyLabel => IsTemperatureSafetyValid
+        ? IsTemperatureSafetyTripped
+            ? $"POISTKA AKTÍVNA · {SafetyTempMin:0.#}…{SafetyTempMax:0.#} °C"
+            : $"Teplotná poistka {SafetyTempMin:0.#}…{SafetyTempMax:0.#} °C"
+        : "Teplotná poistka · neplatné limity";
+
+    private void RefreshTemperatureSafety()
+    {
+        if (IsTemperatureSafetyValid)
+        {
+            _temperatureSafety.Configure(SafetyTempMin, SafetyTempMax);
+            ClearAlarm("safety");
+        }
+
+        OnPropertyChanged(nameof(IsTemperatureSafetyValid));
+        OnPropertyChanged(nameof(IsTemperatureSafetyTripped));
+        OnPropertyChanged(nameof(TemperatureSafetyLabel));
+    }
+
+    private void AdoptTemperatureSafetyFromProfiles(IEnumerable<TestProfile> profiles)
+    {
+        double[] targets = profiles.SelectMany(profile => profile.Segments).Select(segment => segment.TargetTemperature).ToArray();
+        if (targets.Length == 0) return;
+        const double marginC = 5;
+        _safetyTempMin = Math.Max(TempMin, targets.Min() - marginC);
+        _safetyTempMax = Math.Min(TempMax, targets.Max() + marginC);
+        OnPropertyChanged(nameof(SafetyTempMin));
+        OnPropertyChanged(nameof(SafetyTempMax));
+        RefreshTemperatureSafety();
+    }
+
+    private void OnTemperatureSafetyTripped(object? sender, TemperatureSafetyTrippedEventArgs e)
+    {
+        _ = Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            _powerOffOnProfileCancel = false;
+            _profileCts?.Cancel();
+            SetManualStarted(false);
+            string stopResult = e.StopSucceeded ? "Výkon komory bol vypnutý." : $"VYPNUTIE ZLYHALO: {e.StopError}";
+            string message = $"TEPLOTNÁ POISTKA: {e.ActualC:0.###} °C je mimo [{e.MinimumC:0.###}; {e.MaximumC:0.###}] °C. {stopResult} Riadenie aplikáciou bolo zastavené.";
+            RaiseAlarm("safety", message);
+            StatusMessage = message;
+            ShowActionInfo(message);
+            OnPropertyChanged(nameof(IsTemperatureSafetyTripped));
+            OnPropertyChanged(nameof(TemperatureSafetyLabel));
+        });
+    }
+
+    private void OnTemperatureSafetyConfigured(double minimumC, double maximumC)
+    {
+        RunOnUi(() =>
+        {
+            _safetyTempMin = minimumC;
+            _safetyTempMax = maximumC;
+            OnPropertyChanged(nameof(SafetyTempMin));
+            OnPropertyChanged(nameof(SafetyTempMax));
+            OnPropertyChanged(nameof(IsTemperatureSafetyValid));
+            OnPropertyChanged(nameof(IsTemperatureSafetyTripped));
+            OnPropertyChanged(nameof(TemperatureSafetyLabel));
+        });
+    }
+
     private double _humMin;
     public double HumMin { get => _humMin; set { if (SetProperty(ref _humMin, value)) OnPropertyChanged(nameof(RangeLabel)); } }
 
@@ -4302,6 +4398,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AlarmsEnabled = c.AlarmsEnabled;
         TempMin = c.TempMin;
         TempMax = c.TempMax;
+        _safetyTempMin = c.SafetyTempMin;
+        _safetyTempMax = c.SafetyTempMax;
+        RefreshTemperatureSafety();
         HumMin = c.HumMin;
         HumMax = c.HumMax;
         AutoStopOnAlarm = c.AutoStopOnAlarm;
@@ -4351,6 +4450,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AlarmsEnabled = AlarmsEnabled,
         TempMin = TempMin,
         TempMax = TempMax,
+        SafetyTempMin = SafetyTempMin,
+        SafetyTempMax = SafetyTempMax,
         HumMin = HumMin,
         HumMax = HumMax,
         AutoStopOnAlarm = AutoStopOnAlarm,
@@ -4458,6 +4559,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
 
         _client.FrameExchanged -= OnFrameExchanged;
+        _safetyClient.SafetyTripped -= OnTemperatureSafetyTripped;
+        _temperatureSafety.Configured -= OnTemperatureSafetyConfigured;
         await _client.DisposeAsync();
     }
 
