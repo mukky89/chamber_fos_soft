@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.100] – 2026-09-05
+
+### Pridané
+- FBG kalibrácia po reštarte rozpozná checkpoint vybraného profilu a komory a namiesto nového behu ponúkne tlačidlo `Pokračovať od plata č. N`.
+- Obnovený beh zachová pôvodné ID, dokončené plata, raw samples, wavelength trace a diagnostický log; nové dáta sa pripájajú bez prepisovania pôvodných súborov.
+
+### Opravené
+- Pri obnovení sa už dokončené plata preskočia a prvé rozpracované plato sa z bezpečnostných dôvodov stabilizuje a zmeria celé nanovo.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.100.
+
 ## [1.76.99] – 2026-09-05
 
 ### Opravené

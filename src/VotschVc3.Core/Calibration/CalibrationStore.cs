@@ -64,7 +64,21 @@ public sealed class CalibrationStore
         }
     }
 
-    public CalibrationRunWriter CreateRunWriter(CalibrationRunRecord run) => new(this, run);
+    public CalibrationRunWriter CreateRunWriter(CalibrationRunRecord run, bool append = false) => new(this, run, append);
+
+    public CalibrationRunRecord? LoadRun(Guid runId)
+    {
+        string path = Path.Combine(RunDirectory(runId), "summary.json");
+        if (!File.Exists(path)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<CalibrationRunRecord>(File.ReadAllText(path), JsonOptions);
+        }
+        catch (Exception ex) when (ex is IOException or JsonException)
+        {
+            return null;
+        }
+    }
 
     public void SaveRun(CalibrationRunRecord run)
     {
@@ -184,26 +198,34 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
 
     public event Action<string>? DiagnosticWritten;
 
-    internal CalibrationRunWriter(CalibrationStore store, CalibrationRunRecord run)
+    internal CalibrationRunWriter(CalibrationStore store, CalibrationRunRecord run, bool append)
     {
         _store = store;
         _run = run;
         string dir = store.RunDirectory(run.RunId);
         Directory.CreateDirectory(dir);
-        _rawWriter = new StreamWriter(Path.Combine(dir, "raw-samples.csv"), append: false, Encoding.UTF8);
-        _rawWriter.WriteLine("RunId;ProfileId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity");
+        string rawPath = Path.Combine(dir, "raw-samples.csv");
+        bool rawHasContent = append && File.Exists(rawPath) && new FileInfo(rawPath).Length > 0;
+        _rawWriter = new StreamWriter(rawPath, append, Encoding.UTF8);
+        if (!rawHasContent)
+            _rawWriter.WriteLine("RunId;ProfileId;Plateau;TargetTemperatureC;ActualTemperatureC;ReferenceTemperatureC;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity");
         _rawWriter.Flush();
 
-        _wavelengthWriter = new StreamWriter(Path.Combine(dir, "wavelength-trace.csv"), append: false, Encoding.UTF8);
-        _wavelengthWriter.WriteLine("RunId;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity;ChamberTemperatureC;ReferenceTemperatureC");
+        string wavelengthPath = Path.Combine(dir, "wavelength-trace.csv");
+        bool wavelengthHasContent = append && File.Exists(wavelengthPath) && new FileInfo(wavelengthPath).Length > 0;
+        _wavelengthWriter = new StreamWriter(wavelengthPath, append, Encoding.UTF8);
+        if (!wavelengthHasContent)
+            _wavelengthWriter.WriteLine("RunId;Timestamp;SensorSerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;WavelengthNm;Intensity;ChamberTemperatureC;ReferenceTemperatureC");
         _wavelengthWriter.Flush();
 
         DiagnosticFilePath = Path.Combine(dir, "diagnostics.log");
         var diagnosticStream = new FileStream(
-            DiagnosticFilePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+            DiagnosticFilePath, append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
         _diagnosticWriter = new StreamWriter(diagnosticStream, Encoding.UTF8) { AutoFlush = true };
-        _diagnosticWriter.WriteLine("Timestamp\tLevel\tRunId\tHumanRunId\tEvent\tDetails");
-        WriteDiagnostic("INFO", "RUN_LOG_CREATED", $"profile={run.ProfileCode}|{run.ProfileName}; chamber={run.ChamberName}; operator={run.Operator}");
+        if (!append || diagnosticStream.Length == 0)
+            _diagnosticWriter.WriteLine("Timestamp\tLevel\tRunId\tHumanRunId\tEvent\tDetails");
+        WriteDiagnostic("INFO", append ? "RUN_LOG_RESUMED" : "RUN_LOG_CREATED",
+            $"profile={run.ProfileCode}|{run.ProfileName}; chamber={run.ChamberName}; operator={run.Operator}");
     }
 
     public string DiagnosticFilePath { get; }

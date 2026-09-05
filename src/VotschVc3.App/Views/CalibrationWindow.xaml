@@ -47,10 +47,19 @@
                         BorderThickness="1" CornerRadius="10" Padding="5,4">
                     <StackPanel Orientation="Horizontal">
                         <Button Style="{StaticResource AccentButton}" Command="{Binding StartCalibrationCommand}" Margin="0,0,6,0"
+                                Visibility="{Binding HasResumableCalibration, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
                                 ToolTip="Spustí kalibračný beh: komora prejde plata a pri každom sa čaká na stabilnú vlnovú dĺžku.">
                             <StackPanel Orientation="Horizontal">
                                 <Path Style="{StaticResource RunGlyph}" Data="{StaticResource Icon.Play}" />
                                 <TextBlock Text="Spustiť kalibráciu" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource AccentButton}" Command="{Binding ResumeCalibrationCommand}" Margin="0,0,6,0"
+                                Visibility="{Binding HasResumableCalibration, Converter={StaticResource BoolToVisibility}}"
+                                ToolTip="{Binding ResumeCalibrationDetail}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource RunGlyph}" Data="{StaticResource Icon.Play}" />
+                                <TextBlock Text="{Binding ResumeCalibrationLabel}" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
                             </StackPanel>
                         </Button>
                         <Button Style="{StaticResource GhostButton}" Command="{Binding PauseResumeCommand}" Margin="0,0,6,0"

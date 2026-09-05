@@ -9,6 +9,73 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Fact]
+    public async Task Runner_ResumePreservesCompletedPlateausAndStartsAtFirstUnfinishedPlateau()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+
+            var profile = new TestProfile
+            {
+                Name = "Resume calibration",
+                ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments =
+                {
+                    new ProfileSegment { Name = "Plateau 1", TargetTemperature = 20, IsRamp = false, IsCalibrationPoint = true },
+                    new ProfileSegment { Name = "Plateau 2", TargetTemperature = 30, IsRamp = false, IsCalibrationPoint = true },
+                },
+            };
+            CalibrationSetup setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.Add(0);
+            setup.CalibrationSegmentIndices.Add(1);
+            Guid chamberId = Guid.NewGuid();
+            var completed = new CalibrationPlateauResult
+            {
+                PlateauIndex = 0,
+                TargetTemperatureC = 20,
+                ActualTemperatureC = 20,
+                StartedAt = DateTimeOffset.Now.AddMinutes(-2),
+                CompletedAt = DateTimeOffset.Now.AddMinutes(-1),
+            };
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ProfileName = profile.Name, ChamberId = chamberId };
+            var checkpoint = new CalibrationCheckpoint
+            {
+                RunId = run.RunId,
+                ProfileId = profile.Id,
+                ChamberId = chamberId,
+                CurrentPlateauIndex = 0,
+                CurrentTargetTemperatureC = 20,
+                State = CalibrationRunState.PlateauCompleted,
+                CompletedPlateaus = { completed },
+                Mappings = setup.Mappings.ToList(),
+            };
+            var store = new CalibrationStore(root);
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store, TimeSpan.FromMilliseconds(10));
+            var updates = new List<CalibrationProgressSnapshot>();
+            runner.Progress += updates.Add;
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            await runner.RunAsync(profile, setup, run, writer, 20, null,
+                cancellationToken: timeout.Token, resumeFrom: checkpoint);
+
+            Assert.Equal(2, run.Plateaus.Count);
+            Assert.Same(completed, run.Plateaus[0]);
+            Assert.Equal(30, run.Plateaus[1].TargetTemperatureC, 6);
+            Assert.DoesNotContain(updates, update => update.PlateauIndex == 0 && update.State == CalibrationRunState.MovingToPlateau);
+            Assert.Contains(updates, update => update.PlateauIndex == 1 && update.State == CalibrationRunState.MovingToPlateau);
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task Runner_UsesOnlyExplicitUiSelectedCalibrationPlateaus_AndSkipsProfileRamp()
     {
         string root = TempDirectory();

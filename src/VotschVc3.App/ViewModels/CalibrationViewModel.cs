@@ -102,6 +102,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SelectSuggestedPeaksCommand = new RelayCommand(SelectSuggestedPeaks, () => Peaks.Count > 0 && !IsRunning);
         MarkAllPlateausCommand = new RelayCommand(MarkAllPlateaus, () => CalibrationPoints.Count > 0 && !IsRunning);
         StartCalibrationCommand = new AsyncRelayCommand(StartCalibrationAsync, CanStartCalibration, ReportError);
+        ResumeCalibrationCommand = new AsyncRelayCommand(ResumeCalibrationAsync, () => CanStartCalibration() && HasResumableCalibration, ReportError);
         PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null);
         ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending);
         StopCalibrationCommand = new RelayCommand(StopCalibration, () => IsRunning);
@@ -161,6 +162,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand SelectSuggestedPeaksCommand { get; }
     public RelayCommand MarkAllPlateausCommand { get; }
     public AsyncRelayCommand StartCalibrationCommand { get; }
+    public AsyncRelayCommand ResumeCalibrationCommand { get; }
     public RelayCommand PauseResumeCommand { get; }
     public RelayCommand ForceNextStepCommand { get; }
     public RelayCommand StopCalibrationCommand { get; }
@@ -395,6 +397,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private string _statusMessage = "Pripravené.";
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
 
+    private CalibrationCheckpoint? _resumeCheckpoint;
+    public bool HasResumableCalibration => _resumeCheckpoint is not null;
+    public string ResumeCalibrationLabel => _resumeCheckpoint is null
+        ? "Pokračovať v kalibrácii"
+        : $"Pokračovať od plata č. {_resumeCheckpoint.CompletedPlateaus.Count + 1}";
+    public string ResumeCalibrationDetail => _resumeCheckpoint is null
+        ? string.Empty
+        : $"Obnoví beh s {_resumeCheckpoint.CompletedPlateaus.Count} dokončenými platami. Rozpracované plato sa stabilizuje a zmeria nanovo.";
+
     private string _runState = "Idle";
     public string RunState { get => _runState; private set => SetProperty(ref _runState, value); }
 
@@ -541,6 +552,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         {
             _setup = new CalibrationSetup();
             RefreshSettingsBindings();
+            RefreshResumeCheckpoint();
             RefreshCommands();
             return;
         }
@@ -566,7 +578,24 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             }
         }
         RefreshSettingsBindings();
+        RefreshResumeCheckpoint();
         RefreshCommands();
+    }
+
+    private void RefreshResumeCheckpoint()
+    {
+        CalibrationCheckpoint? checkpoint = SelectedChamber is null
+            ? null
+            : _calibrationStore.LoadCheckpoint(SelectedChamber.Config.Id);
+        _resumeCheckpoint = checkpoint is not null && SelectedProfile is not null &&
+                            checkpoint.ProfileId == SelectedProfile.Id &&
+                            checkpoint.CompletedPlateaus.Count > 0
+            ? checkpoint
+            : null;
+        OnPropertyChanged(nameof(HasResumableCalibration));
+        OnPropertyChanged(nameof(ResumeCalibrationLabel));
+        OnPropertyChanged(nameof(ResumeCalibrationDetail));
+        ResumeCalibrationCommand.RaiseCanExecuteChanged();
     }
 
     private async Task ConnectPeakLoggerAsync()
@@ -1380,8 +1409,17 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     }
 
     private async Task StartCalibrationAsync()
+        => await StartCalibrationAsync(resumeFromCheckpoint: false);
+
+    private async Task ResumeCalibrationAsync()
+        => await StartCalibrationAsync(resumeFromCheckpoint: true);
+
+    private async Task StartCalibrationAsync(bool resumeFromCheckpoint)
     {
         if (!CanStartCalibration() || SelectedProfile is null || SelectedChamber is null || _peakLogger is null) return;
+        CalibrationCheckpoint? resume = resumeFromCheckpoint ? _resumeCheckpoint : null;
+        if (resumeFromCheckpoint && resume is null)
+            throw new InvalidOperationException("Uložený checkpoint pre vybraný profil a komoru už nie je dostupný.");
         await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is not null) EnsureF100Reservation();
         SaveSetup();
@@ -1416,7 +1454,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 Dashboard.ReportChamberTemperature(startTemperature, initialReading.Timestamp));
 
             DateTimeOffset runStartedAt = DateTimeOffset.Now;
-            _activeRun = new CalibrationRunRecord
+            _activeRun = resume is null ? new CalibrationRunRecord
             {
                 HumanRunId = HumanReadableRunId.Allocate(AppPaths.CalibrationDir, runStartedAt),
                 ProfileId = SelectedProfile.Id,
@@ -1430,11 +1468,14 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 ReferenceThermometerPort = SelectedF100?.PortName ?? string.Empty,
                 ReferenceThermometerSerialNumber = SelectedF100?.SerialNumber ?? string.Empty,
                 ReferenceThermometerChannel = SelectedF100 is null ? string.Empty : SelectedF100Channel,
-            };
+            } : _calibrationStore.LoadRun(resume.RunId)
+                ?? throw new InvalidOperationException("Súhrn prerušeného kalibračného behu sa nenašiel. Checkpoint nebol zmazaný.");
+            _activeRun.CompletedAt = null;
+            _activeRun.State = CalibrationRunState.Preflight;
             Dashboard.SetRunId(_activeRun.DisplayRunId);
 
             _nextWavelengthTraceAt = DateTimeOffset.MaxValue;
-            await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun);
+            await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun, append: resume is not null);
             _activeWriter = writer;
             CalibrationTerminalLines.Clear();
             CalibrationTerminalLines.Add($"{DateTimeOffset.Now:HH:mm:ss.fff}  RUN  {_activeRun.DisplayRunId}  {writer.DiagnosticFilePath}");
@@ -1448,6 +1489,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 $"version={GetType().Assembly.GetName().Version?.ToString(3)}; profileId={SelectedProfile.Id:N}; profile={SelectedProfile.Code}|{SelectedProfile.Name}; " +
                 $"chamber={SelectedChamber.Config.Name}; wikaPort={SelectedF100?.PortName ?? "none"}; wikaSerial={SelectedF100?.SerialNumber ?? "none"}; wikaChannel={(SelectedF100 is null ? "none" : SelectedF100Channel)}; " +
                 $"peakLogger={PeakLoggerHost}:{PeakLoggerPort}; simulator={UseSimulator}; selectedPeaks={Peaks.Count(p => p.Selected)}; plateaus={string.Join(',', _setup.CalibrationSegmentIndices)}");
+            if (resume is not null)
+                writer.WriteDiagnostic("INFO", "RUN_RESUMED_FROM_CHECKPOINT",
+                    $"savedAt={resume.SavedAt:O}; completedPlateaus={resume.CompletedPlateaus.Count}; nextPlateau={resume.CompletedPlateaus.Count + 1}");
             writer.WriteDiagnostic("INFO", "STABILITY_CONFIGURATION",
                 $"temperatureToleranceC={diagnosticSettings.ChamberToleranceC:G17}; temperatureStableSeconds={diagnosticSettings.ChamberStableDuration.TotalSeconds:G17}; " +
                 $"temperatureMaxDriftCPerMinute={diagnosticSettings.MaxChamberDriftCPerMinute:G17}; temperatureTimeoutSeconds={diagnosticSettings.ChamberStabilityTimeout.TotalSeconds:G17}; " +
@@ -1490,7 +1534,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 startTemperature,
                 null,
                 SelectedF100 is null ? null : ReadReferenceTemperatureAsync,
-                _runCts.Token);
+                _runCts.Token,
+                resume);
 
             writer.WriteDiagnostic("INFO", "RUN_FINISHED", $"state={_activeRun.State}; plateaus={_activeRun.Plateaus.Count}; warnings={_activeRun.Warnings.Count}");
 
@@ -1542,6 +1587,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 _chamber = null;
             }
             _stopRequested = false;
+            RefreshResumeCheckpoint();
             _runCts?.Dispose();
             _runCts = null;
             RefreshHistory();
@@ -1821,6 +1867,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         ConnectPeakLoggerCommand.RaiseCanExecuteChanged();
         RefreshSensorsCommand.RaiseCanExecuteChanged();
         StartCalibrationCommand.RaiseCanExecuteChanged();
+        ResumeCalibrationCommand.RaiseCanExecuteChanged();
         StopCalibrationCommand.RaiseCanExecuteChanged();
         PauseResumeCommand.RaiseCanExecuteChanged();
         ForceNextStepCommand.RaiseCanExecuteChanged();

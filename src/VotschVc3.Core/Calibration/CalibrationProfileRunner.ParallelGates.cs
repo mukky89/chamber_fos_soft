@@ -57,7 +57,8 @@ public sealed class CalibrationProfileRunner
         double startTemperature,
         double? startHumidity,
         Func<CancellationToken, Task<double?>>? readReferenceTemperatureAsync = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CalibrationCheckpoint? resumeFrom = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(setup);
@@ -75,12 +76,15 @@ public sealed class CalibrationProfileRunner
         if (calibrationSteps.Count == 0)
             throw new InvalidOperationException("Kalibračný profil nemá označené žiadne kalibračné plato.");
 
+        int firstPlateau = PrepareResume(run, profile, setup, calibrationSteps.Count, resumeFrom);
+        int progressPlateau = Math.Min(firstPlateau, calibrationSteps.Count - 1);
+
         run.State = CalibrationRunState.Preflight;
         Progress?.Invoke(new CalibrationProgressSnapshot(
             CalibrationRunState.Preflight,
             -1,
             calibrationSteps.Count,
-            calibrationSteps[0].Segment.TargetTemperature,
+            calibrationSteps[progressPlateau].Segment.TargetTemperature,
             startTemperature,
             null,
             0,
@@ -93,13 +97,13 @@ public sealed class CalibrationProfileRunner
         run.State = CalibrationRunState.Preparing;
 
         double? previousHumidity = startHumidity;
-        double previousCommandedTemperature = startTemperature;
-        CalibrationPlateauResult? validationBaseline = null;
+        double previousCommandedTemperature = resumeFrom?.CurrentTargetTemperatureC ?? startTemperature;
+        CalibrationPlateauResult? validationBaseline = run.Plateaus.FirstOrDefault();
         bool responseValidated = false;
 
         try
         {
-            for (int currentPlateau = 0; currentPlateau < calibrationSteps.Count; currentPlateau++)
+            for (int currentPlateau = firstPlateau; currentPlateau < calibrationSteps.Count; currentPlateau++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
@@ -242,6 +246,27 @@ public sealed class CalibrationProfileRunner
             writer.SaveSummary();
             throw;
         }
+    }
+
+    private static int PrepareResume(
+        CalibrationRunRecord run,
+        TestProfile profile,
+        CalibrationSetup setup,
+        int plateauCount,
+        CalibrationCheckpoint? checkpoint)
+    {
+        if (checkpoint is null) return 0;
+        if (checkpoint.RunId != run.RunId || checkpoint.ProfileId != profile.Id || checkpoint.ChamberId != run.ChamberId)
+            throw new InvalidOperationException("Checkpoint nepatrí k vybranému profilu, komore alebo kalibračnému behu.");
+        if (checkpoint.CompletedPlateaus.Count > plateauCount)
+            throw new InvalidOperationException("Checkpoint obsahuje viac dokončených plat, než má aktuálny kalibračný plán.");
+        if (checkpoint.Mappings.Count > 0 && setup.Mappings.Count(m => m.Selected) == 0)
+            throw new InvalidOperationException("Pred obnovením kalibrácie chýba uložené zapojenie vybraných FBG peakov.");
+
+        run.Plateaus.Clear();
+        run.Plateaus.AddRange(checkpoint.CompletedPlateaus);
+        run.CompletedAt = null;
+        return checkpoint.CompletedPlateaus.Count;
     }
 
     private Func<double, double?, CancellationToken, Task<string?>>? CreateReferenceControl(
