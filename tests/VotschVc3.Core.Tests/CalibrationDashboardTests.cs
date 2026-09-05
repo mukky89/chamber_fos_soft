@@ -233,6 +233,22 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(count, m.Activity.Count);
         m.Begin(Start.AddDays(1)); Assert.Single(m.Activity); Assert.Equal(0, m.Samples); Assert.Equal(0, m.CompletedPoints);
     }
+    [Fact] public void CalibrationEventsCapturePlateauAndTemperaturesAtEventTime()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 1, Target("Measuring", 2)) with
+        {
+            TargetTemperatureC = 0,
+            ActualTemperatureC = 0.12,
+            ReferenceTemperatureC = 0.034,
+        }, Start.AddMinutes(1));
+
+        DashboardEvent peakEvent = Assert.Single(m.Activity, item => item.Message.Contains("začína meranie"));
+        Assert.Equal("PLATO 2 / 3", peakEvent.Plateau);
+        Assert.Contains($"Cieľ {0d.ToString("F1", CultureInfo.CurrentCulture)} °C", peakEvent.Temperatures);
+        Assert.Contains($"WIKA {0.034d.ToString("F3", CultureInfo.CurrentCulture)} °C", peakEvent.Temperatures);
+        Assert.Contains($"Komora {0.12d.ToString("F2", CultureInfo.CurrentCulture)} °C", peakEvent.Temperatures);
+    }
     [Fact] public void ResolvedTemperatureMismatchClearsOnlyMatchingDashboardWarning()
     {
         var m = Model();

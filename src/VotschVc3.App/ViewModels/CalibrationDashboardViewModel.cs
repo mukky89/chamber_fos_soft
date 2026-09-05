@@ -264,7 +264,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             point.Duration = duration;
             point.Detail = $"{(warning ? "!" : "✓")} {completedAt} · {Duration(duration)}";
             AddEvent(plateau.CompletedAt, warning ? "WARNING" : "SUCCESS",
-                $"Obnovený bod {plateau.PlateauIndex + 1} bol dokončený {completedAt}; trvanie {Duration(duration)}.");
+                $"Obnovený bod {plateau.PlateauIndex + 1} bol dokončený {completedAt}; trvanie {Duration(duration)}.",
+                plateau.PlateauIndex, Points.Count, plateau.TargetTemperatureC,
+                plateau.ReferenceTemperatureC, plateau.ActualTemperatureC);
         }
 
         RefreshSteps();
@@ -595,11 +597,33 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (_state == CalibrationRunState.Failed) Steps[Math.Min(phase, Steps.Count - 1)].State = "Error";
         if (_state == CalibrationRunState.AwaitingOperator) Steps[Math.Min(phase, Steps.Count - 1)].State = "Waiting";
     }
-    private void AddEvent(DateTimeOffset now, string level, string message)
+    private void AddEvent(
+        DateTimeOffset now,
+        string level,
+        string message,
+        int? plateauIndex = null,
+        int? plateauCount = null,
+        double? targetTemperatureC = null,
+        double? referenceTemperatureC = null,
+        double? chamberTemperatureC = null)
     {
-        Activity.Insert(0, new DashboardEvent(now.ToLocalTime().ToString("HH:mm:ss"), level, message));
+        CalibrationProgressSnapshot? snapshot = _snapshot;
+        int effectiveIndex = plateauIndex ?? snapshot?.PlateauIndex ?? -1;
+        int effectiveCount = plateauCount ?? snapshot?.PlateauCount ?? Points.Count;
+        string plateau = effectiveIndex >= 0
+            ? $"PLATO {effectiveIndex + 1} / {Math.Max(effectiveIndex + 1, effectiveCount)}"
+            : "PRÍPRAVA";
+        double? target = targetTemperatureC ?? snapshot?.TargetTemperatureC;
+        double? reference = referenceTemperatureC ?? snapshot?.ReferenceTemperatureC;
+        double? chamber = chamberTemperatureC ?? snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
+        string temperatures = $"Cieľ {EventTemperature(target, 1)} · WIKA {EventTemperature(reference, 3)} · Komora {EventTemperature(chamber, 2)}";
+
+        Activity.Insert(0, new DashboardEvent(
+            now.ToLocalTime().ToString("HH:mm:ss"), level, plateau, temperatures, message));
         while (Activity.Count > 250) Activity.RemoveAt(Activity.Count - 1);
     }
+    private static string EventTemperature(double? value, int decimals) =>
+        value is { } finite && double.IsFinite(finite) ? $"{finite.ToString($"F{decimals}")} °C" : "—";
     private void Notify() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
     public static string Duration(TimeSpan time) => time.TotalHours >= 1 ? $"{(int)time.TotalHours} h {time.Minutes:00} min" : $"{Math.Max(0, (int)time.TotalMinutes)} min {Math.Max(0, time.Seconds):00} s";
 }
@@ -704,4 +728,4 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
         value is null || limit is null ? $"{name}: čaká na dáta" : $"{name}: {value:F3} / ≤ {limit:F3} {unit}";
 }
 public sealed record FbgStabilitySample(double Minutes, double WavelengthNm);
-public sealed record DashboardEvent(string Time, string Level, string Message);
+public sealed record DashboardEvent(string Time, string Level, string Plateau, string Temperatures, string Message);

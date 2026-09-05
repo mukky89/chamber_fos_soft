@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.120] – 2026-09-05
+
+### Pridané
+- Každá položka v udalostiach kalibrácie zobrazuje plató, na ktorom vznikla, a samostatne zachytenú cieľovú, WIKA aj komorovú teplotu.
+- Kontext udalosti sa ukladá v okamihu jej vzniku, takže staršie riadky nemenia hodnoty pri prechode na ďalšie plató.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.120.
+
 ## [1.76.119] – 2026-09-05
 
 ### Opravené

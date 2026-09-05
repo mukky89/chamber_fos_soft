@@ -245,7 +245,11 @@
     <TextBlock Text="Najnovšie udalosti hore · posledných 250 udalostí tohto behu" Style="{StaticResource Muted}" Margin="0,0,0,12"/>
     <ListBox ItemsSource="{Binding Activity}" MaxHeight="300" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
      <ListBox.ItemTemplate><DataTemplate><Grid Margin="0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="78"/><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-      <TextBlock Text="{Binding Time}" Style="{StaticResource Muted}"/><TextBlock Grid.Column="1" Text="{Binding Level}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="#8BBAFF"/><Style.Triggers><DataTrigger Binding="{Binding Level}" Value="SUCCESS"><Setter Property="Foreground" Value="#64D5A8"/></DataTrigger><DataTrigger Binding="{Binding Level}" Value="ERROR"><Setter Property="Foreground" Value="#FF8892"/></DataTrigger><DataTrigger Binding="{Binding Level}" Value="WARNING"><Setter Property="Foreground" Value="#E8BB79"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock><TextBlock Grid.Column="2" Text="{Binding Message}"/>
+      <TextBlock Text="{Binding Time}" Style="{StaticResource Muted}"/><TextBlock Grid.Column="1" Text="{Binding Level}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="#8BBAFF"/><Style.Triggers><DataTrigger Binding="{Binding Level}" Value="SUCCESS"><Setter Property="Foreground" Value="#64D5A8"/></DataTrigger><DataTrigger Binding="{Binding Level}" Value="ERROR"><Setter Property="Foreground" Value="#FF8892"/></DataTrigger><DataTrigger Binding="{Binding Level}" Value="WARNING"><Setter Property="Foreground" Value="#E8BB79"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+      <StackPanel Grid.Column="2">
+       <WrapPanel Margin="0,0,0,3"><Border Background="#15283D" BorderBrush="#31577D" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,8,0"><TextBlock Text="{Binding Plateau}" Foreground="#8BBAFF" FontSize="10" FontWeight="SemiBold"/></Border><TextBlock Text="{Binding Temperatures}" Foreground="#9FB7D3" FontSize="11" VerticalAlignment="Center"/></WrapPanel>
+       <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
+      </StackPanel>
      </Grid></DataTemplate></ListBox.ItemTemplate>
     </ListBox>
    </StackPanel></Border>
