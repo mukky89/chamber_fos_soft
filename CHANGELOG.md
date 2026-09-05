@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.123] – 2026-09-05
+
+### Pridané
+- Dokončovací e-mail FBG kalibrácie zobrazuje jednoznačný výsledok PASS, PASS S UPOZORNENIAMI alebo FAIL a podrobnú tabuľku výsledkov každého plata a peaku.
+- Tabuľka obsahuje cieľovú a WIKA teplotu, SN, kanál, peak, priemernú vlnovú dĺžku, počet vzoriek, výsledok a prípadný problém.
+- K e-mailu sa pripája výsledkový CSV a ZIP so všetkými súbormi kalibračného behu vrátane súhrnu, raw samples, wavelength trace a diagnostického logu.
+- E-mail obsahuje lokálnu cestu aj odkaz na priečinok kalibračného behu a záložná verzia bola zvýšená na 1.76.123.
+
 ## [1.76.122] – 2026-09-05
 
 ### Pridané

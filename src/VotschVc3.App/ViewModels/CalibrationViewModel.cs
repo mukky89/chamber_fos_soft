@@ -1874,16 +1874,19 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private async Task SendCompletionEmailAsync(CalibrationRunRecord run)
     {
-        string status = run.State switch
+        try
         {
-            CalibrationRunState.Completed => "COMPLETED",
-            CalibrationRunState.CompletedWithWarnings => "COMPLETED WITH WARNINGS",
-            _ => run.State.ToString().ToUpperInvariant(),
-        };
-
-        await _email.SendAsync(
-            $"Kalibrácia FBG – {status} – {run.DisplayProfileId}",
-            $"Run ID: {run.DisplayRunId}\nProfil ID: {run.DisplayProfileId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nStav: {run.State}\nWIKA: {run.ReferenceThermometerPort} / {run.ReferenceThermometerChannel}\nPlata: {run.Plateaus.Count}\nUpozornenia: {run.Warnings.Count}\n\nKalibračný run bol ukončený v stave {run.State}.");
+            string runDirectory = Path.Combine(_calibrationStore.RunsDirectory, run.RunId.ToString("N"));
+            CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, runDirectory);
+            EmailResult result = await _email.SendAsync(message.Subject, message.Text, message.Html, message.Attachments);
+            if (result.Error is { Length: > 0 })
+                AppLog.Warn("FBG kalibrácia", $"Run {run.DisplayRunId}: dokončovací e-mail sa nepodarilo odoslať · {result.Error}");
+        }
+        catch (Exception ex)
+        {
+            // Report/attachment creation must never turn a completed calibration into a failed run.
+            AppLog.Warn("FBG kalibrácia", $"Run {run.DisplayRunId}: vytvorenie dokončovacieho e-mailu zlyhalo · {ex.Message}");
+        }
     }
 
     private static IChamberDevice CreateChamberClient(ChamberConfig config) => config.Protocol switch
