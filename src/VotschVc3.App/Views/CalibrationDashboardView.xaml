@@ -71,6 +71,38 @@
     </Trigger>
    </Style.Triggers>
   </Style>
+  <DataTemplate x:Key="CompactStabilityPeakTemplate">
+   <Border Background="#101A29" BorderBrush="#29415D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,6">
+    <StackPanel>
+     <Grid>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="{Binding Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="11.5" FontWeight="SemiBold" Margin="0,0,8,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding State}" Foreground="{Binding StateBrush}" FontSize="10" FontWeight="SemiBold"/>
+     </Grid>
+     <Grid Margin="0,4,0,0">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <ProgressBar Value="{Binding Progress, Mode=OneWay}" Height="5" Margin="0,2,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding Samples}" Foreground="#BBD8FF" FontSize="10.5"/>
+     </Grid>
+    </StackPanel>
+   </Border>
+  </DataTemplate>
+  <DataTemplate x:Key="CompactMeasurementPeakTemplate">
+   <Border Background="#101A29" BorderBrush="#29415D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,6">
+    <StackPanel>
+     <Grid>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="{Binding Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="11.5" FontWeight="SemiBold" Margin="0,0,8,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding MeasurementState}" Foreground="{Binding MeasurementStateBrush}" FontSize="10" FontWeight="SemiBold"/>
+     </Grid>
+     <Grid Margin="0,4,0,0">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <ProgressBar Value="{Binding MeasurementProgress, Mode=OneWay}" Height="5" Margin="0,2,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding MeasurementSamples}" Foreground="#BBD8FF" FontSize="10.5"/>
+     </Grid>
+    </StackPanel>
+   </Border>
+  </DataTemplate>
   <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource WorkflowNode}"><Border.ToolTip><ToolTip MaxWidth="560" Placement="Mouse"><TextBlock Text="{Binding Detail}" TextWrapping="Wrap" LineHeight="20" Padding="3"/></ToolTip></Border.ToolTip><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Border HorizontalAlignment="Right" Style="{StaticResource WorkflowHelpBadge}"><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D6EAFF" FontWeight="Bold" FontSize="12"/></Border></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
  </UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -181,8 +213,8 @@
       <TextBlock Text="Zelené = splnené · oranžové = čaká" Style="{StaticResource Muted}" Margin="0,7,0,0"/>
      </StackPanel>
     </Border>
-    <Border Grid.Column="2" Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="03 / FBG PEAKY" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding PeakCardTone}"><TextBlock Text="{Binding PeakCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid><TextBlock Text="{Binding PeakSummary}" FontSize="20" Margin="0,12,0,4"/><ProgressBar Value="{Binding StabilityProgress, Mode=OneWay}"/><TextBlock Text="{Binding PeakDetail}" Style="{StaticResource Muted}"/></StackPanel></Border>
-    <Border Grid.Column="3" Style="{StaticResource Panel}"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="04 / MERANIE VZORIEK" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding MeasurementCardTone}"><TextBlock Text="{Binding MeasurementCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid><TextBlock Text="{Binding SampleSummary}" Style="{StaticResource Metric}"/><ProgressBar Value="{Binding SampleProgress, Mode=OneWay}"/><TextBlock Text="Spolu za všetky peaky" Style="{StaticResource Muted}"/></StackPanel></Border>
+    <Border Grid.Column="2" Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="03 / FBG PEAKY" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding PeakCardTone}"><TextBlock Text="{Binding PeakCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid><TextBlock Text="{Binding PeakSummary}" FontSize="20" Margin="0,12,0,4"/><ProgressBar Value="{Binding StabilityProgress, Mode=OneWay}"/><TextBlock Text="{Binding PeakDetail}" Style="{StaticResource Muted}"/><TextBlock Text="STABILITA JEDNOTLIVÝCH PEAKOV" Foreground="#8BBAFF" FontSize="10.5" FontWeight="SemiBold" Margin="0,13,0,7"/><ScrollViewer MaxHeight="248" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding FbgStabilityCharts}" ItemTemplate="{StaticResource CompactStabilityPeakTemplate}"/></ScrollViewer></StackPanel></Border>
+    <Border Grid.Column="3" Style="{StaticResource Panel}"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="04 / MERANIE VZORIEK" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding MeasurementCardTone}"><TextBlock Text="{Binding MeasurementCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid><TextBlock Text="{Binding SampleSummary}" Style="{StaticResource Metric}"/><ProgressBar Value="{Binding SampleProgress, Mode=OneWay}"/><TextBlock Text="Spolu za všetky peaky" Style="{StaticResource Muted}"/><TextBlock Text="PROGRESS JEDNOTLIVÝCH PEAKOV" Foreground="#8BBAFF" FontSize="10.5" FontWeight="SemiBold" Margin="0,13,0,7"/><ScrollViewer MaxHeight="248" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding FbgStabilityCharts}" ItemTemplate="{StaticResource CompactMeasurementPeakTemplate}"/></ScrollViewer></StackPanel></Border>
    </Grid>
    <Border Style="{StaticResource Panel}">
     <Expander IsExpanded="True" Foreground="#EEF5FF" HorizontalContentAlignment="Stretch">

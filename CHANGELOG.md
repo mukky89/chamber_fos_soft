@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.126] – 2026-09-05
+
+### Pridané
+- Karta „FBG peaky“ zobrazuje kompaktný zoznam všetkých peakov, stav každého peaku a jeho samostatný priebeh stabilizácie.
+- Karta „Meranie vzoriek“ zobrazuje pre každý peak stav merania, počet nazbieraných finálnych vzoriek a vlastný progress bar.
+- Zoznamy používajú existujúce živé dáta dashboardu bez ďalšieho zberu alebo výpočtového cyklu a pri väčšom počte peakov sa plynulo posúvajú.
+- Záložná verzia bola zvýšená na 1.76.126.
+
 ## [1.76.125] – 2026-09-05
 
 ### Opravené
