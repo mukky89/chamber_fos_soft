@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.153] – 2026-09-06
+
+### Pridané
+- Karta WIKA počas čakania zobrazuje aktuálny celkový limit ustálenia pre dané plato, uplynutý čas a zostávajúci čas.
+- Samostatný rozpis ukazuje základný limit, použité automatické predĺženie z povoleného maxima a ručne pridaný čas; údaje sa priebežne aktualizujú.
+- Záložná verzia bola zvýšená na 1.76.153.
+
 ## [1.76.152] – 2026-09-05
 
 ### Opravené

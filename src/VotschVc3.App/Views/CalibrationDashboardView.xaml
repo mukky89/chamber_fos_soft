@@ -214,6 +214,12 @@
       <Button Content="+30 min na ustálenie" Style="{StaticResource AccentOutlineButton}" HorizontalAlignment="Left" Padding="11,6" Margin="0,7,0,0"
               Command="{Binding DataContext.ExtendStabilityTimeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
               ToolTip="Ručne pridá 30 minút k limitu čakania aktuálneho plata. Stabilné skóre ani doterajšie dáta sa nevynulujú; ak treba, tlačidlo možno použiť opakovane. Každé predĺženie sa zapíše do udalostí kalibrácie."/>
+      <Border Background="#172A3E" BorderBrush="#3D6D9D" BorderThickness="1" CornerRadius="7" Padding="9,7" Margin="0,7,0,0" ToolTip="{Binding ReferenceSettlingLimitHelp}">
+       <StackPanel>
+        <TextBlock Text="{Binding ReferenceSettlingLimitLabel}" Foreground="#EEF5FF" FontSize="11.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding ReferenceSettlingLimitBreakdown}" Style="{StaticResource Muted}" FontSize="10.5" Margin="0,3,0,0" TextWrapping="Wrap"/>
+       </StackPanel>
+      </Border>
       <TextBlock Text="Zelené = splnené · oranžové = čaká" Style="{StaticResource Muted}" Margin="0,7,0,7"/>
       <Border Style="{StaticResource ChartFrame}"><views:ChartView x:Name="CompactReferenceChart" Height="190" Unit="°C" SecondaryUnit=" s" MinimumYDecimals="3" ShowControls="False" AllowZoom="False" ChartTitle="WIKA teplota a stabilný čas" EmptyText="Čaká sa na dáta WIKA..."/></Border>
      </StackPanel>

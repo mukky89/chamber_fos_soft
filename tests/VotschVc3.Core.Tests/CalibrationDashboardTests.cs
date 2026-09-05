@@ -151,6 +151,25 @@ public sealed class CalibrationDashboardTests
             Target("Done", 5, CalibrationTargetState.Stable)), Start.AddSeconds(3));
         Assert.Contains("DONE", m.MeasurementCardState);
     }
+    [Fact] public void WikaCardShowsCurrentSettlingLimitAndItsBreakdown()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
+        {
+            TemperatureSettlingElapsed = TimeSpan.FromMinutes(18),
+            TemperatureSettlingBaseLimit = TimeSpan.FromMinutes(30),
+            AutomaticTemperatureExtensionUsed = TimeSpan.FromMinutes(15),
+            MaximumAutomaticTemperatureExtension = TimeSpan.FromHours(1),
+            ManualTemperatureExtensionUsed = TimeSpan.FromMinutes(30),
+        }, Start.AddMinutes(18));
+
+        Assert.Contains("Aktuálny limit plata: 1 h 15 min", m.ReferenceSettlingLimitLabel);
+        Assert.Contains("uplynulo 18 min 00 s", m.ReferenceSettlingLimitLabel);
+        Assert.Contains("zostáva 57 min 00 s", m.ReferenceSettlingLimitLabel);
+        Assert.Contains("Základ 30 min 00 s", m.ReferenceSettlingLimitBreakdown);
+        Assert.Contains("auto +15 min 00 s / 1 h 00 min", m.ReferenceSettlingLimitBreakdown);
+        Assert.Contains("ručne +30 min 00 s", m.ReferenceSettlingLimitBreakdown);
+    }
     [Fact] public void NextFbgStepShowsSeparateObservedSampleDuration()
     {
         var m = Model();

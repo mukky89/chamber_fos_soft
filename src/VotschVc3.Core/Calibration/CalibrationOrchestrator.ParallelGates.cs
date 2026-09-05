@@ -262,6 +262,14 @@ public sealed class CalibrationOrchestrator
                 if (manualTemperatureExtensionUsed > TimeSpan.Zero)
                     extensionDetail += $" · ručné predĺženie +{FormatTime(manualTemperatureExtensionUsed)}";
 
+                TimeSpan temperatureSettlingElapsed = !temperatureGateEverOpened
+                    ? plateauClock.Elapsed - minimumPlateauDuration
+                    : temperatureRecoveryStartedAt is { } recoveryStartedAt
+                        ? loopAt - recoveryStartedAt
+                        : TimeSpan.Zero;
+                if (temperatureSettlingElapsed < TimeSpan.Zero)
+                    temperatureSettlingElapsed = TimeSpan.Zero;
+
                 progress?.Invoke(new CalibrationProgressSnapshot(
                     CalibrationRunState.WaitingForChamberStability,
                     plateauIndex,
@@ -277,7 +285,12 @@ public sealed class CalibrationOrchestrator
                     (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                     (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                     false,
-                    temperatureMetrics?.SlopePerMinute));
+                    temperatureMetrics?.SlopePerMinute,
+                    temperatureSettlingElapsed,
+                    settings.ChamberStabilityTimeout,
+                    automaticTemperatureExtensionUsed,
+                    settings.MaxAutomaticChamberStabilityExtension,
+                    manualTemperatureExtensionUsed));
 
                 if (!temperatureGateEverOpened)
                 {

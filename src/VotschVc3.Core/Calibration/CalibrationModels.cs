@@ -387,7 +387,12 @@ public sealed record CalibrationProgressSnapshot(
     int? TemperatureStableScoreSeconds = null,
     int? RequiredTemperatureScoreSeconds = null,
     bool? TemperatureGateOpen = null,
-    double? TemperatureDriftCPerMinute = null);
+    double? TemperatureDriftCPerMinute = null,
+    TimeSpan? TemperatureSettlingElapsed = null,
+    TimeSpan? TemperatureSettlingBaseLimit = null,
+    TimeSpan? AutomaticTemperatureExtensionUsed = null,
+    TimeSpan? MaximumAutomaticTemperatureExtension = null,
+    TimeSpan? ManualTemperatureExtensionUsed = null);
 
 public sealed class CalibrationOperatorActionRequiredException : Exception
 {

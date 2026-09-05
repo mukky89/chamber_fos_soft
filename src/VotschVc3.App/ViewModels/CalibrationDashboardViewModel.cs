@@ -120,6 +120,24 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
     public int TemperatureStableScoreSeconds => _snapshot?.TemperatureStableScoreSeconds ?? 0;
+    private TimeSpan TemperatureSettlingBaseLimit => _snapshot?.TemperatureSettlingBaseLimit ?? _stabilityTimeout;
+    private TimeSpan AutomaticTemperatureExtensionUsed => _snapshot?.AutomaticTemperatureExtensionUsed ?? TimeSpan.Zero;
+    private TimeSpan MaximumAutomaticTemperatureExtension => _snapshot?.MaximumAutomaticTemperatureExtension ?? _maxAutomaticStabilityExtension;
+    private TimeSpan ManualTemperatureExtensionUsed => _snapshot?.ManualTemperatureExtensionUsed ?? TimeSpan.Zero;
+    private TimeSpan TemperatureSettlingElapsed => _snapshot?.TemperatureSettlingElapsed ?? TimeSpan.Zero;
+    private TimeSpan CurrentTemperatureSettlingLimit => TemperatureSettlingBaseLimit + AutomaticTemperatureExtensionUsed + ManualTemperatureExtensionUsed;
+    public string ReferenceSettlingLimitLabel =>
+        $"Aktuálny limit plata: {Duration(CurrentTemperatureSettlingLimit)} · uplynulo {Duration(TemperatureSettlingElapsed)} · zostáva {Duration(RemainingTemperatureSettlingTime)}";
+    public string ReferenceSettlingLimitBreakdown =>
+        $"Základ {Duration(TemperatureSettlingBaseLimit)} · auto +{Duration(AutomaticTemperatureExtensionUsed)} / {Duration(MaximumAutomaticTemperatureExtension)} · ručne +{Duration(ManualTemperatureExtensionUsed)}";
+    public string ReferenceSettlingLimitHelp =>
+        "Limit platí pre čakanie na ustálenie aktuálneho plata po skončení minimálneho času profilu. " +
+        $"Začína na {Duration(TemperatureSettlingBaseLimit)}. Aplikácia môže pri platných dátach automaticky pridať po {Duration(_stabilityExtensionStep)}, " +
+        $"najviac spolu {Duration(MaximumAutomaticTemperatureExtension)}; tlačidlom možno samostatne pridávať po 30 minút. " +
+        "Stabilné skóre je samostatná podmienka a predĺžením sa nevynuluje.";
+    private TimeSpan RemainingTemperatureSettlingTime => CurrentTemperatureSettlingLimit > TemperatureSettlingElapsed
+        ? CurrentTemperatureSettlingLimit - TemperatureSettlingElapsed
+        : TimeSpan.Zero;
     public string TemperatureScore => _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Po nastavení cieľa sa začne vyhodnocovať výhradne WIKA referencia." : _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability WIKA {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability WIKA";
     public string TemperatureStatus => _snapshot is null || _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Stabilita WIKA sa ešte nevyhodnocuje" : _snapshot?.TemperatureGateOpen == true ? "✓ STABLE · WIKA referencia potvrdená" : "WAITING · WIKA teplotná brána";
     public int TotalTargets => _snapshot?.TotalTargets ?? 0;
