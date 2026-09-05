@@ -87,6 +87,22 @@ public sealed class CalibrationStore
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "summary.json"), JsonSerializer.Serialize(run, JsonOptions));
         ExportSummaryCsv(run, Path.Combine(dir, "summary.csv"));
+        try
+        {
+            CalibrationPointReportExporter.ExportCompletedPlateaus(run, dir, LoadSetup(run.ProfileId, run.ChamberId)?.Settings);
+        }
+        catch (Exception ex) when (ex is not StackOverflowException and not OutOfMemoryException)
+        {
+            // A report is a secondary artifact. Its failure must never interrupt or invalidate calibration data.
+            try
+            {
+                File.WriteAllText(Path.Combine(dir, "report-generation-error.txt"), $"{DateTimeOffset.Now:O}\r\n{ex}", Encoding.UTF8);
+            }
+            catch (Exception writeEx) when (writeEx is not StackOverflowException and not OutOfMemoryException)
+            {
+                // Even an unwritable diagnostic must not affect the primary JSON/CSV calibration result.
+            }
+        }
     }
 
     public List<CalibrationRunRecord> LoadHistory()

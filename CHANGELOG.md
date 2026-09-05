@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.157] – 2026-09-06
+
+### Pridané
+- Po dokončení každého kalibračného plata sa pri výsledku PASS aj FAIL automaticky vytvorí prehľadný Excel s výsledkami, limitmi a auditnými dátami.
+- Ku každému bodu sa ukladajú samostatné PNG grafy stabilizácie FBG peakov, finálnych vzoriek vlnovej dĺžky a stabilnej referenčnej teploty WIKA.
+- Excel obsahuje vložené grafy, prehľad výsledkov jednotlivých peakov, dostupné finálne vzorky a teplotné dáta; neúspešné výsledky zachovávajú dôvod zlyhania.
+- Záverečný ZIP archív odosielaný e-mailom zahŕňa aj podpriečinky s novými reportmi a obrázkami.
+- Záložná verzia bola zvýšená na 1.76.157.
+
 ## [1.76.156] – 2026-09-06
 
 ### Opravené

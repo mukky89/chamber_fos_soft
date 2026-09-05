@@ -20,6 +20,9 @@ public sealed class CalibrationCompletionEmailTests
             File.WriteAllText(Path.Combine(directory, "wavelength-trace.csv"), "trace");
             File.WriteAllText(Path.Combine(directory, "diagnostics.log"), "log");
             File.WriteAllText(Path.Combine(directory, "summary.json"), "{}");
+            string reportDirectory = Path.Combine(directory, "reports", "plato-001");
+            Directory.CreateDirectory(reportDirectory);
+            File.WriteAllText(Path.Combine(reportDirectory, "kalibracny-bod.xlsx"), "xlsx");
             var run = new CalibrationRunRecord
             {
                 HumanRunId = "01-2026-09-05", ProfileCode = "P-001", ProfileName = "Výrobná kalibrácia",
@@ -45,9 +48,10 @@ public sealed class CalibrationCompletionEmailTests
             Assert.Equal(2, message.Attachments.Count);
             Assert.Equal("calibration-results.csv", message.Attachments[0].FileName);
             using var zip = new ZipArchive(new MemoryStream(message.Attachments[1].Content), ZipArchiveMode.Read);
-            Assert.Equal(5, zip.Entries.Count);
+            Assert.Equal(6, zip.Entries.Count);
             Assert.Contains(zip.Entries, entry => entry.FullName == "raw-samples.csv");
             Assert.Contains(zip.Entries, entry => entry.FullName == "diagnostics.log");
+            Assert.Contains(zip.Entries, entry => entry.FullName == "reports/plato-001/kalibracny-bod.xlsx");
         }
         finally
         {

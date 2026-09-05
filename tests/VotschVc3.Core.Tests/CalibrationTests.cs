@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using VotschVc3.Core.Calibration;
+using ClosedXML.Excel;
 using VotschVc3.Core.Profiles;
 using Xunit;
 
@@ -345,8 +346,44 @@ public sealed class CalibrationTests
 
             var run = new CalibrationRunRecord { ProfileId = profileId, ChamberId = chamberId, ProfileName = "T CAL", State = CalibrationRunState.Completed };
             run.Plateaus.Add(Plateau(0, 20, 1550));
+            run.Plateaus[0].StartedAt = DateTimeOffset.Now.AddMinutes(-2);
+            run.Plateaus[0].CompletedAt = DateTimeOffset.Now;
+            run.Plateaus[0].Targets.Add(new CalibrationMeasurementResult
+            {
+                SerialNumber = "SN2", Channel = "2.1", PeakId = "P1", PeakIndex = 1,
+                Status = CalibrationTargetState.TimedOut, Problem = "Nestabilný peak", SampleCount = 1,
+                MeanWavelengthNm = 1551,
+                StableSamples =
+                {
+                    new CalibrationRawSample
+                    {
+                        Timestamp = DateTimeOffset.Now.AddSeconds(-10), SerialNumber = "SN2", Channel = "2.1",
+                        PeakId = "P1", PeakIndex = 1, WavelengthNm = 1551, ActualTemperatureC = 20,
+                        ReferenceTemperatureC = 20.01,
+                    },
+                },
+            });
             store.SaveRun(run);
             Assert.Contains(store.LoadHistory(), x => x.RunId == run.RunId);
+            string pointReport = Path.Combine(store.RunsDirectory, run.RunId.ToString("N"), "reports", "plato-001_+20C");
+            Assert.True(File.Exists(Path.Combine(pointReport, "wika-stabilna-teplota.png")));
+            Assert.True(File.Exists(Path.Combine(pointReport, "fbg-stabilizacia.png")));
+            Assert.True(File.Exists(Path.Combine(pointReport, "fbg-finalne-meranie.png")));
+            string reportError = Path.Combine(store.RunsDirectory, run.RunId.ToString("N"), "report-generation-error.txt");
+            Assert.False(File.Exists(reportError), File.Exists(reportError) ? File.ReadAllText(reportError) : string.Empty);
+            string workbookPath = Path.Combine(pointReport, "kalibracny-bod.xlsx");
+            Assert.True(File.Exists(workbookPath));
+            using (var workbook = new XLWorkbook(workbookPath))
+            {
+                Assert.Contains(workbook.Worksheets, sheet => sheet.Name == "Prehľad");
+                Assert.Contains(workbook.Worksheets, sheet => sheet.Name == "WIKA teplota");
+                Assert.Contains(workbook.Worksheets, sheet => sheet.Name == "Stabilizácia FBG");
+                Assert.Contains(workbook.Worksheets, sheet => sheet.Name == "Finálne vzorky");
+                Assert.Contains(workbook.Worksheets, sheet => sheet.Name == "Grafy");
+                Assert.Equal("PASS", workbook.Worksheet("Prehľad").Cell("D12").GetString());
+                Assert.Equal("FAIL", workbook.Worksheet("Prehľad").Cell("D13").GetString());
+                Assert.Equal(3, workbook.Worksheet("Grafy").Pictures.Count);
+            }
 
             var checkpoint = new CalibrationCheckpoint
             {

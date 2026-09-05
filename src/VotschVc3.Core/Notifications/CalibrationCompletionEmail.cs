@@ -77,7 +77,7 @@ public static class CalibrationCompletionEmail
     private static List<EmailAttachment> BuildAttachments(string runDirectory, string runId)
     {
         var files = Directory.Exists(runDirectory)
-            ? Directory.EnumerateFiles(runDirectory, "*", SearchOption.TopDirectoryOnly).OrderBy(Path.GetFileName).ToArray()
+            ? Directory.EnumerateFiles(runDirectory, "*", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray()
             : [];
         var attachments = new List<EmailAttachment>();
         string? summary = files.FirstOrDefault(path => string.Equals(Path.GetFileName(path), "summary.csv", StringComparison.OrdinalIgnoreCase));
@@ -89,7 +89,8 @@ public static class CalibrationCompletionEmail
         {
             foreach (string file in files)
             {
-                ZipArchiveEntry entry = archive.CreateEntry(Path.GetFileName(file), CompressionLevel.Optimal);
+                string relativePath = Path.GetRelativePath(runDirectory, file).Replace('\\', '/');
+                ZipArchiveEntry entry = archive.CreateEntry(relativePath, CompressionLevel.Optimal);
                 using Stream destination = entry.Open();
                 using var source = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 source.CopyTo(destination);

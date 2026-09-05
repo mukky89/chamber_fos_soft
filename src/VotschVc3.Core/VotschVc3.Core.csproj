@@ -17,4 +17,9 @@
     <Compile Remove="Calibration\CalibrationProfileRunner.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+  </ItemGroup>
+
 </Project>
