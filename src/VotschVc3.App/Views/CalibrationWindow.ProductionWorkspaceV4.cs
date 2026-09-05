@@ -592,7 +592,7 @@ public partial class CalibrationWindow
         var visibleRows = _viewModel.Peaks.Where(p => p.Selected && IsFbgTraceVisible(p)).ToArray();
         foreach (var removed in _peakCharts.Keys.Where(row => !visibleRows.Contains(row)).ToArray())
         {
-            _fbgPeakChartsPanel.Children.Remove((UIElement)_peakCharts[removed].Parent);
+            _fbgPeakChartsPanel.Children.Remove(GetPeakChartCard(_peakCharts[removed]));
             _peakCharts.Remove(removed);
         }
         foreach (CalibrationPeakRowViewModel row in visibleRows)
@@ -602,17 +602,34 @@ public partial class CalibrationWindow
                 chart = new ChartView
                 {
                     Unit = " nm", Height = 220, MinHeight = 180,
-                    Margin = new Thickness(4, 4, 8, 12),
+                    Margin = new Thickness(0, 4, 0, 0),
                     EmptyText = "Čakám na prvé vzorky tohto peaku…",
                 };
-                var peakCard = new StackPanel { Margin = new Thickness(4, 4, 8, 12) };
-                var title = new TextBlock { FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 4, 0, 0) };
+                var peakContent = new StackPanel();
+                var title = new TextBlock
+                {
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 13,
+                    Foreground = TryFindResource("PrimaryTextBrush") as Brush ?? Brushes.White,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(4, 1, 4, 2),
+                };
                 title.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(ChartView.ChartTitle)) { Source = chart });
-                peakCard.Children.Add(title);
-                peakCard.Children.Add(chart);
+                peakContent.Children.Add(title);
+                peakContent.Children.Add(chart);
+                var peakCard = new Border
+                {
+                    Background = TryFindResource("SurfaceBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(17, 29, 47)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(51, 78, 108)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(11),
+                    Padding = new Thickness(10, 9, 10, 8),
+                    Margin = new Thickness(5, 5, 7, 9),
+                    Child = peakContent,
+                };
                 _peakCharts.Add(row, chart);
             }
-            var card = (UIElement)chart.Parent;
+            UIElement card = GetPeakChartCard(chart);
             int index = Array.IndexOf(visibleRows, row);
             if (_fbgPeakChartsPanel.Children.IndexOf(card) != index)
             {
@@ -654,6 +671,18 @@ public partial class CalibrationWindow
             _fbgTraceSummary.Text = $"Peaky: {calibrationSelected} · stabilné: {_viewModel.Dashboard.StableCount} · aktívny: {_viewModel.Dashboard.ActivePeak} · WIKA: {referenceValue} · komora: {_viewModel.Dashboard.Actual}";
         }
         UpdateFbgTraceFilterSummary();
+    }
+
+    private static UIElement GetPeakChartCard(ChartView chart)
+    {
+        DependencyObject? parent = chart.Parent;
+        while (parent is not null)
+        {
+            if (parent is Border border) return border;
+            parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
+        }
+
+        return chart;
     }
 
     private static void CompactTraceIfNeeded<T>(List<T> trace, Func<T, double> valueSelector)

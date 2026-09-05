@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.106] – 2026-09-05
+
+### Zmenené
+- Každý FBG live graf je vizuálne oddelený vlastnou modernou kartou s nadpisom, kontrastným okrajom, zaoblením a konzistentným vnútorným odsadením.
+
+### Opravené
+- Live prekresľovanie dát už počas ťahania ľavým tlačidlom nezmaže obdĺžnikový výber zoomu; graf zmrazí aktuálny vizuál počas výberu a najnovšie dáta vykreslí po uvoľnení tlačidla.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.106.
+
 ## [1.76.105] – 2026-09-05
 
 ### Opravené

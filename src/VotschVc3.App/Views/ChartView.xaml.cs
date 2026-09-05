@@ -50,6 +50,7 @@ public partial class ChartView : UserControl
     private Point _panStartMouse;
     private double _panStartMin;
     private bool _isSelecting;
+    private bool _redrawPendingDuringSelection;
     private Point _selectionStart;
     private Rectangle? _selectionRectangle;
     private double? _selectedMinY;
@@ -241,6 +242,17 @@ public partial class ChartView : UserControl
 
     private void Redraw()
     {
+        // Live series are replaced frequently. Clearing the canvas while the operator
+        // is drawing a zoom rectangle makes the selection flash and disappear under
+        // the cursor. Keep the current pixels/transform frozen until mouse-up; the
+        // newest Series value is then rendered together with the selected viewport.
+        if (_isSelecting)
+        {
+            _redrawPendingDuringSelection = true;
+            return;
+        }
+        _redrawPendingDuringSelection = false;
+
         if (!IsVisible)
         {
             return;
@@ -745,7 +757,10 @@ public partial class ChartView : UserControl
         _selectionRectangle = null;
 
         if (Math.Abs(end.X - start.X) < 6 || Math.Abs(end.Y - start.Y) < 6)
+        {
+            if (_redrawPendingDuringSelection) Redraw();
             return;
+        }
 
         double x1 = _minX + ((start.X - PadLeft) / _plotW * (_maxX - _minX));
         double x2 = _minX + ((end.X - PadLeft) / _plotW * (_maxX - _minX));
