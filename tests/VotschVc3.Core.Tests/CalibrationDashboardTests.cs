@@ -140,7 +140,8 @@ public sealed class CalibrationDashboardTests
         var m = Model();
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);
         Assert.Equal("Stabilita FBG", m.TimelineNextTitle);
-        Assert.Contains("čaká na zmeranie", m.TimelineNextTiming);
+        Assert.Contains("Odber každých 1 s", m.TimelineNextTiming);
+        Assert.Contains("0 min 50 s", m.TimelineNextTiming);
 
         DateTimeOffset restarted = Start.AddMinutes(1);
         m.Begin(restarted);
@@ -150,7 +151,24 @@ public sealed class CalibrationDashboardTests
 
         Assert.Contains("Odhad 50 vzoriek", m.TimelineNextTiming);
         Assert.Contains("2 min 50 s", m.TimelineNextTiming);
-        Assert.Contains("1 cyklus", m.TimelineNextTiming);
+        Assert.Contains("skutočný cyklus", m.TimelineNextTiming);
+    }
+    [Fact] public void ConfiguredFbgAcquisitionIntervalIsVisibleAndPersistent()
+    {
+        var dashboard = new CalibrationDashboardViewModel();
+        dashboard.Configure("Profil", "Komora", new[] { -40d }, true, "Rules",
+            requiredStableSamples: 50, sampleAcquisitionIntervalSeconds: 30);
+        dashboard.Begin(Start);
+        dashboard.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);
+
+        Assert.Contains("Odber každých 30 s", dashboard.TimelineNextTiming);
+        Assert.Contains("25 min 00 s", dashboard.TimelineNextTiming);
+        Assert.Contains("každých 30 s", dashboard.Steps[4].Detail);
+
+        var settings = new CalibrationProfileSettings { SampleAcquisitionIntervalSeconds = 30 };
+        string json = System.Text.Json.JsonSerializer.Serialize(settings);
+        CalibrationProfileSettings restored = System.Text.Json.JsonSerializer.Deserialize<CalibrationProfileSettings>(json)!;
+        Assert.Equal(30, restored.SampleAcquisitionIntervalSeconds);
     }
     [Fact] public void IndividualFbgChartsTrackEachPeakAndResetForNewRun()
     {

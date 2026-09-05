@@ -404,7 +404,9 @@ public sealed class CalibrationOrchestrator
                 temperatureMetrics?.SlopePerMinute));
 
             if (allTerminal) break;
-            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+            await Task.Delay(
+                TimeSpan.FromSeconds(Math.Clamp(settings.SampleAcquisitionIntervalSeconds, 1, 30)),
+                cancellationToken).ConfigureAwait(false);
         }
 
         var result = new CalibrationPlateauResult

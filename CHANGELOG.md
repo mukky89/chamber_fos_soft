@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.115] – 2026-09-05
+
+### Pridané
+- V nastaveniach kalibrácie je nový perzistentný interval odberu FBG vzoriek v rozsahu 1 až 30 sekúnd; predvolená hodnota je 1 sekunda.
+- Kalibračný runner používa zvolený interval pri stabilizácii aj finálnom meraní FBG peakov.
+- Workflow pomocník zobrazuje nastavený interval, odhad času zberu vzoriek a po spustení aj skutočne pozorovanú dĺžku dátového cyklu.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.115.
+
 ## [1.76.114] – 2026-09-05
 
 ### Pridané

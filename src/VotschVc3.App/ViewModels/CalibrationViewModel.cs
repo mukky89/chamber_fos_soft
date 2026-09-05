@@ -26,7 +26,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         SelectedProfile?.Name ?? "Vyberte profil", SelectedChamber?.Config.Name ?? "Komora",
         CalibrationPoints.Where(p => p.Selected).Select(p => p.TemperatureC), SelectedF100 is not null,
         $"Teplota ±{ChamberToleranceC:F2} °C · stabilita {ChamberStableMinutes:F1} min · " +
-        $"{RequiredStableSamples} vzoriek · range ≤ {MaxRangePm:F3} pm · " +
+        $"{RequiredStableSamples} vzoriek · odber každých {SampleAcquisitionIntervalSeconds} s · range ≤ {MaxRangePm:F3} pm · " +
         $"σ ≤ {MaxStdDevPm:F3} pm · drift ≤ {MaxDriftPmPerMinute:F3} pm/min. " +
         "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
         "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.",
@@ -38,6 +38,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         maxRangePm: _setup.Settings.MaxWavelengthRangePm,
         maxStdDevPm: _setup.Settings.MaxWavelengthStdDevPm,
         maxPeakDriftPmPerMinute: _setup.Settings.MaxWavelengthDriftPmPerMinute,
+        sampleAcquisitionIntervalSeconds: _setup.Settings.SampleAcquisitionIntervalSeconds,
         stableDuration: _setup.Settings.ChamberStableDuration,
         stabilityTimeout: _setup.Settings.ChamberStabilityTimeout,
         sensorTimeout: _setup.Settings.DefaultSensorStabilizationTimeout,
@@ -459,6 +460,17 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         get => _setup.Settings.RequiredMeasurementSamples;
         set { _setup.Settings.RequiredMeasurementSamples = Math.Clamp(value, 2, 10000); OnPropertyChanged(); }
+    }
+
+    public int SampleAcquisitionIntervalSeconds
+    {
+        get => _setup.Settings.SampleAcquisitionIntervalSeconds;
+        set
+        {
+            _setup.Settings.SampleAcquisitionIntervalSeconds = Math.Clamp(value, 1, 30);
+            OnPropertyChanged();
+            RefreshDashboardPlan();
+        }
     }
 
     public bool EnableWavelengthAveraging
@@ -1551,7 +1563,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             writer.WriteDiagnostic("INFO", "STABILITY_CONFIGURATION",
                 $"temperatureToleranceC={diagnosticSettings.ChamberToleranceC:G17}; temperatureStableSeconds={diagnosticSettings.ChamberStableDuration.TotalSeconds:G17}; " +
                 $"temperatureMaxDriftCPerMinute={diagnosticSettings.MaxChamberDriftCPerMinute:G17}; temperatureTimeoutSeconds={diagnosticSettings.ChamberStabilityTimeout.TotalSeconds:G17}; " +
-                $"wavelengthStableSamples={diagnosticSettings.RequiredStableSamples}; measurementSamples={diagnosticSettings.RequiredMeasurementSamples}; " +
+                $"wavelengthStableSamples={diagnosticSettings.RequiredStableSamples}; measurementSamples={diagnosticSettings.RequiredMeasurementSamples}; sampleIntervalSeconds={diagnosticSettings.SampleAcquisitionIntervalSeconds}; " +
                 $"rangeLimitPm={diagnosticSettings.MaxWavelengthRangePm:G17}; stdDevLimitPm={diagnosticSettings.MaxWavelengthStdDevPm:G17}; driftLimitPmPerMinute={diagnosticSettings.MaxWavelengthDriftPmPerMinute:G17}");
             foreach (CalibrationPeakRowViewModel peak in Peaks.Where(p => p.Selected))
                 writer.WriteDiagnostic("INFO", "SELECTED_PEAK",
@@ -1905,6 +1917,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(WavelengthAveragingSamples));
         OnPropertyChanged(nameof(EnableWavelengthTraceLogging));
         OnPropertyChanged(nameof(WavelengthTraceIntervalSeconds));
+        OnPropertyChanged(nameof(SampleAcquisitionIntervalSeconds));
         OnPropertyChanged(nameof(RequiredStableSamples));
         OnPropertyChanged(nameof(MaxRangePm));
         OnPropertyChanged(nameof(MaxStdDevPm));

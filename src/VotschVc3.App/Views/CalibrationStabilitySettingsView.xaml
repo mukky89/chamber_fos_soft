@@ -116,6 +116,13 @@
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Každý označený peak má vlastné rolling okno a vyhodnocuje sa nezávisle. Jeden senzor už môže merať finálne samples, zatiaľ čo druhý sa ešte stabilizuje." />
             <WrapPanel>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Určuje reálny interval medzi vzorkami, ktoré kalibrácia použije na stabilitu a finálne meranie FBG. Povolený rozsah je 1 až 30 sekúnd. Toto nie je interval auditného trace logu.">
+                    <StackPanel>
+                        <TextBlock Text="Interval odberu FBG [s]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Každých koľko sekúnd sa odoberie jedna kalibračná λ vzorka. Napríklad 50 vzoriek pri 1 s trvá približne 50 s; pri 30 s približne 25 min." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding SampleAcquisitionIntervalSeconds, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
                 <Border Style="{StaticResource SettingCard}" ToolTip="Počet posledných wavelength vzoriek v rolling okne. Všetky ostatné stability kritériá sa počítajú z tohto okna. Počet musí byť dosiahnutý ešte pred prechodom do finálneho merania.">
                     <StackPanel>
                         <TextBlock Text="Počet samples pre stabilitu" Style="{StaticResource SettingName}" />

@@ -20,6 +20,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private double _stabilityMaxDriftCPerMinute;
     private int _requiredStableSamples = 50;
     private int _requiredMeasurementSamples = 50;
+    private int _sampleAcquisitionIntervalSeconds = 1;
     private double _maxRangePm = 5;
     private double _maxStdDevPm = 1.5;
     private double _maxPeakDriftPmPerMinute = 1;
@@ -190,11 +191,12 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     };
 
     private string SampleTiming(int samples) => _observedCycleSeconds is { } seconds
-        ? $"Odhad {samples} vzoriek: {Duration(TimeSpan.FromSeconds(Math.Round(samples * seconds)))} · 1 cyklus ≈ {seconds:F1} s"
-        : $"Odhad {samples} vzoriek: čaká na zmeranie dátového cyklu";
+        ? $"Odber každých {_sampleAcquisitionIntervalSeconds} s · Odhad {samples} vzoriek: {Duration(TimeSpan.FromSeconds(Math.Round(samples * seconds)))} · skutočný cyklus ≈ {seconds:F1} s"
+        : $"Odber každých {_sampleAcquisitionIntervalSeconds} s · Odhad {samples} vzoriek: {Duration(TimeSpan.FromSeconds(samples * _sampleAcquisitionIntervalSeconds))}";
 
     public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null,
         int requiredStableSamples = 50, int requiredMeasurementSamples = 50, double maxRangePm = 5, double maxStdDevPm = 1.5,
+        int sampleAcquisitionIntervalSeconds = 1,
         double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null, TimeSpan? sensorTimeout = null,
         bool enableSetpointRamp = true, double setpointRampCPerMinute = 1,
         IReadOnlyList<CalibrationPlateauStatistics>? historicalPlateaus = null)
@@ -202,7 +204,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
         string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{maxDriftCPerMinute}|" +
-            $"{requiredStableSamples}|{requiredMeasurementSamples}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|" +
+            $"{requiredStableSamples}|{requiredMeasurementSamples}|{sampleAcquisitionIntervalSeconds}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|" +
             $"{string.Join(",", historicalPlateaus?.Select(item => $"{item.PlateauIndex}:{item.SampleCount}:{item.MedianDuration.Ticks}:{item.MaximumDuration.Ticks}") ?? Array.Empty<string>())}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
@@ -216,6 +218,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _stabilityMaxDriftCPerMinute = Math.Max(0, maxDriftCPerMinute);
         _requiredStableSamples = Math.Max(2, requiredStableSamples);
         _requiredMeasurementSamples = Math.Max(2, requiredMeasurementSamples);
+        _sampleAcquisitionIntervalSeconds = Math.Clamp(sampleAcquisitionIntervalSeconds, 1, 30);
         _maxRangePm = Math.Max(0, maxRangePm);
         _maxStdDevPm = Math.Max(0, maxStdDevPm);
         _maxPeakDriftPmPerMinute = Math.Max(0, maxPeakDriftPmPerMinute);
@@ -538,11 +541,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private void RefreshSteps()
     {
         string cycle = _observedCycleSeconds is { } seconds
-            ? $"Aktuálny cyklus dát trvá približne {seconds:F1} s"
-            : "Skutočný čas závisí od odozvy WIKA a PeakLoggera";
+            ? $"Nastavený odber: každých {_sampleAcquisitionIntervalSeconds} s; skutočný cyklus dát trvá približne {seconds:F1} s"
+            : $"Nastavený odber: každých {_sampleAcquisitionIntervalSeconds} s; skutočný cyklus sa zobrazí po spustení";
         string Estimate(int samples) => _observedCycleSeconds is { } seconds
             ? $"približne {Duration(TimeSpan.FromSeconds(samples * seconds))} pri aktuálnom cykle"
-            : $"najmenej {samples} úspešných cyklov dát";
+            : $"odhad {Duration(TimeSpan.FromSeconds(samples * _sampleAcquisitionIntervalSeconds))} pri nastavenom intervale";
         string[] names = { "Príprava", "Nastavenie cieľa", "Teplota komory", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Dokončenie" };
         string[] tips =
         {

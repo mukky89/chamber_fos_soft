@@ -216,6 +216,7 @@ public partial class CalibrationWindow
 
     private static bool IsPersistedCalibrationSetting(string? propertyName) => propertyName is
         nameof(CalibrationViewModel.RequiredStableSamples)
+        or nameof(CalibrationViewModel.SampleAcquisitionIntervalSeconds)
         or nameof(CalibrationViewModel.EnableWavelengthAveraging)
         or nameof(CalibrationViewModel.WavelengthAveragingSamples)
         or nameof(CalibrationViewModel.EnableWavelengthTraceLogging)
