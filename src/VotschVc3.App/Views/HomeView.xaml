@@ -293,6 +293,7 @@
                         <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,12,0"
                                    Visibility="{Binding ShowTimeline, Converter={StaticResource BoolToVisibility}}">
                             <Run Text="■" Foreground="{StaticResource AccentBrush}" /><Run Text=" profil (od–do)    " />
+                            <Run Text="■" Foreground="{StaticResource DangerBrush}" /><Run Text=" FBG kalibrácia (podľa ETA)    " />
                             <Run Text="■" Foreground="{StaticResource OkBrush}" /><Run Text=" manuálny beh · ∞ = kým sa nevypne" />
                         </TextBlock>
                     </DockPanel>

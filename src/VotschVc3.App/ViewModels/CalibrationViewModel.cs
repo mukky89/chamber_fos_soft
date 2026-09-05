@@ -1980,7 +1980,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         Dashboard.PhaseElapsed,
         Dashboard.Eta,
         Dashboard.Finish,
-        Dashboard.EtaBasis);
+        Dashboard.EtaBasis,
+        Dashboard.StartedAt,
+        Dashboard.EstimatedFinishAt);
 
     private string WorkspaceName => SelectedChamber?.Config.Name ?? "Neznáme zariadenie";
 

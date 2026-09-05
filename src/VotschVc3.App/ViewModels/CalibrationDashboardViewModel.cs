@@ -207,12 +207,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _ => _running ? "Prebieha príprava a kontrola pripojených zariadení." : "Vyberte profil, skontrolujte zapojenie a spustite kalibráciu."
     };
     public string Started => _started?.ToLocalTime().ToString("HH:mm") ?? "—";
+    public DateTimeOffset? StartedAt => _started;
     public string Elapsed { get; private set; } = "—";
     public string PhaseElapsed { get; private set; } = "—";
     public string PointElapsed => _snapshot is null ? "—" : Duration(_snapshot.PlateauElapsed);
     public DateTimeOffset? CurrentPlateauTraceStart { get; private set; }
     public string Eta { get; private set; } = "Po prvom bode";
     public string Finish { get; private set; } = "—";
+    public DateTimeOffset? EstimatedFinishAt { get; private set; }
     public string EtaBasis { get; private set; } = "Odhad sa spresní po dokončení prvého bodu alebo z historických behov tohto profilu.";
     public string LastUpdate => _lastSnapshotAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—";
     public DateTimeOffset? LastTemperatureSampleAt { get; private set; }
@@ -525,11 +527,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     {
         Eta = "Po prvom bode";
         Finish = "—";
+        EstimatedFinishAt = null;
         EtaBasis = "Odhad sa spresní po dokončení prvého bodu alebo z historických behov tohto profilu.";
         if (_ended is not null)
         {
             Eta = "—";
             Finish = _ended.Value.ToLocalTime().ToString("HH:mm");
+            EstimatedFinishAt = _ended;
             EtaBasis = "Kalibrácia je ukončená; zobrazený je skutočný čas konca.";
             return;
         }
@@ -548,6 +552,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 conditioningSeconds += Math.Abs(actual - _finalConditioningTemperatureC) / (_setpointRampCPerMinute / 60d);
             Eta = "≈ " + Duration(TimeSpan.FromSeconds(conditioningSeconds));
             Finish = "≈ " + now.AddSeconds(conditioningSeconds).ToLocalTime().ToString("dd.MM. HH:mm");
+            EstimatedFinishAt = now.AddSeconds(conditioningSeconds);
             EtaBasis = $"Zostáva návrat na {_finalConditioningTemperatureC:F1} °C a súvislé temperovanie {Duration(_finalConditioningDuration)}; FBG sa už nemeria.";
             return;
         }
@@ -629,6 +634,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 
         Eta = "≈ " + Duration(TimeSpan.FromSeconds(seconds));
         Finish = "≈ " + now.AddSeconds(seconds).ToLocalTime().ToString("dd.MM. HH:mm");
+        EstimatedFinishAt = now.AddSeconds(seconds);
         EtaBasis = usedHistory
             ? "Odhad používa historické mediány jednotlivých plat, aktuálny priebeh bodu a zostávajúci riadený nábeh setpointu."
             : "Odhad používa medián dokončených bodov tohto behu, aktuálny priebeh a zostávajúci riadený nábeh setpointu.";

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.162] – 2026-09-06
+
+### Opravené
+- Časová os zariadení rozpozná, že komoru vlastní aktívna FBG kalibrácia, a už ju nesprávne nezobrazuje ako manuálny beh.
+- Pruh FBG kalibrácie používa rovnaký odhad začiatku a konca ako kalibračný dashboard vrátane zostávajúcich plat, riadených nábehov a záverečného temperovania pri 25 °C.
+- Ak kalibrácia ešte nemá spoľahlivý odhad konca, časová os zobrazí `FBG · ETA neurčitá` s otáznikom a vysvetlením namiesto nepravdivého nekonečného manuálneho behu.
+- Legenda časovej osi rozlišuje profil, FBG kalibráciu a manuálny beh vlastnými farbami.
+- Záložná verzia bola zvýšená na 1.76.162.
+
 ## [1.76.161] – 2026-09-06
 
 ### Opravené

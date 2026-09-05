@@ -35,13 +35,33 @@ public partial class FleetGanttView : UserControl
     public FleetGanttView()
     {
         InitializeComponent();
-        Loaded += (_, _) => { _refresh.Start(); Redraw(); };
-        Unloaded += (_, _) => _refresh.Stop();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         _refresh.Tick += (_, _) => Redraw();
         SizeChanged += (_, _) => Redraw();
         // The dashboard stays alive (hidden) while another screen is open, so the
         // timeline skips drawing while invisible and catches up when shown again.
         IsVisibleChanged += (_, _) => Redraw();
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        CalibrationStatusViewModel.Instance.PropertyChanged -= OnCalibrationStatusChanged;
+        CalibrationStatusViewModel.Instance.PropertyChanged += OnCalibrationStatusChanged;
+        _refresh.Start();
+        Redraw();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        CalibrationStatusViewModel.Instance.PropertyChanged -= OnCalibrationStatusChanged;
+        _refresh.Stop();
+    }
+
+    private void OnCalibrationStatusChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (Dispatcher.CheckAccess()) Redraw();
+        else _ = Dispatcher.BeginInvoke(new Action(Redraw));
     }
 
     public static readonly DependencyProperty ChambersProperty = DependencyProperty.Register(
@@ -110,6 +130,7 @@ public partial class FleetGanttView : UserControl
     private Brush Token(string key, Brush fallback) => TryFindResource(key) as Brush ?? fallback;
 
     private Brush AccentBrush => Token("AccentBrush", Brushes.RoyalBlue);
+    private Brush FbgBrush => Token("DangerBrush", Brushes.IndianRed);
     private Brush OkBrush => Token("OkBrush", Brushes.MediumSeaGreen);
     private Brush MutedBrush => Token("MutedBrush", Brushes.Gray);
     private Brush GridBrush => Token("BorderBrush", Brushes.DimGray);
@@ -177,17 +198,26 @@ public partial class FleetGanttView : UserControl
 
         foreach (ChamberViewModel vm in items)
         {
+            CalibrationWorkspaceStatusSnapshot calibration = CalibrationStatusViewModel.Instance.GetWorkspace(vm.Id);
+            if (calibration.IsRunning)
+            {
+                if (calibration.StartedAt?.LocalDateTime is { } calibrationStart && calibrationStart < start)
+                    start = calibrationStart;
+                if (calibration.EstimatedFinishAt?.LocalDateTime is { } calibrationEnd && calibrationEnd > end)
+                    end = calibrationEnd;
+            }
+
             if (BarStart(vm, now) is { } s && s < start)
             {
                 start = s;
             }
 
-            if (vm.IsProfileRunning && vm.ProfileRunEnd is { } e && e > end)
+            if (!calibration.IsRunning && vm.IsProfileRunning && vm.ProfileRunEnd is { } e && e > end)
             {
                 end = e;
             }
 
-            if (vm.IsProfileRunning && vm.ProfileRunStart is null && vm.UseDelayedStart)
+            if (!calibration.IsRunning && vm.IsProfileRunning && vm.ProfileRunStart is null && vm.UseDelayedStart)
             {
                 // Waiting for a delayed start: cover the whole planned bar.
                 DateTime plannedEnd = vm.ScheduledStart + vm.PlannedProfileDuration;
@@ -201,9 +231,13 @@ public partial class FleetGanttView : UserControl
         return (start.AddMinutes(-10), end.AddMinutes(10));
     }
 
-    /// <summary>Where the device's bar begins: profile start, scheduled start or first observed activity.</summary>
+    /// <summary>Where the device's bar begins: FBG calibration, profile, scheduled start or first observed activity.</summary>
     private static DateTime? BarStart(ChamberViewModel vm, DateTime now)
     {
+        CalibrationWorkspaceStatusSnapshot calibration = CalibrationStatusViewModel.Instance.GetWorkspace(vm.Id);
+        if (calibration.IsRunning)
+            return calibration.StartedAt?.LocalDateTime ?? vm.ActiveSince ?? now;
+
         if (vm.IsProfileRunning)
         {
             return vm.ProfileRunStart
@@ -301,7 +335,32 @@ public partial class FleetGanttView : UserControl
         Canvas.SetTop(name, y + (RowHeight - 17) / 2);
         PlotCanvas.Children.Add(name);
 
-        if (vm.IsProfileRunning)
+        CalibrationWorkspaceStatusSnapshot calibration = CalibrationStatusViewModel.Instance.GetWorkspace(vm.Id);
+        if (calibration.IsRunning)
+        {
+            DateTime start = calibration.StartedAt?.LocalDateTime ?? vm.ActiveSince ?? now;
+            if (calibration.EstimatedFinishAt?.LocalDateTime is { } estimatedEnd && estimatedEnd > start)
+            {
+                string tooltip = $"FBG kalibrácia · {calibration.ProfileName} · {start:dd.MM HH:mm} → ~{estimatedEnd:dd.MM HH:mm} · {calibration.Eta}";
+                DrawBar(barY, x(start), x(estimatedEnd), FbgBrush, "FBG kalibrácia", tooltip, dimmed: false);
+            }
+            else
+            {
+                double x1 = x(start);
+                double x2 = plotX + plotW;
+                DrawBar(barY, x1, x2, MakeFadeBrush(FbgBrush), "FBG · ETA neurčitá",
+                    $"FBG kalibrácia · {calibration.ProfileName} · od {start:dd.MM HH:mm} · {calibration.Eta}. {calibration.EtaBasis}", dimmed: false);
+                var uncertain = new TextBlock
+                {
+                    Text = "?", Foreground = FbgBrush, FontSize = 13, FontWeight = FontWeights.Bold,
+                    ToolTip = "Presný koniec FBG kalibrácie zatiaľ nie je možné spoľahlivo odhadnúť.",
+                };
+                Canvas.SetLeft(uncertain, x2 - 14);
+                Canvas.SetTop(uncertain, barY - 2);
+                PlotCanvas.Children.Add(uncertain);
+            }
+        }
+        else if (vm.IsProfileRunning)
         {
             bool waiting = vm.ProfileRunStart is null;
             DateTime start = BarStart(vm, now) ?? now;
