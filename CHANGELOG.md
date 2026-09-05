@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.137] – 2026-09-05
+
+### Zmenené
+- Nápoveda stabilného času WIKA vysvetľuje, že aplikácia priebežne čaká na nové bloky, až kým odchýlka aj drift súčasne nevyhovujú počas celého požadovaného skóre.
+- Nápoveda uvádza, že po vypršaní timeoutu sa automatický postup zastaví, vyžiada zásah operátora a nevyhovujúci kalibračný bod sa automaticky neprijme.
+- Záložná verzia bola zvýšená na 1.76.137.
+
 ## [1.76.136] – 2026-09-05
 
 ### Zmenené

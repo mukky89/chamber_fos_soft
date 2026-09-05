@@ -113,6 +113,9 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("30 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("súčasne splnené obe podmienky", m.ReferenceTimeHelp);
         Assert.Contains("odchýlka alebo drift nevyhovuje", m.ReferenceTimeHelp);
+        Assert.Contains("ďalej čaká a kontroluje nové bloky", m.ReferenceTimeHelp);
+        Assert.Contains("Nečaká však neobmedzene", m.ReferenceTimeHelp);
+        Assert.Contains("nevyhovujúci bod sa automaticky neprijme", m.ReferenceTimeHelp);
     }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
