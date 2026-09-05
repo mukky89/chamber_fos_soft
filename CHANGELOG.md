@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.156] – 2026-09-06
+
+### Opravené
+- Grafy FBG peakov majú pre os vlnovej dĺžky v nanometroch viac priestoru, takže presné hodnoty aj jednotka `nm` zostávajú v jednom riadku.
+- Zalamovanie textu popisov osí je explicitne vypnuté; teplotné a ostatné grafy si zachovávajú pôvodnú kompaktnú šírku osi.
+- Záložná verzia bola zvýšená na 1.76.156.
+
 ## [1.76.155] – 2026-09-06
 
 ### Zmenené

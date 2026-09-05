@@ -23,6 +23,7 @@ namespace VotschVc3.App.Views;
 public partial class ChartView : UserControl
 {
     private const double PadLeft = 72;
+    private const double WavelengthPadLeft = 92;
     private const double PadRight = 12;
     private const double PadTop = 10;
     /// <summary>Room under the plot for the time labels and the draggable mini-map strip.</summary>
@@ -36,6 +37,7 @@ public partial class ChartView : UserControl
     // cursor position back to a data point (hover read-out).
     private bool _hasPlot;
     private double _minX, _maxX, _minY, _maxY, _plotW, _plotH;
+    private double _plotLeft = PadLeft;
     private ValueAxis _yAxis = new(0, 1, 1, 1);
     private ChartSeries? _hoverSeries;
     private readonly List<UIElement> _overlay = new();
@@ -289,6 +291,9 @@ public partial class ChartView : UserControl
 
         _hasPlot = false;
         _overlay.Clear();
+        _plotLeft = string.Equals(Unit.Trim(), "nm", StringComparison.OrdinalIgnoreCase)
+            ? WavelengthPadLeft
+            : PadLeft;
 
         List<ChartSeries> series = Series?.Where(s => s.Points.Count > 0).ToList() ?? new List<ChartSeries>();
         if (series.Count == 0)
@@ -356,14 +361,14 @@ public partial class ChartView : UserControl
                 secondarySeries.Max(s => s.Points.Max(p => p.Y)));
         ValueAxis secondaryAxisValue = secondaryAxis.GetValueOrDefault();
         double padRight = secondaryAxis is null ? PadRight : 72;
-        double plotW = width - PadLeft - padRight;
+        double plotW = width - _plotLeft - padRight;
         double plotH = height - PadTop - PadBottom;
         if (plotW <= 0 || plotH <= 0)
         {
             return;
         }
 
-        double ToPx(double x) => PadLeft + (x - minX) / (maxX - minX) * plotW;
+        double ToPx(double x) => _plotLeft + (x - minX) / (maxX - minX) * plotW;
         double ToPy(double y) => PadTop + (1 - (y - minY) / (maxY - minY)) * plotH;
         double ToSecondaryPy(double y) => secondaryAxis is null
             ? ToPy(y)
@@ -425,10 +430,10 @@ public partial class ChartView : UserControl
         {
             double yVal = _yAxis.LabelAt(i);
             double py = ToPy(yVal);
-            AddLine(PadLeft, py, PadLeft + plotW, py, GridBrush, 1, dashed: i is not 0 && i != gridSteps);
+            AddLine(_plotLeft, py, _plotLeft + plotW, py, GridBrush, 1, dashed: i is not 0 && i != gridSteps);
             int decimals = NiceAxis.RequiredDecimalPlaces(_yAxis.Step, MinimumYDecimals);
             string yLabel = yVal.ToString($"F{decimals}", CultureInfo.CurrentCulture);
-            AddText($"{yLabel}{Unit}", 2, py - 8, MutedBrush, 10.5, PadLeft - 8, TextAlignment.Right);
+            AddText($"{yLabel}{Unit}", 2, py - 8, MutedBrush, 10.5, _plotLeft - 8, TextAlignment.Right);
         }
 
         if (secondaryAxis is { } rightAxis)
@@ -440,7 +445,7 @@ public partial class ChartView : UserControl
                 double py = ToSecondaryPy(value);
                 int decimals = NiceAxis.RequiredDecimalPlaces(rightAxis.Step, 0);
                 AddText($"{value.ToString($"F{decimals}", CultureInfo.CurrentCulture)}{SecondaryUnit}",
-                    PadLeft + plotW + 6, py - 8, MutedBrush, 10.5, padRight - 8, TextAlignment.Left);
+                    _plotLeft + plotW + 6, py - 8, MutedBrush, 10.5, padRight - 8, TextAlignment.Left);
             }
         }
 
@@ -524,7 +529,7 @@ public partial class ChartView : UserControl
                 Canvas.SetTop(dot, markerY - 5);
                 PlotCanvas.Children.Add(dot);
 
-                double labelLeft = Math.Min(markerX + 8, PadLeft + plotW - 118);
+                double labelLeft = Math.Min(markerX + 8, _plotLeft + plotW - 118);
                 double labelTop = Math.Max(PadTop + 2, markerY - 24);
                 AddText(s.PointLabel, labelLeft, labelTop, s.Stroke, 11, 112, TextAlignment.Left);
             }
@@ -606,7 +611,7 @@ public partial class ChartView : UserControl
                 IsHitTestVisible = false,
                 Child = legendRows,
             };
-            Canvas.SetLeft(legend, PadLeft + 3);
+            Canvas.SetLeft(legend, _plotLeft + 3);
             Canvas.SetTop(legend, PadTop + 2);
             PlotCanvas.Children.Add(legend);
         }
@@ -629,7 +634,7 @@ public partial class ChartView : UserControl
             Cursor = Cursors.Hand,
             ToolTip = "Klikni alebo ťahaj – posunieš výrez po celom rozsahu",
         };
-        Canvas.SetLeft(track, PadLeft);
+        Canvas.SetLeft(track, _plotLeft);
         Canvas.SetTop(track, _trackTop);
         PlotCanvas.Children.Add(track);
 
@@ -639,7 +644,7 @@ public partial class ChartView : UserControl
             Height = 6, RadiusX = 3, RadiusY = 3,
             Fill = AccentBrush, IsHitTestVisible = false,
         };
-        Canvas.SetLeft(thumb, PadLeft + (_window.Min - _fullMinX) / full * plotW);
+        Canvas.SetLeft(thumb, _plotLeft + (_window.Min - _fullMinX) / full * plotW);
         Canvas.SetTop(thumb, _trackTop);
         PlotCanvas.Children.Add(thumb);
 
@@ -661,7 +666,7 @@ public partial class ChartView : UserControl
             },
         };
         chip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(chip, PadLeft + 2);
+        Canvas.SetLeft(chip, _plotLeft + 2);
         Canvas.SetTop(chip, PadTop + plotH - chip.DesiredSize.Height - 2);
         PlotCanvas.Children.Add(chip);
     }
@@ -670,7 +675,7 @@ public partial class ChartView : UserControl
 
     private void OnPlotMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        double plotW = PlotCanvas.ActualWidth - PadLeft - PadRight;
+        double plotW = PlotCanvas.ActualWidth - _plotLeft - PadRight;
         if (!_hasPlot || plotW <= 0)
         {
             return;
@@ -697,8 +702,8 @@ public partial class ChartView : UserControl
 
         double factor = Math.Pow(ZoomStep, notches);
 
-        double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, PadLeft, PadLeft + plotW);
-        if (!_viewport.Zoom(factor, (cursorX - PadLeft) / plotW, _fullMinX, _fullMaxX))
+        double cursorX = Math.Clamp(e.GetPosition(PlotCanvas).X, _plotLeft, _plotLeft + plotW);
+        if (!_viewport.Zoom(factor, (cursorX - _plotLeft) / plotW, _fullMinX, _fullMaxX))
         {
             // Nothing left to zoom. While the chart is zoomed in, the gesture still belongs
             // to it – letting it bubble scrolled the whole dashboard out from under the
@@ -740,7 +745,7 @@ public partial class ChartView : UserControl
             return;
         }
 
-        if (pos.X < PadLeft || pos.X > PadLeft + _plotW || pos.Y < PadTop || pos.Y > PadTop + _plotH)
+        if (pos.X < _plotLeft || pos.X > _plotLeft + _plotW || pos.Y < PadTop || pos.Y > PadTop + _plotH)
             return;
 
         _isSelecting = true;
@@ -763,7 +768,7 @@ public partial class ChartView : UserControl
     /// <summary>True while the cursor is over the mini-map strip under the plot.</summary>
     private bool IsOnTrack(Point pos) =>
         _window.IsZoomed && pos.Y >= _trackTop - 6 && pos.Y <= _trackTop + 12 &&
-        pos.X >= PadLeft && pos.X <= PadLeft + _plotW;
+        pos.X >= _plotLeft && pos.X <= _plotLeft + _plotW;
 
     /// <summary>Centres the visible window on the point of the mini-map that was clicked.</summary>
     private void ScrubTo(double x)
@@ -773,7 +778,7 @@ public partial class ChartView : UserControl
             return;
         }
 
-        double fraction = Math.Clamp((x - PadLeft) / _plotW, 0, 1);
+        double fraction = Math.Clamp((x - _plotLeft) / _plotW, 0, 1);
         double centre = _fullMinX + (fraction * (_fullMaxX - _fullMinX));
         if (_viewport.MoveTo(centre - (_window.Span / 2), _fullMinX, _fullMaxX))
         {
@@ -808,8 +813,8 @@ public partial class ChartView : UserControl
             return;
         }
 
-        double x1 = _minX + ((start.X - PadLeft) / _plotW * (_maxX - _minX));
-        double x2 = _minX + ((end.X - PadLeft) / _plotW * (_maxX - _minX));
+        double x1 = _minX + ((start.X - _plotLeft) / _plotW * (_maxX - _minX));
+        double x2 = _minX + ((end.X - _plotLeft) / _plotW * (_maxX - _minX));
         double y1 = _maxY - ((start.Y - PadTop) / _plotH * (_maxY - _minY));
         double y2 = _maxY - ((end.Y - PadTop) / _plotH * (_maxY - _minY));
         _viewport.SelectRange(x1, x2, _fullMinX, _fullMaxX);
@@ -820,7 +825,7 @@ public partial class ChartView : UserControl
     }
 
     private Point ClampToPlot(Point point) => new(
-        Math.Clamp(point.X, PadLeft, PadLeft + _plotW),
+        Math.Clamp(point.X, _plotLeft, _plotLeft + _plotW),
         Math.Clamp(point.Y, PadTop, PadTop + _plotH));
 
     private void OnPlotRightMouseDown(object sender, MouseButtonEventArgs e)
@@ -872,6 +877,7 @@ public partial class ChartView : UserControl
             Foreground = brush,
             FontSize = size,
             TextAlignment = align,
+            TextWrapping = TextWrapping.NoWrap,
             IsHitTestVisible = false,
         };
         if (width is { } w)
@@ -934,7 +940,7 @@ public partial class ChartView : UserControl
             return;
         }
 
-        double left = PadLeft;
+        double left = _plotLeft;
         double mx = Math.Clamp(e.GetPosition(PlotCanvas).X, left, left + _plotW);
         double dataX = _minX + (mx - left) / _plotW * (_maxX - _minX);
         if (InterpolateY(_hoverSeries.Points, dataX) is not { } yv)
