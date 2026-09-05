@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.160] – 2026-09-06
+
+### Opravené
+- Kompaktný štítok komory s podporou teploty a vlhkosti používa kratší zápis `T+RH`, menšie vnútorné odsadenie a mierne menšie písmo, takže sa zmestí celý do jedného riadka aj počas FBG kalibrácie.
+- Úplný význam štítku zostáva dostupný v nápovede po prejdení myšou.
+- Záložná verzia bola zvýšená na 1.76.160.
+
 ## [1.76.159] – 2026-09-06
 
 ### Pridané

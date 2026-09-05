@@ -465,9 +465,9 @@
                                                     Visibility="{Binding HasControlMode, Converter={StaticResource BoolToVisibility}}">
                                                 <TextBlock Text="{Binding ControlModeBadge}" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11.5" />
                                             </Border>
-                                            <Border Style="{StaticResource Badge}">
-                                                <TextBlock Text="{Binding KindCompactLabel}" Style="{StaticResource Caption}" FontSize="11.5"
-                                                           ToolTip="{Binding KindLabel}" />
+                                            <Border Style="{StaticResource Badge}" Padding="5,3" Margin="0,0,0,4">
+                                                <TextBlock Text="{Binding KindCompactLabel}" Style="{StaticResource Caption}" FontSize="10.5"
+                                                           TextWrapping="NoWrap" ToolTip="{Binding KindLabel}" />
                                             </Border>
                                         </StackPanel>
 

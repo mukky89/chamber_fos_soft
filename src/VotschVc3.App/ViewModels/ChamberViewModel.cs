@@ -219,7 +219,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ? "Sušiareň"
         : IsSika
             ? "Kúpeľ"
-            : SupportsHumidity ? "T + RH" : "T";
+            : SupportsHumidity ? "T+RH" : "T";
 
     #region Nameplate (type-plate details)
 
