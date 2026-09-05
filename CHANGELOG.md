@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.99] – 2026-09-05
+
+### Opravené
+- Počas aktívnej kalibrácie zostáva operátorom schválený zoznam FBG peakov nemenný; live dáta aktualizujú iba existujúce riadky a nemôžu rozbiť WPF tabuľku zmenou jej zdroja počas vykresľovania.
+- Live grafy zosúlaďujú svoje väzby na peaky až po dokončení spracovania zmeny kolekcie, nie priamo vo WPF `CollectionChanged` udalosti.
+- Známa prechodná chyba konzistencie `ItemsControl` už nevytvára sériu vnorených modálnych okien; ostatné neočakávané chyby majú zároveň ochranu proti duplicitnému dialógu.
+- Doplnené regresné testy uzamknutia topológie peakov počas aktívneho behu.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.99.
+
 ## [1.76.98] – 2026-09-05
 
 ### Opravené

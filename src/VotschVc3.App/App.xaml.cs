@@ -10,6 +10,8 @@ namespace VotschVc3.App;
 /// <summary>Application entry point. Configures the diagnostic log and reports unhandled exceptions.</summary>
 public partial class App : Application
 {
+    private bool _unexpectedErrorDialogOpen;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -123,11 +125,38 @@ public partial class App : Application
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         AppLog.Error("UI", e.Exception.ToString());
-        MessageBox.Show(
-            e.Exception.Message,
-            "Neočakávaná chyba",
-            MessageBoxButton.OK,
-            MessageBoxImage.Error);
         e.Handled = true;
+
+        // A collection notification can arrive while WPF is validating generated rows. The
+        // affected panels reconcile on ContextIdle; opening a nested modal dispatcher frame here
+        // only repeats the same transient exception and creates a stack of error windows.
+        if (IsItemsControlConsistencyException(e.Exception) || _unexpectedErrorDialogOpen) return;
+
+        try
+        {
+            _unexpectedErrorDialogOpen = true;
+            MessageBox.Show(
+                e.Exception.Message,
+                "Neočakávaná chyba",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            _unexpectedErrorDialogOpen = false;
+        }
+    }
+
+    private static bool IsItemsControlConsistencyException(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains(
+                    "ItemsControl is inconsistent with its items source",
+                    StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }

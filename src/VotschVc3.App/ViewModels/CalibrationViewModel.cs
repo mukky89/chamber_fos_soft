@@ -962,10 +962,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         var knownSources = new HashSet<string>(
             Peaks.Select(row => $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}|{row.PeakId}"),
             StringComparer.OrdinalIgnoreCase);
+        IReadOnlySet<string> sourcesToAdd = CalibrationPeakTopologyPolicy.SelectNewSources(
+                knownSources,
+                bySource.Keys,
+                IsRunning)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         int added = 0;
         foreach (KeyValuePair<string, PeakLoggerMeasurement> entry in bySource)
         {
-            if (knownSources.Contains(entry.Key)) continue;
+            if (!sourcesToAdd.Contains(entry.Key)) continue;
 
             PeakLoggerMeasurement measurement = entry.Value;
             var sensor = new PeakLoggerSensor(measurement.SerialNumber, measurement.Channel, Array.Empty<PeakLoggerPeak>());

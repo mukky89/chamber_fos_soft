@@ -59,6 +59,7 @@ public partial class CalibrationWindow
     private DateTimeOffset _liveTraceOrigin = DateTimeOffset.Now;
     private bool _wasRunningV4;
     private CancellationTokenSource? _primeReferenceCts;
+    private DispatcherOperation? _fbgTopologyReconcileOperation;
 
     private static readonly Brush[] FbgTracePalette =
     {
@@ -399,20 +400,25 @@ public partial class CalibrationWindow
 
     private void OnFbgTracePeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action == NotifyCollectionChangedAction.Reset)
-        {
-            foreach (CalibrationPeakRowViewModel row in _fbgLiveObservedRows.ToArray()) DetachFbgTraceRow(row);
-            foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks) AttachFbgTraceRow(row);
-        }
-        else
-        {
-            if (e.OldItems is not null)
-                foreach (object? item in e.OldItems)
-                    if (item is CalibrationPeakRowViewModel row) DetachFbgTraceRow(row);
-            if (e.NewItems is not null)
-                foreach (object? item in e.NewItems)
-                    if (item is CalibrationPeakRowViewModel row) AttachFbgTraceRow(row);
-        }
+        // Never enumerate the source or rebuild visual children from inside CollectionChanged.
+        // WPF's ItemContainerGenerator is still applying the same event at this point.
+        if (_fbgTopologyReconcileOperation is { Status: DispatcherOperationStatus.Pending or DispatcherOperationStatus.Executing })
+            return;
+
+        _fbgTopologyReconcileOperation = Dispatcher.BeginInvoke(
+            DispatcherPriority.ContextIdle,
+            new Action(ReconcileFbgTraceTopology));
+    }
+
+    private void ReconcileFbgTraceTopology()
+    {
+        _fbgTopologyReconcileOperation = null;
+        HashSet<CalibrationPeakRowViewModel> current = _viewModel.Peaks.ToHashSet();
+        foreach (CalibrationPeakRowViewModel row in _fbgLiveObservedRows.Where(row => !current.Contains(row)).ToArray())
+            DetachFbgTraceRow(row);
+        foreach (CalibrationPeakRowViewModel row in current)
+            AttachFbgTraceRow(row);
+
         RefreshFbgTraceFilterPanel();
         RefreshFbgLiveTraceCharts();
     }
@@ -704,6 +710,9 @@ public partial class CalibrationWindow
             _sylexFosIntegration.RowValidationFailed -= OnSylexRowValidationFailedV4;
         _primeReferenceCts?.Cancel();
         _primeReferenceCts?.Dispose();
+        if (_fbgTopologyReconcileOperation is { Status: DispatcherOperationStatus.Pending })
+            _fbgTopologyReconcileOperation.Abort();
+        _fbgTopologyReconcileOperation = null;
         Closed -= OnProductionWorkspaceV4Closed;
     }
 }
