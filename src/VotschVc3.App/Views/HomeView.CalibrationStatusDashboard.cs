@@ -184,6 +184,15 @@ public partial class HomeView
         runMeta.Children.Add(openRunFolder);
         runMeta.Children.Add(runId);
         var plateau = new TextBlock { Tag = "plateau", FontSize = 11, Foreground = muted };
+        var eta = new TextBlock
+        {
+            Tag = "eta",
+            FontSize = 11,
+            FontFamily = new FontFamily("Segoe UI Semibold"),
+            Foreground = new SolidColorBrush(Color.FromRgb(139, 186, 255)),
+            Margin = new Thickness(0, 5, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+        };
 
         var detail = new TextBlock
         {
@@ -214,6 +223,7 @@ public partial class HomeView
         stack.Children.Add(profile);
         stack.Children.Add(runMeta);
         stack.Children.Add(plateau);
+        stack.Children.Add(eta);
         stack.Children.Add(detail);
         stack.Children.Add(metrics);
         stack.Children.Add(progress);
@@ -261,6 +271,7 @@ public partial class HomeView
             TextBlock? runId = FindTagged<TextBlock>(stack, "runId");
             Button? openRunFolder = FindTagged<Button>(stack, "openRunFolder");
             TextBlock? plateau = FindTagged<TextBlock>(stack, "plateau");
+            TextBlock? eta = FindTagged<TextBlock>(stack, "eta");
             TextBlock? detail = FindTagged<TextBlock>(stack, "detail");
             TextBlock? target = FindTagged<TextBlock>(stack, "target");
             TextBlock? reference = FindTagged<TextBlock>(stack, "reference");
@@ -286,6 +297,13 @@ public partial class HomeView
                 openRunFolder.IsEnabled = !string.IsNullOrWhiteSpace(snapshot.RunDirectory);
             }
             if (plateau is not null) plateau.Text = $"{snapshot.Plateau} · čas fázy {snapshot.PhaseElapsed}";
+            if (eta is not null)
+            {
+                eta.Text = snapshot.EstimatedFinish is not "—" and not ""
+                    ? $"Odhad konca: {snapshot.EstimatedFinish} · zostáva {snapshot.Eta}"
+                    : $"Odhad konca: {snapshot.Eta}";
+                eta.ToolTip = snapshot.EtaBasis;
+            }
             if (detail is not null)
                 detail.Text = snapshot.CurrentActivity;
             if (target is not null) target.Text = snapshot.Target;

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.151] – 2026-09-05
+
+### Pridané
+- Živá karta FBG kalibrácie na hlavnom prehľade zobrazuje odhadovaný čas ukončenia aj zostávajúci čas podľa existujúceho dynamického výpočtu kalibrácie.
+- Ak pre aktuálny priebeh nie je možné vytvoriť spoľahlivý odhad, karta namiesto zavádzajúceho presného času zobrazí neurčitý odhad; vysvetlenie výpočtu je dostupné v nápovede.
+- Záložná verzia bola zvýšená na 1.76.151.
+
 ## [1.76.150] – 2026-09-05
 
 ### Optimalizované

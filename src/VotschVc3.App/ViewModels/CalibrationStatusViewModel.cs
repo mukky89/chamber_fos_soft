@@ -36,10 +36,13 @@ public sealed class CalibrationStatusViewModel : ObservableObject
         string reference,
         string peakSummary,
         string progressLabel,
-        string phaseElapsed)
+        string phaseElapsed,
+        string eta,
+        string estimatedFinish,
+        string etaBasis)
     {
         _workspaces[chamberId] = new(chamberName, isRunning, profileName, runId, runDirectory, runState, plateau, Math.Clamp(progressPercent, 0, 100),
-            displayState, currentActivity, target, reference, peakSummary, progressLabel, phaseElapsed);
+            displayState, currentActivity, target, reference, peakSummary, progressLabel, phaseElapsed, eta, estimatedFinish, etaBasis);
         WorkspaceStatus[] active = _workspaces.Values.Where(status => status.IsRunning).ToArray();
         IsRunning = active.Length > 0;
         StateText = active.Length switch
@@ -64,7 +67,7 @@ public sealed class CalibrationStatusViewModel : ObservableObject
     {
         if (!_workspaces.TryGetValue(chamberId, out WorkspaceStatus? status))
             return new(chamberId, string.Empty, false, string.Empty, "—", string.Empty, "Idle", string.Empty, 0,
-                "READY · Pripravené", "Kalibrácia nie je spustená.", "—", "—", "0 / 0", "0 %", "—");
+                "READY · Pripravené", "Kalibrácia nie je spustená.", "—", "—", "0 / 0", "0 %", "—", "—", "—", string.Empty);
         return new(
             chamberId,
             status.ChamberName,
@@ -81,7 +84,10 @@ public sealed class CalibrationStatusViewModel : ObservableObject
             status.Reference,
             status.PeakSummary,
             status.ProgressLabel,
-            status.PhaseElapsed);
+            status.PhaseElapsed,
+            status.Eta,
+            status.EstimatedFinish,
+            status.EtaBasis);
     }
 
     private sealed record WorkspaceStatus(
@@ -99,7 +105,10 @@ public sealed class CalibrationStatusViewModel : ObservableObject
         string Reference,
         string PeakSummary,
         string ProgressLabel,
-        string PhaseElapsed);
+        string PhaseElapsed,
+        string Eta,
+        string EstimatedFinish,
+        string EtaBasis);
 }
 
 public sealed record CalibrationWorkspaceStatusSnapshot(
@@ -118,4 +127,7 @@ public sealed record CalibrationWorkspaceStatusSnapshot(
     string Reference,
     string PeakSummary,
     string ProgressLabel,
-    string PhaseElapsed);
+    string PhaseElapsed,
+    string Eta,
+    string EstimatedFinish,
+    string EtaBasis);
