@@ -10,6 +10,7 @@ using VotschVc3.App.Charting;
 using VotschVc3.App.Notifications;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Calibration;
+using VotschVc3.Core.Charting;
 
 namespace VotschVc3.App.Views;
 
@@ -37,7 +38,9 @@ internal static class CalibrationWindowProductionWorkspaceV4Bootstrap
 
 public partial class CalibrationWindow
 {
-    private const int MaxLiveTracePoints = 3000;
+    private const int MaxRenderedTracePoints = 3000;
+    private const int TraceCompactionThreshold = 12000;
+    private const int TraceCompactionTarget = 6000;
     private bool _productionWorkspaceV4Initialized;
     private readonly Dictionary<string, List<(DateTimeOffset Time, double Wavelength)>> _fbgLiveTrace = new(StringComparer.Ordinal);
     private readonly HashSet<CalibrationPeakRowViewModel> _fbgLiveObservedRows = new();
@@ -449,7 +452,7 @@ public partial class CalibrationWindow
             if (trace.Count == 0 || trace[^1].Time != timestamp)
             {
                 trace.Add((timestamp, row.CurrentWavelengthNm));
-                if (trace.Count > MaxLiveTracePoints) trace.RemoveRange(0, trace.Count - MaxLiveTracePoints);
+                CompactTraceIfNeeded(trace, item => item.Wavelength);
             }
             RefreshFbgLiveTraceCharts();
         }
@@ -557,7 +560,7 @@ public partial class CalibrationWindow
         {
             _lastChamberSnapshot = sampleAt;
             _chamberTrace.Add((sampleAt, chamberTemperature));
-            if (_chamberTrace.Count > 7200) _chamberTrace.RemoveRange(0, _chamberTrace.Count - 7200);
+            CompactTraceIfNeeded(_chamberTrace, item => item.Temperature);
         }
 
         IReadOnlyList<CalibrationReferenceTracePoint> reference = CalibrationReferenceTraceStore.Instance.GetTrace(_chamberId);
@@ -612,7 +615,10 @@ public partial class CalibrationWindow
             }
             chart.ChartTitle = BuildFbgTraceLabel(row);
             Point[] points = _fbgLiveTrace.TryGetValue(FbgTraceKey(row), out var trace)
-                ? trace.Where(p => !_viewModel.IsRunning || p.Time >= _liveTraceOrigin)
+                ? TimeSeriesEnvelopeReducer.Reduce(
+                        trace.Where(p => !_viewModel.IsRunning || p.Time >= _liveTraceOrigin).ToArray(),
+                        point => point.Wavelength,
+                        MaxRenderedTracePoints)
                     .Select(p => new Point((p.Time - origin).TotalMinutes, p.Wavelength)).ToArray()
                 : Array.Empty<Point>();
             chart.Series = points.Length == 0 ? Array.Empty<ChartSeries>()
@@ -642,6 +648,14 @@ public partial class CalibrationWindow
             _fbgTraceSummary.Text = $"Peaky: {calibrationSelected} · stabilné: {_viewModel.Dashboard.StableCount} · aktívny: {_viewModel.Dashboard.ActivePeak} · WIKA: {referenceValue} · komora: {_viewModel.Dashboard.Actual}";
         }
         UpdateFbgTraceFilterSummary();
+    }
+
+    private static void CompactTraceIfNeeded<T>(List<T> trace, Func<T, double> valueSelector)
+    {
+        if (trace.Count <= TraceCompactionThreshold) return;
+        IReadOnlyList<T> compacted = TimeSeriesEnvelopeReducer.Reduce(trace, valueSelector, TraceCompactionTarget);
+        trace.Clear();
+        trace.AddRange(compacted);
     }
 
     private IReadOnlyList<ChartSeries> AddTemperatureStabilityLimits(ChartSeries temperature, IReadOnlyList<Point> points)

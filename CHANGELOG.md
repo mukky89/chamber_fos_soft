@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.98] – 2026-09-05
+
+### Opravené
+- Live FBG grafy už po dosiahnutí 3000 bodov nezahadzujú začiatok behu, zatiaľ čo os X naďalej ukazuje čas od spustenia.
+- Dlhé záznamy sa priebežne redukujú chronologickou min/max obálkou, ktorá zachová celý časový rozsah, teplotné skoky, trend aj krátke špičky bez preťaženia WPF vykresľovania.
+- Rovnaká ochrana celého rozsahu bola doplnená pre internú teplotu komory v Live data.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.98.
+
 ## [1.76.97] – 2026-09-05
 
 ### Opravené
