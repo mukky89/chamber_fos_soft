@@ -40,6 +40,34 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(100d / 3, m.OverallProgress, 5); Assert.StartsWith("≈", m.Eta);
         Assert.Equal("Done", m.Points[0].State); Assert.Equal("Pending", m.Points[1].State);
     }
+    [Fact] public void EtaBecomesUnknownInsteadOfPublishingFalseFinish_WhenCurrentPointExceedsEvidence()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted), Start.AddMinutes(10));
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 1) with { PlateauElapsed = TimeSpan.FromHours(4) }, Start.AddHours(4));
+
+        Assert.Equal("Neurčitý", m.Eta);
+        Assert.Equal("—", m.Finish);
+        Assert.Contains("prekročil", m.EtaBasis);
+    }
+    [Fact] public void EtaUsesHistoricalPlateausAndIncludesConfiguredSetpointRamps()
+    {
+        var history = new[]
+        {
+            new CalibrationPlateauStatistics(0, -40, 3, TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(25), TimeSpan.FromMinutes(40)),
+            new CalibrationPlateauStatistics(1, 0, 3, TimeSpan.FromMinutes(20), TimeSpan.FromMinutes(20), TimeSpan.FromMinutes(18), TimeSpan.FromMinutes(30)),
+        };
+        var m = new CalibrationDashboardViewModel();
+        m.Configure("Profil", "Komora", new[] { -40d, 0d }, true, "Rules",
+            enableSetpointRamp: true, setpointRampCPerMinute: 1, historicalPlateaus: history);
+        m.ReportChamberTemperature(20, Start);
+        m.Begin(Start);
+        m.ReportChamberTemperature(20, Start);
+        m.Tick(Start);
+
+        Assert.Equal("≈ 2 h 30 min", m.Eta);
+        Assert.Contains("historické mediány", m.EtaBasis);
+    }
     [Fact] public void ParallelMeasurementDoesNotCountStabilitySamplesAsMeasurement()
     {
         var m = Model(); m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 2), Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2" }), Start);

@@ -28,6 +28,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private TimeSpan _sensorTimeout = TimeSpan.FromMinutes(60);
     private bool _enableSetpointRamp = true;
     private double _setpointRampCPerMinute = 1;
+    private double[] _plannedTemperatures = Array.Empty<double>();
+    private IReadOnlyDictionary<int, CalibrationPlateauStatistics> _historicalPlateaus =
+        new Dictionary<int, CalibrationPlateauStatistics>();
     private double? _observedCycleSeconds;
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
@@ -139,6 +142,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string PointElapsed => _snapshot is null ? "—" : Duration(_snapshot.PlateauElapsed);
     public string Eta { get; private set; } = "Po prvom bode";
     public string Finish { get; private set; } = "—";
+    public string EtaBasis { get; private set; } = "Odhad sa spresní po dokončení prvého bodu alebo z historických behov tohto profilu.";
     public string LastUpdate => _lastSnapshotAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—";
     public DateTimeOffset? LastTemperatureSampleAt { get; private set; }
     private DateTimeOffset? _lastSnapshotAt;
@@ -171,12 +175,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void Configure(string profile, string chamber, IEnumerable<double> temperatures, bool hasReference, string rules, Guid? referenceChamberId = null, double toleranceC = 0, double maxDriftCPerMinute = 0, string? profileCode = null,
         int requiredStableSamples = 50, int requiredMeasurementSamples = 50, double maxRangePm = 5, double maxStdDevPm = 1.5,
         double maxPeakDriftPmPerMinute = 1, TimeSpan? stableDuration = null, TimeSpan? stabilityTimeout = null, TimeSpan? sensorTimeout = null,
-        bool enableSetpointRamp = true, double setpointRampCPerMinute = 1)
+        bool enableSetpointRamp = true, double setpointRampCPerMinute = 1,
+        IReadOnlyList<CalibrationPlateauStatistics>? historicalPlateaus = null)
     {
         if (_started is not null) return;
         double[] plan = temperatures.ToArray();
         string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{maxDriftCPerMinute}|" +
-            $"{requiredStableSamples}|{requiredMeasurementSamples}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|{string.Join(",", plan)}";
+            $"{requiredStableSamples}|{requiredMeasurementSamples}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|" +
+            $"{string.Join(",", historicalPlateaus?.Select(item => $"{item.PlateauIndex}:{item.SampleCount}:{item.MedianDuration.Ticks}:{item.MaximumDuration.Ticks}") ?? Array.Empty<string>())}|{string.Join(",", plan)}";
         if (_planSignature == signature) return;
         _planSignature = signature;
         ProfileDescription = profile;
@@ -197,6 +203,10 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _sensorTimeout = sensorTimeout ?? TimeSpan.Zero;
         _enableSetpointRamp = enableSetpointRamp;
         _setpointRampCPerMinute = Math.Clamp(Math.Abs(setpointRampCPerMinute), 0.1, 20.0);
+        _plannedTemperatures = plan;
+        _historicalPlateaus = (historicalPlateaus ?? Array.Empty<CalibrationPlateauStatistics>())
+            .GroupBy(item => item.PlateauIndex)
+            .ToDictionary(group => group.Key, group => group.First());
         ReferenceChamberId = referenceChamberId;
         Points.Clear();
         foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká"));
@@ -356,18 +366,127 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         PhaseElapsed = _phaseStarted is { } phase ? Duration(clock - phase) : "—";
         Freshness = !_running ? (_started is null ? "Pripravené" : "Posledné dáta behu") : _lastSnapshotAt is null ? "Čaká na prvé dáta" :
             now - _lastSnapshotAt > TimeSpan.FromSeconds(15) ? "Bez nových dát > 15 s" : "Live dáta";
-        var durations = Points.Where(p => p.Duration.HasValue).Select(p => p.Duration!.Value.TotalSeconds).ToArray();
-        Eta = "Po prvom bode"; Finish = "—";
-        if (_ended is not null) { Eta = "—"; Finish = _ended.Value.ToLocalTime().ToString("HH:mm"); }
-        else if (_paused) Eta = "Pozastavené";
-        else if (durations.Length > 0 && _running)
-        {
-            double seconds = durations.Average() * (Points.Count - CompletedPoints);
-            if (_snapshot is { State: not CalibrationRunState.PlateauCompleted }) seconds -= _snapshot.PlateauElapsed.TotalSeconds;
-            if (seconds > 0) { Eta = "≈ " + Duration(TimeSpan.FromSeconds(seconds)); Finish = "≈ " + now.AddSeconds(seconds).ToLocalTime().ToString("HH:mm"); }
-            else Eta = "Odhad prekročený";
-        }
+        UpdateEta(now);
         Notify();
+    }
+
+    private void UpdateEta(DateTimeOffset now)
+    {
+        Eta = "Po prvom bode";
+        Finish = "—";
+        EtaBasis = "Odhad sa spresní po dokončení prvého bodu alebo z historických behov tohto profilu.";
+        if (_ended is not null)
+        {
+            Eta = "—";
+            Finish = _ended.Value.ToLocalTime().ToString("HH:mm");
+            EtaBasis = "Kalibrácia je ukončená; zobrazený je skutočný čas konca.";
+            return;
+        }
+        if (_paused)
+        {
+            Eta = "Pozastavené";
+            EtaBasis = "Počas pauzy sa predpokladaný koniec nepočíta.";
+            return;
+        }
+        if (!_running || Points.Count == 0) return;
+
+        double[] completedDurations = Points
+            .Where(point => point.Duration.HasValue)
+            .Select(point => point.Duration!.Value.TotalSeconds)
+            .OrderBy(value => value)
+            .ToArray();
+        double? liveTypicalSeconds = completedDurations.Length == 0
+            ? null
+            : completedDurations[completedDurations.Length / 2];
+        int currentIndex = _snapshot?.PlateauIndex ?? -1;
+        bool currentIsActive = currentIndex >= 0 && _snapshot?.State != CalibrationRunState.PlateauCompleted;
+        int firstRemainingIndex = currentIndex < 0 ? 0 : currentIsActive ? currentIndex : currentIndex + 1;
+        double seconds = 0;
+        bool usedHistory = false;
+
+        for (int index = firstRemainingIndex; index < Points.Count; index++)
+        {
+            double? expected = null;
+            double? upperBound = null;
+            if (_historicalPlateaus.TryGetValue(index, out CalibrationPlateauStatistics? history))
+            {
+                expected = history.MedianDuration.TotalSeconds;
+                upperBound = history.MaximumDuration.TotalSeconds;
+                usedHistory = true;
+            }
+            else if (liveTypicalSeconds is { } liveTypical)
+            {
+                expected = liveTypical;
+            }
+
+            if (expected is null)
+            {
+                if (completedDurations.Length == 0 && _historicalPlateaus.Count == 0)
+                {
+                    Eta = "Po prvom bode";
+                    EtaBasis = "Pre zostávajúce body zatiaľ nie je dokončený bod ani porovnateľná história.";
+                }
+                else
+                {
+                    Eta = "Neurčitý";
+                    EtaBasis = "Pre niektorý zostávajúci bod nie je porovnateľná história ani spoľahlivý odhad.";
+                }
+                return;
+            }
+
+            if (currentIsActive && index == currentIndex)
+            {
+                double elapsed = Math.Max(0, _snapshot!.PlateauElapsed.TotalSeconds);
+                if (elapsed >= expected.Value)
+                {
+                    if (upperBound is { } maximum && elapsed < maximum)
+                        expected = maximum;
+                    else
+                    {
+                        Eta = "Neurčitý";
+                        EtaBasis = "Aktuálny bod už prekročil dostupný typický/historický čas; stabilitu WIKA ani FBG nemožno bezpečne predpovedať.";
+                        return;
+                    }
+                }
+                seconds += Math.Max(0, expected.Value - elapsed);
+            }
+            else
+            {
+                seconds += expected.Value;
+            }
+        }
+
+        seconds += EstimateRemainingRampSeconds(currentIndex, currentIsActive);
+        if (seconds <= 0)
+        {
+            Eta = "Dokončuje sa";
+            EtaBasis = "Všetky merateľné zostávajúce kroky sú hotové; prebieha uloženie a uzavretie behu.";
+            return;
+        }
+
+        Eta = "≈ " + Duration(TimeSpan.FromSeconds(seconds));
+        Finish = "≈ " + now.AddSeconds(seconds).ToLocalTime().ToString("dd.MM. HH:mm");
+        EtaBasis = usedHistory
+            ? "Odhad používa historické mediány jednotlivých plat, aktuálny priebeh bodu a zostávajúci riadený nábeh setpointu."
+            : "Odhad používa medián dokončených bodov tohto behu, aktuálny priebeh a zostávajúci riadený nábeh setpointu.";
+    }
+
+    private double EstimateRemainingRampSeconds(int currentIndex, bool currentIsActive)
+    {
+        if (!_enableSetpointRamp || _plannedTemperatures.Length == 0) return 0;
+        double ratePerSecond = _setpointRampCPerMinute / 60d;
+        double seconds = 0;
+        int firstTransition = Math.Max(1, currentIndex + 1);
+
+        if (currentIndex < 0 && ActualTemperature is { } actual)
+            seconds += Math.Abs(_plannedTemperatures[0] - actual) / ratePerSecond;
+        else if (currentIsActive && _state == CalibrationRunState.MovingToPlateau &&
+                 currentIndex < _plannedTemperatures.Length && ActualTemperature is { } currentActual)
+            seconds += Math.Abs(_plannedTemperatures[currentIndex] - currentActual) / ratePerSecond;
+
+        for (int index = firstTransition; index < _plannedTemperatures.Length; index++)
+            seconds += Math.Abs(_plannedTemperatures[index] - _plannedTemperatures[index - 1]) / ratePerSecond;
+        return seconds;
     }
     private void RefreshSteps()
     {

@@ -65,7 +65,7 @@
       <TextBlock Text="{Binding Finish, StringFormat=Predpokladaný koniec / koniec: {0}}"/>
       <TextBlock Text="{Binding Started, StringFormat=Štart: {0}}" Margin="0,10,0,3"/>
       <TextBlock Text="{Binding Elapsed, StringFormat=Čas od štartu: {0}}"/>
-      <TextBlock Text="Odhad vychádza z dokončených kalibračných bodov; profilové rampy a časy sa ignorujú." Style="{StaticResource Muted}" Margin="0,12,0,0"/>
+      <TextBlock Text="{Binding EtaBasis}" Style="{StaticResource Muted}" Margin="0,12,0,0"/>
      </StackPanel>
     </Grid>
    </Border>

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.96] – 2026-09-05
+
+### Opravené
+- Odhad zostávajúceho času už neodpočítava celý rozpracovaný bod od jednoduchého priemeru a nezobrazuje zavádzajúci čas konca po prekročení dostupných údajov.
+- ETA používa historické mediány a maximá jednotlivých plat, aktuálny priebeh a započítava zostávajúci plynulý nábeh setpointu.
+- Pri fyzikálne nepredvídateľnom čakaní na WIKA alebo FBG sa zobrazí stav `Neurčitý` bez falošného predpokladaného konca a s vysvetlením dôvodu.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.96.
+
 ## [1.76.95] – 2026-09-04
 
 ### Pridané

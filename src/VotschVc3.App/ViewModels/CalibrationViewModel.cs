@@ -42,7 +42,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         stabilityTimeout: _setup.Settings.ChamberStabilityTimeout,
         sensorTimeout: _setup.Settings.DefaultSensorStabilizationTimeout,
         enableSetpointRamp: _setup.Settings.EnableSetpointRamp,
-        setpointRampCPerMinute: _setup.Settings.SetpointRampCPerMinute);
+        setpointRampCPerMinute: _setup.Settings.SetpointRampCPerMinute,
+        historicalPlateaus: ProfileStatistics.Plateaus);
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;

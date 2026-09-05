@@ -96,6 +96,7 @@ The following settings were validated on the real production reference thermomet
 - Default peak stability remains 50 samples, 5 pm max range, 1.5 pm max standard deviation, and 1 pm/min max drift unless the saved setup explicitly changes these values.
 - The operator-facing run monitor must show the planned plateau order before start and, during a run, the current step, what the runner is waiting for, current plateau, reference temperature, active peak/SN/channel, wavelength sample progress and stable-peak count.
 - Every operator-facing workflow step must expose a visible `?` help affordance. Its text must explain what the step does, its gates, sample counts, reset/failure behaviour and timing. Build these descriptions from the active `CalibrationProfileSettings` and observed acquisition cadence; whenever calibration logic or defaults change, update the workflow help in the same change so it never becomes stale documentation.
+- Calibration ETA must use profile/plateau history when available, account for the configured setpoint ramp, and subtract only elapsed time from the active plateau. If the active WIKA/FBG stability wait exceeds the available historical evidence, show an explicitly uncertain estimate and no fabricated finish time.
 
 ### FBG workspace persistence / restore
 
