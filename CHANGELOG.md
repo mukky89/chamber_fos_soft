@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.113] – 2026-09-05
+
+### Zmenené
+- Pomocník kroku WIKA referencia teraz podrobne vysvetľuje zber stabilného skóre po blokoch piatich vzoriek, kontrolu tolerancie a driftu, pripočítanie času aj penalizáciu neúspešného bloku.
+- Viacriadkové vysvetlenia workflow majú čitateľný zalamovaný tooltip s obmedzenou šírkou, takže sa celý rozpis zmestí na obrazovku.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.113.
+
 ## [1.76.112] – 2026-09-05
 
 ### Opravené

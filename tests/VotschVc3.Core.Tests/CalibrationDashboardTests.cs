@@ -92,6 +92,23 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("5 nových", m.Steps[5].Detail);
         Assert.Contains("20 s", m.Steps[5].Detail);
     }
+    [Fact] public void WikaWorkflowHelpExplainsHowStableScoreIsCollectedAndPenalized()
+    {
+        var m = new CalibrationDashboardViewModel();
+        m.Configure("Profil", "Komora", new[] { -40d }, true, "Rules",
+            toleranceC: 0.25, maxDriftCPerMinute: 0.1,
+            stableDuration: TimeSpan.FromMinutes(10), stabilityTimeout: TimeSpan.FromMinutes(30));
+
+        string help = m.Steps[3].Detail;
+
+        Assert.Contains("blokoch 5 vzoriek", help);
+        Assert.Contains("±0,250 °C", help);
+        Assert.Contains("≤ 0,100 °C/min", help);
+        Assert.Contains("pripočíta reálne uplynuté sekundy", help);
+        Assert.Contains("odpočíta dvojnásobok", help);
+        Assert.Contains("10 min 00 s", help);
+        Assert.Contains("Timeout: 30 min 00 s", help);
+    }
     [Fact] public void NextFbgStepShowsSeparateObservedSampleDuration()
     {
         var m = Model();

@@ -541,7 +541,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 ? $"Aplikácia posúva setpoint plynulo najviac {_setpointRampCPerMinute:F2} °C/min. Komora sa naďalej reguluje vlastným interným snímačom; WIKA iba overí stabilitu po dosiahnutí cieľa. Profilové hold časy neurčujú dĺžku FBG kalibrácie."
                 : "Plynulý nábeh je vypnutý a aplikácia nastaví cieľ plata priamo. Komora sa reguluje vlastným interným snímačom; WIKA iba overuje stabilitu.",
             "Interná sonda komory sa zobrazuje a loguje, ale neotvára ani neblokuje FBG bránu. Slúži na kontrolu správania regulátora a porovnanie s WIKA.",
-            $"Autoritatívna WIKA musí byť v tolerancii ±{StabilityToleranceC:F3} °C, mať drift ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min a nazbierať stabilné skóre {Duration(_stableDuration)}. Timeout: {Duration(_stabilityTimeout)}.",
+            $"Stabilné skóre WIKA sa zbiera po blokoch 5 vzoriek:\n" +
+            $"1. Prvá vzorka nastaví porovnávaciu základňu.\n" +
+            $"2. Posledná vzorka bloku musí byť pri cieli v tolerancii ±{StabilityToleranceC:F3} °C.\n" +
+            $"3. Priemerná zmena vzoriek voči základni musí zodpovedať driftu ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min.\n" +
+            "4. Úspešný blok pripočíta reálne uplynuté sekundy ku skóre.\n" +
+            "5. Neúspešný blok odpočíta dvojnásobok času bloku (najviac po nulu) a nastaví novú základňu.\n" +
+            $"Brána sa otvorí po potvrdenom skóre {Duration(_stableDuration)}. Medzi uzavretými blokmi sa čas zobrazuje priebežne, ale potvrdí ho až celý blok. Timeout: {Duration(_stabilityTimeout)}.",
             $"Každý vybraný peak má vlastný detektor. Potrebuje {_requiredStableSamples} vzoriek, range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm a drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Peaky sa kontrolujú paralelne; {Estimate(_requiredStableSamples)}. Timeout peaku: {Duration(_sensorTimeout)}. {cycle}.",
             $"Po potvrdení stability sa stabilizačné vzorky nepoužijú ako výsledok. Každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek paralelne; {Estimate(_requiredMeasurementSamples)}. Ak peak prestane spĺňať limity, rozpracované meracie vzorky sa zahodia a vráti sa do stabilizácie. {cycle}.",
             "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
