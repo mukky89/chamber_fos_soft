@@ -20,6 +20,7 @@ namespace VotschVc3.App.ViewModels;
 
 public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 {
+    private static readonly TimeSpan ProgressDiagnosticInterval = TimeSpan.FromSeconds(30);
     public CalibrationDashboardViewModel Dashboard { get; } = new();
     public ObservableCollection<string> CalibrationTerminalLines { get; } = new();
 
@@ -1592,6 +1593,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 $"temperatureExtensionStepSeconds={diagnosticSettings.ChamberStabilityExtensionStep.TotalSeconds:G17}; temperatureMaxExtensionSeconds={diagnosticSettings.MaxAutomaticChamberStabilityExtension.TotalSeconds:G17}; " +
                 $"wavelengthStableSamples={diagnosticSettings.RequiredStableSamples}; measurementSamples={diagnosticSettings.RequiredMeasurementSamples}; sampleIntervalSeconds={diagnosticSettings.SampleAcquisitionIntervalSeconds}; " +
                 $"rangeLimitPm={diagnosticSettings.MaxWavelengthRangePm:G17}; stdDevLimitPm={diagnosticSettings.MaxWavelengthStdDevPm:G17}; driftLimitPmPerMinute={diagnosticSettings.MaxWavelengthDriftPmPerMinute:G17}");
+            writer.WriteDiagnostic("INFO", "DIAGNOSTIC_SAMPLING",
+                $"progressIntervalSeconds={ProgressDiagnosticInterval.TotalSeconds:G17}; stateChangesLoggedImmediately=true");
             foreach (CalibrationPeakRowViewModel peak in Peaks.Where(p => p.Selected))
                 writer.WriteDiagnostic("INFO", "SELECTED_PEAK",
                     $"sn={peak.SerialNumber}; device={peak.PeakLoggerDeviceSerialNumber}; channel={peak.Channel}; peak={peak.PeakId}; index={peak.PeakIndex}; wavelengthNm={peak.CurrentWavelengthNm:G17}; intensity={peak.Intensity:G17}");
@@ -1622,9 +1625,23 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                     _ = SendWarningEmailAsync(_activeRun, warning);
             };
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
+            DateTimeOffset nextProgressDiagnosticAt = DateTimeOffset.MinValue;
+            string? lastProgressDiagnosticState = null;
+            object progressDiagnosticSync = new();
             _runner.Progress += snapshot =>
             {
-                WriteProgressDiagnostic(writer, snapshot);
+                string diagnosticState = ProgressDiagnosticState(snapshot);
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                lock (progressDiagnosticSync)
+                {
+                    if (now >= nextProgressDiagnosticAt ||
+                        !string.Equals(diagnosticState, lastProgressDiagnosticState, StringComparison.Ordinal))
+                    {
+                        WriteProgressDiagnostic(writer, snapshot);
+                        nextProgressDiagnosticAt = now + ProgressDiagnosticInterval;
+                        lastProgressDiagnosticState = diagnosticState;
+                    }
+                }
                 _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
             };
 
@@ -1780,6 +1797,16 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 $"rangePm={target.RangePm?.ToString("G17") ?? "null"}/{target.RangeLimitPm?.ToString("G17") ?? "null"}; stdDevPm={target.StandardDeviationPm?.ToString("G17") ?? "null"}/{target.StdDevLimitPm?.ToString("G17") ?? "null"}; " +
                 $"driftPmPerMinute={target.DriftPmPerMinute?.ToString("G17") ?? "null"}/{target.DriftLimitPmPerMinute?.ToString("G17") ?? "null"}; blocking={target.BlockingReason}; detail={target.Detail}");
     }
+
+    private static string ProgressDiagnosticState(CalibrationProgressSnapshot snapshot) =>
+        string.Join('|', new[]
+        {
+            snapshot.PlateauIndex.ToString(),
+            snapshot.State.ToString(),
+            snapshot.TemperatureGateOpen?.ToString() ?? "null",
+            snapshot.StableTargets.ToString(),
+            string.Join(',', snapshot.Targets.Select(target => $"{target.Channel}:{target.PeakId}:{target.Phase}:{target.State}")),
+        });
 
     private void ForceNextStep()
     {

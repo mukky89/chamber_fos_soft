@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.150] – 2026-09-05
+
+### Optimalizované
+- Priebežný diagnostický stav kalibrácie sa namiesto každého živého obnovenia zapisuje najviac raz za 30 sekúnd; zmeny fázy, stavu, teplotnej brány alebo počtu stabilných peakov sa naďalej zapíšu okamžite.
+- Chyby, varovania, zásahy operátora a začiatok či koniec behu zostávajú zaznamenané bez obmedzenia, pričom dlhé kalibrácie už nevytvárajú desiatky megabajtov opakovaných riadkov.
+- Záložná verzia bola zvýšená na 1.76.150.
+
 ## [1.76.149] – 2026-09-05
 
 ### Opravené
