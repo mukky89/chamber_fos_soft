@@ -111,6 +111,8 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("Timeout: 30 min 00 s", help);
         Assert.Contains("10 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("30 min 00 s", m.ReferenceTimeHelp);
+        Assert.Contains("súčasne splnené obe podmienky", m.ReferenceTimeHelp);
+        Assert.Contains("odchýlka alebo drift nevyhovuje", m.ReferenceTimeHelp);
     }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {

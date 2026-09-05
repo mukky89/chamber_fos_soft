@@ -100,8 +100,10 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         (_stabilityMaxDriftCPerMinute <= 0 || Math.Abs(drift) <= _stabilityMaxDriftCPerMinute) ? "Done" : "Waiting";
     public string ReferenceTimeLabel => $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
     public string ReferenceTimeHelp =>
-        $"Na otvorenie WIKA brány treba nazbierať {Duration(_stableDuration)} stabilného skóre. " +
-        "Úspešný blok 5 vzoriek pripočíta jeho skutočne uplynutý čas. Neúspešný blok odpočíta dvojnásobok svojho času, najviac po nulu, a začne nový blok. " +
+        $"Stabilita znamená, že WIKA zostáva dostatočne blízko cieľovej teploty a zároveň sa jej teplota nemení príliš rýchlo. " +
+        $"Na otvorenie WIKA brány musia byť súčasne splnené obe podmienky: odchýlka od cieľa ≤ {StabilityToleranceC:F3} °C a absolútny drift ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min. " +
+        $"Takto treba nazbierať {Duration(_stableDuration)} stabilného skóre. Úspešný blok 5 vzoriek pripočíta jeho skutočne uplynutý čas. " +
+        "Ak odchýlka alebo drift nevyhovuje, blok je neúspešný: od skóre sa odpočíta dvojnásobok času bloku, najviac po nulu, a začne sa nový blok. " +
         $"Ak sa brána neotvorí do {Duration(_stabilityTimeout)}, kalibrácia vyžiada zásah operátora.";
     public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.136] – 2026-09-05
+
+### Zmenené
+- Nápoveda stabilného času WIKA teraz priamo vysvetľuje význam stability a uvádza, že odchýlka od cieľa aj drift musia byť splnené súčasne.
+- Nápoveda zrozumiteľne opisuje pripočítanie úspešného bloku, penalizáciu neúspešného bloku a správanie po vypršaní časového limitu.
+- Záložná verzia bola zvýšená na 1.76.136.
+
 ## [1.76.135] – 2026-09-05
 
 ### Pridané
