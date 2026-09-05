@@ -34,6 +34,7 @@ A persisted preference is incomplete until its model, store, load, save, ViewMod
 
 - Read [references/settings-inventory.md](references/settings-inventory.md) to choose the correct existing store and path.
 - Read [references/json-migrations.md](references/json-migrations.md) when changing defaults, property names, enums, file shape, or storage location.
+- Also use `wpf-reliability-performance` for checkpoints, restart recovery, atomic writes, concurrent access, or system-failure behavior.
 
 ## Verification
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.110] – 2026-09-05
+
+### Pridané
+- Projektový skill pre rýchlosť a prevádzkovú spoľahlivosť WPF aplikácie: nezablokovaný UI thread, merateľné optimalizácie, riadené prekresľovanie, časové limity, bezpečný reconnect a jednoznačné vlastníctvo zdrojov.
+- Kontrolné zoznamy pre obnovu po výpadku, atómové checkpointy, idempotentný restore/dispose, súbehy, chybové stavy a regresné testovanie systémových zlyhaní.
+
+### Zmenené
+- Skills pre UX/UI, grafy, nastavenia a MVVM navigáciu teraz povinne smerujú na pravidlá výkonu a odolnosti pri živých dátach, I/O, obnovovaní a práci na pozadí.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.110.
+
 ## [1.76.109] – 2026-09-05
 
 ### Pridané

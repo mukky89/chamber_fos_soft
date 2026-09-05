@@ -33,6 +33,7 @@ Preserve the existing dark laboratory-operator design system. Operators may work
 - For any graph surface, also use `wpf-charting`.
 - For navigation or ViewModel ownership, also use `wpf-mvvm-navigation`.
 - For persisted UI preferences, also use `wpf-settings-persistence`.
+- For live data, background work, perceived lag, reconnect, or failure handling, also use `wpf-reliability-performance`.
 
 ## Verification
 

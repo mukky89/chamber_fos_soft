@@ -35,6 +35,7 @@ The repository uses custom WPF `Canvas`-based chart controls, not LiveCharts, Sy
 
 - Read [references/chart-contracts.md](references/chart-contracts.md) before changing dependency properties, `ChartSeries`, or call sites.
 - Read [references/chart-interactions.md](references/chart-interactions.md) before changing zoom, pan, selection, editing, or live-update behavior.
+- Also use `wpf-reliability-performance` for live sampling, redraw performance, long-running charts, cancellation, or failure recovery.
 
 ## Verification
 

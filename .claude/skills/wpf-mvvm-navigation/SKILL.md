@@ -37,6 +37,7 @@ Use the existing `ObservableObject`, `RelayCommand`, `RelayCommand<T>`, `AsyncRe
 
 - Read [references/navigation-map.md](references/navigation-map.md) before adding a page, route, dialog, or window.
 - Read [references/viewmodel-boundaries.md](references/viewmodel-boundaries.md) before extending `ShellViewModel`, `ChamberViewModel`, or calibration workspace code.
+- Also use `wpf-reliability-performance` for polling, async overlap, startup/shutdown, reconnect, disposal, or UI responsiveness.
 
 ## Verification
 
