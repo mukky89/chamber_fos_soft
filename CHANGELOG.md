@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.146] – 2026-09-05
+
+### Opravené
+- Kalibračné okno sa po redizajne obrazovky „Zapojenie“ opäť otvorí bez chyby WPF väzby.
+- Informatívne polia „Sylex SN“ a „Názov snímača“ v detaile senzora sú explicitne jednosmerné a aplikácia sa ich nepokúša zapisovať späť do zdrojového objektu.
+- Záložná verzia bola zvýšená na 1.76.146.
+
 ## [1.76.145] – 2026-09-05
 
 ### Zmenené
