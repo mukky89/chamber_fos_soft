@@ -592,6 +592,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                             checkpoint.CompletedPlateaus.Count > 0
             ? checkpoint
             : null;
+        if (_resumeCheckpoint is not null && CalibrationCheckpointRecovery.RestoreMappingsIfMissing(_setup, _resumeCheckpoint))
+        {
+            _calibrationStore.SaveSetup(_setup);
+            StatusMessage = $"Zapojenie a SN pre {_resumeCheckpoint.Mappings.Count(mapping => mapping.Selected)} peakov boli obnovené z checkpointu.";
+        }
         OnPropertyChanged(nameof(HasResumableCalibration));
         OnPropertyChanged(nameof(ResumeCalibrationLabel));
         OnPropertyChanged(nameof(ResumeCalibrationDetail));

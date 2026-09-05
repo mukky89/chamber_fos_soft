@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.102] – 2026-09-05
+
+### Opravené
+- Ak bol setup po prerušení behu prepísaný prázdnymi live riadkami, obnova kalibrácie automaticky načíta vybrané peaky, FBG SN, kanálové SN, CHAIN a metadata z autoritatívneho checkpointu.
+- Opravené mapovania sa ihneď znovu uložia k profilu a komore, takže tlačidlo `Pokračovať od plata č. N` sa po pripojení rovnakého PeakLoggera povolí.
+- Existujúce platné operátorské zapojenie má prednosť a checkpoint ho nikdy automaticky neprepíše.
+- Doplnené regresné testy obnovy SN a ochrany novšieho operátorského zapojenia.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.102.
+
 ## [1.76.101] – 2026-09-05
 
 ### Opravené

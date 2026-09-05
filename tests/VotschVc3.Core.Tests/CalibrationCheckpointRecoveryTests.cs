@@ -1,0 +1,65 @@
+using VotschVc3.Core.Calibration;
+using Xunit;
+
+namespace VotschVc3.Core.Tests;
+
+public sealed class CalibrationCheckpointRecoveryTests
+{
+    [Fact]
+    public void EmptyDiscoveredRows_AreReplacedByCheckpointSerialNumberMappings()
+    {
+        var setup = new CalibrationSetup
+        {
+            Mappings =
+            {
+                new CalibrationSensorMapping
+                {
+                    PeakLoggerDeviceSerialNumber = "SIACCT",
+                    Channel = "1.3",
+                    PeakId = "P1",
+                    Selected = false,
+                },
+            },
+        };
+        var checkpoint = new CalibrationCheckpoint
+        {
+            Mappings =
+            {
+                new CalibrationSensorMapping
+                {
+                    SerialNumber = "289594/0001",
+                    ChannelSerialNumber = "289594/0001",
+                    PeakLoggerDeviceSerialNumber = "SIACCT",
+                    Channel = "1.3",
+                    PeakId = "P1",
+                    PeakIndex = 1,
+                    Selected = true,
+                },
+            },
+        };
+
+        bool restored = CalibrationCheckpointRecovery.RestoreMappingsIfMissing(setup, checkpoint);
+
+        CalibrationSensorMapping mapping = Assert.Single(setup.Mappings);
+        Assert.True(restored);
+        Assert.True(mapping.Selected);
+        Assert.Equal("289594/0001", mapping.SerialNumber);
+        Assert.Equal("SIACCT|1.3|P1", mapping.SourceIdentity);
+    }
+
+    [Fact]
+    public void ExistingOperatorSelection_IsNeverOverwrittenByCheckpoint()
+    {
+        var setup = new CalibrationSetup
+        {
+            Mappings = { new CalibrationSensorMapping { SerialNumber = "CURRENT/0001", Selected = true } },
+        };
+        var checkpoint = new CalibrationCheckpoint
+        {
+            Mappings = { new CalibrationSensorMapping { SerialNumber = "OLDER/0001", Selected = true } },
+        };
+
+        Assert.False(CalibrationCheckpointRecovery.RestoreMappingsIfMissing(setup, checkpoint));
+        Assert.Equal("CURRENT/0001", Assert.Single(setup.Mappings).SerialNumber);
+    }
+}
