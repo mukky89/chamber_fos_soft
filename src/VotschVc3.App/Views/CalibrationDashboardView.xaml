@@ -31,6 +31,15 @@
     </DataTrigger>
    </Style.Triggers>
   </Style>
+  <Style x:Key="CardStateBadge" TargetType="Border">
+   <Setter Property="Background" Value="#202D3E"/><Setter Property="BorderBrush" Value="#40536A"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="6"/><Setter Property="Padding" Value="8,4"/>
+   <Style.Triggers>
+    <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="Active"><Setter Property="Background" Value="#193253"/><Setter Property="BorderBrush" Value="#589EFF"/></DataTrigger>
+    <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="Done"><Setter Property="Background" Value="#15352E"/><Setter Property="BorderBrush" Value="#45C99A"/></DataTrigger>
+    <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="Waiting"><Setter Property="Background" Value="#332B1D"/><Setter Property="BorderBrush" Value="#D8A24E"/></DataTrigger>
+    <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="Error"><Setter Property="Background" Value="#412631"/><Setter Property="BorderBrush" Value="#FA6F79"/></DataTrigger>
+   </Style.Triggers>
+  </Style>
   <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource Node}"><Border.ToolTip><ToolTip MaxWidth="560" Placement="Mouse"><TextBlock Text="{Binding Detail}" TextWrapping="Wrap" LineHeight="20" Padding="3"/></ToolTip></Border.ToolTip><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Border HorizontalAlignment="Right" Width="20" Height="20" CornerRadius="10" Background="#203650" BorderBrush="#609DE8" BorderThickness="1"><TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#9CC6FF" FontWeight="Bold" FontSize="12"/></Border></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
  </UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -104,8 +113,9 @@
    <TextBlock Text="Workflow aktuálneho bodu" Style="{StaticResource Title}"/>
    <ItemsControl ItemsSource="{Binding Steps}" ItemTemplate="{StaticResource StepTemplate}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
    <ProgressBar Value="{Binding PointProgress, Mode=OneWay}" ToolTip="Dokončené fázy aktuálneho bodu. Stabilizácia a meranie peakov prebiehajú paralelne." Margin="0,0,0,18"/>
+   <TextBlock Text="Poradie brán: WIKA referencia → stabilita každého FBG peaku → meranie peaku · Komora sa iba monitoruje · Peaky postupujú paralelne" Style="{StaticResource Muted}" Margin="0,0,0,9"/>
    <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-    <Border Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><TextBlock Text="01 / KOMORA" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Actual}" Style="{StaticResource Metric}"/><TextBlock Text="{Binding Delta}"/>
+    <Border Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="01 / KOMORA" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding ChamberCardTone}"><TextBlock Text="{Binding ChamberCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid><TextBlock Text="{Binding Actual}" Style="{StaticResource Metric}"/><TextBlock Text="{Binding Delta}"/>
       <Grid Margin="0,10,0,2" ToolTip="Zelená = teplota sa približuje k cieľu · červená = vzďaľuje sa · modrá = drží">
        <Grid.ColumnDefinitions><ColumnDefinition Width="38"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
        <Border Width="32" Height="32" CornerRadius="16" BorderThickness="1.5" HorizontalAlignment="Left" RenderTransformOrigin="0.5,0.5">
@@ -131,7 +141,7 @@
     <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="0,0,10,14">
      <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#17263A"/><GradientStop Color="#112A30" Offset="1"/></LinearGradientBrush></Border.Background>
      <StackPanel>
-      <TextBlock Text="02 / WIKA REFERENCIA" Style="{StaticResource Muted}"/>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="02 / WIKA REFERENCIA" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding ReferenceCardTone}"><TextBlock Text="{Binding ReferenceCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid>
       <TextBlock Text="{Binding Reference}" Style="{StaticResource Metric}"/>
       <TextBlock Text="{Binding ReferenceStatus}" Style="{StaticResource Muted}"/>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceToleranceTone}"><TextBlock Text="{Binding ReferenceToleranceLabel}" FontSize="11.5"/></Border>
@@ -140,8 +150,8 @@
       <TextBlock Text="Zelené = splnené · oranžové = čaká" Style="{StaticResource Muted}" Margin="0,7,0,0"/>
      </StackPanel>
     </Border>
-    <Border Grid.Column="2" Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><TextBlock Text="03 / FBG PEAKY" Style="{StaticResource Muted}"/><TextBlock Text="{Binding PeakSummary}" FontSize="20" Margin="0,12,0,4"/><ProgressBar Value="{Binding StabilityProgress, Mode=OneWay}"/><TextBlock Text="{Binding PeakDetail}" Style="{StaticResource Muted}"/></StackPanel></Border>
-    <Border Grid.Column="3" Style="{StaticResource Panel}"><StackPanel><TextBlock Text="04 / MERANIE VZORIEK" Style="{StaticResource Muted}"/><TextBlock Text="{Binding SampleSummary}" Style="{StaticResource Metric}"/><ProgressBar Value="{Binding SampleProgress, Mode=OneWay}"/><TextBlock Text="Spolu za všetky peaky" Style="{StaticResource Muted}"/></StackPanel></Border>
+    <Border Grid.Column="2" Style="{StaticResource Panel}" Margin="0,0,10,14"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="03 / FBG PEAKY" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding PeakCardTone}"><TextBlock Text="{Binding PeakCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid><TextBlock Text="{Binding PeakSummary}" FontSize="20" Margin="0,12,0,4"/><ProgressBar Value="{Binding StabilityProgress, Mode=OneWay}"/><TextBlock Text="{Binding PeakDetail}" Style="{StaticResource Muted}"/></StackPanel></Border>
+    <Border Grid.Column="3" Style="{StaticResource Panel}"><StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="04 / MERANIE VZORIEK" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding MeasurementCardTone}"><TextBlock Text="{Binding MeasurementCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid><TextBlock Text="{Binding SampleSummary}" Style="{StaticResource Metric}"/><ProgressBar Value="{Binding SampleProgress, Mode=OneWay}"/><TextBlock Text="Spolu za všetky peaky" Style="{StaticResource Muted}"/></StackPanel></Border>
    </Grid>
    <Border Style="{StaticResource Panel}">
     <Expander IsExpanded="True" Foreground="#EEF5FF" HorizontalContentAlignment="Stretch">

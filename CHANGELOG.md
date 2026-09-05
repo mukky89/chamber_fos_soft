@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.114] – 2026-09-05
+
+### Pridané
+- Štyri hlavné karty živého FBG prehľadu teraz zobrazujú jednoznačný stav `DONE`, `WAITING`, `RUNNING`, `PENDING`, `MONITORING` alebo `STOPPED` s farebným badge.
+- Nad kartami je vysvetlené poradie brán: WIKA referencia, stabilita každého FBG peaku a následné meranie; komora je iba monitorovaná a jednotlivé peaky postupujú paralelne.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.114.
+
 ## [1.76.113] – 2026-09-05
 
 ### Zmenené

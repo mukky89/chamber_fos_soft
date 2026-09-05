@@ -104,6 +104,16 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int RequiredSamples => _snapshot?.Targets.Sum(t => t.RequiredMeasurementSamples) ?? 0;
     public string SampleSummary => $"{Samples} / {RequiredSamples}";
     public double SampleProgress => RequiredSamples == 0 ? 0 : Math.Clamp(100d * Samples / RequiredSamples, 0, 100);
+    private bool RunStoppedWithError => _state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted;
+    private bool PointFinished => AllTargetsFinished || _state is CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings;
+    public string ChamberCardState => _started is null ? "○ PENDING" : _running ? "● MONITORING" : RunStoppedWithError ? "! STOPPED" : "✓ DONE";
+    public string ChamberCardTone => _started is null ? "Pending" : _running ? "Active" : RunStoppedWithError ? "Error" : "Done";
+    public string ReferenceCardState => RunStoppedWithError ? "! STOPPED" : !HasReference ? "— N/A" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ DONE" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ WAITING" : "○ PENDING";
+    public string ReferenceCardTone => RunStoppedWithError ? "Error" : !HasReference ? "Pending" : ReferenceCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : ReferenceCardState.Contains("WAITING", StringComparison.Ordinal) ? "Waiting" : "Pending";
+    public string PeakCardState => RunStoppedWithError ? "! STOPPED" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ DONE" : _state == CalibrationRunState.StabilizingSensors ? "● RUNNING" : PointFinished ? "✓ DONE" : "○ PENDING";
+    public string PeakCardTone => RunStoppedWithError ? "Error" : PeakCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : PeakCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
+    public string MeasurementCardState => RunStoppedWithError ? "! STOPPED" : PointFinished ? "✓ DONE" : MeasuringCount > 0 || Samples > 0 ? "● RUNNING" : "○ PENDING";
+    public string MeasurementCardTone => RunStoppedWithError ? "Error" : MeasurementCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : MeasurementCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
     public string ActivePeakKey => _snapshot?.Targets.FirstOrDefault(t => t.Phase == "Measuring") is { } m ? $"{m.SerialNumber}|{m.Channel}|{m.PeakId}" :
         _snapshot?.Targets.FirstOrDefault(t => t.State != CalibrationTargetState.Stable) is { } s ? $"{s.SerialNumber}|{s.Channel}|{s.PeakId}" : "";
     public string ActivePeak => ActivePeakKey.Length == 0 ? "—" : ActivePeakKey.Replace("|", " · ");

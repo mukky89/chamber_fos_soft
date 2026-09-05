@@ -109,6 +109,32 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("10 min 00 s", help);
         Assert.Contains("Timeout: 30 min 00 s", help);
     }
+    [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
+    {
+        var m = Model();
+        Assert.Contains("MONITORING", m.ChamberCardState);
+        Assert.Contains("PENDING", m.ReferenceCardState);
+
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);
+        Assert.Contains("WAITING", m.ReferenceCardState);
+        Assert.Contains("PENDING", m.PeakCardState);
+        Assert.Contains("PENDING", m.MeasurementCardState);
+
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing)), Start.AddSeconds(1));
+        Assert.Contains("DONE", m.ReferenceCardState);
+        Assert.Contains("RUNNING", m.PeakCardState);
+        Assert.Contains("PENDING", m.MeasurementCardState);
+
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Measuring", 2)), Start.AddSeconds(2));
+        Assert.Contains("DONE", m.PeakCardState);
+        Assert.Contains("RUNNING", m.MeasurementCardState);
+
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Done", 5, CalibrationTargetState.Stable)), Start.AddSeconds(3));
+        Assert.Contains("DONE", m.MeasurementCardState);
+    }
     [Fact] public void NextFbgStepShowsSeparateObservedSampleDuration()
     {
         var m = Model();
