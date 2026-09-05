@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.116] – 2026-09-05
+
+### Zmenené
+- Karta každého FBG peaku v živom prehľade sa pri prejdení myšou zvýrazní jasnejším modrým rámčekom a jemne odlíšeným pozadím.
+- Hover zvýraznenie nepoužíva rozmazanie ani tieň, takže text a graf zostávajú ostré a nevzniká zbytočná záťaž prekresľovania.
+- Záložná verzia pre zostavenia bez Git metadát bola zvýšená na 1.76.116.
+
 ## [1.76.115] – 2026-09-05
 
 ### Pridané
