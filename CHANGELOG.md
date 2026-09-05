@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.131] – 2026-09-05
+
+### Pridané
+- Koreňový skript `update.sh` umožňuje z Git Bash bezpečne stiahnuť `origin/main`, zostaviť single-file Windows aplikáciu a automaticky ju spustiť.
+- Aktualizácia sa odmietne spustiť, ak aplikácia ešte beží, repozitár nie je na vetve `main` alebo obsahuje neuložené zmeny, aby sa predišlo strate kalibrácie alebo lokálnej práce.
+- Parameter `--no-start` pripraví aktualizáciu bez automatického spustenia aplikácie.
+- Záložná verzia bola zvýšená na 1.76.131.
+
 ## [1.76.130] – 2026-09-05
 
 ### Pridané
