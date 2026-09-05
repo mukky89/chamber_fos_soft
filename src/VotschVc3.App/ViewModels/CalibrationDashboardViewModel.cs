@@ -4,6 +4,8 @@ using VotschVc3.Core.Calibration;
 
 namespace VotschVc3.App.ViewModels;
 
+public sealed record DashboardTemperatureSample(DateTimeOffset Timestamp, double TemperatureC);
+
 /// <summary>UI-only projection of runner snapshots. Never controls calibration gates.</summary>
 public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 {
@@ -33,6 +35,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private IReadOnlyDictionary<int, CalibrationPlateauStatistics> _historicalPlateaus =
         new Dictionary<int, CalibrationPlateauStatistics>();
     private double? _observedCycleSeconds;
+    private readonly List<DashboardTemperatureSample> _chamberTemperatureTrace = new();
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
@@ -68,6 +71,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
     public double? TargetTemperatureC => _snapshot?.TargetTemperatureC;
     public double? ActualTemperature => _snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
+    public IReadOnlyList<DashboardTemperatureSample> ChamberTemperatureTrace => _chamberTemperatureTrace.ToArray();
     public string Actual => ActualTemperature is { } t ? $"{t:F2} °C" : "—";
     public string Reference => _snapshot?.ReferenceTemperatureC is { } t ? $"{t:F3} °C" : "—";
     public string Delta => _snapshot?.ActualTemperatureC is { } t ? $"Δ {t - _snapshot.TargetTemperatureC:+0.00;-0.00;0.00} °C" : "Čaká na údaje";
@@ -332,10 +336,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (previousPhase != Phase) _phaseStarted = now;
         if (snapshot.PlateauIndex >= 0 && previous?.PlateauIndex != snapshot.PlateauIndex)
         {
+            _chamberTemperatureTrace.Clear();
             _targetEvents.Clear();
             FbgStabilityCharts.Clear();
             AddEvent(now, "INFO", $"Začal sa bod {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount} na {Target}.");
         }
+        if (snapshot.ActualTemperatureC is { } chamberTemperature)
+            AddChamberTraceSample(now, chamberTemperature);
         if (snapshot.PlateauIndex >= 0 && snapshot.PlateauIndex < Points.Count)
         {
             var point = Points[snapshot.PlateauIndex];
@@ -382,7 +389,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _latestChamberTemperature = temperature;
         LastTemperatureSampleAt = now;
         _lastSnapshotAt = now;
+        AddChamberTraceSample(now, temperature);
         Notify();
+    }
+
+    private void AddChamberTraceSample(DateTimeOffset timestamp, double temperature)
+    {
+        if (_chamberTemperatureTrace.Count > 0 && timestamp <= _chamberTemperatureTrace[^1].Timestamp) return;
+        _chamberTemperatureTrace.Add(new DashboardTemperatureSample(timestamp, temperature));
     }
     public void Pause(bool paused, DateTimeOffset now)
     {

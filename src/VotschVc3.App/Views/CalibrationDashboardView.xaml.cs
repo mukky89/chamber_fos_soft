@@ -6,6 +6,7 @@ using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.ViewModels;
 using VotschVc3.Core.Calibration;
+using VotschVc3.Core.Charting;
 
 namespace VotschVc3.App.Views;
 
@@ -20,6 +21,27 @@ public sealed class FbgStabilitySeriesConverter : IValueConverter
             new ChartSeries("FBG peak", Brushes.DeepSkyBlue, samples
                 .Select(sample => new Point(sample.Minutes, sample.WavelengthNm))
                 .ToArray(), strokeThickness: 2.1),
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+        Binding.DoNothing;
+}
+
+public sealed class ChamberTemperatureSeriesConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value is not IReadOnlyList<DashboardTemperatureSample> samples || samples.Count == 0)
+            return Array.Empty<ChartSeries>();
+        DateTimeOffset origin = samples[0].Timestamp;
+        IReadOnlyList<DashboardTemperatureSample> visible = TimeSeriesEnvelopeReducer.Reduce(
+            samples, sample => sample.TemperatureC, 240);
+        return new[]
+        {
+            new ChartSeries("Komora", Brushes.DodgerBlue, visible
+                .Select(sample => new Point((sample.Timestamp - origin).TotalMinutes, sample.TemperatureC))
+                .ToArray(), strokeThickness: 1.8),
         };
     }
 
@@ -222,6 +244,11 @@ public partial class CalibrationDashboardView : UserControl
         }
 
         ReferenceTraceChart.Series = series;
+        CompactReferenceChart.Series = new[]
+        {
+            new ChartSeries("WIKA CTH7000", Brushes.DeepSkyBlue,
+                TimeSeriesEnvelopeReducer.Reduce(measured, point => point.Y, 240), strokeThickness: 1.8),
+        };
         RefreshStabilitySamples(trace, vm.TargetTemperatureC, vm.StabilityToleranceC);
     }
 
@@ -277,6 +304,7 @@ public partial class CalibrationDashboardView : UserControl
         ReferencePortText.Text = "—";
         ReferenceCurrentTemperatureText.Text = "—";
         ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
+        CompactReferenceChart.Series = Array.Empty<ChartSeries>();
         StabilitySamplesChart.Series = Array.Empty<ChartSeries>();
         StabilitySamplesList.ItemsSource = null;
     }

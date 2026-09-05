@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.135] – 2026-09-05
+
+### Pridané
+- Karta komory v live prehľade obsahuje malý graf internej teploty aktuálneho kalibračného plata.
+- Karta WIKA referencie obsahuje samostatný kompaktný graf referenčnej teploty aktuálneho plata.
+- Mini grafy používajú už prijaté dáta bez ďalšieho hardvérového čítania a skrývajú veľké ovládanie zoomu, aby nezvyšovali vizuálnu ani výkonnostnú záťaž.
+- Záložná verzia bola zvýšená na 1.76.135.
+
 ## [1.76.134] – 2026-09-05
 
 ### Zmenené

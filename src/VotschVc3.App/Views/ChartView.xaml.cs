@@ -85,6 +85,15 @@ public partial class ChartView : UserControl
         nameof(AllowZoom), typeof(bool), typeof(ChartView), new PropertyMetadata(true));
     public bool AllowZoom { get => (bool)GetValue(AllowZoomProperty); set => SetValue(AllowZoomProperty, value); }
 
+    public static readonly DependencyProperty ShowControlsProperty = DependencyProperty.Register(
+        nameof(ShowControls), typeof(bool), typeof(ChartView),
+        new PropertyMetadata(true, (d, e) =>
+        {
+            if (d is ChartView chart)
+                chart.ZoomControls.Visibility = e.NewValue is true ? Visibility.Visible : Visibility.Collapsed;
+        }));
+    public bool ShowControls { get => (bool)GetValue(ShowControlsProperty); set => SetValue(ShowControlsProperty, value); }
+
     public static readonly DependencyProperty ChartTitleProperty = DependencyProperty.Register(
         nameof(ChartTitle), typeof(string), typeof(ChartView), new PropertyMetadata("Graf"));
     public string ChartTitle { get => (string)GetValue(ChartTitleProperty); set => SetValue(ChartTitleProperty, value); }
