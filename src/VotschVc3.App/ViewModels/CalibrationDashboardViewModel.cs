@@ -88,6 +88,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         (!HasReference || _snapshot?.ReferenceTemperatureC is not null);
     public bool CanExtendStabilityTime => _running && _state == CalibrationRunState.WaitingForChamberStability;
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
+    public string ReferenceStatusHelp =>
+        "Posledná vzorka WIKA je najnovšia úspešne načítaná teplota z referenčného teplomera WIKA CTH7000; veľká hodnota nad týmto textom je jej aktuálna hodnota. " +
+        "Počas kalibrácie sa pravidelne obnovuje a používa sa na výpočet odchýlky od cieľa aj driftu. " +
+        "Jedna vzorka sama osebe nepotvrdzuje stabilitu — aplikácia vyhodnocuje po sebe idúce bloky vzoriek a stabilný čas začne pribúdať iba vtedy, keď súčasne vyhovuje odchýlka aj drift. " +
+        "Ak sa novú vzorku nepodarí načítať, zobrazí sa čakanie na WIKA a FBG stabilizácia sa nespustí.";
     public string ReferenceToleranceLabel => _snapshot?.ReferenceTemperatureC is not { } reference
         ? "Odchýlka od cieľa · čaká na vzorku"
         : $"Odchýlka |Δ| {Math.Abs(reference - _snapshot.TargetTemperatureC):F3} / ≤ {StabilityToleranceC:F3} °C";

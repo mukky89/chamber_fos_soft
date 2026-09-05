@@ -116,6 +116,9 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("0,30 °C každých 10 s", m.ReferenceToleranceHelp);
         Assert.Contains("±3,0 °C", m.ReferenceToleranceHelp);
         Assert.Contains("predvolene vypnutá", m.ReferenceToleranceHelp);
+        Assert.Contains("najnovšia úspešne načítaná teplota", m.ReferenceStatusHelp);
+        Assert.Contains("Jedna vzorka sama osebe nepotvrdzuje stabilitu", m.ReferenceStatusHelp);
+        Assert.Contains("odchýlka aj drift", m.ReferenceStatusHelp);
         Assert.Contains("odchýlka alebo drift nevyhovuje", m.ReferenceTimeHelp);
         Assert.Contains("ďalej čaká a kontroluje nové bloky", m.ReferenceTimeHelp);
         Assert.Contains("Predĺženie sa nikdy neopakuje nad tento strop", m.ReferenceTimeHelp);

@@ -201,7 +201,10 @@
      <StackPanel>
       <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="02 / WIKA REFERENCIA" Style="{StaticResource Muted}"/><Border Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource CardStateBadge}" Tag="{Binding ReferenceCardTone}"><TextBlock Text="{Binding ReferenceCardState}" FontSize="10" FontWeight="SemiBold"/></Border></Grid>
       <TextBlock Text="{Binding Reference}" Style="{StaticResource Metric}"/>
-      <TextBlock Text="{Binding ReferenceStatus}" Style="{StaticResource Muted}"/>
+      <StackPanel Orientation="Horizontal">
+       <TextBlock Text="{Binding ReferenceStatus}" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+       <Button Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceStatusHelp}" Margin="7,0,0,0" Click="HelpButton_Click"/>
+      </StackPanel>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceToleranceTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceToleranceLabel}" FontSize="11.5" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceToleranceHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
       <Border Background="#172A3E" BorderBrush="#3D6D9D" BorderThickness="1" CornerRadius="7" Padding="9,7" Margin="0,5,0,0">
        <StackPanel>

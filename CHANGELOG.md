@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.154] – 2026-09-06
+
+### Pridané
+- Vedľa stavu „Posledná vzorka WIKA“ pribudla klikateľná nápoveda, ktorá vysvetľuje pôvod hodnoty, jej pravidelné obnovovanie a použitie pri výpočte odchýlky, driftu a stabilného času.
+- Nápoveda upozorňuje, že jedna vzorka sama nepotvrdzuje stabilitu a že bez novej platnej vzorky sa FBG stabilizácia nespustí.
+- Záložná verzia bola zvýšená na 1.76.154.
+
 ## [1.76.153] – 2026-09-06
 
 ### Pridané
