@@ -62,4 +62,53 @@ public sealed class CalibrationCheckpointRecoveryTests
         Assert.False(CalibrationCheckpointRecovery.RestoreMappingsIfMissing(setup, checkpoint));
         Assert.Equal("CURRENT/0001", Assert.Single(setup.Mappings).SerialNumber);
     }
+
+    [Fact]
+    public void Resume_RestoresExactDecisionSettingsAndPlateauSelection()
+    {
+        var setup = new CalibrationSetup
+        {
+            CalibrationSegmentIndices = { 1 },
+            Settings = new CalibrationProfileSettings
+            {
+                ChamberStableDuration = TimeSpan.FromMinutes(1),
+                RequiredStableSamples = 10,
+                RequiredMeasurementSamples = 10,
+                SampleAcquisitionIntervalSeconds = 30,
+            },
+        };
+        var checkpoint = new CalibrationCheckpoint
+        {
+            CalibrationSegmentIndices = { 3, 5, 7 },
+            SettingsSnapshot = new CalibrationProfileSettings
+            {
+                ChamberStableDuration = TimeSpan.FromMinutes(10),
+                RequiredStableSamples = 50,
+                RequiredMeasurementSamples = 50,
+                SampleAcquisitionIntervalSeconds = 1,
+            },
+        };
+
+        Assert.True(CalibrationCheckpointRecovery.RestoreRunConfiguration(setup, checkpoint));
+        Assert.Equal(new[] { 3, 5, 7 }, setup.CalibrationSegmentIndices);
+        Assert.Equal(TimeSpan.FromMinutes(10), setup.Settings.ChamberStableDuration);
+        Assert.Equal(50, setup.Settings.RequiredStableSamples);
+        Assert.Equal(50, setup.Settings.RequiredMeasurementSamples);
+        Assert.Equal(1, setup.Settings.SampleAcquisitionIntervalSeconds);
+
+        checkpoint.SettingsSnapshot.RequiredStableSamples = 999;
+        Assert.Equal(50, setup.Settings.RequiredStableSamples);
+    }
+
+    [Fact]
+    public void LegacyCheckpoint_LeavesPersistedSettingsUntouched()
+    {
+        var setup = new CalibrationSetup
+        {
+            Settings = new CalibrationProfileSettings { RequiredStableSamples = 73 },
+        };
+
+        Assert.False(CalibrationCheckpointRecovery.RestoreRunConfiguration(setup, new CalibrationCheckpoint()));
+        Assert.Equal(73, setup.Settings.RequiredStableSamples);
+    }
 }

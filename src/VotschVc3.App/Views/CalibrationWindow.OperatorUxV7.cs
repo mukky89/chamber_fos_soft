@@ -72,7 +72,7 @@ public partial class CalibrationWindow
         TabItem? settings = _productionTabs.Items.OfType<TabItem>()
             .FirstOrDefault(item => HeaderText(item.Header) == "Nastavenia stability");
         if (settings is null || settings.Content is CalibrationStabilitySettingsView) return;
-        settings.Content = new CalibrationStabilitySettingsView();
+        settings.Content = new CalibrationStabilitySettingsView { DataContext = _viewModel };
     }
 
     private void ConfigureWiringGridV7()

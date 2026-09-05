@@ -41,7 +41,7 @@ public partial class CalibrationWindow
                 root.Children.Remove(child);
                 setup.Children.Add(child);
             }
-            var configuration = new TabControl();
+            var configuration = new TabControl { DataContext = _viewModel };
             configuration.Items.Add(new TabItem { Header = "Zariadenia", Content = new ScrollViewer { Content = setup, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
             foreach (TabItem item in _productionTabs.Items.OfType<TabItem>().Where(t => HeaderText(t.Header) == "Nastavenia stability").ToArray())
             {

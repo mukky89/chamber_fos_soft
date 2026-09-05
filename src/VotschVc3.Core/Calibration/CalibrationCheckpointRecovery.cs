@@ -3,6 +3,53 @@ namespace VotschVc3.Core.Calibration;
 /// <summary>Repairs a setup that lost its operator wiring by using the immutable run checkpoint.</summary>
 public static class CalibrationCheckpointRecovery
 {
+    public static bool RestoreRunConfiguration(CalibrationSetup setup, CalibrationCheckpoint checkpoint)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        ArgumentNullException.ThrowIfNull(checkpoint);
+        if (checkpoint.SettingsSnapshot is null) return false;
+
+        setup.Settings = CloneSettings(checkpoint.SettingsSnapshot);
+        if (checkpoint.CalibrationSegmentIndices.Count > 0)
+            setup.CalibrationSegmentIndices = checkpoint.CalibrationSegmentIndices.ToList();
+        return true;
+    }
+
+    public static CalibrationProfileSettings CloneSettings(CalibrationProfileSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return new CalibrationProfileSettings
+        {
+            EnableSetpointRamp = settings.EnableSetpointRamp,
+            SetpointRampCPerMinute = settings.SetpointRampCPerMinute,
+            EnableWavelengthAveraging = settings.EnableWavelengthAveraging,
+            WavelengthAveragingSamples = settings.WavelengthAveragingSamples,
+            EnableWavelengthTraceLogging = settings.EnableWavelengthTraceLogging,
+            WavelengthTraceIntervalSeconds = settings.WavelengthTraceIntervalSeconds,
+            SampleAcquisitionIntervalSeconds = settings.SampleAcquisitionIntervalSeconds,
+            RequiredStableSamples = settings.RequiredStableSamples,
+            RequiredMeasurementSamples = settings.RequiredMeasurementSamples,
+            MaxWavelengthRangePm = settings.MaxWavelengthRangePm,
+            MaxWavelengthStdDevPm = settings.MaxWavelengthStdDevPm,
+            MaxWavelengthDriftPmPerMinute = settings.MaxWavelengthDriftPmPerMinute,
+            ChamberToleranceC = settings.ChamberToleranceC,
+            ChamberStableDuration = settings.ChamberStableDuration,
+            MaxChamberDriftCPerMinute = settings.MaxChamberDriftCPerMinute,
+            ChamberStabilityTimeout = settings.ChamberStabilityTimeout,
+            DefaultSensorStabilizationTimeout = settings.DefaultSensorStabilizationTimeout,
+            SensorTimeoutPolicy = settings.SensorTimeoutPolicy,
+            PeakLostPolicy = settings.PeakLostPolicy,
+            PeakLoggerDisconnectPolicy = settings.PeakLoggerDisconnectPolicy,
+            ValidationMinimumDeltaTemperatureC = settings.ValidationMinimumDeltaTemperatureC,
+            ValidationMinimumWavelengthResponsePm = settings.ValidationMinimumWavelengthResponsePm,
+            ExpectedResponseDirection = settings.ExpectedResponseDirection,
+            ValidationFailurePolicy = settings.ValidationFailurePolicy,
+            AllowValidationOverride = settings.AllowValidationOverride,
+            ValidationOverrideReason = settings.ValidationOverrideReason,
+            PeakLostGracePeriod = settings.PeakLostGracePeriod,
+        };
+    }
+
     public static bool RestoreMappingsIfMissing(CalibrationSetup setup, CalibrationCheckpoint checkpoint)
     {
         ArgumentNullException.ThrowIfNull(setup);

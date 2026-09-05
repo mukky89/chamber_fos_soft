@@ -339,9 +339,25 @@ public sealed class CalibrationTests
             store.SaveRun(run);
             Assert.Contains(store.LoadHistory(), x => x.RunId == run.RunId);
 
-            var checkpoint = new CalibrationCheckpoint { RunId = run.RunId, ProfileId = profileId, ChamberId = chamberId, CurrentPlateauIndex = 1 };
+            var checkpoint = new CalibrationCheckpoint
+            {
+                RunId = run.RunId,
+                ProfileId = profileId,
+                ChamberId = chamberId,
+                CurrentPlateauIndex = 1,
+                CalibrationSegmentIndices = { 1, 3 },
+                SettingsSnapshot = new CalibrationProfileSettings
+                {
+                    RequiredStableSamples = 77,
+                    SampleAcquisitionIntervalSeconds = 12,
+                },
+            };
             store.SaveCheckpoint(checkpoint);
-            Assert.Equal(1, store.LoadCheckpoint(chamberId)?.CurrentPlateauIndex);
+            CalibrationCheckpoint loadedCheckpoint = Assert.IsType<CalibrationCheckpoint>(store.LoadCheckpoint(chamberId));
+            Assert.Equal(1, loadedCheckpoint.CurrentPlateauIndex);
+            Assert.Equal(new[] { 1, 3 }, loadedCheckpoint.CalibrationSegmentIndices);
+            Assert.Equal(77, loadedCheckpoint.SettingsSnapshot?.RequiredStableSamples);
+            Assert.Equal(12, loadedCheckpoint.SettingsSnapshot?.SampleAcquisitionIntervalSeconds);
             store.DeleteCheckpoint(chamberId);
             Assert.Null(store.LoadCheckpoint(chamberId));
         }

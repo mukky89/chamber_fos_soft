@@ -169,6 +169,8 @@ public sealed class CalibrationProfileRunner
                     State = run.State,
                     CompletedPlateaus = run.Plateaus.ToList(),
                     Mappings = setup.Mappings.Select(CloneMapping).ToList(),
+                    SettingsSnapshot = CalibrationCheckpointRecovery.CloneSettings(setup.Settings),
+                    CalibrationSegmentIndices = setup.CalibrationSegmentIndices.ToList(),
                 });
 
                 if (validationBaseline is null)

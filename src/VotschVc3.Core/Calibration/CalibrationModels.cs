@@ -327,6 +327,12 @@ public sealed class CalibrationCheckpoint
     public CalibrationRunState State { get; set; }
     public List<CalibrationPlateauResult> CompletedPlateaus { get; set; } = new();
     public List<CalibrationSensorMapping> Mappings { get; set; } = new();
+    /// <summary>
+    /// Immutable copy of the decision limits used by the interrupted run. Older checkpoints do not
+    /// contain this property and safely fall back to the separately persisted profile setup.
+    /// </summary>
+    public CalibrationProfileSettings? SettingsSnapshot { get; set; }
+    public List<int> CalibrationSegmentIndices { get; set; } = new();
     public DateTimeOffset SavedAt { get; set; } = DateTimeOffset.Now;
 }
 

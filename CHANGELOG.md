@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.132] – 2026-09-05
+
+### Opravené
+- Obrazovka nastavení stability po obnovení kalibrácie spoľahlivo zobrazuje uložené hodnoty aj v uzamknutom stave počas behu.
+- Checkpoint po novom uchováva presnú kópiu limitov, intervalov a vybraných kalibračných bodov; obnovený beh preto pokračuje s rovnakými rozhodovacími pravidlami ako pred aktualizáciou alebo výpadkom.
+- Staršie checkpointy zostávajú kompatibilné a použijú nastavenia uložené pri profile.
+- Záložná verzia bola zvýšená na 1.76.132.
+
 ## [1.76.131] – 2026-09-05
 
 ### Pridané

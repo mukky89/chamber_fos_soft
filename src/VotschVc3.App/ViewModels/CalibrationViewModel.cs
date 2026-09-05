@@ -604,12 +604,21 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                             checkpoint.ProfileId == SelectedProfile.Id
             ? checkpoint
             : null;
+        bool setupRecovered = false;
+        if (_resumeCheckpoint is not null && CalibrationCheckpointRecovery.RestoreRunConfiguration(_setup, _resumeCheckpoint))
+        {
+            setupRecovered = true;
+            foreach (CalibrationPointRowViewModel point in CalibrationPoints)
+                point.Selected = _setup.CalibrationSegmentIndices.Contains(point.SegmentIndex);
+            RefreshSettingsBindings();
+        }
         if (_resumeCheckpoint is not null && CalibrationCheckpointRecovery.RestoreMappingsIfMissing(_setup, _resumeCheckpoint))
         {
+            setupRecovered = true;
             ApplyRecoveredMappingsToVisiblePeaks(_setup.Mappings);
-            _calibrationStore.SaveSetup(_setup);
             StatusMessage = $"Zapojenie a SN pre {_resumeCheckpoint.Mappings.Count(mapping => mapping.Selected)} peakov boli obnovené z checkpointu.";
         }
+        if (setupRecovered) _calibrationStore.SaveSetup(_setup);
         OnPropertyChanged(nameof(HasResumableCalibration));
         OnPropertyChanged(nameof(ResumeCalibrationLabel));
         OnPropertyChanged(nameof(ResumeCalibrationDetail));
@@ -1804,6 +1813,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 State = Enum.TryParse<CalibrationRunState>(RunState, out var state) ? state : _activeRun.State,
                 CompletedPlateaus = _activeRun.Plateaus.ToList(),
                 Mappings = Peaks.Select(peak => peak.ToMapping()).ToList(),
+                SettingsSnapshot = CalibrationCheckpointRecovery.CloneSettings(_setup.Settings),
+                CalibrationSegmentIndices = _setup.CalibrationSegmentIndices.ToList(),
             });
             _activeWriter?.WriteDiagnostic("INFO", "RECOVERY_CHECKPOINT_SAVED",
                 $"reason={reason}; completedPlateaus={_activeRun.Plateaus.Count}; nextPlateau={_activeRun.Plateaus.Count + 1}");
@@ -1977,6 +1988,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(WavelengthTraceIntervalSeconds));
         OnPropertyChanged(nameof(SampleAcquisitionIntervalSeconds));
         OnPropertyChanged(nameof(RequiredStableSamples));
+        OnPropertyChanged(nameof(RequiredMeasurementSamples));
         OnPropertyChanged(nameof(MaxRangePm));
         OnPropertyChanged(nameof(MaxStdDevPm));
         OnPropertyChanged(nameof(MaxDriftPmPerMinute));
