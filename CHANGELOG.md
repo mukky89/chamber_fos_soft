@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.221] – 2026-09-06
+
+### Opravené
+- Pokračovanie obnovenej FBG kalibrácie už v prvom cykle zbytočne nečíta komoru druhýkrát po odčítaní WIKA. Použije poslednú čerstvú hodnotu komory, takže komunikácia po kliknutí na „Pokračovať od plata“ nezlyhá na duplicitnom prístupe.
+- Pôvodná príčina prípadného zlyhania kalibračného runnera sa zapíše do diagnostiky ešte pred zatvorením súboru a zobrazí sa operátorovi; chyba sa už neprekryje zápisom do zatvoreného logu.
+
 ## [1.76.220] – 2026-09-06
 
 ### Opravené

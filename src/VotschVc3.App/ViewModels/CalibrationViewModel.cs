@@ -1480,8 +1480,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (value is { } traceTemperature && double.IsFinite(traceTemperature))
             CalibrationReferenceTraceStore.Instance.AppendRunSample(_workspaceChamberId,
                 new(DateTimeOffset.Now, traceTemperature, SelectedF100.PortName, SelectedF100.SelectedChannel));
-        double? currentChamberTemperature = await ReadCurrentChamberTemperatureAsync(token);
-        _lastChamberTemperatureC = currentChamberTemperature ?? _lastChamberTemperatureC;
+        // The calibration runner has already read the chamber at the beginning of this
+        // sampling cycle. Reusing that fresh value avoids issuing a second chamber command
+        // while the first cycle after checkpoint recovery is still being established.
+        double? currentChamberTemperature = _lastChamberTemperatureC;
         if (value is { } reference && currentChamberTemperature is { } chamber)
         {
             await ValidateReferenceTemperatureAsync(chamber, reference, token);
@@ -1881,16 +1883,27 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = SelectedF100 is null
                 ? "Kalibrácia spustená bez externého WIKA CTH7000. Najskôr prebehne preflight a kontrola PeakLoggera."
                 : $"Kalibrácia spustená · referencia WIKA CTH7000 {SelectedF100.PortName}/{SelectedF100Channel}. Najskôr prebehne preflight.";
-            await _runner.RunAsync(
-                SelectedProfile,
-                _setup,
-                _activeRun,
-                writer,
-                startTemperature,
-                null,
-                SelectedF100 is null ? null : ReadReferenceTemperatureAsync,
-                _runCts.Token,
-                resume);
+            try
+            {
+                await _runner.RunAsync(
+                    SelectedProfile,
+                    _setup,
+                    _activeRun,
+                    writer,
+                    startTemperature,
+                    null,
+                    SelectedF100 is null ? null : ReadReferenceTemperatureAsync,
+                    _runCts.Token,
+                    resume);
+            }
+            catch (Exception ex)
+            {
+                // This catch is deliberately inside the writer lifetime. An await-using
+                // declared in the outer try is disposed before the outer catch executes.
+                // Logging here preserves the original device/runner exception.
+                writer.WriteDiagnostic("ERROR", "RUN_FAILED", ex.ToString());
+                throw;
+            }
 
             writer.WriteDiagnostic("INFO", "RUN_FINISHED", $"state={_activeRun.State}; plateaus={_activeRun.Plateaus.Count}; warnings={_activeRun.Warnings.Count}");
 
@@ -1917,7 +1930,6 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _activeWriter?.WriteDiagnostic("ERROR", "RUN_FAILED", ex.ToString());
             AppLog.Error("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {ex}");
             RunState = CalibrationRunState.Failed.ToString();
             StatusMessage = ex.Message;
