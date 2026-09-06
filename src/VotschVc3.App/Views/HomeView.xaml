@@ -662,19 +662,37 @@
                                                 Background="{StaticResource SurfaceBrush}"
                                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                                 ToolTip="Nadradená teplotná ochrana. Profil nastaví limity automaticky s rezervou ±5 °C.">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="Poistka" Style="{StaticResource Caption}" FontFamily="Segoe UI Semibold"
-                                                           VerticalAlignment="Center" Margin="0,0,7,0" />
-                                                <views:NumericStepper Width="64" Height="30" Value="{Binding SafetyTempMin, Mode=TwoWay}"
-                                                                      Step="1" IsEnabled="{Binding CanEditDeviceSettings}"
-                                                                      ToolTip="Minimálna bezpečná teplota" />
-                                                <TextBlock Text="–" Margin="5,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                                                <views:NumericStepper Width="64" Height="30" Value="{Binding SafetyTempMax, Mode=TwoWay}"
-                                                                      Step="1" IsEnabled="{Binding CanEditDeviceSettings}"
-                                                                      ToolTip="Maximálna bezpečná teplota" />
-                                                <TextBlock Text=" °C" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                                                <TextBlock Text="  · automaticky podľa profilu" Style="{StaticResource Caption}"
-                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,5">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Teplotná poistka" Style="{StaticResource Caption}"
+                                                               FontFamily="Segoe UI Semibold" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="Automaticky podľa profilu" Style="{StaticResource Caption}"
+                                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                </Grid>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Min" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                    <views:NumericStepper Grid.Column="1" MinWidth="78" Height="30" HorizontalAlignment="Stretch"
+                                                                          Value="{Binding SafetyTempMin, Mode=TwoWay}" Step="1"
+                                                                          IsEnabled="{Binding CanEditDeviceSettings}" ToolTip="Minimálna bezpečná teplota" />
+                                                    <TextBlock Grid.Column="2" Text="°C" Margin="4,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBlock Grid.Column="3" Text="Max" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                    <views:NumericStepper Grid.Column="4" MinWidth="78" Height="30" HorizontalAlignment="Stretch"
+                                                                          Value="{Binding SafetyTempMax, Mode=TwoWay}" Step="1"
+                                                                          IsEnabled="{Binding CanEditDeviceSettings}" ToolTip="Maximálna bezpečná teplota" />
+                                                    <TextBlock Grid.Column="5" Text="°C" Margin="4,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                                                </Grid>
                                             </StackPanel>
                                         </Border>
 
@@ -699,23 +717,20 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="Čas" Style="{StaticResource Caption}"
-                                                               FontFamily="Segoe UI Semibold" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                    <CheckBox Grid.Column="1" Content="časovač" IsChecked="{Binding ManualTimerEnabled, Mode=TwoWay}"
+                                                    <CheckBox Grid.Column="0" Content="Časovač vypnutia" IsChecked="{Binding ManualTimerEnabled, Mode=TwoWay}"
                                                               VerticalAlignment="Center" Margin="0,0,8,0"
                                                               ToolTip="Vypnuté = manuálne ovládanie beží bez časového limitu. Zapnuté = po zadanom čase sa výkon komory vypne." />
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                                                                 IsEnabled="{Binding ManualTimerEnabled}">
-                                                        <views:NumericStepper Width="68" Height="30" Value="{Binding ManualDurationMinutes, Mode=TwoWay}"
+                                                        <views:NumericStepper Width="80" Height="30" Value="{Binding ManualDurationMinutes, Mode=TwoWay}"
                                                                               Minimum="1" Maximum="10080" Step="5"
                                                                               ToolTip="Trvanie manuálneho ovládania v minútach" />
                                                         <TextBlock Text="min" VerticalAlignment="Center" Margin="4,0,0,0"
                                                                    Foreground="{StaticResource MutedBrush}" />
                                                     </StackPanel>
-                                                    <TextBlock Grid.Column="3" Text="{Binding ManualTimerStatusText}" Style="{StaticResource Caption}"
+                                                    <TextBlock Grid.Column="2" Text="{Binding ManualTimerStatusText}" Style="{StaticResource Caption}"
                                                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
                                                 </Grid>
                                                 <Grid>

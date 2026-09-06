@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.184] – 2026-09-06
+
+### Opravené
+- Karta rýchleho ovládania má responzívne dvojriadkové rozloženie teplotnej poistky; minimálna a maximálna hodnota, jednotky aj informácia o profile sa už neorezávajú.
+- Časovač manuálneho ovládania používa kompaktnejší popis a širšie číselné pole, aby boli celé hodnoty aj stav viditeľné na úzkej karte zariadenia.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.184.
+
 ## [1.76.183] – 2026-09-06
 
 ### Opravené
