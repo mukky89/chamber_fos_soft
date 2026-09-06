@@ -180,7 +180,7 @@
                                     <StackPanel>
                                         <TextBlock Text="TEPLOTA" Style="{StaticResource Caption}" />
                                         <TextBlock Style="{StaticResource Metric}">
-                                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" °C" />
                                         </TextBlock>
                                         <TextBlock Style="{StaticResource Caption}">
                                             <Run Text="Setpoint: " />
@@ -194,7 +194,7 @@
                                     <StackPanel>
                                         <TextBlock Text="VLHKOSŤ" Style="{StaticResource Caption}" />
                                         <TextBlock Style="{StaticResource Metric}">
-                                            <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                                            <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" %" />
                                         </TextBlock>
                                         <TextBlock Style="{StaticResource Caption}">
                                             <Run Text="Setpoint: " />

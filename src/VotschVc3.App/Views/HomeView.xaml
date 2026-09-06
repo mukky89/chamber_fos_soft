@@ -577,7 +577,7 @@
                                                     </TextBlock>
                                                     <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
                                                         <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}">
-                                                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                                                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" °C" />
                                                         </TextBlock>
                                                     </Viewbox>
                                                 </StackPanel>
@@ -597,7 +597,7 @@
                                                         </TextBlock.Style>
                                                     </TextBlock>
                                                     <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource TemperatureSetpointBrush}">
-                                                        <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                                                        <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" °C" />
                                                     </TextBlock>
                                                 </StackPanel>
                                             </Border>
@@ -606,7 +606,7 @@
                                                 <StackPanel>
                                                     <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
                                                     <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource HumidityBrush}">
-                                                        <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                                                        <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" %" />
                                                     </TextBlock>
                                                 </StackPanel>
                                             </Border>

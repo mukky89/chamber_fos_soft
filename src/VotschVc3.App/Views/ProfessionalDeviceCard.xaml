@@ -170,13 +170,13 @@
                         <TextBlock Text="Teplota zariadenia" Style="{StaticResource Caption}"
                                    ToolTip="Teplota meraná interným snímačom zariadenia, nie referenčnou kalibračnou sondou." />
                         <TextBlock Style="{StaticResource MetricSmall}">
-                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" °C" />
                         </TextBlock>
                     </StackPanel>
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="Setpoint" Style="{StaticResource Caption}" />
                         <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource WarnBrush}">
-                            <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" °C" />
+                            <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" °C" />
                         </TextBlock>
                     </StackPanel>
                     <StackPanel Margin="0,0,20,0">
@@ -184,8 +184,8 @@
                         <TextBlock FontFamily="Segoe UI Semibold" FontSize="15" VerticalAlignment="Bottom">
                             <TextBlock.Text>
                                 <MultiBinding Converter="{StaticResource Delta}" ConverterParameter=" °C">
-                                    <Binding Path="MeasuredTemperature" />
-                                    <Binding Path="MeasuredTemperatureSetpoint" />
+                                    <Binding Path="MeasuredTemperature" Mode="OneWay" />
+                                    <Binding Path="MeasuredTemperatureSetpoint" Mode="OneWay" />
                                 </MultiBinding>
                             </TextBlock.Text>
                         </TextBlock>
@@ -194,11 +194,11 @@
                         <TextBlock Text="Vlhkosť RH" Style="{StaticResource Caption}" />
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource MetricSmall}">
-                                <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                                <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" %" />
                             </TextBlock>
                             <TextBlock Foreground="{StaticResource WarnBrush}" FontFamily="Segoe UI Semibold" FontSize="14"
                                        VerticalAlignment="Bottom" ToolTip="Setpoint vlhkosti">
-                                <Run Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###}" /><Run Text=" %" />
+                                <Run Text="{Binding MeasuredHumiditySetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" %" />
                             </TextBlock>
                         </StackPanel>
                     </StackPanel>

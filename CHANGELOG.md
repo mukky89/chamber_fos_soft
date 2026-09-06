@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.166] – 2026-09-06
+
+### Opravené
+- Všetky textové zobrazenia nameranej teploty, setpointu a vlhkosti na hlavnej, detailnej aj profesionálnej karte zariadenia používajú explicitne jednosmerné WPF väzby.
+- Chyba pri pokuse zapisovať do vlastnosti `MeasuredTemperature` iba na čítanie je odstránená aj z metrík a výpočtu odchýlky, nielen z grafických náhľadov zariadení.
+- Záložná verzia bola zvýšená na 1.76.166.
+
 ## [1.76.165] – 2026-09-06
 
 ### Opravené
