@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.195] – 2026-09-06
+
+### Zmenené
+- Predvolený základný limit čakania na ustálenie referenčnej teploty pre nové FBG kalibrácie bol zvýšený z 30 minút na 1 hodinu. Rovnakú hodinovú hodnotu používa aj úvodný stav živého kalibračného prehľadu.
+- Už uložené zapojenia a práve prebiehajúce kalibrácie si zachovávajú vlastnú uloženú hodnotu; globálnu predvoľbu možno naďalej spravovať v administrátorskej zóne.
+- Záložná verzia bola zvýšená na 1.76.195.
+
 ## [1.76.194] – 2026-09-06
 
 ### Pridané

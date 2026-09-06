@@ -28,7 +28,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private double _maxStdDevPm = 1.5;
     private double _maxPeakDriftPmPerMinute = 1;
     private TimeSpan _stableDuration = TimeSpan.FromMinutes(10);
-    private TimeSpan _stabilityTimeout = TimeSpan.FromMinutes(30);
+    private TimeSpan _stabilityTimeout = TimeSpan.FromHours(1);
     private TimeSpan _stabilityExtensionStep = TimeSpan.FromMinutes(15);
     private TimeSpan _maxAutomaticStabilityExtension = TimeSpan.FromHours(1);
     private TimeSpan _sensorTimeout = TimeSpan.FromMinutes(60);

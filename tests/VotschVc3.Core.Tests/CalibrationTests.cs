@@ -50,6 +50,7 @@ public sealed class CalibrationTests
     {
         var settings = new CalibrationProfileSettings();
 
+        Assert.Equal(TimeSpan.FromHours(1), settings.ChamberStabilityTimeout);
         Assert.Equal(TimeSpan.FromMinutes(15), settings.ChamberStabilityExtensionStep);
         Assert.Equal(TimeSpan.FromHours(1), settings.MaxAutomaticChamberStabilityExtension);
     }
