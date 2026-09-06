@@ -76,7 +76,7 @@ public partial class CalibrationWindow
         body.Children.Add(_referenceControlToggle);
         body.Children.Add(new TextBlock
         {
-            Text = "Vypnuté: profil zapisuje svoj cieľ priamo ako setpoint komory. Zapnuté: počas kalibračného plata sa setpoint komory pomaly a obmedzene koriguje podľa odchýlky WIKA. Stabilitu stále určuje iba WIKA referencia a následne každý FBG peak.",
+            Text = "Predvolene zapnuté: počas kalibračného plata sa setpoint komory pomaly a obmedzene koriguje podľa odchýlky WIKA. Po vypnutí profil zapisuje cieľ priamo ako setpoint komory. Stabilitu stále určuje iba WIKA referencia a následne každý FBG peak.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(22, 5, 0, 0),
             Opacity = 0.78,

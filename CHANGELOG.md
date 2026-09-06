@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.189] – 2026-09-06
+
+### Zmenené
+- Bezpečne obmedzené jemné dorovnávanie setpointu komory podľa WIKA je predvolene zapnuté pre nové FBG kalibrácie.
+- Existujúce nastavenia zariadení z predchádzajúcej verzie sa jednorazovo prenastavia na nový zapnutý default; po migrácii môže operátor funkciu pred spustením kalibrácie opäť vypnúť.
+- Texty pomoci teraz vysvetľujú nový default. Limity zostávajú bez zmeny: krok najviac 0,30 °C za 10 s a celková korekcia najviac ±3,0 °C.
+- Záložná verzia bola zvýšená na 1.76.189.
+
 ## [1.76.188] – 2026-09-06
 
 ### Opravené
