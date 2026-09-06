@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.173] – 2026-09-06
+
+### Opravené
+- Odhad konca FBG kalibrácie zahŕňa aj staršie neustálené pláta, ktoré aplikácia odložila a po prejdení ostatných bodov sa k nim ešte vráti.
+- Zostávajúci čas riadených nábehov sa počíta podľa skutočného poradia nedokončených a odložených bodov.
+- Záložná verzia bola zvýšená na 1.76.173.
+
 ## [1.76.172] – 2026-09-06
 
 ### Opravené

@@ -567,11 +567,18 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             : completedDurations[completedDurations.Length / 2];
         int currentIndex = _snapshot?.PlateauIndex ?? -1;
         bool currentIsActive = currentIndex >= 0 && _snapshot?.State != CalibrationRunState.PlateauCompleted;
-        int firstRemainingIndex = currentIndex < 0 ? 0 : currentIsActive ? currentIndex : currentIndex + 1;
+        int[] remainingIndices = Enumerable.Range(0, Points.Count)
+            .Where(index => !Points[index].Duration.HasValue)
+            .OrderBy(index => index == currentIndex ? 0 : index > currentIndex ? 1 : 2)
+            .ThenBy(index => index)
+            .ToArray();
         double seconds = 0;
         bool usedHistory = false;
 
-        for (int index = firstRemainingIndex; index < Points.Count; index++)
+        // A temperature timeout defers the plateau and appends it to the work queue.
+        // Consequently the active plateau index can be 5 while plateaus 1–4 are still
+        // unfinished. Estimate every unfinished point, not only indices after the active one.
+        foreach (int index in remainingIndices)
         {
             double? expected = null;
             double? upperBound = null;
@@ -623,7 +630,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             }
         }
 
-        seconds += EstimateRemainingRampSeconds(currentIndex, currentIsActive);
+        seconds += EstimateRemainingRampSeconds(remainingIndices, currentIndex, currentIsActive);
         seconds += _finalConditioningDuration.TotalSeconds;
         if (seconds <= 0)
         {
@@ -640,22 +647,25 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             : "Odhad používa medián dokončených bodov tohto behu, aktuálny priebeh a zostávajúci riadený nábeh setpointu.";
     }
 
-    private double EstimateRemainingRampSeconds(int currentIndex, bool currentIsActive)
+    private double EstimateRemainingRampSeconds(IReadOnlyList<int> remainingIndices, int currentIndex, bool currentIsActive)
     {
-        if (!_enableSetpointRamp || _plannedTemperatures.Length == 0) return 0;
+        if (!_enableSetpointRamp || _plannedTemperatures.Length == 0 || remainingIndices.Count == 0) return 0;
         double ratePerSecond = _setpointRampCPerMinute / 60d;
         double seconds = 0;
-        int firstTransition = Math.Max(1, currentIndex + 1);
+        int firstIndex = remainingIndices[0];
+        double previousTemperature = _plannedTemperatures[firstIndex];
 
-        if (currentIndex < 0 && ActualTemperature is { } actual)
-            seconds += Math.Abs(_plannedTemperatures[0] - actual) / ratePerSecond;
-        else if (currentIsActive && _state == CalibrationRunState.MovingToPlateau &&
-                 currentIndex < _plannedTemperatures.Length && ActualTemperature is { } currentActual)
-            seconds += Math.Abs(_plannedTemperatures[currentIndex] - currentActual) / ratePerSecond;
+        if (ActualTemperature is { } actual &&
+            (currentIndex < 0 || (currentIsActive && _state == CalibrationRunState.MovingToPlateau)))
+            seconds += Math.Abs(previousTemperature - actual) / ratePerSecond;
 
-        for (int index = firstTransition; index < _plannedTemperatures.Length; index++)
-            seconds += Math.Abs(_plannedTemperatures[index] - _plannedTemperatures[index - 1]) / ratePerSecond;
-        seconds += Math.Abs(_finalConditioningTemperatureC - _plannedTemperatures[^1]) / ratePerSecond;
+        foreach (int index in remainingIndices.Skip(1))
+        {
+            double temperature = _plannedTemperatures[index];
+            seconds += Math.Abs(temperature - previousTemperature) / ratePerSecond;
+            previousTemperature = temperature;
+        }
+        seconds += Math.Abs(_finalConditioningTemperatureC - previousTemperature) / ratePerSecond;
         return seconds;
     }
     private void RefreshSteps()

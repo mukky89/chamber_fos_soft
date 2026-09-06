@@ -71,6 +71,19 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(Start.AddHours(3).AddMinutes(55), m.EstimatedFinishAt);
         Assert.Equal("Temperovanie 25 °C", m.Steps[8].Title);
     }
+    [Fact] public void EtaIncludesDeferredUnfinishedPlateausBeforeCurrentIndex()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0), Start.AddMinutes(10));
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 2) with
+        {
+            PlateauElapsed = TimeSpan.FromMinutes(2)
+        }, Start.AddMinutes(12));
+
+        // Point 1 (index 1) was deferred and remains unfinished even though point 2 is active.
+        Assert.Equal("≈ 3 h 43 min", m.Eta);
+        Assert.Equal(Start.AddHours(3).AddMinutes(55), m.EstimatedFinishAt);
+    }
     [Fact] public void ParallelMeasurementDoesNotCountStabilitySamplesAsMeasurement()
     {
         var m = Model(); m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 2), Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2" }), Start);
