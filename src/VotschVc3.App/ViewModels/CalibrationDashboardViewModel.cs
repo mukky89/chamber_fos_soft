@@ -172,8 +172,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int StableCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable || t.Phase == "Measuring") ?? 0;
     public int DoneCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable) ?? 0;
     public int MeasuringCount => _snapshot?.Targets.Count(t => t.Phase == "Measuring") ?? 0;
-    public string PeakSummary => $"{StableCount} / {TotalTargets} stabilných";
-    public string PeakDetail => $"{DoneCount} hotových · {MeasuringCount} práve meria";
+    public string PeakSummary => $"{StableCount} / {TotalTargets} prešlo stabilitou";
+    public string PeakDetail => $"{MeasuringCount} vo finálnom meraní · {DoneCount} úplne dokončených";
     public string PeakStabilityCriteria =>
         $"{_requiredStableSamples} vzoriek · range ≤ {_maxRangePm:F3} pm · σ ≤ {_maxStdDevPm:F3} pm · drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min";
     public string PeakStabilityCriteriaHelp =>

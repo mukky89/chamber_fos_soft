@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.210] – 2026-09-06
+
+### Opravené
+- Súhrn karty FBG peaky už nezamieňa úspešnú stabilizáciu s úplne dokončeným meraním. Samostatne uvádza počet peakov, ktoré prešli stabilitou, práve zbierajú finálne vzorky a sú úplne dokončené.
+
 ## [1.76.209] – 2026-09-06
 
 ### Pridané

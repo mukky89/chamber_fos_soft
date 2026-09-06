@@ -231,6 +231,16 @@ public sealed class CalibrationDashboardTests
             Target("Done", 5, CalibrationTargetState.Stable)), Start.AddSeconds(3));
         Assert.Contains("DONE", m.MeasurementCardState);
     }
+    [Fact] public void PeakSummaryDistinguishesPassedStabilityFromCompletedMeasurement()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Measuring", 2),
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2" }), Start);
+
+        Assert.Equal("1 / 2 prešlo stabilitou", m.PeakSummary);
+        Assert.Equal("1 vo finálnom meraní · 0 úplne dokončených", m.PeakDetail);
+    }
     [Fact] public void WikaCardShowsCurrentSettlingLimitAndItsBreakdown()
     {
         var m = Model();
