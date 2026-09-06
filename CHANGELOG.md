@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.226] – 2026-09-06
+
+### Opravené
+- POL-EKO LabDesk má pri spustení programu FOS LAB primeraný čas na oneskorenú odpoveď `LAUNCH_BY_ID`. Pri skutočnom timeoute sa znečistené spojenie zahodí, po opätovnom pripojení sa overí reálny stav programu a príkaz sa zopakuje iba vtedy, ak sa nespustil; oneskorená odpoveď sa už nepriradí nasledujúcemu `GET_STATUS`.
+
 ## [1.76.225] – 2026-09-06
 
 ### Opravené

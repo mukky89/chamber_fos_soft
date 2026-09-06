@@ -13,6 +13,7 @@ namespace VotschVc3.Core.Communication.PolEko;
 public sealed class PolEkoClient : IChamberDevice
 {
     public const int DefaultPort = 56506;
+    private static readonly TimeSpan MinimumLabDeskResponseTimeout = TimeSpan.FromSeconds(20);
     /// <summary>Existing LabDesk profile reserved for FOS quick/manual control.</summary>
     public const long ManualProgramId = 11;
     public const string ManualProgramName = "FOS LAB";
@@ -40,7 +41,16 @@ public sealed class PolEkoClient : IChamberDevice
             {
                 var tcp = new TcpMessagingSystemFactory { ConnectTimeout = Settings.ConnectTimeout, ReceiveTimeout = Settings.ReadTimeout, SendTimeout = Settings.ReadTimeout };
                 var monitored = new MonitoredMessagingFactory(tcp, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(7));
-                var factory = new DuplexTypedMessagesFactory(new AesSerializer("poleko")) { SyncResponseReceiveTimeout = Settings.ReadTimeout };
+                TimeSpan responseTimeout = Settings.ReadTimeout > MinimumLabDeskResponseTimeout
+                    ? Settings.ReadTimeout
+                    : MinimumLabDeskResponseTimeout;
+                var factory = new DuplexTypedMessagesFactory(new AesSerializer("poleko"))
+                {
+                    // The real SLN 115 can acknowledge LAUNCH_BY_ID after roughly 15 s.
+                    // A five-second timeout leaves that valid response queued and shifts it
+                    // onto the following GET_STATUS request.
+                    SyncResponseReceiveTimeout = responseTimeout,
+                };
                 var sender = factory.CreateSyncDuplexTypedMessageSender<string, string>();
                 var channel = monitored.CreateDuplexOutputChannel($"tcp://{Settings.Host}:{Settings.Port}/");
                 sender.AttachDuplexOutputChannel(channel);
@@ -98,7 +108,7 @@ public sealed class PolEkoClient : IChamberDevice
                 await SendAsync("UPDATE_PROGRAM", programJson, true, cancellationToken).ConfigureAwait(false);
         }
 
-        await SendAsync("LAUNCH_BY_ID", ManualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
+        await LaunchManualProgramAsync(cancellationToken).ConfigureAwait(false);
         await VerifyManualProgramStartedAsync(cancellationToken).ConfigureAwait(false);
         _activeProgramId = ManualProgramId;
         _lastSetpoint = temperature;
@@ -140,6 +150,37 @@ public sealed class PolEkoClient : IChamberDevice
         }
 
         throw new PolEkoRpcException("UPDATE_PROGRAM", response?.ResponseStatus ?? "GENERAL_ERROR", response?.Data ?? string.Empty);
+    }
+
+    private async Task LaunchManualProgramAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await SendAsync("LAUNCH_BY_ID", ManualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+        catch (TimeoutException)
+        {
+            // The command may have reached LabDesk even though its reply did not. SendAsync
+            // closes the contaminated channel so the late response cannot be consumed by the
+            // next request. Reconnect, inspect the real state and repeat LAUNCH only if needed.
+            ChamberConnectionSettings reconnectSettings = Settings.Clone();
+            await ConnectAsync(reconnectSettings, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken).ConfigureAwait(false);
+            if (await IsManualProgramRunningAsync(cancellationToken).ConfigureAwait(false))
+                return;
+
+            await SendAsync("LAUNCH_BY_ID", ManualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<bool> IsManualProgramRunningAsync(CancellationToken cancellationToken)
+    {
+        PolEkoRpcResponse response = await SendAsync("GET_STATUS", "version-2", false, cancellationToken).ConfigureAwait(false);
+        using JsonDocument status = ParseDataObject(response, "GET_STATUS");
+        return TryFindBoolean(status.RootElement, out bool running, "IS_RUNNING") && running &&
+               (!TryFindNumber(status.RootElement, out double programId, "PROGRAM_ID") ||
+                Math.Abs(programId - ManualProgramId) < 0.5);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -186,16 +227,37 @@ public sealed class PolEkoClient : IChamberDevice
             var sender = _sender ?? throw new InvalidOperationException("POL-EKO nie je pripojené.");
             (string username, string password) = PolEkoLabDeskProtocol.ResolveCredential();
             string request = PolEkoLabDeskProtocol.BuildRequest(command, data, credentials, username: username, password: password);
-            string raw = await Task.Run(() => sender.SendRequestMessage(request), ct).ConfigureAwait(false);
+            string raw;
+            try
+            {
+                raw = await Task.Run(() => sender.SendRequestMessage(request), ct).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException ex) when (IsResponseTimeout(ex))
+            {
+                // A delayed reply remains associated with the old synchronous sender. Tear the
+                // channel down now; otherwise the next request can receive the previous reply.
+                DisconnectCore();
+                throw new TimeoutException(
+                    $"POL-EKO {command} neodpovedalo do {MinimumLabDeskResponseTimeout.TotalSeconds:0} sekúnd.", ex);
+            }
             string diagnosticRequest = PolEkoLabDeskProtocol.BuildRequest(
                 command, data, credentials, redactPassword: true, username: username, password: password);
             FrameExchanged?.Invoke(this, new FrameExchangedEventArgs(diagnosticRequest, raw));
             var response = JsonSerializer.Deserialize<PolEkoRpcResponse>(raw, Json) ?? throw new InvalidDataException("POL-EKO vrátilo prázdnu RPC odpoveď.");
+            if (!response.RequestCommand.Equals(command, StringComparison.OrdinalIgnoreCase))
+            {
+                DisconnectCore();
+                throw new InvalidDataException(
+                    $"POL-EKO vrátilo odpoveď na {response.RequestCommand} namiesto očakávaného {command}; spojenie bolo ukončené kvôli oneskorenej odpovedi.");
+            }
             if (!response.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase)) throw new PolEkoRpcException(command, response.ResponseStatus, response.Data);
             return response;
         }
         finally { _gate.Release(); }
     }
+
+    private static bool IsResponseTimeout(InvalidOperationException exception) =>
+        exception.Message.Contains("failed to receive the response within the timeout", StringComparison.OrdinalIgnoreCase);
 
     private async Task<PolEkoRpcResponse> SendAllowingAsync(string command, string? data, bool credentials, CancellationToken ct, params string[] allowed)
     {
