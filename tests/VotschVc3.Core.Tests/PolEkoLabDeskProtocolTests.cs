@@ -39,14 +39,25 @@ public sealed class PolEkoLabDeskProtocolTests
     }
 
     [Fact]
-    public void Authenticated_request_uses_admin_empty_password()
+    public void Authenticated_request_uses_admin_credentials()
     {
         using JsonDocument json = JsonDocument.Parse(
             PolEkoLabDeskProtocol.BuildRequest("GET_PROGRAMS", null, true));
 
         JsonElement credential = json.RootElement.GetProperty("userCredential");
         Assert.Equal("admin", credential.GetProperty("username").GetString());
-        Assert.Equal(string.Empty, credential.GetProperty("password").GetString());
+        Assert.Equal("admin", credential.GetProperty("password").GetString());
+    }
+
+    [Fact]
+    public void Diagnostic_request_redacts_password()
+    {
+        using JsonDocument json = JsonDocument.Parse(
+            PolEkoLabDeskProtocol.BuildRequest("STOP", null, true, redactPassword: true));
+
+        JsonElement credential = json.RootElement.GetProperty("userCredential");
+        Assert.Equal("admin", credential.GetProperty("username").GetString());
+        Assert.Equal("***", credential.GetProperty("password").GetString());
     }
 
     [Theory]

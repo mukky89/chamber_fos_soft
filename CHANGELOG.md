@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.202] – 2026-09-06
+
+### Opravené
+- Ovládacie príkazy POL-EKO LabDesk používajú správne prihlasovacie údaje `admin`; sušiareň už neodmietne STOP, uloženie programu 99 ani jeho spustenie odpoveďou `UNAUTHORIZED` pre prázdne heslo.
+- Heslo POL-EKO sa v diagnostickom TX zázname maskuje a nezapisuje sa do aplikačného logu.
+
 ## [1.76.201] – 2026-09-06
 
 ### Zmenené

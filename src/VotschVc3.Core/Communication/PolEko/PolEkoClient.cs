@@ -147,7 +147,8 @@ public sealed class PolEkoClient : IChamberDevice
             var sender = _sender ?? throw new InvalidOperationException("POL-EKO nie je pripojené.");
             string request = PolEkoLabDeskProtocol.BuildRequest(command, data, credentials);
             string raw = await Task.Run(() => sender.SendRequestMessage(request), ct).ConfigureAwait(false);
-            FrameExchanged?.Invoke(this, new FrameExchangedEventArgs(request, raw));
+            string diagnosticRequest = PolEkoLabDeskProtocol.BuildRequest(command, data, credentials, redactPassword: true);
+            FrameExchanged?.Invoke(this, new FrameExchangedEventArgs(diagnosticRequest, raw));
             var response = JsonSerializer.Deserialize<PolEkoRpcResponse>(raw, Json) ?? throw new InvalidDataException("POL-EKO vrátilo prázdnu RPC odpoveď.");
             if (!response.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase)) throw new PolEkoRpcException(command, response.ResponseStatus, response.Data);
             return response;
@@ -238,10 +239,10 @@ public sealed class PolEkoClient : IChamberDevice
 public static class PolEkoLabDeskProtocol
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-    public static string BuildRequest(string command, string? data, bool credentials) => JsonSerializer.Serialize(new PolEkoRpcRequest
+    public static string BuildRequest(string command, string? data, bool credentials, bool redactPassword = false) => JsonSerializer.Serialize(new PolEkoRpcRequest
     {
         RequestCommand = command,
-        UserCredential = credentials ? new PolEkoCredential() : null,
+        UserCredential = credentials ? new PolEkoCredential { Password = redactPassword ? "***" : "admin" } : null,
         Data = data,
     }, Json);
 
@@ -297,7 +298,7 @@ public sealed class PolEkoRpcException : IOException
 }
 public sealed class PolEkoRpcRequest { public string RequestCommand { get; set; } = ""; public PolEkoCredential? UserCredential { get; set; } public string? Data { get; set; } }
 public sealed class PolEkoRpcResponse { public string RequestCommand { get; set; } = ""; public string ResponseStatus { get; set; } = ""; public string? Data { get; set; } }
-public sealed class PolEkoCredential { public string Username { get; set; } = "admin"; public string Password { get; set; } = ""; }
+public sealed class PolEkoCredential { public string Username { get; set; } = "admin"; public string Password { get; set; } = "admin"; }
 public sealed class PolEkoProgram
 {
     public long ProgramId { get; set; } public string Name { get; set; } = "LabControl"; public int Interval { get; set; } = 60; public int Owner { get; set; } = 1;
