@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.175] – 2026-09-06
+
+### Opravené
+- Pri zamknutom zariadení už nemožno meniť minimálny ani maximálny limit teplotnej poistky.
+- Tlačidlo `Upraviť predvoľby` rešpektuje zámok zariadenia a otvorený editor sa pri zamknutí automaticky zatvorí.
+- Záložná verzia bola zvýšená na 1.76.175.
+
 ## [1.76.174] – 2026-09-06
 
 ### Opravené

@@ -666,10 +666,12 @@
                                                 <TextBlock Text="Poistka" Style="{StaticResource Caption}" FontFamily="Segoe UI Semibold"
                                                            VerticalAlignment="Center" Margin="0,0,7,0" />
                                                 <views:NumericStepper Width="64" Height="30" Value="{Binding SafetyTempMin, Mode=TwoWay}"
-                                                                      Step="1" ToolTip="Minimálna bezpečná teplota" />
+                                                                      Step="1" IsEnabled="{Binding CanEditDeviceSettings}"
+                                                                      ToolTip="Minimálna bezpečná teplota" />
                                                 <TextBlock Text="–" Margin="5,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
                                                 <views:NumericStepper Width="64" Height="30" Value="{Binding SafetyTempMax, Mode=TwoWay}"
-                                                                      Step="1" ToolTip="Maximálna bezpečná teplota" />
+                                                                      Step="1" IsEnabled="{Binding CanEditDeviceSettings}"
+                                                                      ToolTip="Maximálna bezpečná teplota" />
                                                 <TextBlock Text=" °C" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
                                                 <TextBlock Text="  · automaticky podľa profilu" Style="{StaticResource Caption}"
                                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />

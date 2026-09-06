@@ -96,7 +96,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ApplySetpointCommand = new AsyncRelayCommand(ApplySetpointAsync, () => IsConnected && IsOperable, ReportError);
         StopChamberCommand = new AsyncRelayCommand(StopChamberAsync, () => IsConnected && IsOperable, ReportError);
         QuickSetTemperatureCommand = new AsyncRelayCommand<double?>(QuickSetTemperatureAsync, _ => IsConnected && IsOperable, ReportError);
-        ToggleEditPresetsCommand = new RelayCommand(() => IsEditingPresets = !IsEditingPresets, () => IsManageAllowed);
+        ToggleEditPresetsCommand = new RelayCommand(
+            () => IsEditingPresets = !IsEditingPresets,
+            () => IsManageAllowed && IsUnlocked);
         ToggleEditNameCommand = new RelayCommand(() => IsEditingName = !IsEditingName);
         ToggleLockCommand = new RelayCommand(ToggleLock);
         CancelUnlockCommand = new RelayCommand(() => IsUnlockPromptOpen = false);
@@ -326,6 +328,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             if (SetProperty(ref _isLocked, value))
             {
                 OnPropertyChanged(nameof(IsUnlocked));
+                OnPropertyChanged(nameof(CanEditDeviceSettings));
                 OnPropertyChanged(nameof(IsOperable));
                 OnPropertyChanged(nameof(IsManualControlEnabled));
                 OnPropertyChanged(nameof(IsProfileControlEnabled));
@@ -333,6 +336,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 OnPropertyChanged(nameof(LockButtonText));
                 OnPropertyChanged(nameof(LockStateLabel));
                 OnPropertyChanged(nameof(LockBadgeText));
+                if (value) IsEditingPresets = false;
+                ToggleEditPresetsCommand.RaiseCanExecuteChanged();
                 RefreshCommands();
                 AppLog.Info(Name, value ? "Zariadenie zamknuté (ovládanie zablokované)." : "Zariadenie odomknuté.");
             }
@@ -341,6 +346,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary><c>true</c> when the device is not locked (used to enable the control panels).</summary>
     public bool IsUnlocked => !IsLocked;
+
+    /// <summary>Configuration fields remain visible while locked, but cannot be edited.</summary>
+    public bool CanEditDeviceSettings => IsUnlocked;
 
     /// <summary>True when the user may actually operate the device: allowed by role AND not locked.</summary>
     public bool IsOperable => IsControlAllowed && !IsLocked && (!IsSika || SikaRemoteControlEnabled == true);
