@@ -117,6 +117,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StopCalibrationCommand = new RelayCommand(StopCalibration, CanStopOrFinalizeCalibration);
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
+        ExportCalibrationCoefficientsCommand = new RelayCommand(ExportCalibrationCoefficients, () => SelectedHistoryRun?.CalibrationResults.Count > 0);
         RestoreSelectedRunCommand = new RelayCommand(RestoreSelectedHistoricalRun, CanRestoreSelectedHistoricalRun);
 
         RefreshF100PortsCommand = new AsyncRelayCommand(RefreshF100PortsAsync, () => !IsRunning, ReportError);
@@ -179,6 +180,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand StopCalibrationCommand { get; }
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ExportSelectedRunCommand { get; }
+    public RelayCommand ExportCalibrationCoefficientsCommand { get; }
     public RelayCommand RestoreSelectedRunCommand { get; }
     public AsyncRelayCommand RefreshF100PortsCommand { get; }
     public AsyncRelayCommand CheckF100Command { get; }
@@ -268,6 +270,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             if (SetProperty(ref _selectedHistoryRun, value))
             {
                 ExportSelectedRunCommand.RaiseCanExecuteChanged();
+                ExportCalibrationCoefficientsCommand.RaiseCanExecuteChanged();
                 RestoreSelectedRunCommand.RaiseCanExecuteChanged();
             }
         }
@@ -2020,6 +2023,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         foreach (CalibrationRunRecord run in _calibrationStore.LoadHistory()) History.Add(run);
         RefreshProfileStatistics();
         ExportSelectedRunCommand.RaiseCanExecuteChanged();
+        ExportCalibrationCoefficientsCommand.RaiseCanExecuteChanged();
         RestoreSelectedRunCommand.RaiseCanExecuteChanged();
     }
 
@@ -2106,6 +2110,20 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (dialog.ShowDialog() != true) return;
         CalibrationStore.ExportSummaryCsv(SelectedHistoryRun, dialog.FileName);
         StatusMessage = $"Export uložený: {dialog.FileName}";
+    }
+
+    private void ExportCalibrationCoefficients()
+    {
+        if (SelectedHistoryRun?.CalibrationResults.Count is not > 0) return;
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export kalibračných koeficientov",
+            Filter = "CSV (*.csv)|*.csv",
+            FileName = $"coefficients-{SelectedHistoryRun.DisplayRunId}-{SelectedHistoryRun.DisplayProfileId}.csv",
+        };
+        if (dialog.ShowDialog() != true) return;
+        TemperatureCalibrationAnalyzer.ExportCsv(SelectedHistoryRun.CalibrationResults, dialog.FileName);
+        StatusMessage = $"Kalibračné koeficienty boli uložené: {dialog.FileName}";
     }
 
     private async Task SendWarningEmailAsync(CalibrationRunRecord? run, CalibrationWarning warning)

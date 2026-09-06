@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.176] – 2026-09-06
+
+### Pridané
+- Dokončená FBG teplotná kalibrácia vypočíta pre každý peak λTref, citlivosť, koeficienty A–D, maximálnu chybu, toleranciu, R² a výsledok PASS/FAIL podľa algoritmu aplikácie Auto_calibrator_Pali.
+- Pre rozsah do 100 °C sa používa kvadratická a nad 100 °C kubická regresia; referenčná teplota je štandardne 22,5 °C.
+- Koeficienty sa zobrazujú pri vybranom behu v histórii a ukladajú do `calibration-coefficients.csv`, `calibration-coefficients.xlsx` aj `summary.json`.
+- História automaticky dopočíta a vytvorí exporty aj pre existujúce dokončené behy, ktoré majú aspoň tri rôzne referenčné teploty.
+- Pribudol samostatný export koeficientov vybraného behu do CSV.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.176.
+
 ## [1.76.175] – 2026-09-06
 
 ### Opravené

@@ -316,6 +316,7 @@ public sealed class CalibrationRunRecord
     public string ReferenceThermometerChannel { get; set; } = string.Empty;
     public List<CalibrationPlateauResult> Plateaus { get; set; } = new();
     public List<CalibrationWarning> Warnings { get; set; } = new();
+    public List<TemperatureCalibrationResult> CalibrationResults { get; set; } = new();
     public double FinalConditioningTemperatureC { get; set; }
     public TimeSpan FinalConditioningRequiredDuration { get; set; }
     public DateTimeOffset? FinalConditioningStartedAt { get; set; }

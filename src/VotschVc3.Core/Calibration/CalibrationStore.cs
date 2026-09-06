@@ -85,10 +85,13 @@ public sealed class CalibrationStore
         ArgumentNullException.ThrowIfNull(run);
         string dir = RunDirectory(run.RunId);
         Directory.CreateDirectory(dir);
+        run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
         File.WriteAllText(Path.Combine(dir, "summary.json"), JsonSerializer.Serialize(run, JsonOptions));
         ExportSummaryCsv(run, Path.Combine(dir, "summary.csv"));
         try
         {
+            if (run.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings)
+                TemperatureCalibrationAnalyzer.Export(run, dir);
             CalibrationPointReportExporter.ExportCompletedPlateaus(run, dir, LoadSetup(run.ProfileId, run.ChamberId)?.Settings);
         }
         catch (Exception ex) when (ex is not StackOverflowException and not OutOfMemoryException)
@@ -114,7 +117,15 @@ public sealed class CalibrationStore
             try
             {
                 CalibrationRunRecord? run = JsonSerializer.Deserialize<CalibrationRunRecord>(File.ReadAllText(file), JsonOptions);
-                if (run is not null) result.Add(run);
+                if (run is not null)
+                {
+                    run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
+                    if ((run.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings) &&
+                        (!File.Exists(Path.Combine(Path.GetDirectoryName(file)!, "calibration-coefficients.csv")) ||
+                         !File.Exists(Path.Combine(Path.GetDirectoryName(file)!, "calibration-coefficients.xlsx"))))
+                        TemperatureCalibrationAnalyzer.Export(run, Path.GetDirectoryName(file)!);
+                    result.Add(run);
+                }
             }
             catch (Exception ex) when (ex is IOException or JsonException)
             {

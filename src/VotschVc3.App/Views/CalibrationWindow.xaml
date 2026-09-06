@@ -555,13 +555,16 @@
 
             <TabItem Header="História">
                 <Grid Margin="8">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
                         <Button Content="↻ Obnoviť zoznam" Style="{StaticResource GhostButton}" Command="{Binding RefreshHistoryCommand}" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button Content="Pokračovať od vybraného behu" Style="{StaticResource AccentOutlineButton}" Margin="0,0,8,0"
                                     Command="{Binding RestoreSelectedRunCommand}"
                                     ToolTip="Znovu vytvorí checkpoint z dokončených plat vybraného prerušeného behu. Rozpracované plato sa zmeria nanovo." />
+                            <Button Content="Export koeficientov" Style="{StaticResource AccentOutlineButton}" Margin="0,0,8,0"
+                                    Command="{Binding ExportCalibrationCoefficientsCommand}"
+                                    ToolTip="Exportuje λTref, citlivosť, koeficienty, maximálnu chybu, R² a PASS/FAIL vybraného behu." />
                             <Button Content="Export summary CSV" Style="{StaticResource AccentButton}" Command="{Binding ExportSelectedRunCommand}" />
                         </StackPanel>
                     </DockPanel>
@@ -577,7 +580,30 @@
                             </ItemsControl>
                         </StackPanel>
                     </Border>
-                    <DataGrid Grid.Row="2" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryRun}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,9">
+                        <StackPanel>
+                            <TextBlock Text="Kalibračné koeficienty vybraného behu" Style="{StaticResource Heading}" Margin="0,0,0,7" />
+                            <DataGrid ItemsSource="{Binding SelectedHistoryRun.CalibrationResults}" Height="180"
+                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="FBG SN" Binding="{Binding SerialNumber}" Width="140" />
+                                    <DataGridTextColumn Header="Kanál / peak" Binding="{Binding Identity}" Width="170" />
+                                    <DataGridTextColumn Header="Body" Binding="{Binding PointCount}" Width="55" />
+                                    <DataGridTextColumn Header="λTref [nm]" Binding="{Binding LambdaTRefNm, StringFormat=F6}" Width="110" />
+                                    <DataGridTextColumn Header="Citlivosť [pm/°C]" Binding="{Binding SensitivityPmPerC, StringFormat=F4}" Width="125" />
+                                    <DataGridTextColumn Header="A" Binding="{Binding CoefficientA, StringFormat=G8}" Width="105" />
+                                    <DataGridTextColumn Header="B" Binding="{Binding CoefficientB, StringFormat=G8}" Width="105" />
+                                    <DataGridTextColumn Header="C" Binding="{Binding CoefficientC, StringFormat=G8}" Width="105" />
+                                    <DataGridTextColumn Header="D" Binding="{Binding CoefficientD, StringFormat=G8}" Width="105" />
+                                    <DataGridTextColumn Header="Max. chyba [°C]" Binding="{Binding MaxErrorC, StringFormat=F4}" Width="115" />
+                                    <DataGridTextColumn Header="Limit [°C]" Binding="{Binding ErrorToleranceC, StringFormat=F3}" Width="90" />
+                                    <DataGridTextColumn Header="R²" Binding="{Binding RSquared, StringFormat=F6}" Width="85" />
+                                    <DataGridTextColumn Header="Výsledok" Binding="{Binding Result}" Width="85" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid Grid.Row="3" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryRun}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Začiatok" Binding="{Binding StartedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
                             <DataGridTextColumn Header="Koniec" Binding="{Binding CompletedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
