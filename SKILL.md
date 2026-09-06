@@ -35,7 +35,13 @@ For **every code change** in this repository:
 7. Never force-push. If `main` has moved or is protected, integrate safely or report the blocker instead of overwriting history.
 8. Before reporting completion, verify that local `HEAD` matches GitHub `refs/heads/main` and that no task changes remain uncommitted.
 
-Current fallback baseline at the time of this documentation update: `1.76.223`.
+Current fallback baseline at the time of this documentation update: `1.76.229`.
+
+## Token-efficient verification
+
+- Required automated tests and Release builds remain mandatory; saving tokens must never weaken release verification.
+- Redirect routine test/build output to temporary log files. On success, report only the exit result, passed/failed/skipped totals, error count and warning count.
+- Read detailed logs only after a failure or when a particular warning is relevant to the task. Avoid returning full successful build output to the conversation.
 
 ## Changelog format
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.229] – 2026-09-06
+
+### Zmenené
+
+- Projektové a release inštrukcie vyžadujú tokenovo úsporné overovanie: úspešné testy a Release build vracajú iba stručný súhrn, zatiaľ čo podrobné logy sa čítajú iba pri zlyhaní alebo relevantnom varovaní. Povinné overenie pred vydaním zostáva zachované.
+
 ## [1.76.228] – 2026-09-06
 
 ### Opravené
