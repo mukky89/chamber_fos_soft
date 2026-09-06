@@ -66,7 +66,7 @@ public partial class CalibrationWindow
         _wiringGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
         _wiringGrid.RowHeaderWidth = 0;
         _wiringGrid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
-        _wiringGrid.SelectionUnit = DataGridSelectionUnit.Cell;
+        _wiringGrid.SelectionUnit = DataGridSelectionUnit.FullRow;
         _wiringGrid.SelectionMode = DataGridSelectionMode.Single;
         _wiringGrid.CanUserResizeColumns = true;
         _wiringGrid.CanUserReorderColumns = true;

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.207] – 2026-09-06
+
+### Opravené
+- Výber v tabuľke Zapojenie zostáva po kliknutí zvýraznený modrou farbou cez celý riadok; jednotlivé inicializačné vrstvy už neprepínajú tabuľku medzi výberom bunky a riadka.
+- Jednokliková editácia povolených buniek a automatické presunutie na nový peak zostávajú zachované.
+
 ## [1.76.206] – 2026-09-06
 
 ### Pridané

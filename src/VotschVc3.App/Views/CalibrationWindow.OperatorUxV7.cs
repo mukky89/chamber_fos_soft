@@ -81,8 +81,8 @@ public partial class CalibrationWindow
             .FirstOrDefault(grid => IsItemsBindingV7(grid, "PeaksView"));
         if (_wiringGrid is null) return;
 
-        _wiringGrid.SelectionUnit = DataGridSelectionUnit.Cell;
-        _wiringGrid.SelectionMode = DataGridSelectionMode.Extended;
+        _wiringGrid.SelectionUnit = DataGridSelectionUnit.FullRow;
+        _wiringGrid.SelectionMode = DataGridSelectionMode.Single;
         _wiringGrid.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
         _wiringGrid.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
 

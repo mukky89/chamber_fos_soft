@@ -9,10 +9,9 @@ namespace VotschVc3.App.Views;
 
 /// <summary>
 /// Compatibility hotfix for the production wiring grid.
-/// Operator UX selects individual cells, while the older new-peak autofocus path still assigns
-/// DataGrid.SelectedItem before moving CurrentCell. WPF throws when SelectionUnit is Cell only.
-/// CellOrRowHeader preserves cell-centric editing/selection while allowing that legacy row selection
-/// assignment to coexist safely until the autofocus path is consolidated.
+/// Keeps the production wiring grid on one consistent full-row selection mode after every older
+/// initialization layer has run. The current cell still controls one-click editing, while the
+/// selected row remains visibly highlighted across its complete width.
 /// </summary>
 internal static class CalibrationWindowSelectionUnitCompatibilityHotfix
 {
@@ -37,8 +36,8 @@ internal static class CalibrationWindowSelectionUnitCompatibilityHotfix
                 Binding? itemsBinding = BindingOperations.GetBinding(grid, ItemsControl.ItemsSourceProperty);
                 if (!string.Equals(itemsBinding?.Path?.Path, "PeaksView", StringComparison.Ordinal)) continue;
 
-                grid.SelectionUnit = DataGridSelectionUnit.CellOrRowHeader;
-                grid.SelectionMode = DataGridSelectionMode.Extended;
+                grid.SelectionUnit = DataGridSelectionUnit.FullRow;
+                grid.SelectionMode = DataGridSelectionMode.Single;
             }
         }));
     }
