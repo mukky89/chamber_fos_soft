@@ -65,7 +65,8 @@ public partial class HomeView
             foreach (Border tile in existingTiles)
             {
                 tile.Width = compactWidth;
-                tile.Padding = chamber.SupportsHumidity ? new Thickness(7, 5, 7, 5) : new Thickness(9, 6, 9, 6);
+                tile.Height = 58;
+                tile.Padding = chamber.SupportsHumidity ? new Thickness(7, 4, 7, 4) : new Thickness(9, 4, 9, 4);
             }
 
             Border? referenceTile = row.Children
@@ -116,7 +117,7 @@ public partial class HomeView
             Name = "ReferenceTemperatureText",
             Text = "—",
             FontFamily = new FontFamily("Segoe UI Semibold"),
-            FontSize = 18,
+            FontSize = 16,
             Foreground = accent,
         };
         var port = new TextBlock
@@ -137,12 +138,12 @@ public partial class HomeView
         {
             Tag = ReferenceMetricTag,
             Width = width,
-            Height = 66,
+            Height = 58,
             Background = surface,
             BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(7),
-            Padding = new Thickness(8, 5, 8, 5),
-            Margin = new Thickness(0, 0, 8, 8),
+            Padding = new Thickness(8, 4, 8, 4),
+            Margin = new Thickness(0, 0, 8, 6),
             Child = content,
             ToolTip = "Referenčný teplomer priradený tejto FBG kalibrácii. Ak nie je pripojený, teplota zostane prázdna.",
         };
@@ -182,7 +183,7 @@ public partial class HomeView
     }
 
     private static bool IsDashboardMetricTile(Border border) =>
-        Math.Abs(border.Height - 66) < 0.1 &&
+        Math.Abs(border.Height - 58) < 0.1 &&
         border.Child is StackPanel stack &&
         stack.Children.OfType<TextBlock>().Any(text =>
             text.Text is "Teplota komory" or "Teplota" or "Nastavená (setpoint)" or "Setpoint" or "Vlhkosť");

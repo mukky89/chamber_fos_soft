@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.187] – 2026-09-06
+
+### Opravené
+- Hodnoty teploty, setpointu, vlhkosti a WIKA referencie na kartách zariadení používajú pevne rovnakú veľkosť písma; dlhšia hodnota už nezmenší font oproti ostatným bunkám.
+- Číselné hodnoty na hlavnom paneli sa zobrazujú jednotne na tri desatinné miesta.
+
+### Zmenené
+- Bunky živých hodnôt majú kompaktnejšiu výšku, menší zvislý padding a menšiu spodnú medzeru, aby panel zobrazil viac obsahu bez straty čitateľnosti.
+- Záložná verzia bola zvýšená na 1.76.187.
+
 ## [1.76.186] – 2026-09-06
 
 ### Pridané

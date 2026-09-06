@@ -59,18 +59,24 @@
              one fixed row so cards below never shift vertically. -->
         <Style x:Key="DashboardMetricTile" TargetType="Border">
             <Setter Property="Width" Value="194" />
-            <Setter Property="Height" Value="66" />
+            <Setter Property="Height" Value="58" />
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="7" />
-            <Setter Property="Padding" Value="10,6" />
-            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="Padding" Value="9,4" />
+            <Setter Property="Margin" Value="0,0,8,6" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding SupportsHumidity}" Value="True">
                     <Setter Property="Width" Value="128" />
-                    <Setter Property="Padding" Value="7,5" />
+                    <Setter Property="Padding" Value="7,4" />
                 </DataTrigger>
             </Style.Triggers>
+        </Style>
+        <Style x:Key="DashboardMetricValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
         </Style>
         <!-- Vertical navigation button in the sidebar: full width, left-aligned label,
              transparent at rest, subtle surface fill + accent glyph bar on hover. -->
@@ -582,11 +588,9 @@
                                                             </Style>
                                                         </TextBlock.Style>
                                                     </TextBlock>
-                                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left">
-                                                        <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}">
-                                                            <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" °C" />
-                                                        </TextBlock>
-                                                    </Viewbox>
+                                                    <TextBlock Style="{StaticResource DashboardMetricValue}" Foreground="{StaticResource TemperatureBrush}">
+                                                        <Run Text="{Binding MeasuredTemperature, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}" /><Run Text=" °C" />
+                                                    </TextBlock>
                                                 </StackPanel>
                                             </Border>
                                             <Border Style="{StaticResource DashboardMetricTile}">
@@ -603,8 +607,8 @@
                                                             </Style>
                                                         </TextBlock.Style>
                                                     </TextBlock>
-                                                    <TextBlock Style="{StaticResource MetricSub}" Foreground="{StaticResource TemperatureSetpointBrush}">
-                                                        <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" °C" />
+                                                    <TextBlock Style="{StaticResource DashboardMetricValue}" Foreground="{StaticResource TemperatureSetpointBrush}">
+                                                        <Run Text="{Binding MeasuredTemperatureSetpoint, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}" /><Run Text=" °C" />
                                                     </TextBlock>
                                                 </StackPanel>
                                             </Border>
@@ -612,8 +616,8 @@
                                                     Visibility="{Binding SupportsHumidity, Converter={StaticResource BoolToVisibility}}">
                                                 <StackPanel>
                                                     <TextBlock Text="Vlhkosť" Style="{StaticResource Caption}" />
-                                                    <TextBlock Style="{StaticResource MetricSmall}" Foreground="{StaticResource HumidityBrush}">
-                                                        <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.0###, Mode=OneWay}" /><Run Text=" %" />
+                                                    <TextBlock Style="{StaticResource DashboardMetricValue}" Foreground="{StaticResource HumidityBrush}">
+                                                        <Run Text="{Binding MeasuredHumidity, Converter={StaticResource ValueOrDash}, ConverterParameter=0.000, Mode=OneWay}" /><Run Text=" %" />
                                                     </TextBlock>
                                                 </StackPanel>
                                             </Border>
