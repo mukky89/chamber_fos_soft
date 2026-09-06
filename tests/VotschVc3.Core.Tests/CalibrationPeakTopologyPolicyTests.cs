@@ -24,6 +24,15 @@ public sealed class CalibrationPeakTopologyPolicyTests
     }
 
     [Fact]
+    public void EquivalentTopology_IgnoresRefreshedInterrogatorIdentifier()
+    {
+        string[] beforeRefresh = ["logger-old|1.3|P1", "logger-old|2.3|P1"];
+        string[] afterRefresh = ["logger-new|1.3|P1", "logger-new|2.3|P1"];
+
+        Assert.True(PeakTopologyComparer.AreEquivalent(afterRefresh, beforeRefresh));
+    }
+
+    [Fact]
     public void ActiveRun_DoesNotMaterializeUnknownLiveSources()
     {
         IReadOnlyList<string> result = CalibrationPeakTopologyPolicy.SelectNewSources(

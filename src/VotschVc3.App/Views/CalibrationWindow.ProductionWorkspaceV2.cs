@@ -459,6 +459,15 @@ public partial class CalibrationWindow
             return;
         }
 
+        if (PeakTopologyComparer.AreEquivalent(current, _knownPeakIdentities))
+        {
+            // A normal reconnect/refresh rebuilds the observable collection. Its API-side source
+            // identifier may be temporarily blank or refreshed, but the same channel + Peak ID
+            // is not a newly connected row and must not focus the editor or show a false banner.
+            _knownPeakIdentities = current;
+            return;
+        }
+
         string[] added = current.Except(_knownPeakIdentities, StringComparer.OrdinalIgnoreCase).ToArray();
         string[] removed = _knownPeakIdentities.Except(current, StringComparer.OrdinalIgnoreCase).ToArray();
         _knownPeakIdentities = current;

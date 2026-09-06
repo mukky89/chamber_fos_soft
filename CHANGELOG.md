@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.208] – 2026-09-06
+
+### Opravené
+- Obnovenie alebo opätovné pripojenie PeakLoggera už nezobrazí falošné hlásenie „pribudol nový riadok“, ak zostali rovnaké kanály a Peak ID.
+- Zmena dočasného alebo API identifikátora interrogátora sa nepovažuje za zmenu fyzickej topológie; skutočne pridaný alebo odstránený kanál/peak sa naďalej rozpozná.
+
 ## [1.76.207] – 2026-09-06
 
 ### Opravené
