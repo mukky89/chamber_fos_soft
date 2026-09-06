@@ -10,6 +10,14 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationTests
 {
     [Fact]
+    public void SensorTimeoutBudget_UsesObservedCadenceForACompleteRetry()
+    {
+        TimeSpan allowance = SensorTimeoutBudget.CompleteAttempt(50, 50, TimeSpan.FromSeconds(3.4));
+
+        Assert.Equal(TimeSpan.FromSeconds(455), allowance);
+    }
+
+    [Fact]
     public void CalibrationDefaultsStore_RoundTripsTemplateAndReturnsIndependentCopy()
     {
         string root = Path.Combine(Path.GetTempPath(), "votsch-cal-defaults-" + Guid.NewGuid().ToString("N"));

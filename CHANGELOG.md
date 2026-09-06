@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.182] – 2026-09-06
+
+### Opravené
+- Strata stability počas finálneho merania už nespotrebuje jediný spoločný limit: prvý reset s rozpracovanými vzorkami povolí jeden nový kompletný pokus.
+- Čas nového pokusu sa vypočíta z reálne nameranej rýchlosti vzoriek a zahŕňa celé stabilizačné aj finálne okno s rezervou; ďalšie restarty limit nepredlžujú donekonečna.
+- Diagnostika a živý prehľad uvádzajú presný počet zahodených finálnych vzoriek aj prekročené kritérium (range, StdDev alebo drift).
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.182.
+
 ## [1.76.181] – 2026-09-06
 
 ### Zmenené
