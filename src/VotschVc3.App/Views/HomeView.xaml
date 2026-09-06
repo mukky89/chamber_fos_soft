@@ -651,14 +651,23 @@
                                                     Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
                                                     ToolTip="Admin: uprav teploty rýchleho ovládania pre toto zariadenie." />
                                         </DockPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,7,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="Teplotná poistka" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                            <views:NumericStepper Width="78" Value="{Binding SafetyTempMin, Mode=TwoWay}" Step="1" ToolTip="Minimálna bezpečná teplota" />
-                                            <TextBlock Text=" až " VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                                            <views:NumericStepper Width="78" Value="{Binding SafetyTempMax, Mode=TwoWay}" Step="1" ToolTip="Maximálna bezpečná teplota" />
-                                            <TextBlock Text=" °C" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                                            <TextBlock Text="  · profil nastaví automaticky s rezervou ±5 °C" Style="{StaticResource Caption}" VerticalAlignment="Center" />
-                                        </StackPanel>
+                                        <Border Margin="0,6,0,0" Padding="8,5" CornerRadius="7"
+                                                Background="{StaticResource SurfaceBrush}"
+                                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                                ToolTip="Nadradená teplotná ochrana. Profil nastaví limity automaticky s rezervou ±5 °C.">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="Poistka" Style="{StaticResource Caption}" FontFamily="Segoe UI Semibold"
+                                                           VerticalAlignment="Center" Margin="0,0,7,0" />
+                                                <views:NumericStepper Width="64" Height="30" Value="{Binding SafetyTempMin, Mode=TwoWay}"
+                                                                      Step="1" ToolTip="Minimálna bezpečná teplota" />
+                                                <TextBlock Text="–" Margin="5,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                                                <views:NumericStepper Width="64" Height="30" Value="{Binding SafetyTempMax, Mode=TwoWay}"
+                                                                      Step="1" ToolTip="Maximálna bezpečná teplota" />
+                                                <TextBlock Text=" °C" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                                                <TextBlock Text="  · automaticky podľa profilu" Style="{StaticResource Caption}"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Border>
 
                                         <!-- Admin preset editor -->
                                         <StackPanel Margin="0,6,0,0" Visibility="{Binding IsEditingPresets, Converter={StaticResource BoolToVisibility}}">

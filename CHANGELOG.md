@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.169] – 2026-09-06
+
+### Zmenené
+- Teplotná poistka v rýchlom ovládaní je menšia a umiestnená v samostatnom kompaktnom rámčeku.
+- Popis automatických limitov profilu zostal dostupný priamo v riadku aj v nápovede bez zmeny bezpečnostnej logiky.
+- Záložná verzia bola zvýšená na 1.76.169.
+
 ## [1.76.168] – 2026-09-06
 
 ### Pridané
