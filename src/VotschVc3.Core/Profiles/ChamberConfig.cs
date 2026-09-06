@@ -39,6 +39,11 @@ public sealed class ChamberConfig
     public double HumMax { get; set; } = 100;
     public bool AutoStopOnAlarm { get; set; } = true;
     public bool AutoReconnect { get; set; } = true;
+    /// <summary>Runtime-only PIN; deliberately never written to the chamber JSON file.</summary>
+    [JsonIgnore]
+    public string SikaRemotePin { get; set; } = string.Empty;
+    public string SikaSerialPort { get; set; } = string.Empty;
+    public double SikaGradientCPerMinute { get; set; }
 
     /// <summary>
     /// When <c>true</c>, a profile interrupted by a power outage / app crash is offered

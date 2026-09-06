@@ -161,6 +161,8 @@ public class SikaTpClientTests
                 ("{\"value\":\"success\",\"info\":\"stop current task and reload current task\"}", HttpStatusCode.OK),
             ["ajax/setRegister?register=System_ReglerOnOff&value=0"] =
                 ("{\"value\":\"success\",\"info\":\"value 0.000000 wrote to register System_ReglerOnOff\"}", HttpStatusCode.OK),
+            ["ajax/getRegister?register=System_ReglerOnOff"] =
+                ("{\"register\":\"System_ReglerOnOff\",\"values\":[{\"value\":0.0}]}", HttpStatusCode.OK),
         };
 
         await using var client = new SikaTpClient(_ => new HttpClient(handler));

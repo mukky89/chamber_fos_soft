@@ -122,7 +122,22 @@
                                        Text="POL-EKO LabDesk RPC · AES/Eneter TCP (port 56506). Teplota sa číta cez GET_STATUS; ovládanie používa programové segmenty a LAUNCH_BY_ID." />
                             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
                                        Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}"
-                                       Text="SIKA TP Premium · REST-API cez HTTP (port 8081). Meraná teplota a setpoint sa čítajú príkazom getRegister; zápis cez setSP. Kúpeľ nemá vzdialené vypnutie – beží nepretržite." />
+                                       Text="SIKA TP+ · HTTP/AJAX (port 80 alebo 8080–8085), s voliteľnou servisnou sériovou zálohou 2400 8N1." />
+                            <StackPanel Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,8">
+                                <Button Content="🔎 Nájsť SIKA API" Command="{Binding DiscoverSikaCommand}" HorizontalAlignment="Left"
+                                        ToolTip="Bezpečne vyskúša porty 80, 8080, 8081, 8082 a 8085 a uloží prvý platný." />
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="Remote PIN" Style="{StaticResource Label}"/><PasswordBox PasswordChanged="SikaPin_Changed" /></StackPanel>
+                                    <StackPanel Grid.Column="2"><TextBlock Text="Gradient [°C/min]" Style="{StaticResource Label}"/><TextBox Text="{Binding SikaGradientCPerMinute, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button Content="Odomknúť PIN" Command="{Binding UnlockSikaCommand}" />
+                                    <TextBlock Text="Sériová záloha COM:" Style="{StaticResource Caption}" Margin="12,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBox Width="75" Text="{Binding SikaSerialPort, UpdateSourceTrigger=PropertyChanged}" ToolTip="Napr. COM8; používa protokol SIKA 2400 8N1."/>
+                                    <Button Content="Test COM" Margin="6,0,0,0" Command="{Binding TestSikaSerialCommand}" />
+                                </StackPanel>
+                            </StackPanel>
                             <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,8"
                                     Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                                     Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}">
@@ -755,7 +770,15 @@
                             <Button Content="getCalibrationStatus" Margin="8,0,0,0"
                                     Command="{Binding SikaCalibrationStatusCommand}"
                                     ToolTip="Aktuálny stav kalibrácie (beží / nebeží, testovací bod, stabilita)." />
+                            <Button Content="Stav + chyby" Margin="8,0,0,0" Command="{Binding ReadSikaStatusCommand}" />
+                            <Button Content="Úlohy / shells / objekty" Margin="8,0,0,0" Command="{Binding ReadSikaTasksCommand}" />
                         </StackPanel>
+                        <TextBlock Text="JSON internej úlohy na spustenie" Style="{StaticResource Label}" />
+                        <DockPanel Margin="0,0,0,8">
+                            <Button DockPanel.Dock="Right" Content="▶ Spustiť úlohu" Margin="8,0,0,0" Command="{Binding StartSikaTaskCommand}" />
+                            <TextBox Text="{Binding SikaTaskJson, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" />
+                        </DockPanel>
+                        <TextBlock Text="{Binding SikaOperationalStatus}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,8">
                             <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
                                 <TextBlock Text="{Binding DiagResult}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" />

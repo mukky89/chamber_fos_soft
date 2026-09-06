@@ -99,6 +99,7 @@ public sealed class SikaTpClient : IChamberDevice
     public bool IsConnected { get; private set; }
 
     public bool? RemoteControlEnabled { get; private set; }
+    public SikaDeviceStatus? LastStatus { get; private set; }
 
     public event EventHandler<FrameExchangedEventArgs>? FrameExchanged;
 
@@ -158,6 +159,90 @@ public sealed class SikaTpClient : IChamberDevice
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>Probes the documented TP+ HTTP ports and connects to the first valid AJAX API.</summary>
+    public async Task<int> DiscoverAndConnectAsync(ChamberConnectionSettings settings, CancellationToken cancellationToken = default)
+    {
+        Exception? last = null;
+        foreach (int port in SikaRestApiProtocol.DiscoveryPorts.Distinct())
+        {
+            try
+            {
+                ChamberConnectionSettings candidate = settings.Clone();
+                candidate.Port = port;
+                await ConnectAsync(candidate, cancellationToken).ConfigureAwait(false);
+                return port;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+            {
+                last = ex;
+            }
+        }
+        throw new InvalidOperationException($"SIKA API sa nenašlo na portoch {string.Join(", ", SikaRestApiProtocol.DiscoveryPorts)}.", last);
+    }
+
+    /// <summary>Unlocks write access with the user-configured remote PIN and verifies the write flag.</summary>
+    public async Task<bool> UnlockRemoteAsync(string pin, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(pin)) throw new ArgumentException("Zadaj Remote PIN SIKA.", nameof(pin));
+        string url = SikaRestApiProtocol.BuildUnlockRemoteUrl(Settings.Host, Settings.Port, pin);
+        string response = await GetWithRetryAsync(url, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {SikaRestApiProtocol.BuildCommandUrl(Settings.Host, Settings.Port, "unlockRemote?pin=****")}", Truncate(response));
+        try { SikaRestApiProtocol.EnsureCommandSucceeded(response, "unlockRemote"); }
+        catch (InvalidOperationException) { return false; }
+        return await ReadRemoteControlEnabledAsync(retry: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads controller state, limits, gradient, remaining minutes and device errors.</summary>
+    public async Task<SikaDeviceStatus> ReadDeviceStatusAsync(CancellationToken cancellationToken = default)
+    {
+        async Task<double?> ReadNumber(string register)
+        {
+            try
+            {
+                string url = SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, register);
+                return SikaRestApiProtocol.ParseRegisterValue(await GetAsync(url, cancellationToken).ConfigureAwait(false));
+            }
+            catch (Exception ex) when (IsTransient(ex) || ex is InvalidOperationException) { return null; }
+        }
+        double? controller = await ReadNumber(SikaRestApiProtocol.ControllerOnOffRegister).ConfigureAwait(false);
+        var status = new SikaDeviceStatus(
+            ControllerOn: controller is null ? null : controller >= .5,
+            SystemState: await ReadNumber("System_SystemState").ConfigureAwait(false),
+            CurrentGradient: await ReadNumber("TRset_CurrentGradient").ConfigureAwait(false),
+            MinimumC: await ReadNumber("System_MinTemp").ConfigureAwait(false),
+            MaximumC: await ReadNumber("System_MaxTemp").ConfigureAwait(false),
+            RemainingMinutes: await ReadNumber("MasterRemainingTime_RemainingTimeSum").ConfigureAwait(false),
+            ErrorsJson: await TryRawAsync("getErrors", cancellationToken).ConfigureAwait(false));
+        LastStatus = status;
+        return status;
+    }
+
+    public Task<string> GetTasksAsync(CancellationToken cancellationToken = default) => TryRawAsync("getTasks", cancellationToken);
+    public Task<string> GetRunningTaskAsync(CancellationToken cancellationToken = default) => TryRawAsync("getRunningTask", cancellationToken);
+    public async Task<string> GetDeviceCatalogAsync(CancellationToken cancellationToken = default)
+    {
+        string tasks = await TryRawAsync("getTasks", cancellationToken).ConfigureAwait(false);
+        string shells = await TryRawAsync("getShells", cancellationToken).ConfigureAwait(false);
+        string objects = await TryRawAsync("getTestObjects", cancellationToken).ConfigureAwait(false);
+        string running = await TryRawAsync("getRunningTask", cancellationToken).ConfigureAwait(false);
+        return $"ÚLOHY\n{tasks}\n\nSHELLS\n{shells}\n\nTESTOVACIE OBJEKTY\n{objects}\n\nBEŽIACA ÚLOHA\n{running}";
+    }
+    public async Task StartTaskAsync(string json, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("Chýba JSON úlohy.", nameof(json));
+        await EnsureRemoteControlEnabledAsync(cancellationToken).ConfigureAwait(false);
+        string response = await TryRawAsync($"startTask?json={Uri.EscapeDataString(json)}", cancellationToken).ConfigureAwait(false);
+        SikaRestApiProtocol.EnsureCommandSucceeded(response, "startTask");
+    }
+
+    private async Task<string> TryRawAsync(string command, CancellationToken cancellationToken)
+    {
+        string url = SikaRestApiProtocol.BuildCommandUrl(Settings.Host, Settings.Port, command);
+        string response = await GetWithRetryAsync(url, cancellationToken).ConfigureAwait(false);
+        RaiseFrame($"GET {url}", Truncate(response));
+        return response;
     }
 
     /// <summary>Turns a low-level HTTP failure into an actionable Slovak message.</summary>
@@ -277,6 +362,14 @@ public sealed class SikaTpClient : IChamberDevice
         // Write the set point the way the device's own web UI does (verified on a real
         // TP3M165E.2): the EasyMode task set point list first, then the live set point
         // register, both via setRegister – not the older setSP command.
+        if (Math.Abs(Settings.SikaGradientCPerMinute) > 0.000001)
+        {
+            string gradientUrl = SikaRestApiProtocol.BuildSetSpUrl(Settings.Host, Settings.Port, temperature, Settings.SikaGradientCPerMinute);
+            string gradientResponse = await GetWithRetryAsync(gradientUrl, cancellationToken).ConfigureAwait(false);
+            RaiseFrame($"GET {gradientUrl}", gradientResponse);
+            SikaRestApiProtocol.ParseSetSpResponse(gradientResponse);
+        }
+
         string listUrl = SikaRestApiProtocol.BuildSetRegisterUrl(
             Settings.Host, Settings.Port, SikaRestApiProtocol.TaskSetPointListRegister, temperature);
         string listResponse = await GetWithRetryAsync(listUrl, cancellationToken).ConfigureAwait(false);
@@ -386,6 +479,16 @@ public sealed class SikaTpClient : IChamberDevice
         string offResponse = await GetWithRetryAsync(offUrl, cancellationToken).ConfigureAwait(false);
         RaiseFrame($"GET {offUrl}", offResponse);
         SikaRestApiProtocol.ParseSetRegisterResponse(offResponse);
+        double? controller = null;
+        for (int attempt = 0; attempt < 4; attempt++)
+        {
+            controller = SikaRestApiProtocol.ParseRegisterValue(await GetWithRetryAsync(
+                SikaRestApiProtocol.BuildGetRegisterUrl(Settings.Host, Settings.Port, SikaRestApiProtocol.ControllerOnOffRegister), cancellationToken).ConfigureAwait(false));
+            if (controller is < .5) break;
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+        }
+        if (controller is null or >= .5)
+            throw new InvalidOperationException("SIKA STOP nebol potvrdený: regulátor zostal zapnutý. Vyžaduje sa zásah operátora.");
         RaiseFrame("STOP", "Regulátor vypnutý (stopCurrentTask + System_ReglerOnOff=0).");
     }
 
@@ -490,6 +593,8 @@ public sealed class SikaTpClient : IChamberDevice
     private async Task EnsureRemoteControlEnabledAsync(CancellationToken cancellationToken)
     {
         bool enabled = await ReadRemoteControlEnabledAsync(retry: true, cancellationToken).ConfigureAwait(false);
+        if (!enabled && !string.IsNullOrWhiteSpace(Settings.SikaRemotePin))
+            enabled = await UnlockRemoteAsync(Settings.SikaRemotePin, cancellationToken).ConfigureAwait(false);
         if (!enabled)
         {
             throw new InvalidOperationException(
@@ -573,3 +678,6 @@ public sealed class SikaTpClient : IChamberDevice
         return ValueTask.CompletedTask;
     }
 }
+
+public sealed record SikaDeviceStatus(bool? ControllerOn, double? SystemState, double? CurrentGradient,
+    double? MinimumC, double? MaximumC, double? RemainingMinutes, string ErrorsJson);

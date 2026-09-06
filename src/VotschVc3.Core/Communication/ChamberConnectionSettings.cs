@@ -56,6 +56,15 @@ public sealed class ChamberConnectionSettings
     /// </summary>
     public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
+    /// <summary>Optional SIKA remote PIN. Kept in memory only; persistence is handled by the UI store.</summary>
+    public string SikaRemotePin { get; set; } = string.Empty;
+
+    /// <summary>Optional COM port used as a 2400 8N1 SIKA ASCII fallback when HTTP is unavailable.</summary>
+    public string SikaSerialPort { get; set; } = string.Empty;
+
+    /// <summary>Optional gradient passed to setSP; zero keeps the proven register-write behaviour.</summary>
+    public double SikaGradientCPerMinute { get; set; }
+
     /// <summary>Creates a deep copy so a UI can edit settings without affecting a live client.</summary>
     public ChamberConnectionSettings Clone() => new()
     {
@@ -68,5 +77,8 @@ public sealed class ChamberConnectionSettings
         HighResolutionRead = HighResolutionRead,
         ConnectTimeout = ConnectTimeout,
         ReadTimeout = ReadTimeout,
+        SikaRemotePin = SikaRemotePin,
+        SikaSerialPort = SikaSerialPort,
+        SikaGradientCPerMinute = SikaGradientCPerMinute,
     };
 }

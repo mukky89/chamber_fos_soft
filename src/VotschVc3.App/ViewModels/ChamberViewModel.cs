@@ -28,6 +28,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private const int MaxTerminalLines = 1000;
 
     private readonly IChamberDevice _client;
+    private readonly IChamberDevice _rawClient;
     private readonly TemperatureSafetyPolicy _temperatureSafety;
     private readonly TemperatureSafetyChamberDevice _safetyClient;
     private readonly ProfileStore _store;
@@ -73,6 +74,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             ChamberProtocol.SikaRestApi => new SikaTpClient(),
             _ => new ChamberClient(),
         };
+        _rawClient = rawClient;
         _temperatureSafety = TemperatureSafetyRegistry.Get(Id, config.SafetyTempMin, config.SafetyTempMax);
         _temperatureSafety.Configured += OnTemperatureSafetyConfigured;
         _temperatureSafety.Configure(config.SafetyTempMin, config.SafetyTempMax);
@@ -158,6 +160,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SikaCalibrationStatusCommand = new AsyncRelayCommand(SikaCalibrationStatusAsync, () => IsConnected && IsSika, ReportError);
         ForceSikaRemoteControlCommand = new AsyncRelayCommand(ForceSikaRemoteControlAsync,
             () => IsConnected && IsSika && IsControlAllowed && IsUnlocked, ReportError);
+        DiscoverSikaCommand = new AsyncRelayCommand(DiscoverSikaAsync, () => !IsConnected && IsSika, ReportError);
+        UnlockSikaCommand = new AsyncRelayCommand(UnlockSikaAsync, () => IsConnected && IsSika && !string.IsNullOrWhiteSpace(SikaRemotePin), ReportError);
+        ReadSikaStatusCommand = new AsyncRelayCommand(ReadSikaStatusAsync, () => IsConnected && IsSika, ReportError);
+        ReadSikaTasksCommand = new AsyncRelayCommand(ReadSikaTasksAsync, () => IsConnected && IsSika, ReportError);
+        StartSikaTaskCommand = new AsyncRelayCommand(StartSikaTaskAsync, () => IsConnected && IsSika && !string.IsNullOrWhiteSpace(SikaTaskJson) && IsOperable, ReportError);
+        TestSikaSerialCommand = new AsyncRelayCommand(TestSikaSerialAsync, () => IsSika && !string.IsNullOrWhiteSpace(SikaSerialPort), ReportError);
         RefreshSikaLogsCommand = new AsyncRelayCommand(RefreshSikaLogsAsync, () => IsConnected && IsSika, ReportError);
         ExportSelectedSikaLogCommand = new AsyncRelayCommand(ExportSelectedSikaLogAsync,
             () => IsConnected && IsSika && SelectedSikaLog is not null, ReportError);
@@ -576,6 +584,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public string Endpoint => $"{Host}:{Port}";
 
+    private string _sikaRemotePin = string.Empty;
+    public string SikaRemotePin { get => _sikaRemotePin; set { if (SetProperty(ref _sikaRemotePin, value)) UnlockSikaCommand?.RaiseCanExecuteChanged(); } }
+    private string _sikaSerialPort = string.Empty;
+    public string SikaSerialPort { get => _sikaSerialPort; set { if (SetProperty(ref _sikaSerialPort, value)) TestSikaSerialCommand?.RaiseCanExecuteChanged(); } }
+    private double _sikaGradientCPerMinute;
+    public double SikaGradientCPerMinute { get => _sikaGradientCPerMinute; set => SetProperty(ref _sikaGradientCPerMinute, Math.Max(0, value)); }
+    private string _sikaTaskJson = string.Empty;
+    public string SikaTaskJson { get => _sikaTaskJson; set { if (SetProperty(ref _sikaTaskJson, value)) StartSikaTaskCommand?.RaiseCanExecuteChanged(); } }
+    private string _sikaOperationalStatus = "Stav zariadenia zatiaľ nebol načítaný.";
+    public string SikaOperationalStatus { get => _sikaOperationalStatus; private set => SetProperty(ref _sikaOperationalStatus, value); }
+
     /// <summary>
     /// Browser URL of the controller's built-in web interface. The ASCII-2 / REST
     /// communication port is deliberately not reused: both Vötsch and SIKA serve
@@ -703,6 +722,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         Terminator = TerminatorValue,
         AnalogChannelCount = AnalogChannelCount,
         StartChannelIndex = StartChannelIndex,
+        SikaRemotePin = SikaRemotePin,
+        SikaSerialPort = SikaSerialPort,
+        SikaGradientCPerMinute = SikaGradientCPerMinute,
     };
 
     private async Task ConnectAsync()
@@ -889,9 +911,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     {
         MeasuredTemperature = reading.Temperature;
         MeasuredTemperatureSetpoint = reading.TemperatureSetpoint;
-        if (_client is SikaTpClient sika)
+        if (_rawClient is SikaTpClient sika)
         {
             SikaRemoteControlEnabled = sika.RemoteControlEnabled;
+            if (DateTimeOffset.UtcNow - _lastSikaStatusRead > TimeSpan.FromSeconds(30))
+            {
+                _lastSikaStatusRead = DateTimeOffset.UtcNow;
+                _ = RefreshSikaStatusInBackgroundAsync(sika);
+            }
         }
         if (SupportsHumidity)
         {
@@ -3260,7 +3287,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task RefreshSikaLogsAsync()
     {
-        if (_client is not SikaTpClient sika) return;
+        if (_rawClient is not SikaTpClient sika) return;
         SikaLogStatus = "Načítavam zoznam logov zo SIKA…";
         IReadOnlyList<SikaTaskLogSummary> logs = await sika.GetTaskLogsAsync();
         SikaTaskLogs.Clear();
@@ -3271,7 +3298,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task ExportSelectedSikaLogAsync()
     {
-        if (_client is not SikaTpClient sika || SelectedSikaLog is not { } selected) return;
+        if (_rawClient is not SikaTpClient sika || SelectedSikaLog is not { } selected) return;
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Uložiť interný SIKA log ako CSV",
@@ -3451,6 +3478,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Tries to switch the bath's "Remote Control" on over the network, so the
     /// operator does not have to walk to the device's front panel.</summary>
     public AsyncRelayCommand ForceSikaRemoteControlCommand { get; }
+    public AsyncRelayCommand DiscoverSikaCommand { get; }
+    public AsyncRelayCommand UnlockSikaCommand { get; }
+    public AsyncRelayCommand ReadSikaStatusCommand { get; }
+    public AsyncRelayCommand ReadSikaTasksCommand { get; }
+    public AsyncRelayCommand StartSikaTaskCommand { get; }
+    public AsyncRelayCommand TestSikaSerialCommand { get; }
 
     /// <summary>
     /// Writes <c>Com_ExternWriteFlag = 1</c> on the SIKA bath and re-reads the flag. Some
@@ -3459,7 +3492,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private async Task ForceSikaRemoteControlAsync()
     {
-        if (_client is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
+        if (_rawClient is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
         {
             StatusMessage = "Remote Control cez sieť je len pre SIKA REST-API.";
             return;
@@ -3481,6 +3514,67 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    private DateTimeOffset _lastSikaStatusRead = DateTimeOffset.MinValue;
+    private async Task RefreshSikaStatusInBackgroundAsync(SikaTpClient sika)
+    {
+        try
+        {
+            SikaDeviceStatus s = await sika.ReadDeviceStatusAsync();
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                SikaOperationalStatus = $"Regulátor {(s.ControllerOn == true ? "ZAP" : s.ControllerOn == false ? "VYP" : "?")} · gradient {s.CurrentGradient?.ToString("0.###") ?? "?"} °C/min · zostáva {s.RemainingMinutes?.ToString("0.#") ?? "?"} min · interné limity {s.MinimumC?.ToString("0.#") ?? "?"}…{s.MaximumC?.ToString("0.#") ?? "?"} °C");
+        }
+        catch (Exception ex) { AppLog.Warn(Name, $"[SIKA] Stav zariadenia sa nepodarilo obnoviť: {ex.Message}"); }
+    }
+
+    private async Task DiscoverSikaAsync()
+    {
+        if (_rawClient is not SikaTpClient sika) return;
+        StatusMessage = "Hľadám SIKA API na portoch 80, 8080, 8081, 8082 a 8085…";
+        Port = await sika.DiscoverAndConnectAsync(BuildSettings());
+        IsConnected = true;
+        ShowActionInfo($"✔ SIKA API nájdené na porte {Port}.");
+        StartPolling();
+    }
+
+    private async Task UnlockSikaAsync()
+    {
+        if (_rawClient is not SikaTpClient sika) return;
+        bool ok = await sika.UnlockRemoteAsync(SikaRemotePin);
+        SikaRemoteControlEnabled = ok;
+        ShowActionInfo(ok ? "✔ SIKA Remote Control odomknuté PIN-om." : "⚠ SIKA PIN bol odmietnutý.");
+    }
+
+    private async Task ReadSikaStatusAsync()
+    {
+        if (_rawClient is not SikaTpClient sika) return;
+        SikaDeviceStatus s = await sika.ReadDeviceStatusAsync();
+        SikaOperationalStatus = $"Regulátor: {(s.ControllerOn == true ? "ZAP" : s.ControllerOn == false ? "VYP" : "?")} · stav {s.SystemState?.ToString("0") ?? "?"} · gradient {s.CurrentGradient?.ToString("0.###") ?? "?"} °C/min · limity {s.MinimumC?.ToString("0.###") ?? "?"}…{s.MaximumC?.ToString("0.###") ?? "?"} °C · zostáva {s.RemainingMinutes?.ToString("0.#") ?? "?"} min\nChyby: {s.ErrorsJson}";
+        DiagResult = SikaOperationalStatus;
+    }
+
+    private async Task ReadSikaTasksAsync()
+    {
+        if (_rawClient is not SikaTpClient sika) return;
+        DiagResult = await sika.GetDeviceCatalogAsync();
+    }
+
+    private async Task StartSikaTaskAsync()
+    {
+        if (_rawClient is not SikaTpClient sika) return;
+        await sika.StartTaskAsync(SikaTaskJson);
+        ShowActionInfo("✔ Interná SIKA úloha bola odoslaná a spustená.");
+    }
+
+    private async Task TestSikaSerialAsync()
+    {
+        await using var serial = new SikaSerialAsciiClient();
+        await serial.OpenAsync(SikaSerialPort);
+        string manufacturer = await serial.IdentifyAsync();
+        double temperature = await serial.ReadTemperatureAsync();
+        double setpoint = await serial.ReadSetpointAsync();
+        DiagResult = $"SIKA Serial {SikaSerialPort} · 2400 8N1 · {manufacturer}\nTeplota {temperature:0.###} °C · setpoint {setpoint:0.###} °C";
+    }
+
     /// <summary>
     /// Reads the POL-EKO LabDesk status and configuration payload for diagnostics.
     /// </summary>
@@ -3500,7 +3594,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Reads and shows the SIKA <c>getInfoReport</c> (device details, calibration dates, temp range).</summary>
     private async Task SikaInfoReportAsync()
     {
-        if (_client is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
+        if (_rawClient is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
         {
             DiagResult = "getInfoReport je len pre SIKA REST-API.";
             return;
@@ -3514,7 +3608,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Reads and shows the SIKA <c>getCalibrationStatus</c> (current calibration run, if any).</summary>
     private async Task SikaCalibrationStatusAsync()
     {
-        if (_client is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
+        if (_rawClient is not VotschVc3.Core.Communication.Sika.SikaTpClient sika)
         {
             DiagResult = "getCalibrationStatus je len pre SIKA REST-API.";
             return;
@@ -4403,6 +4497,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         HumMax = c.HumMax;
         AutoStopOnAlarm = c.AutoStopOnAlarm;
         AutoReconnect = c.AutoReconnect;
+        SikaRemotePin = c.SikaRemotePin;
+        SikaSerialPort = c.SikaSerialPort;
+        SikaGradientCPerMinute = c.SikaGradientCPerMinute;
         AutoRecoverProfile = c.AutoRecoverProfile;
 
         List<double> presets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
@@ -4454,6 +4551,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         HumMax = HumMax,
         AutoStopOnAlarm = AutoStopOnAlarm,
         AutoReconnect = AutoReconnect,
+        SikaRemotePin = SikaRemotePin,
+        SikaSerialPort = SikaSerialPort,
+        SikaGradientCPerMinute = SikaGradientCPerMinute,
         AutoRecoverProfile = AutoRecoverProfile,
         QuickPresets = new List<double>(_quickPresets),
         Nameplate = _nameplate.Clone(),
@@ -4488,6 +4588,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ReadDigitalCommand.RaiseCanExecuteChanged();
         RefreshSikaLogsCommand.RaiseCanExecuteChanged();
         ForceSikaRemoteControlCommand.RaiseCanExecuteChanged();
+        DiscoverSikaCommand.RaiseCanExecuteChanged();
+        UnlockSikaCommand.RaiseCanExecuteChanged();
+        ReadSikaStatusCommand.RaiseCanExecuteChanged();
+        ReadSikaTasksCommand.RaiseCanExecuteChanged();
+        StartSikaTaskCommand.RaiseCanExecuteChanged();
+        TestSikaSerialCommand.RaiseCanExecuteChanged();
         ExportSelectedSikaLogCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsConnected));
     }

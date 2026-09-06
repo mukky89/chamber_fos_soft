@@ -76,6 +76,12 @@ public partial class ChamberView : UserControl
         }
     }
 
+    private void SikaPin_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null && sender is PasswordBox box)
+            _viewModel.SikaRemotePin = box.Password;
+    }
+
     /// <summary>"◈ FBG kalibrácia" in the header: opens the calibration workspace for this device.</summary>
     private void Calibration_Click(object sender, RoutedEventArgs e)
     {

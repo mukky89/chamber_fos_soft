@@ -12,7 +12,8 @@ namespace VotschVc3.Core.Protocol;
 public static class SikaRestApiProtocol
 {
     /// <summary>Fixed REST-API port documented for TP Premium devices.</summary>
-    public const int DefaultPort = 8081;
+    public const int DefaultPort = 80;
+    public static IReadOnlyList<int> DiscoveryPorts { get; } = new[] { 80, 8080, 8081, 8082, 8085 };
 
     /// <summary>Register name for the currently used reference temperature (°C).</summary>
     public const string MeasuredRegister = "TRset_TR";
@@ -62,8 +63,11 @@ public static class SikaRestApiProtocol
         BuildCommandUrl(host, port, $"getRegister?register={Uri.EscapeDataString(register)}");
 
     /// <summary>Builds the URL that sets and moves to a new set point.</summary>
-    public static string BuildSetSpUrl(string host, int port, double celsius) =>
-        BuildCommandUrl(host, port, $"setSP?value={celsius.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}");
+    public static string BuildSetSpUrl(string host, int port, double celsius, double gradient = 0) =>
+        BuildCommandUrl(host, port, $"setSP?value={FormatValue(celsius)}&gradient={FormatValue(gradient)}");
+
+    public static string BuildUnlockRemoteUrl(string host, int port, string pin) =>
+        BuildCommandUrl(host, port, $"unlockRemote?pin={Uri.EscapeDataString(pin ?? string.Empty)}");
 
     /// <summary>Formats a numeric value the way the SIKA REST-API expects it (invariant, no thousands separators).</summary>
     private static string FormatValue(double value) =>

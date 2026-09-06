@@ -14,8 +14,16 @@ public class SikaRestApiProtocolTests
     [Fact]
     public void BuildSetSpUrl_formats_value_invariantly() =>
         Assert.Equal(
-            "http://192.168.0.50:8081/ajax/setSP?value=25.5",
+            "http://192.168.0.50:8081/ajax/setSP?value=25.5&gradient=0",
             SikaRestApiProtocol.BuildSetSpUrl("192.168.0.50", 8081, 25.5));
+
+    [Fact]
+    public void BuildUnlockRemoteUrl_escapes_the_pin() =>
+        Assert.Equal("http://h:80/ajax/unlockRemote?pin=12%2034", SikaRestApiProtocol.BuildUnlockRemoteUrl("h", 80, "12 34"));
+
+    [Fact]
+    public void Serial_parser_accepts_SIKA_temperature_response() =>
+        Assert.Equal(25.03, Communication.Sika.SikaSerialAsciiClient.ParseNumber("t:  25.03 C"));
 
     [Theory]
     [InlineData("getInfoReport", "http://h:8081/ajax/getInfoReport")]

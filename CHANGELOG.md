@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.76.168] – 2026-09-06
+
+### Pridané
+- SIKA TP+ podporuje odomknutie vzdialeného ovládania PIN-om, voliteľný gradient a automatické vyhľadanie HTTP/AJAX API na portoch 80, 8080, 8081, 8082 a 8085.
+- Hlavná karta pravidelne zobrazuje stav regulátora, aktuálny gradient, zostávajúci čas a interné teplotné limity; diagnostika navyše načíta chyby zariadenia.
+- Diagnostika umožňuje načítať interné úlohy, shells, testovacie objekty a bežiacu úlohu a spustiť úlohu z JSON podľa rozhrania zariadenia.
+- Pribudla servisná sériová komunikácia SIKA 2400 8N1 s CRLF pre identifikáciu, čítanie teploty a setpointu a zápis setpointu.
+
+### Opravené
+- SIKA diagnostické a logovacie príkazy teraz správne používajú vnútorného klienta aj za nadradenou teplotnou poistkou.
+- STOP sa po odoslaní overí spätným čítaním regulátora a pri nezastavení vyhlási zásah operátora.
+- Remote PIN sa v diagnostike maskuje a neukladá sa do konfiguračného súboru.
+- Záložná verzia bola zvýšená na 1.76.168.
+
 ## [1.76.167] – 2026-09-06
 
 ### Opravené

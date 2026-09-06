@@ -142,6 +142,9 @@
                         Visibility="{Binding IsSikaRemoteControlOn, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
                         ToolTip="Skúsi zapnúť Remote Control cez sieť (Com_ExternWriteFlag = 1)." />
             </StackPanel>
+            <TextBlock Text="{Binding SikaOperationalStatus}" Style="{StaticResource Caption}" Margin="14,2,0,0"
+                       TextTrimming="CharacterEllipsis" ToolTip="{Binding SikaOperationalStatus}"
+                       Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}" />
 
             <!-- Locked banner + inline unlock (compact version of the Classic prompt). -->
             <Border CornerRadius="8" Padding="9,6" Margin="0,7,0,0"
