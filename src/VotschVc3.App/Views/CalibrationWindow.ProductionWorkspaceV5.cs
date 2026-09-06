@@ -349,7 +349,7 @@ public partial class CalibrationWindow
         {
             if (!string.Equals(text.Text, "Počet stabilných samples", StringComparison.OrdinalIgnoreCase)) continue;
             text.Text = "Samples: stabilita / finálne meranie";
-            text.ToolTip = "N samples tvorí rolling okno na potvrdenie stability. Po stabilizácii sa spustí nové, oddelené meracie okno s rovnakým počtom N samples; stabilizačné samples sa do výsledku nepoužijú.";
+            text.ToolTip = "N samples tvorí jeden čistý pokus o potvrdenie stability. Ak naplnené okno prekročí range, σ alebo drift, zahodí sa a počítadlo začne od 0. Po stabilizácii sa spustí nové, oddelené meracie okno s rovnakým počtom N samples; stabilizačné samples sa do výsledku nepoužijú.";
         }
     }
 

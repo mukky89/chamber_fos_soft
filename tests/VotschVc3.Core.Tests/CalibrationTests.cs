@@ -92,6 +92,24 @@ public sealed class CalibrationTests
     }
 
     [Fact]
+    public void RollingStability_ResetStartsWithAnEmptyWindow()
+    {
+        var detector = new RollingStabilityDetector(50, maxRangePm: 5, maxStdDevPm: 1.5, maxDriftPmPerMinute: 1);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+        for (int i = 0; i < 50; i++)
+            detector.Add(t0.AddSeconds(i), 1550 + (i % 2 == 0 ? 0.004 : -0.004));
+
+        Assert.Equal(50, detector.Count);
+        Assert.False(detector.Evaluate().IsStable);
+
+        detector.Reset();
+
+        Assert.Equal(0, detector.Count);
+        Assert.Equal(0, detector.Evaluate().Count);
+        Assert.False(detector.Evaluate().IsStable);
+    }
+
+    [Fact]
     public void RollingStability_SlidingWindowCanRecoverAfterNoise()
     {
         var detector = new RollingStabilityDetector(50, maxRangePm: 2, maxStdDevPm: 1, maxDriftPmPerMinute: 1);

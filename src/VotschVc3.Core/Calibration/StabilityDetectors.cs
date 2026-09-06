@@ -42,6 +42,8 @@ public sealed class RollingStabilityDetector
 
     public IReadOnlyList<(DateTimeOffset Timestamp, double Value)> Samples => _samples.ToArray();
 
+    public void Reset() => _samples.Clear();
+
     public StabilityMetrics Add(DateTimeOffset timestamp, double wavelengthNm)
     {
         _samples.Enqueue((timestamp, wavelengthNm));

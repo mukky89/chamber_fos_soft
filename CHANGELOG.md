@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.198] – 2026-09-06
+
+### Opravené
+- Stabilizácia každého FBG peaku už nezostane na zavádzajúcom stave 50/50, keď naplnené okno prekročí povolený range, smerodajnú odchýlku alebo drift. Nevyhovujúce okno sa zahodí, počítadlo sa vráti na 0 a začne sa nový čistý stabilizačný pokus.
+- Diagnostika a pomocník pracovného postupu zobrazujú presný dôvod resetu; pôvodné vzorky zostávajú iba v auditnom raw zázname a nepoužijú sa na potvrdenie stability.
+- Záložná verzia bola zvýšená na 1.76.198.
+
 ## [1.76.197] – 2026-09-06
 
 ### Opravené

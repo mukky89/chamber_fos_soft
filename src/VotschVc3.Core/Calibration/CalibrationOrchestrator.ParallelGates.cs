@@ -802,6 +802,16 @@ public sealed class CalibrationOrchestrator
                     State = CalibrationTargetState.Live;
                     _measurementSamples.Clear();
                 }
+                else if (LastMetrics.Count >= Math.Max(2, settings.RequiredStableSamples))
+                {
+                    string message = $"Stabilizácia FBG SN {Mapping.SerialNumber}, peak {Mapping.PeakId} bola resetovaná pri " +
+                                     $"{LastMetrics.Count}/{Math.Max(2, settings.RequiredStableSamples)} vzorkách: " +
+                                     $"{FailedCriteria(LastMetrics, settings)}. Začína sa nový čistý stabilizačný pokus od 0.";
+                    _lastResetMessage = message;
+                    _stabilityDetector.Reset();
+                    LastMetrics = null;
+                    return message;
+                }
                 return null;
             }
 
