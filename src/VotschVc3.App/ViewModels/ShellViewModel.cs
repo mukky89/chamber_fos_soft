@@ -10,6 +10,7 @@ using VotschVc3.Core.Security;
 using VotschVc3.Core.Settings;
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Communication.PolEko;
+using VotschVc3.App.Notifications;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -77,6 +78,9 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         ChamberViewModel.SikaSoakToleranceC = _ui.SikaSoakToleranceC;
         ChamberViewModel.SikaSettling = BuildSikaSettling(_ui);
         _notifier.Settings = _emailStore.Load();
+        AppNotificationService.Configure(_notifier.Settings);
+        NotificationTemplates = NotificationTemplateCatalog.All;
+        _selectedNotificationTemplate = NotificationTemplates[0];
 
         Audit = new AuditViewModel(_audit);
         ProfileLibrary = new ProfileLibraryViewModel(_store);
@@ -139,6 +143,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         MoveChamberDownCommand = new RelayCommand<ChamberViewModel>(c => MoveChamber(c, +1), c => c is not null);
         SaveEmailSettingsCommand = new RelayCommand(SaveEmailSettings);
         TestEmailCommand = new AsyncRelayCommand(TestEmailAsync, onError: ex => EmailStatus = $"Chyba: {ex.Message}");
+        TestNotificationEmailCommand = new AsyncRelayCommand<string>(TestNotificationEmailAsync,
+            onError: ex => EmailStatus = $"Chyba: {ex.Message}");
         SaveSylexFosApiSettingsCommand = new RelayCommand(SaveSylexFosApiSettings);
         TestSylexFosApiCommand = new AsyncRelayCommand(TestSylexFosApiAsync, onError: ex => SylexFosApiStatus = $"Chyba: {ex.Message}");
         AddUserCommand = new RelayCommand(AddUser,
@@ -1423,7 +1429,15 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Delivery method choices for the combo box.</summary>
     public Array EmailMethods { get; } = Enum.GetValues(typeof(EmailMethod));
 
-    private string _emailStatus = "Po dokončení odošle HTML súhrn, graf teploty a CSV log (voliteľné).";
+    public IReadOnlyList<NotificationTemplateSample> NotificationTemplates { get; }
+    private NotificationTemplateSample _selectedNotificationTemplate = null!;
+    public NotificationTemplateSample SelectedNotificationTemplate
+    {
+        get => _selectedNotificationTemplate;
+        set => SetProperty(ref _selectedNotificationTemplate, value);
+    }
+
+    private string _emailStatus = "Každý typ udalosti môžeš otestovať samostatne.";
     public string EmailStatus { get => _emailStatus; private set => SetProperty(ref _emailStatus, value); }
 
     /// <summary>
@@ -1447,8 +1461,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
             string environment = Email.DescribeEnvironmentSources();
             string source = environment.Length > 0 ? $" · z premenných prostredia: {environment}" : string.Empty;
             return (Email.Enabled
-                ? "✔ Nastavené – notifikácie sa odošlú po dokončení profilu."
-                : "✔ Nastavené, ale prepínač notifikácií je vypnutý.") + source;
+                ? "✔ E-mailové pripojenie je pripravené; odosielajú sa iba zapnuté typy udalostí."
+                : "✔ Pripojenie je nastavené, ale globálne odosielanie e-mailov je vypnuté.") + source;
         }
     }
 
@@ -1460,12 +1474,14 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public RelayCommand SaveEmailSettingsCommand { get; }
     public AsyncRelayCommand TestEmailCommand { get; }
+    public AsyncRelayCommand<string> TestNotificationEmailCommand { get; }
 
     private void SaveEmailSettings()
     {
         try
         {
             _emailStore.Save(_notifier.Settings);
+            AppNotificationService.Configure(_notifier.Settings);
             OnPropertyChanged(nameof(EmailReadinessText));
             string missing = Email.DescribeMissing();
             EmailStatus = missing.Length > 0
@@ -1487,6 +1503,20 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         {
             { Sent: true } => $"Testovací e-mail odoslaný na {Email.Recipient}.",
             { Error: { } err } => $"Test zlyhal: {err}",
+            _ => "Zadaj adresáta pre test.",
+        };
+    }
+
+    private async Task TestNotificationEmailAsync(string? typeName)
+    {
+        if (!Enum.TryParse(typeName, out NotificationType type)) return;
+        NotificationTemplateSample sample = NotificationTemplateCatalog.CreateSample(type);
+        EmailStatus = $"Posielam test: {sample.Title}…";
+        EmailResult result = await _notifier.SendTestAsync(type);
+        EmailStatus = result switch
+        {
+            { Sent: true } => $"Test „{sample.Title}“ bol odoslaný na {Email.Recipient}.",
+            { Error: { } err } => $"Test „{sample.Title}“ zlyhal: {err}",
             _ => "Zadaj adresáta pre test.",
         };
     }

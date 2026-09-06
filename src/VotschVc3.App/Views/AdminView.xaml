@@ -353,13 +353,44 @@
                 </StackPanel>
             </Border>
 
-            <!-- ===== E-mail notifications ===== -->
+            <!-- ===== Notification centre ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <DockPanel LastChildFill="False">
-                        <TextBlock Text="Notifikácie e-mailom" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
-                        <CheckBox Content="Zapnuté" IsChecked="{Binding Email.Enabled}" DockPanel.Dock="Right" />
+                        <TextBlock Text="Notifikácie" Style="{StaticResource Heading}" DockPanel.Dock="Left" />
+                        <CheckBox Content="E-maily globálne zapnuté" IsChecked="{Binding Email.Enabled}" DockPanel.Dock="Right" />
                     </DockPanel>
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
+                               Text="Na jednom mieste nastavíš, ktoré udalosti sa posielajú e-mailom a ktoré plávajúce hlásenia sa ukážu operátorovi. Vypnutie jedného typu neovplyvní ostatné." />
+
+                    <TextBlock Text="Udalosti a e-mailové pravidlá" FontFamily="Segoe UI Semibold" Margin="0,0,0,6" />
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="230"/><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="125"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Typ" Style="{StaticResource Label}"/><TextBlock Grid.Column="1" Text="Kedy sa odošle" Style="{StaticResource Label}"/>
+                        <TextBlock Grid.Column="2" Text="E-mail" Style="{StaticResource Label}"/><TextBlock Grid.Column="3" Text="Overenie" Style="{StaticResource Label}"/>
+                    </Grid>
+                    <StackPanel>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="7" Padding="10" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="115"/></Grid.ColumnDefinitions><TextBlock Text="Alarm zariadenia" FontFamily="Segoe UI Semibold"/><TextBlock Grid.Column="1" Text="Strata spojenia, bezpečnostný zásah alebo alarm komory." Style="{StaticResource Caption}" TextWrapping="Wrap"/><CheckBox Grid.Column="2" Content="Posielať" IsChecked="{Binding Email.DeviceAlarmEmailsEnabled}"/><Button Grid.Column="3" Content="Poslať test" Command="{Binding TestNotificationEmailCommand}" CommandParameter="DeviceAlarm"/></Grid></Border>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="7" Padding="10" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="115"/></Grid.ColumnDefinitions><TextBlock Text="Dokončenie profilu" FontFamily="Segoe UI Semibold"/><TextBlock Grid.Column="1" Text="Po ukončení profilu; obsahuje graf teploty a dostupné CSV." Style="{StaticResource Caption}" TextWrapping="Wrap"/><CheckBox Grid.Column="2" Content="Posielať" IsChecked="{Binding Email.ProfileCompletionEmailsEnabled}"/><Button Grid.Column="3" Content="Poslať test" Command="{Binding TestNotificationEmailCommand}" CommandParameter="ProfileCompleted"/></Grid></Border>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="7" Padding="10" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="115"/></Grid.ColumnDefinitions><TextBlock Text="Varovanie FBG kalibrácie" FontFamily="Segoe UI Semibold"/><TextBlock Grid.Column="1" Text="Timeout, nestabilný peak alebo potreba zásahu operátora." Style="{StaticResource Caption}" TextWrapping="Wrap"/><CheckBox Grid.Column="2" Content="Posielať" IsChecked="{Binding Email.CalibrationWarningEmailsEnabled}"/><Button Grid.Column="3" Content="Poslať test" Command="{Binding TestNotificationEmailCommand}" CommandParameter="CalibrationWarning"/></Grid></Border>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="7" Padding="10" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="115"/></Grid.ColumnDefinitions><TextBlock Text="Výsledok FBG kalibrácie" FontFamily="Segoe UI Semibold"/><TextBlock Grid.Column="1" Text="Po COMPLETED, COMPLETED WITH WARNINGS alebo FAILED; ostrá správa obsahuje výsledky a súbory." Style="{StaticResource Caption}" TextWrapping="Wrap"/><CheckBox Grid.Column="2" Content="Posielať" IsChecked="{Binding Email.CalibrationCompletionEmailsEnabled}"/><Button Grid.Column="3" Content="Poslať test" Command="{Binding TestNotificationEmailCommand}" CommandParameter="CalibrationCompleted"/></Grid></Border>
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="7" Padding="10" Margin="0,2"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="115"/></Grid.ColumnDefinitions><TextBlock Text="Rozdiel WIKA–komora" FontFamily="Segoe UI Semibold"/><TextBlock Grid.Column="1" Text="Po prekročení povoleného rozdielu; opakovanie obmedzuje cooldown." Style="{StaticResource Caption}" TextWrapping="Wrap"/><CheckBox Grid.Column="2" Content="Posielať" IsChecked="{Binding Email.ReferenceTemperatureMismatchEmailsEnabled}"/><Button Grid.Column="3" Content="Poslať test" Command="{Binding TestNotificationEmailCommand}" CommandParameter="ReferenceTemperatureMismatch"/></Grid></Border>
+                    </StackPanel>
+
+                    <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Plávajúce hlásenia v aplikácii" FontFamily="Segoe UI Semibold" />
+                            <TextBlock Text="Čas je odpočet do automatického zatvorenia. Kritické hlásenie môže operátor stále zavrieť krížikom alebo skopírovať." Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,8" />
+                            <WrapPanel>
+                                <StackPanel Style="{StaticResource MiniField}" Width="150"><CheckBox Content="Modré · info" IsChecked="{Binding Email.InfoPopupsEnabled}"/><views:NumericStepper Value="{Binding Email.InfoPopupSeconds, Mode=TwoWay}" Step="1" Minimum="2" Maximum="120"/><TextBlock Text="sekúnd" Style="{StaticResource Caption}"/></StackPanel>
+                                <StackPanel Style="{StaticResource MiniField}" Width="150"><CheckBox Content="Zelené · úspech" IsChecked="{Binding Email.SuccessPopupsEnabled}"/><views:NumericStepper Value="{Binding Email.SuccessPopupSeconds, Mode=TwoWay}" Step="1" Minimum="2" Maximum="120"/><TextBlock Text="sekúnd" Style="{StaticResource Caption}"/></StackPanel>
+                                <StackPanel Style="{StaticResource MiniField}" Width="150"><CheckBox Content="Oranžové · warning" IsChecked="{Binding Email.WarningPopupsEnabled}"/><views:NumericStepper Value="{Binding Email.WarningPopupSeconds, Mode=TwoWay}" Step="1" Minimum="2" Maximum="120"/><TextBlock Text="sekúnd" Style="{StaticResource Caption}"/></StackPanel>
+                                <StackPanel Style="{StaticResource MiniField}" Width="150"><CheckBox Content="Červené · critical" IsChecked="{Binding Email.ErrorPopupsEnabled}"/><views:NumericStepper Value="{Binding Email.ErrorPopupSeconds, Mode=TwoWay}" Step="1" Minimum="2" Maximum="120"/><TextBlock Text="sekúnd" Style="{StaticResource Caption}"/></StackPanel>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="E-mailové pripojenie" FontFamily="Segoe UI Semibold" Margin="0,0,0,6" />
 
                     <WrapPanel>
                         <StackPanel Style="{StaticResource MiniField}" Width="220">
@@ -442,6 +473,17 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Background="#122237" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="0,12,0,0">
+                        <StackPanel>
+                            <DockPanel><TextBlock Text="Náhľad šablóny" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="15"/><ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding NotificationTemplates}" SelectedItem="{Binding SelectedNotificationTemplate}" DisplayMemberPath="Title"/></DockPanel>
+                            <TextBlock Text="SYLEX · LAB CONTROL" Foreground="#A9BED8" FontSize="11" FontFamily="Segoe UI Semibold" Margin="0,18,0,4"/>
+                            <TextBlock Text="{Binding SelectedNotificationTemplate.Subject}" Foreground="White" FontSize="20" FontFamily="Segoe UI Semibold" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding SelectedNotificationTemplate.Trigger}" Foreground="#A9BED8" TextWrapping="Wrap" Margin="0,8,0,12"/>
+                            <Border Background="#FFFFFF" CornerRadius="7" Padding="14"><TextBlock Text="{Binding SelectedNotificationTemplate.Body}" Foreground="#24364D" TextWrapping="Wrap"/></Border>
+                            <TextBlock Text="Test používa rovnakú farebnú HTML šablónu; ostré dokončovacie správy navyše obsahujú grafy, tabuľky a prílohy." Foreground="#A9BED8" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Says up front what is still missing – previously the only way to find
                          out was to press "Poslať test" and read the failure. -->
                     <TextBlock Text="{Binding EmailReadinessText}" TextWrapping="Wrap" Margin="0,8,0,0"
@@ -449,7 +491,7 @@
 
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="Uložiť nastavenia" Style="{StaticResource AccentButton}" Command="{Binding SaveEmailSettingsCommand}" />
-                        <Button Content="Poslať test" Command="{Binding TestEmailCommand}" />
+                        <Button Content="Test pripojenia" Command="{Binding TestEmailCommand}" />
                         <TextBlock Text="{Binding EmailStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,0,0" />
                     </StackPanel>
                 </StackPanel>

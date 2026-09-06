@@ -237,4 +237,31 @@ public class EmailSettingsTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void EveryEmailEventIsEnabledByDefaultAndCanBeDisabledIndependently()
+    {
+        var settings = new EmailSettings { Enabled = true };
+        foreach (NotificationType type in Enum.GetValues<NotificationType>())
+            Assert.True(settings.IsEmailEnabled(type));
+
+        settings.CalibrationWarningEmailsEnabled = false;
+
+        Assert.False(settings.IsEmailEnabled(NotificationType.CalibrationWarning));
+        Assert.True(settings.IsEmailEnabled(NotificationType.CalibrationCompleted));
+        Assert.True(settings.ReferenceTemperatureMismatchAlertsEnabled);
+    }
+
+    [Fact]
+    public void TemplateCatalogueExplainsAndPreviewsEveryEmailEvent()
+    {
+        Assert.Equal(Enum.GetValues<NotificationType>().Length, NotificationTemplateCatalog.All.Count);
+        Assert.All(NotificationTemplateCatalog.All, sample =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(sample.Trigger));
+            Assert.Contains("SYLEX · LAB CONTROL", sample.Html);
+            Assert.Contains("<title>", sample.Html);
+            Assert.Contains("DETAILY UDALOSTI", sample.Html);
+        });
+    }
 }

@@ -43,6 +43,16 @@ public enum EmailMethod
     BrevoApi,
 }
 
+/// <summary>Application event that can produce an e-mail notification.</summary>
+public enum NotificationType
+{
+    DeviceAlarm,
+    ProfileCompleted,
+    CalibrationWarning,
+    CalibrationCompleted,
+    ReferenceTemperatureMismatch,
+}
+
 /// <summary>
 /// Configuration for the e-mail notifications sent when a profile finishes.
 /// Stored as JSON so the user only enters it once.
@@ -53,6 +63,23 @@ public sealed class EmailSettings
 
     /// <summary>Master switch for sending notification e-mails.</summary>
     public bool Enabled { get; set; }
+
+    public bool DeviceAlarmEmailsEnabled { get; set; } = true;
+    public bool ProfileCompletionEmailsEnabled { get; set; } = true;
+    public bool CalibrationWarningEmailsEnabled { get; set; } = true;
+    public bool CalibrationCompletionEmailsEnabled { get; set; } = true;
+    public bool ReferenceTemperatureMismatchEmailsEnabled { get; set; } = true;
+
+    /// <summary>Which severities may appear as floating in-app notifications.</summary>
+    public bool InfoPopupsEnabled { get; set; } = true;
+    public bool SuccessPopupsEnabled { get; set; } = true;
+    public bool WarningPopupsEnabled { get; set; } = true;
+    public bool ErrorPopupsEnabled { get; set; } = true;
+
+    public int InfoPopupSeconds { get; set; } = 5;
+    public int SuccessPopupSeconds { get; set; } = 4;
+    public int WarningPopupSeconds { get; set; } = 7;
+    public int ErrorPopupSeconds { get; set; } = 10;
 
     /// <summary>Warn when the WIKA CTH7000 reference differs too much from the chamber reading.</summary>
     public bool ReferenceTemperatureMismatchAlertsEnabled { get; set; } = true;
@@ -65,6 +92,16 @@ public sealed class EmailSettings
 
     /// <summary>Minimum interval between repeated mismatch e-mails.</summary>
     public int ReferenceTemperatureMismatchEmailCooldownMinutes { get; set; } = 30;
+
+    public bool IsEmailEnabled(NotificationType type) => Enabled && type switch
+    {
+        NotificationType.DeviceAlarm => DeviceAlarmEmailsEnabled,
+        NotificationType.ProfileCompleted => ProfileCompletionEmailsEnabled,
+        NotificationType.CalibrationWarning => CalibrationWarningEmailsEnabled,
+        NotificationType.CalibrationCompleted => CalibrationCompletionEmailsEnabled,
+        NotificationType.ReferenceTemperatureMismatch => ReferenceTemperatureMismatchEmailsEnabled,
+        _ => false,
+    };
 
     /// <summary>Delivery mechanism.</summary>
     public EmailMethod Method { get; set; } = EmailMethod.BrevoApi;

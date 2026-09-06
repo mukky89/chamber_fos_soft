@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.76.186] – 2026-09-06
+
+### Pridané
+- Administrácia obsahuje nové centrum `Notifikácie` s vysvetlením všetkých piatich e-mailových udalostí, samostatným zapnutím každého typu a testovacím e-mailom pre každý typ.
+- Pribudol prepínateľný náhľad jednotnej HTML šablóny s ukážkovým predmetom, obsahom a presným popisom okamihu odoslania.
+- Plávajúce hlásenia sa dajú spravovať podľa závažnosti `info`, `úspech`, `warning` a `critical`, vrátane vlastného času zobrazenia od 2 do 120 sekúnd.
+
+### Opravené
+- Alarm zariadenia, ukončenie profilu, varovanie kalibrácie, výsledok kalibrácie a rozdiel WIKA–komora rešpektujú vlastný e-mailový prepínač; vypnutie jedného typu už nevypne ostatné.
+- Kalibračná obrazovka si pred odoslaním načíta čerstvo uložené notifikačné nastavenia, takže zmeny v administrácii platia bez reštartu aplikácie.
+- Vypnutie e-mailu o rozdiele WIKA–komora už nevypína samotnú bezpečnostnú kontrolu a lokálne upozornenie.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.186.
+
 ## [1.76.185] – 2026-09-06
 
 ### Opravené

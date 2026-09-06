@@ -21,6 +21,9 @@ public sealed class EmailNotifier
     /// <summary><c>true</c> when notifications are enabled and a recipient is set.</summary>
     public bool CanSend => Settings.Enabled && !string.IsNullOrWhiteSpace(Settings.Recipient);
 
+    public bool CanSendType(NotificationType type) =>
+        Settings.IsEmailEnabled(type) && !string.IsNullOrWhiteSpace(Settings.Recipient);
+
     /// <summary>Sends a notification, honouring the enabled flag.</summary>
     public Task<EmailResult> SendAsync(
         string subject,
@@ -43,6 +46,21 @@ public sealed class EmailNotifier
             cancellationToken);
     }
 
+    /// <summary>Sends an event notification only when its individual rule is enabled.</summary>
+    public Task<EmailResult> SendAsync(
+        NotificationType type,
+        string subject,
+        string body,
+        string? htmlBody = null,
+        IReadOnlyList<EmailAttachment>? attachments = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanSendType(type)) return Task.FromResult(EmailResult.SkippedResult);
+        return DeliverAsync(Settings.Recipient, RenameLegacyReferenceThermometer(subject),
+            RenameLegacyReferenceThermometer(body),
+            htmlBody is null ? null : RenameLegacyReferenceThermometer(htmlBody), attachments, cancellationToken);
+    }
+
     /// <summary>Sends a test message, ignoring the enabled flag (recipient still required).</summary>
     public Task<EmailResult> SendTestAsync(CancellationToken cancellationToken = default)
     {
@@ -56,6 +74,15 @@ public sealed class EmailNotifier
             "Test – Vötsch riadenie komôr",
             "Typ: Test e-mailu\nZdroj: Lab Control\n\nToto je testovací e-mail z aplikácie na riadenie laboratórnych zariadení.",
             null, null, cancellationToken);
+    }
+
+    /// <summary>Sends a realistic sample for one event, ignoring master and event switches.</summary>
+    public Task<EmailResult> SendTestAsync(NotificationType type, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(Settings.Recipient))
+            return Task.FromResult(EmailResult.Fail("Chýba adresát."));
+        NotificationTemplateSample sample = NotificationTemplateCatalog.CreateSample(type);
+        return DeliverAsync(Settings.Recipient, sample.Subject, sample.Body, sample.Html, null, cancellationToken);
     }
 
     private static string RenameLegacyReferenceThermometer(string text) =>

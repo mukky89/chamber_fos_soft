@@ -2892,7 +2892,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task NotifyCompletionAsync(IReadOnlyList<TestProfile> profiles, bool poweredOff)
     {
-        if (!_email.CanSend)
+        if (!_email.CanSendType(NotificationType.ProfileCompleted))
         {
             return;
         }
@@ -2908,7 +2908,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             log?.GetSamples() ?? [],
             log?.FilePath);
         ProfileCompletionMessage message = ProfileCompletionEmail.Create(info);
-        EmailResult result = await _email.SendAsync(
+        EmailResult result = await _email.SendAsync(NotificationType.ProfileCompleted,
             message.Subject, message.Text, message.Html, message.Attachments);
         if (result.Sent)
         {
@@ -4363,12 +4363,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private Task SendAlarmEmailAsync(string message)
     {
-        if (!_email.CanSend)
+        if (!_email.CanSendType(NotificationType.DeviceAlarm))
         {
             return Task.CompletedTask;
         }
 
-        return _email.SendAsync(
+        return _email.SendAsync(NotificationType.DeviceAlarm,
             $"⚠ ALARM – {Name}",
             $"Komora: {Name}\r\nČas: {DateTime.Now:dd.MM.yyyy HH:mm:ss}\r\n\r\n{message}");
     }

@@ -1399,6 +1399,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         double referenceTemperature,
         CancellationToken cancellationToken = default)
     {
+        RefreshEmailSettings();
         EmailSettings settings = _email.Settings;
         if (!settings.ReferenceTemperatureMismatchAlertsEnabled)
         {
@@ -1448,7 +1449,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             return;
         }
 
-        EmailResult result = await _email.SendAsync(
+        EmailResult result = await _email.SendAsync(NotificationType.ReferenceTemperatureMismatch,
             $"CHYBA – rozdiel teploty F100 a komory – {SelectedChamber?.Config.Name ?? "komora"}",
             $"Komora: {SelectedChamber?.Config.Name}\nWIKA: {SelectedF100?.PortName} / kanál {SelectedF100Channel}\nČas: {now:yyyy-MM-dd HH:mm:ss}\n\n{message}",
             cancellationToken: cancellationToken);
@@ -2136,12 +2137,13 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private async Task SendWarningEmailAsync(CalibrationRunRecord? run, CalibrationWarning warning)
     {
         if (run is null) return;
+        RefreshEmailSettings();
         string plateau = warning.PlateauIndex is { } plateauIndex ? (plateauIndex + 1).ToString() : "—";
         string peak = string.IsNullOrWhiteSpace(warning.PeakId) ? "—" : warning.PeakId;
         string sensor = string.IsNullOrWhiteSpace(warning.SerialNumber) ? "—" : warning.SerialNumber;
 
         bool operatorAction = warning.Code == "REFERENCE_STABILITY_TIMEOUT";
-        EmailResult result = await _email.SendAsync(
+        EmailResult result = await _email.SendAsync(NotificationType.CalibrationWarning,
             operatorAction
                 ? $"ZÁSAH OPERÁTORA – FBG kalibrácia – {run.DisplayProfileId}"
                 : $"Kalibrácia FBG – WARNING – {run.DisplayProfileId}",
@@ -2166,9 +2168,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         try
         {
+            RefreshEmailSettings();
             string runDirectory = Path.Combine(_calibrationStore.RunsDirectory, run.RunId.ToString("N"));
             CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, runDirectory);
-            EmailResult result = await _email.SendAsync(message.Subject, message.Text, message.Html, message.Attachments);
+            EmailResult result = await _email.SendAsync(NotificationType.CalibrationCompleted,
+                message.Subject, message.Text, message.Html, message.Attachments);
             if (result.Error is { Length: > 0 })
                 AppLog.Warn("FBG kalibrácia", $"Run {run.DisplayRunId}: dokončovací e-mail sa nepodarilo odoslať · {result.Error}");
         }
@@ -2178,6 +2182,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             AppLog.Warn("FBG kalibrácia", $"Run {run.DisplayRunId}: vytvorenie dokončovacieho e-mailu zlyhalo · {ex.Message}");
         }
     }
+
+    private void RefreshEmailSettings() =>
+        _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();
 
     private IChamberDevice CreateChamberClient(ChamberConfig config)
     {

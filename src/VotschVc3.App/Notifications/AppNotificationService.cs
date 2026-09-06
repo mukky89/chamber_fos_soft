@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using VotschVc3.Core.Notifications;
 
 namespace VotschVc3.App.Notifications;
 
@@ -27,6 +28,10 @@ public static class AppNotificationService
     private static readonly List<AppNotificationWindow> Active = new();
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastShown = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, byte> SessionOnceShown = new(StringComparer.Ordinal);
+    private static EmailSettings _preferences = new();
+
+    public static void Configure(EmailSettings preferences) =>
+        _preferences = preferences ?? new EmailSettings();
 
     public static void Show(
         string title,
@@ -36,6 +41,7 @@ public static class AppNotificationService
         string? dedupeKey = null)
     {
         if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(message)) return;
+        if (!IsEnabled(kind)) return;
 
         // A successful device connection is persistent state already visible on the device card.
         // Suppress routine transient connection toasts for chambers and all other devices, including
@@ -66,7 +72,7 @@ public static class AppNotificationService
             string.IsNullOrWhiteSpace(title) ? "Upozornenie" : title.Trim(),
             message?.Trim() ?? string.Empty,
             kind,
-            duration ?? DefaultDuration(kind));
+            duration ?? ConfiguredDuration(kind));
 
         Application? app = Application.Current;
         if (app?.Dispatcher is null) return;
@@ -157,6 +163,28 @@ public static class AppNotificationService
         AppNotificationKind.Error => TimeSpan.FromSeconds(8),
         _ => TimeSpan.FromSeconds(4.5),
     };
+
+    private static bool IsEnabled(AppNotificationKind kind) => kind switch
+    {
+        AppNotificationKind.Info => _preferences.InfoPopupsEnabled,
+        AppNotificationKind.Success => _preferences.SuccessPopupsEnabled,
+        AppNotificationKind.Warning => _preferences.WarningPopupsEnabled,
+        AppNotificationKind.Error => _preferences.ErrorPopupsEnabled,
+        _ => true,
+    };
+
+    private static TimeSpan ConfiguredDuration(AppNotificationKind kind)
+    {
+        int seconds = kind switch
+        {
+            AppNotificationKind.Info => _preferences.InfoPopupSeconds,
+            AppNotificationKind.Success => _preferences.SuccessPopupSeconds,
+            AppNotificationKind.Warning => _preferences.WarningPopupSeconds,
+            AppNotificationKind.Error => _preferences.ErrorPopupSeconds,
+            _ => (int)DefaultDuration(kind).TotalSeconds,
+        };
+        return TimeSpan.FromSeconds(Math.Clamp(seconds, 2, 120));
+    }
 
     private sealed record AppNotification(string Title, string Message, AppNotificationKind Kind, TimeSpan Duration);
 
