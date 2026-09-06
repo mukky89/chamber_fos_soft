@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 using VotschVc3.App.Charting;
 using VotschVc3.App.ViewModels;
@@ -143,6 +144,52 @@ public partial class CalibrationDashboardView : UserControl
     private void ReferenceControlToggle_Click(object sender, RoutedEventArgs e)
     {
         ReferenceControlToggleRequested?.Invoke(ReferenceControlToggle.IsChecked == true);
+    }
+
+    private void CompactStabilityPeak_Click(object sender, MouseButtonEventArgs e) =>
+        FocusPeakGraph(sender, StabilityDetailList, e);
+
+    private void CompactMeasurementPeak_Click(object sender, MouseButtonEventArgs e) =>
+        FocusPeakGraph(sender, MeasurementDetailList, e);
+
+    private void CompactStabilityPeak_KeyDown(object sender, KeyEventArgs e) =>
+        FocusPeakGraphFromKeyboard(sender, StabilityDetailList, e);
+
+    private void CompactMeasurementPeak_KeyDown(object sender, KeyEventArgs e) =>
+        FocusPeakGraphFromKeyboard(sender, MeasurementDetailList, e);
+
+    private void FocusPeakGraphFromKeyboard(object sender, ItemsControl targetList, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Enter or Key.Space)) return;
+        FocusPeakGraph(sender, targetList, e);
+    }
+
+    private void FocusPeakGraph(object sender, ItemsControl targetList, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement source || source.DataContext is not FbgStabilityChartItem item) return;
+
+        targetList.UpdateLayout();
+        if (targetList.ItemContainerGenerator.ContainerFromItem(item) is not FrameworkElement container) return;
+
+        container.BringIntoView();
+        _ = Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+        {
+            container.BringIntoView();
+            FrameworkElement? card = FindNamedDescendant(container, "DetailedPeakCard");
+            (card ?? container).Focus();
+        }));
+        e.Handled = true;
+    }
+
+    private static FrameworkElement? FindNamedDescendant(DependencyObject parent, string name)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(parent, index);
+            if (child is FrameworkElement element && element.Name == name) return element;
+            if (FindNamedDescendant(child, name) is { } nested) return nested;
+        }
+        return null;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

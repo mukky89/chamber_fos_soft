@@ -68,10 +68,17 @@
      <Setter Property="Background" Value="#101D2D"/>
      <Setter Property="BorderBrush" Value="#5B9BE8"/>
     </Trigger>
+    <Trigger Property="IsKeyboardFocused" Value="True">
+     <Setter Property="Background" Value="#142A45"/>
+     <Setter Property="BorderBrush" Value="#8CC2FF"/>
+     <Setter Property="BorderThickness" Value="2"/>
+    </Trigger>
    </Style.Triggers>
   </Style>
   <DataTemplate x:Key="CompactStabilityPeakTemplate">
-   <Border Background="#101A29" BorderBrush="#29415D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,6">
+   <Border Background="#101A29" BorderBrush="#29415D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,6"
+           Cursor="Hand" Focusable="True" MouseLeftButtonUp="CompactStabilityPeak_Click" KeyDown="CompactStabilityPeak_KeyDown"
+           ToolTip="Kliknutím otvoríte detailný graf stability tohto peaku.">
     <StackPanel>
      <Grid>
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -87,7 +94,9 @@
    </Border>
   </DataTemplate>
   <DataTemplate x:Key="CompactMeasurementPeakTemplate">
-   <Border Background="#101A29" BorderBrush="#29415D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,6">
+   <Border Background="#101A29" BorderBrush="#29415D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,6"
+           Cursor="Hand" Focusable="True" MouseLeftButtonUp="CompactMeasurementPeak_Click" KeyDown="CompactMeasurementPeak_KeyDown"
+           ToolTip="Kliknutím otvoríte detailný graf finálneho merania tohto peaku.">
     <StackPanel>
      <Grid>
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -104,7 +113,7 @@
   </DataTemplate>
   <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource WorkflowNode}"><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Button HorizontalAlignment="Right" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding Detail}" Click="HelpButton_Click"/></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
  </UserControl.Resources>
- <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+ <ScrollViewer x:Name="DashboardScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Margin="20">
    <Border Style="{StaticResource Panel}" Background="#17283E" BorderBrush="#385A82" Padding="16,14">
     <Grid>
@@ -256,10 +265,10 @@
    <Border Style="{StaticResource Panel}">
     <Expander IsExpanded="True" Foreground="#EEF5FF" HorizontalContentAlignment="Stretch">
      <Expander.Header><StackPanel><TextBlock Text="Stabilita jednotlivých FBG peakov" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Každý peak sa vyhodnocuje samostatne · graf posledných 180 vzoriek" Style="{StaticResource Muted}" Margin="0,4,0,0"/></StackPanel></Expander.Header>
-     <ItemsControl ItemsSource="{Binding FbgStabilityCharts}" Margin="0,14,0,0">
+     <ItemsControl x:Name="StabilityDetailList" ItemsSource="{Binding FbgStabilityCharts}" Margin="0,14,0,0">
       <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate><DataTemplate>
-       <Border Style="{StaticResource FbgPeakCard}">
+       <Border x:Name="DetailedPeakCard" Style="{StaticResource FbgPeakCard}" Focusable="True">
         <StackPanel>
          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="{Binding Wavelength}" Foreground="#8BBAFF" FontSize="17" Margin="0,4,0,0"/></StackPanel><Border Grid.Column="1" Background="#172A3E" BorderBrush="{Binding StateBrush}" BorderThickness="1" CornerRadius="6" Padding="9,5" VerticalAlignment="Top"><TextBlock Text="{Binding State}" Foreground="{Binding StateBrush}" FontWeight="SemiBold" FontSize="11"/></Border></Grid>
          <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="STABILITA" Foreground="#8BBAFF" FontSize="10.5" FontWeight="SemiBold"/><TextBlock Grid.Column="1" Text="{Binding Samples}" Foreground="#BBD8FF" FontSize="11"/></Grid>
@@ -277,10 +286,10 @@
    <Border Style="{StaticResource Panel}">
     <Expander IsExpanded="True" Foreground="#EEF5FF" HorizontalContentAlignment="Stretch">
      <Expander.Header><StackPanel><TextBlock Text="Finálne meranie jednotlivých FBG peakov" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Iba nové výsledkové vzorky po potvrdení stability · graf posledných 180 vzoriek" Style="{StaticResource Muted}" Margin="0,4,0,0"/></StackPanel></Expander.Header>
-     <ItemsControl ItemsSource="{Binding FbgStabilityCharts}" Margin="0,14,0,0">
+     <ItemsControl x:Name="MeasurementDetailList" ItemsSource="{Binding FbgStabilityCharts}" Margin="0,14,0,0">
       <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate><DataTemplate>
-       <Border Style="{StaticResource FbgPeakCard}">
+       <Border x:Name="DetailedPeakCard" Style="{StaticResource FbgPeakCard}" Focusable="True">
         <StackPanel>
          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"/><TextBlock Text="{Binding Wavelength}" Foreground="#8BBAFF" FontSize="17" Margin="0,4,0,0"/></StackPanel><Border Grid.Column="1" Background="#172A3E" BorderBrush="{Binding MeasurementStateBrush}" BorderThickness="1" CornerRadius="6" Padding="9,5" VerticalAlignment="Top"><TextBlock Text="{Binding MeasurementState}" Foreground="{Binding MeasurementStateBrush}" FontWeight="SemiBold" FontSize="11"/></Border></Grid>
          <ProgressBar Value="{Binding MeasurementProgress, Mode=OneWay}" Margin="0,10,0,5"/>

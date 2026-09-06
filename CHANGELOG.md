@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.211] – 2026-09-06
+
+### Pridané
+- Kliknutie na konkrétny SN v hornom zozname stability alebo finálneho merania presunie zobrazenie na zodpovedajúci detailný graf a zvýrazní jeho kartu.
+- Rovnaké otvorenie detailu je dostupné klávesmi Enter a medzerník.
+
 ## [1.76.210] – 2026-09-06
 
 ### Opravené
