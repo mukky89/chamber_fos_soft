@@ -86,10 +86,10 @@ public sealed class PolEkoClient : IChamberDevice
         // GET_NEXT_PROGRAM_ID command or continuously creating/deleting profiles.
         await SendAllowingAsync("STOP", null, true, cancellationToken, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
         _activeProgramId = null;
+        await WaitForProgramStoppedAsync(cancellationToken).ConfigureAwait(false);
 
         string programJson = PolEkoLabDeskProtocol.BuildSingleSetpointProgram(ManualProgramId, temperature);
-        PolEkoRpcResponse update = await SendAllowingAsync(
-            "UPDATE_PROGRAM", programJson, true, cancellationToken, "NO_DATA").ConfigureAwait(false);
+        PolEkoRpcResponse update = await UpdateManualProgramAsync(programJson, cancellationToken).ConfigureAwait(false);
         if (!update.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase))
         {
             PolEkoRpcResponse save = await SendAllowingAsync(
@@ -102,6 +102,44 @@ public sealed class PolEkoClient : IChamberDevice
         await VerifyManualProgramStartedAsync(cancellationToken).ConfigureAwait(false);
         _activeProgramId = ManualProgramId;
         _lastSetpoint = temperature;
+    }
+
+    private async Task WaitForProgramStoppedAsync(CancellationToken cancellationToken)
+    {
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            PolEkoRpcResponse response = await SendAsync("GET_STATUS", "version-2", false, cancellationToken).ConfigureAwait(false);
+            using JsonDocument status = ParseDataObject(response, "GET_STATUS");
+            bool running = TryFindBoolean(status.RootElement, out bool active, "IS_RUNNING") && active;
+            if (!running)
+            {
+                // LabDesk can report STOPPED slightly before it releases the program for editing.
+                await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (attempt < 5)
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+        }
+
+        throw new IOException("POL-EKO prijalo STOP, ale sušiareň do 3 sekúnd nepotvrdila zastavenie programu.");
+    }
+
+    private async Task<PolEkoRpcResponse> UpdateManualProgramAsync(string programJson, CancellationToken cancellationToken)
+    {
+        PolEkoRpcResponse? response = null;
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            response = await SendAllowingAsync(
+                "UPDATE_PROGRAM", programJson, true, cancellationToken, "NO_DATA", "GENERAL_ERROR").ConfigureAwait(false);
+            if (!response.ResponseStatus.Equals("GENERAL_ERROR", StringComparison.OrdinalIgnoreCase))
+                return response;
+
+            if (attempt < 5)
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+        }
+
+        throw new PolEkoRpcException("UPDATE_PROGRAM", response?.ResponseStatus ?? "GENERAL_ERROR", response?.Data ?? string.Empty);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)

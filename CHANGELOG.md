@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.222] – 2026-09-06
+
+### Opravené
+- Zmena teploty aktívnej sušiarne POL-EKO cez tlačidlo „Nastaviť“ teraz automaticky počká na potvrdené zastavenie programu FOS LAB a na uvoľnenie programu pre editáciu. Dočasnú odpoveď `GENERAL_ERROR` pri aktualizácii zopakuje, takže operátor už nemusí najskôr ručne stlačiť Stop.
+
 ## [1.76.221] – 2026-09-06
 
 ### Opravené
