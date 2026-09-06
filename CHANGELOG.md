@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.231] – 2026-09-06
+
+### Opravené
+
+- Po zbalení grafu USB referenčnej teploty sa jeho skrytý riadok už neroztiahne cez voľnú výšku okna. Záložky `Nastavenia`, `Zapojenie`, `Prehľad` a ostatné sa zobrazia hneď pod hornou lištou bez veľkej prázdnej medzery.
+
 ## [1.76.230] – 2026-09-06
 
 ### Opravené

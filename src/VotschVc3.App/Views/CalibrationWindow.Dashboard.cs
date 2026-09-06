@@ -57,7 +57,10 @@ public partial class CalibrationWindow
             }
             _settingsTab = new TabItem { Header = "Nastavenia", Content = configuration };
             _productionTabs.Items.Add(_settingsTab);
-            if (root.RowDefinitions.Count > 3) root.RowDefinitions[3].Height = new GridLength(1, GridUnitType.Star);
+            // Row 3 contains the optional USB-reference chart. It must collapse to
+            // zero with its content; making it '*' reserves the whole free viewport
+            // and pushes the tabs to the bottom while the chart is hidden.
+            if (root.RowDefinitions.Count > 3) root.RowDefinitions[3].Height = GridLength.Auto;
             if (Content is ScrollViewer outer) { outer.Content = null; Content = root; }
         }
         _productionTabs.Height = double.NaN;
