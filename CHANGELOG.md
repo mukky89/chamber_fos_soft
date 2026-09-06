@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.172] – 2026-09-06
+
+### Opravené
+- Dlhší odznak typu zariadenia, napríklad `Sušiareň`, sa pri nedostatku miesta presunie celý na ďalší riadok a zachová si správny vnútorný okraj.
+- Záložná verzia bola zvýšená na 1.76.172.
+
 ## [1.76.171] – 2026-09-06
 
 ### Opravené

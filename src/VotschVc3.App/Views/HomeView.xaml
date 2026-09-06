@@ -436,7 +436,7 @@
                                              line: alarm, run state, lock and control mode stay together on the
                                              first line, the device kind (which the device name already says in
                                              brackets, and the chamber graphic repeats) gives way first. -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                        <WrapPanel Orientation="Horizontal" Margin="0,0,0,0">
                                             <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="6,3"
                                                     Margin="0,0,3,4" VerticalAlignment="Center"
                                                     Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
@@ -471,7 +471,7 @@
                                                            HorizontalAlignment="Center"
                                                            TextWrapping="NoWrap" ToolTip="{Binding KindLabel}" />
                                             </Border>
-                                        </StackPanel>
+                                        </WrapPanel>
 
                                         <!-- ===== Stav: pripojenie + čo zariadenie práve robí =====
                                              Boxed like the live values below it: loose lines under the badges
