@@ -229,6 +229,12 @@ The following settings were validated on the real production reference thermomet
 - Do not report a new setpoint in the UI until update and launch both succeed and live status confirms the configured FOS LAB program ID is running. If verification fails, surface the error and keep the displayed device state truthful.
 - Preserve temperature protection and optional shutdown-timer behavior when quick control restarts FOS LAB. Every write remains wrapped by `TemperatureSafetyChamberDevice`.
 
+## Dashboard stop-state truth
+
+- After any device confirms a successful STOP, clear the displayed temperature and humidity setpoints to `—`; controllers may continue reporting their historical target while idle, but the dashboard must not present it as an active command.
+- Clear setpoints only after STOP succeeds. If power-off fails, retain the last displayed targets together with the stop-failure alarm so the operator can see what the device may still be regulating toward.
+- A subsequent confirmed manual/profile start may expose the new live setpoints again.
+
 ## Changelog UI architecture
 
 - `src/VotschVc3.App/Changelog/ChangelogParser.cs` parses the root `CHANGELOG.md`.

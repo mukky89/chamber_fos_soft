@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.235] – 2026-09-06
+
+### Opravené
+
+- Po úspešnom zastavení ľubovoľnej komory, sušiarne alebo kúpeľa sa zobrazený teplotný aj vlhkostný setpoint vymaže na `—`. Historická cieľová hodnota, ktorú niektoré regulátory vracajú aj v stave STOP, sa už na karte nezobrazí ako aktívne nastavenie; pri zlyhaní STOP zostane hodnota zachovaná spolu s alarmom.
+
 ## [1.76.234] – 2026-09-06
 
 ### Pridané

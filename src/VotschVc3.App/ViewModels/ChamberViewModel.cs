@@ -854,6 +854,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private double? _measuredTemperatureSetpoint;
     public double? MeasuredTemperatureSetpoint { get => _measuredTemperatureSetpoint; private set => SetProperty(ref _measuredTemperatureSetpoint, value); }
+    private bool _setpointClearedByStop;
 
     private double? _measuredHumidity;
     public double? MeasuredHumidity { get => _measuredHumidity; private set => SetProperty(ref _measuredHumidity, value); }
@@ -930,8 +931,16 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private void ApplyReading(ChamberReading reading)
     {
+        // Determine the real running state before exposing setpoints. Many controllers
+        // keep returning their last target even after STOP; that historical value must
+        // not look like an active command on the dashboard.
+        bool hasDigital = RawHasDigitalBlock(reading.Raw);
+        bool? reportedRunning = hasDigital ? reading.DigitalChannels.Start : null;
+        if (reportedRunning == true || IsProfileRunning || _manualStarted)
+            _setpointClearedByStop = false;
+
         MeasuredTemperature = reading.Temperature;
-        MeasuredTemperatureSetpoint = reading.TemperatureSetpoint;
+        MeasuredTemperatureSetpoint = _setpointClearedByStop ? null : reading.TemperatureSetpoint;
         if (_rawClient is SikaTpClient sika)
         {
             SikaRemoteControlEnabled = sika.RemoteControlEnabled;
@@ -944,15 +953,14 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         if (SupportsHumidity)
         {
             MeasuredHumidity = reading.Humidity;
-            MeasuredHumiditySetpoint = reading.HumiditySetpoint;
+            MeasuredHumiditySetpoint = _setpointClearedByStop ? null : reading.HumiditySetpoint;
         }
 
         // Determine the chamber's real running state from the reported digital
         // "start / system on" channel, so the dashboard reflects the actual
         // chamber and not just what this app happened to send. Only trust it when
         // the response actually carried a digital block.
-        bool hasDigital = RawHasDigitalBlock(reading.Raw);
-        SetReadRunning(hasDigital ? reading.DigitalChannels.Start : null);
+        SetReadRunning(reportedRunning);
 
         // Log the first reading of each connection so the exact frame layout
         // (digital block, start channel, values) can be mapped for the
@@ -1198,6 +1206,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         AppLog.Info(Name, $"Zápis setpointu: {summary} · adresa {Address} · štart kanál #{StartChannelIndex + 1} = ON · " +
             $"analóg. kanálov {AnalogChannelCount} · digitálne '{DigitalChannelsText}'.");
         await _client.WriteSetpointsAsync(setpoints, digital);
+        _setpointClearedByStop = false;
+        MeasuredTemperatureSetpoint = ManualTemperature;
+        if (humidity) MeasuredHumiditySetpoint = ManualHumidity;
         SetManualStarted(true);
         StartManualCountdown();
         ShowActionInfo($"✔ Nastavené {summary} · štart ZAPNUTÝ");
@@ -1296,6 +1307,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StopManualCountdown();
         AppLog.Info(Name, $"Stop komory: adresa {Address} · úplné vypnutie výkonu (stop programu + štart kanál OFF).");
         await _client.StopAsync();
+        ClearDisplayedSetpointsAfterStop();
         SetManualStarted(false);
         ShowActionInfo("⏹ Stop – výkon komory VYPNUTÝ");
         _audit.Log(Name, "Stop komory", string.Empty);
@@ -1616,6 +1628,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _manualStarted = value;
             RaiseActivity();
         }
+    }
+
+    private void ClearDisplayedSetpointsAfterStop()
+    {
+        _setpointClearedByStop = true;
+        MeasuredTemperatureSetpoint = null;
+        MeasuredHumiditySetpoint = null;
     }
 
     private void SetReadRunning(bool? value)
@@ -2886,6 +2905,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             try
             {
                 await _client.StopAsync();
+                ClearDisplayedSetpointsAfterStop();
                 ClearAlarm("stopFailed");
                 return true;
             }
@@ -4163,6 +4183,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _powerOffOnProfileCancel = false;
             _profileCts?.Cancel();
             SetManualStarted(false);
+            if (e.StopSucceeded) ClearDisplayedSetpointsAfterStop();
             string stopResult = e.StopSucceeded ? "Výkon komory bol vypnutý." : $"VYPNUTIE ZLYHALO: {e.StopError}";
             string message = $"TEPLOTNÁ POISTKA: {e.ActualC:0.###} °C je mimo [{e.MinimumC:0.###}; {e.MaximumC:0.###}] °C. {stopResult} Riadenie aplikáciou bolo zastavené.";
             RaiseAlarm("safety", message);
