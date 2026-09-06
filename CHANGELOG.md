@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.165] – 2026-09-06
+
+### Opravené
+- Grafické náhľady zariadení POL-EKO a SIKA teraz čítajú nameranú teplotu výslovne iba jednosmerne.
+- Odstránená bola neočakávaná chyba WPF, ktorá sa pokúšala zapisovať do vlastnosti `MeasuredTemperature` určenej iba na čítanie.
+- Záložná verzia bola zvýšená na 1.76.165.
+
 ## [1.76.164] – 2026-09-06
 
 ### Pridané
