@@ -13,8 +13,9 @@ namespace VotschVc3.Core.Communication.PolEko;
 public sealed class PolEkoClient : IChamberDevice
 {
     public const int DefaultPort = 56506;
-    /// <summary>Reserved LabDesk profile used exclusively by quick/manual control.</summary>
-    public const long ManualProgramId = 99;
+    /// <summary>Existing LabDesk profile reserved for FOS quick/manual control.</summary>
+    public const long ManualProgramId = 11;
+    public const string ManualProgramName = "FOS LAB";
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ISyncDuplexTypedMessageSender<string, string>? _sender;
@@ -311,7 +312,7 @@ public static class PolEkoLabDeskProtocol
         return JsonSerializer.Serialize(new PolEkoProgram
         {
             ProgramId = id,
-            Name = id == PolEkoClient.ManualProgramId ? "LabControl MANUAL" : $"LabControl {temperatureC:0.0}C",
+            Name = id == PolEkoClient.ManualProgramId ? PolEkoClient.ManualProgramName : $"LabControl {temperatureC:0.0}C",
             Segments = [new PolEkoProgramSegment { Temperature = wire, IsInfinityEnabled = true }],
         }, Json);
     }

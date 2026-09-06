@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.219] – 2026-09-06
+
+### Opravené
+- Manuálne nastavenie teploty sušiarne POL-EKO používa existujúci vyhradený program „FOS LAB“ s ID `11` namiesto neexistujúceho programu `99`; po aktualizácii naďalej overí, že zariadenie skutočne spustilo správny program.
+
 ## [1.76.218] – 2026-09-06
 
 ### Opravené

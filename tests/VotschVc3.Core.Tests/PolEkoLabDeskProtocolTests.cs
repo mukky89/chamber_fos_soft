@@ -101,13 +101,13 @@ public sealed class PolEkoLabDeskProtocolTests
     }
 
     [Fact]
-    public void Manual_program_uses_reserved_id_99_and_infinite_hold()
+    public void Manual_program_uses_existing_fos_lab_profile_and_infinite_hold()
     {
         using JsonDocument json = JsonDocument.Parse(
             PolEkoLabDeskProtocol.BuildSingleSetpointProgram(PolEkoClient.ManualProgramId, 25));
 
-        Assert.Equal(99, json.RootElement.GetProperty("programId").GetInt64());
-        Assert.Equal("LabControl MANUAL", json.RootElement.GetProperty("name").GetString());
+        Assert.Equal(11, json.RootElement.GetProperty("programId").GetInt64());
+        Assert.Equal("FOS LAB", json.RootElement.GetProperty("name").GetString());
         Assert.True(json.RootElement.GetProperty("segments")[0].GetProperty("IsInfinityEnabled").GetBoolean());
     }
 
