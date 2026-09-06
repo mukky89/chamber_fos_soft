@@ -26,6 +26,15 @@ public sealed class CalibrationTests
     }
 
     [Fact]
+    public void Calibration_profile_defaults_to_strict_reference_window_limits()
+    {
+        var settings = new CalibrationProfileSettings();
+
+        Assert.Equal(0.03, settings.MaxChamberRangeC);
+        Assert.Equal(0.01, settings.MaxChamberStdDevC);
+    }
+
+    [Fact]
     public void SensorTimeoutBudget_UsesObservedCadenceForACompleteRetry()
     {
         TimeSpan allowance = SensorTimeoutBudget.CompleteAttempt(50, 50, TimeSpan.FromSeconds(3.4));

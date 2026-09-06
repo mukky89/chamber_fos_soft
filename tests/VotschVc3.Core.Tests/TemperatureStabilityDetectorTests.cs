@@ -105,6 +105,41 @@ public sealed class TemperatureStabilityDetectorTests
     }
 
     [Fact]
+    public void Drift_IsRecalculatedFromRealSampleTimesAndTemperatures()
+    {
+        var detector = new TemperatureStabilityDetector(
+            TimeSpan.FromMinutes(5), toleranceC: 1, maxDriftCPerMinute: 0,
+            maxRangeC: 0, maxStdDevC: 0);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+
+        detector.Add(t0, 20.000, target: 20);
+        StabilityMetrics metrics = detector.Add(t0.AddSeconds(30), 20.025, target: 20);
+
+        Assert.Equal(0.05, metrics.SlopePerMinute, precision: 10);
+        Assert.Equal(0.05, detector.LastNormalizedChangeCPerMinute, precision: 10);
+    }
+
+    [Fact]
+    public void ShortTermDrift_RejectsCurrentMovementWhenWholeWindowTrendCancelsOut()
+    {
+        var detector = new TemperatureStabilityDetector(
+            TimeSpan.FromMinutes(20), toleranceC: 1, maxDriftCPerMinute: 0.03,
+            maxRangeC: 0, maxStdDevC: 0);
+        DateTimeOffset t0 = DateTimeOffset.UtcNow;
+
+        for (int second = 0; second <= 480; second += 10)
+            detector.Add(t0.AddSeconds(second), 20.16 - (0.02 * second / 60d), target: 20);
+
+        StabilityMetrics metrics = default!;
+        for (int second = 490; second <= 600; second += 10)
+            metrics = detector.Add(t0.AddSeconds(second), 20 + (0.06 * (second - 480) / 60d), target: 20);
+
+        Assert.False(metrics.IsStable);
+        Assert.Equal(0, detector.StableScoreSeconds);
+        Assert.True(Math.Abs(metrics.SlopePerMinute) > 0.03);
+    }
+
+    [Fact]
     public void StableDuration_UsesRealElapsedTimeWhenWikaSamplesAreSlowerThanOneHertz()
     {
         var detector = new TemperatureStabilityDetector(

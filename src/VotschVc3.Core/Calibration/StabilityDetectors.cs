@@ -133,6 +133,7 @@ public sealed class RollingStabilityDetector
 /// </summary>
 public sealed class TemperatureStabilityDetector
 {
+    private static readonly TimeSpan ShortTermDriftWindow = TimeSpan.FromMinutes(2);
     private readonly TimeSpan _requiredDuration;
     private readonly double _toleranceC;
     private readonly double _maxDriftCPerMinute;
@@ -149,8 +150,8 @@ public sealed class TemperatureStabilityDetector
         TimeSpan requiredDuration,
         double toleranceC,
         double maxDriftCPerMinute,
-        double maxRangeC = 0.1,
-        double maxStdDevC = 0.03)
+        double maxRangeC = 0.03,
+        double maxStdDevC = 0.01)
     {
         _requiredDuration = requiredDuration < TimeSpan.Zero ? TimeSpan.Zero : requiredDuration;
         _toleranceC = Math.Abs(toleranceC);
@@ -261,6 +262,15 @@ public sealed class TemperatureStabilityDetector
         double max = ordered[^1];
         double variance = values.Sum(v => Math.Pow(v - mean, 2)) / values.Length;
         double stdDev = Math.Sqrt(variance);
+        double fullWindowSlope = CalculateSlopePerMinute(samples);
+        DateTimeOffset shortTermStart = samples[^1].Timestamp - ShortTermDriftWindow;
+        IReadOnlyList<(DateTimeOffset Timestamp, double Value)> shortTermSamples = samples
+            .Where(sample => sample.Timestamp >= shortTermStart)
+            .ToArray();
+        double shortTermSlope = CalculateSlopePerMinute(shortTermSamples);
+        double effectiveSlope = Math.Abs(shortTermSlope) > Math.Abs(fullWindowSlope)
+            ? shortTermSlope
+            : fullWindowSlope;
 
         return new StabilityMetrics(
             values.Length,
@@ -270,8 +280,29 @@ public sealed class TemperatureStabilityDetector
             max,
             max - min,
             stdDev,
-            _lastNormalizedChangeCPerMinute,
+            effectiveSlope,
             TimeSpan.FromSeconds(_displayedStableScoreSeconds),
             isStable);
+    }
+
+    private static double CalculateSlopePerMinute(
+        IReadOnlyList<(DateTimeOffset Timestamp, double Value)> samples)
+    {
+        if (samples.Count < 2)
+            return 0;
+
+        DateTimeOffset origin = samples[0].Timestamp;
+        double meanMinutes = samples.Average(sample => (sample.Timestamp - origin).TotalMinutes);
+        double meanValue = samples.Average(sample => sample.Value);
+        double numerator = 0;
+        double denominator = 0;
+        foreach ((DateTimeOffset timestamp, double value) in samples)
+        {
+            double centeredMinutes = (timestamp - origin).TotalMinutes - meanMinutes;
+            numerator += centeredMinutes * (value - meanValue);
+            denominator += centeredMinutes * centeredMinutes;
+        }
+
+        return denominator <= double.Epsilon ? 0 : numerator / denominator;
     }
 }

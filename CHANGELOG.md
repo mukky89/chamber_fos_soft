@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.216] – 2026-09-06
+
+### Zmenené
+- Predvolené limity stabilného okna WIKA sú sprísnené na rozsah `0,030 °C`, smerodajnú odchýlku `0,010 °C` a drift `0,030 °C/min`.
+- Stabilita WIKA súčasne kontroluje lineárny drift celého okna aj krátkodobý drift posledných 120 sekúnd; rozhoduje prísnejšia hodnota.
+
+### Opravené
+- Drift WIKA sa znovu počíta lineárnou regresiou zo skutočných časov a teplôt každej novej vzorky. Rastúca alebo klesajúca referencia už nezostane nesprávne zelená s hodnotou `0,000 °C/min`.
+
 ## [1.76.215] – 2026-09-06
 
 ### Pridané

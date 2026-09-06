@@ -130,8 +130,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         ? "Drift · čaká na blok 5 vzoriek"
         : $"Drift {Math.Abs(drift):F3} / ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min";
     public string ReferenceDriftHelp =>
-        $"Drift vyjadruje priemernú rýchlosť zmeny WIKA teploty v bloku 5 vzoriek. " +
-        $"Blok vyhovuje, iba ak absolútny drift neprekročí {_stabilityMaxDriftCPerMinute:F3} °C/min a posledná vzorka je v tolerancii cieľa.";
+        $"Drift vyjadruje lineárnu rýchlosť zmeny WIKA teploty podľa skutočných časov vzoriek. " +
+        $"Blok vyhovuje, iba ak prísnejší drift z celého okna alebo posledných 120 sekúnd neprekročí {_stabilityMaxDriftCPerMinute:F3} °C/min a posledná vzorka je v tolerancii cieľa.";
     public string ReferenceDriftTone => _snapshot?.TemperatureDriftCPerMinute is { } drift &&
         (_stabilityMaxDriftCPerMinute <= 0 || Math.Abs(drift) <= _stabilityMaxDriftCPerMinute) ? "Done" : "Waiting";
     public string ReferenceTimeLabel => $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";

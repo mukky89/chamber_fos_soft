@@ -129,10 +129,10 @@
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxChamberStdDevC, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Absolútna hodnota lineárneho trendu WIKA počas súvislého stabilizačného okna. Prekročenie vynuluje čas.">
+                <Border Style="{StaticResource SettingCard}" ToolTip="Absolútna hodnota prísnejšieho lineárneho trendu z celého okna alebo posledných 120 sekúnd. Prekročenie vynuluje čas.">
                     <StackPanel>
                         <TextBlock Text="Max. drift WIKA [°C/min]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Kontroluje pomalý súvislý pohyb referenčnej teploty. Zmena počas behu začne nové čisté stabilizačné okno." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Kontroluje trend celého okna aj posledných 120 sekúnd; rozhoduje prísnejšia hodnota a prekročenie začne nové čisté okno." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxChamberDriftCPerMinute, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
