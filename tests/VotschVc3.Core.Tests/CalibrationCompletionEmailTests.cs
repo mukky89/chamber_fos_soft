@@ -20,6 +20,8 @@ public sealed class CalibrationCompletionEmailTests
             File.WriteAllText(Path.Combine(directory, "wavelength-trace.csv"), "trace");
             File.WriteAllText(Path.Combine(directory, "diagnostics.log"), "log");
             File.WriteAllText(Path.Combine(directory, "summary.json"), "{}");
+            File.WriteAllText(Path.Combine(directory, "calibration-coefficients.csv"), "coefficients");
+            File.WriteAllBytes(Path.Combine(directory, "calibration-coefficients.xlsx"), [1, 2, 3]);
             string reportDirectory = Path.Combine(directory, "reports", "plato-001");
             Directory.CreateDirectory(reportDirectory);
             File.WriteAllText(Path.Combine(reportDirectory, "kalibracny-bod.xlsx"), "xlsx");
@@ -34,6 +36,12 @@ public sealed class CalibrationCompletionEmailTests
                         new CalibrationMeasurementResult { SerialNumber = "289594/0001", Channel = "1.3", PeakId = "P1", Status = CalibrationTargetState.Stable, MeanWavelengthNm = 1552.1, SampleCount = 50 },
                         new CalibrationMeasurementResult { SerialNumber = "289594/0002", Channel = "2.3", PeakId = "P1", Status = CalibrationTargetState.TimedOut, Problem = "Nestabilný", MeanWavelengthNm = 1551.2, SampleCount = 20 },
                     ] }],
+                CalibrationResults = [new TemperatureCalibrationResult
+                {
+                    SerialNumber = "289594/0001", Channel = "1.3", PeakId = "P1", CalibrationType = "3rd · ABCD",
+                    LambdaTRefNm = 1550.123456, SensitivityPmPerC = 10.2, CoefficientA = 1.2, CoefficientB = 2.3,
+                    CoefficientC = 3.4, CoefficientD = 4.5, MaxErrorC = 0.12, RSquared = 0.9999, Result = "PASS",
+                }],
             };
 
             CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, directory);
@@ -45,13 +53,21 @@ public sealed class CalibrationCompletionEmailTests
             Assert.Contains("50", html);
             Assert.Contains("°C", html);
             Assert.Contains("Otvoriť lokálny priečinok behu", html);
-            Assert.Equal(2, message.Attachments.Count);
+            Assert.Contains("Kalibračné koeficienty", html);
+            Assert.Contains("3rd · ABCD", html);
+            Assert.Contains("A=1.2", html);
+            Assert.Contains("0.9999", html);
+            Assert.Equal(4, message.Attachments.Count);
             Assert.Equal("calibration-results.csv", message.Attachments[0].FileName);
-            using var zip = new ZipArchive(new MemoryStream(message.Attachments[1].Content), ZipArchiveMode.Read);
-            Assert.Equal(6, zip.Entries.Count);
+            Assert.Equal("calibration-coefficients.csv", message.Attachments[1].FileName);
+            Assert.Equal("calibration-coefficients.xlsx", message.Attachments[2].FileName);
+            Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", message.Attachments[2].MediaType);
+            using var zip = new ZipArchive(new MemoryStream(message.Attachments[3].Content), ZipArchiveMode.Read);
+            Assert.Equal(8, zip.Entries.Count);
             Assert.Contains(zip.Entries, entry => entry.FullName == "raw-samples.csv");
             Assert.Contains(zip.Entries, entry => entry.FullName == "diagnostics.log");
             Assert.Contains(zip.Entries, entry => entry.FullName == "reports/plato-001/kalibracny-bod.xlsx");
+            Assert.Contains(zip.Entries, entry => entry.FullName == "calibration-coefficients.xlsx");
         }
         finally
         {

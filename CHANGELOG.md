@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.180] – 2026-09-06
+
+### Pridané
+- Dokončovací e-mail FBG kalibrácie obsahuje prehľadnú tabuľku SN, kanála, peaku, typu kalibrácie, λTref, citlivosti, koeficientov, maximálnej chyby, R² a výsledku PASS/FAIL.
+- E-mail prikladá `calibration-coefficients.xlsx` a `calibration-coefficients.csv` samostatne popri súhrnnom CSV a kompletnom ZIP archíve behu.
+
+### Zachované
+- Excel a CSV koeficientov zostávajú uložené aj v lokálnom priečinku kalibračného behu.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.180.
+
 ## [1.76.179] – 2026-09-06
 
 ### Opravené
