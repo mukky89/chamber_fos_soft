@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.174] – 2026-09-06
+
+### Opravené
+- Informácia o stave `Remote Control` na karte SIKA má správne vnútorné okraje a pri užšej karte sa zalomí bez orezania.
+- Akcia na zapnutie vzdialeného ovládania používa kompaktné tlačidlo, takže text stavu má dostatok priestoru.
+- Záložná verzia bola zvýšená na 1.76.174.
+
 ## [1.76.173] – 2026-09-06
 
 ### Opravené

@@ -110,8 +110,13 @@
                 <Run Text="posledná hodnota nižšie, komunikácia sa skúša obnoviť automaticky." />
             </TextBlock>
             <!-- SIKA Remote Control: shown for every SIKA device (green = writes accepted). -->
-            <StackPanel Margin="0,5,0,0" Orientation="Horizontal"
-                        Visibility="{Binding ShowSikaRemoteControl, Converter={StaticResource BoolToVisibility}}">
+            <Grid Margin="0,6,0,2"
+                  Visibility="{Binding ShowSikaRemoteControl, Converter={StaticResource BoolToVisibility}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
                 <Ellipse Width="8" Height="8" VerticalAlignment="Center">
                     <Ellipse.Style>
                         <Style TargetType="Ellipse">
@@ -124,8 +129,9 @@
                         </Style>
                     </Ellipse.Style>
                 </Ellipse>
-                <TextBlock Text="{Binding SikaRemoteControlStatus}" Margin="6,0,0,0"
-                           FontFamily="Segoe UI Semibold" FontSize="11.5" TextWrapping="Wrap">
+                <TextBlock Grid.Column="1" Text="{Binding SikaRemoteControlStatus}" Margin="6,0,7,0"
+                           FontFamily="Segoe UI Semibold" FontSize="11.5" TextWrapping="Wrap"
+                           VerticalAlignment="Center">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
@@ -137,11 +143,12 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <Button Content="⇅" Style="{StaticResource GhostButton}" Margin="6,0,0,0" Padding="7,1" FontSize="11"
+                <Button Grid.Column="2" Content="⇅" Style="{StaticResource GhostButton}" Padding="7,1" FontSize="11"
+                        VerticalAlignment="Center"
                         Command="{Binding ForceSikaRemoteControlCommand}"
                         Visibility="{Binding IsSikaRemoteControlOn, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
                         ToolTip="Skúsi zapnúť Remote Control cez sieť (Com_ExternWriteFlag = 1)." />
-            </StackPanel>
+            </Grid>
             <TextBlock Text="{Binding SikaOperationalStatus}" Style="{StaticResource Caption}" Margin="14,2,0,0"
                        TextTrimming="CharacterEllipsis" ToolTip="{Binding SikaOperationalStatus}"
                        Visibility="{Binding IsSika, Converter={StaticResource BoolToVisibility}}" />
