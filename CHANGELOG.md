@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.171] – 2026-09-06
+
+### Opravené
+- Odznaky stavu na karte komory sú kompaktnejšie, takže označenie `T+RH` zostáva celé a nie je orezané ani počas FBG kalibrácie.
+- Záložná verzia bola zvýšená na 1.76.171.
+
 ## [1.76.170] – 2026-09-06
 
 ### Pridané

@@ -50,8 +50,8 @@
             <Setter Property="CornerRadius" Value="7" />
             <!-- Tight on purpose: four badges have to fit on one line of a 470 px card, and
                  the bottom margin only shows when the row does have to wrap. -->
-            <Setter Property="Padding" Value="7,3" />
-            <Setter Property="Margin" Value="0,0,5,4" />
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="Margin" Value="0,0,3,4" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <!-- Dashboard metric tile: two wide tiles on temperature-only devices,
@@ -437,8 +437,8 @@
                                              first line, the device kind (which the device name already says in
                                              brackets, and the chamber graphic repeats) gives way first. -->
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                                            <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="7,3"
-                                                    Margin="0,0,5,4" VerticalAlignment="Center"
+                                            <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="6,3"
+                                                    Margin="0,0,3,4" VerticalAlignment="Center"
                                                     Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
                                                 <TextBlock Text="⚠ ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11.5" />
                                             </Border>
@@ -461,13 +461,14 @@
                                                 </StackPanel>
                                             </Border>
                                             <!-- Prominent control-mode badge: PROFIL vs MANUÁL. -->
-                                            <Border Background="{StaticResource AccentBrush}" CornerRadius="7" Padding="7,3"
-                                                    Margin="0,0,5,4" VerticalAlignment="Center"
+                                            <Border Background="{StaticResource AccentBrush}" CornerRadius="7" Padding="6,3"
+                                                    Margin="0,0,3,4" VerticalAlignment="Center"
                                                     Visibility="{Binding HasControlMode, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="{Binding ControlModeBadge}" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11.5" />
+                                                <TextBlock Text="{Binding ControlModeBadge}" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="10.5" />
                                             </Border>
-                                            <Border Style="{StaticResource Badge}" Padding="5,3" Margin="0,0,0,4">
-                                                <TextBlock Text="{Binding KindCompactLabel}" Style="{StaticResource Caption}" FontSize="10.5"
+                                            <Border Style="{StaticResource Badge}" Padding="4,3" Margin="0,0,0,4" MinWidth="33">
+                                                <TextBlock Text="{Binding KindCompactLabel}" Style="{StaticResource Caption}" FontSize="10"
+                                                           HorizontalAlignment="Center"
                                                            TextWrapping="NoWrap" ToolTip="{Binding KindLabel}" />
                                             </Border>
                                         </StackPanel>
