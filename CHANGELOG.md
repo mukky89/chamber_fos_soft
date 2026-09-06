@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.204] – 2026-09-06
+
+### Zmenené
+- Automatické jemné dorovnávanie setpointu komory podľa WIKA je predvolene vypnuté. Pri prvom načítaní novej verzie sa vypne aj pôvodná predvoľba zariadení; operátor ho môže pred spustením kalibrácie ručne zapnúť.
+- Pomocník a popisy nastavenia teraz zodpovedajú vypnutej predvoľbe.
+
 ## [1.76.203] – 2026-09-06
 
 ### Zmenené

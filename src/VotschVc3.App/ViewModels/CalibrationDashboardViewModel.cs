@@ -105,8 +105,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ReferenceToleranceHelp =>
         $"WIKA musí byť pri cieľovej teplote {Target} v povolenej odchýlke ±{StabilityToleranceC:F3} °C. " +
         "Ak je odchýlka väčšia, stabilný čas sa nezbiera a FBG stabilizácia sa ešte nespustí. " +
-        "Predvolene zapnutá funkcia „Automaticky jemne dorovnať setpoint komory podľa WIKA“ zasiahne iba mimo povolenej odchýlky. Nový krok vykoná až po odozve komory a ustálení pohybu WIKA: najviac o 0,30 °C a celkovo najviac o ±3,0 °C. " +
-        "Komora sa pritom stále reguluje vlastným interným regulátorom. Funkcia je predvolene zapnutá a jej stav sa počas kalibrácie nedá meniť.";
+        "Predvolene vypnutá funkcia „Automaticky jemne dorovnať setpoint komory podľa WIKA“ po ručnom zapnutí zasiahne iba mimo povolenej odchýlky. Nový krok vykoná až po odozve komory a ustálení pohybu WIKA: najviac o 0,30 °C a celkovo najviac o ±3,0 °C. " +
+        "Komora sa pritom stále reguluje vlastným interným regulátorom. Stav funkcie sa počas kalibrácie nedá meniť.";
     public bool IsReferenceControlAdjusting =>
         _snapshot?.Message.Contains("WIKA control: dorovnávanie ", StringComparison.Ordinal) == true;
     public string ReferenceControlAdjustmentLabel

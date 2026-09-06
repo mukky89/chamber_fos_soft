@@ -140,7 +140,7 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("0,30 °C", m.ReferenceToleranceHelp);
         Assert.Contains("po odozve komory", m.ReferenceToleranceHelp);
         Assert.Contains("±3,0 °C", m.ReferenceToleranceHelp);
-        Assert.Contains("predvolene zapnutá", m.ReferenceToleranceHelp);
+        Assert.Contains("Predvolene vypnutá", m.ReferenceToleranceHelp);
         Assert.Contains("najnovšia úspešne načítaná teplota", m.ReferenceStatusHelp);
         Assert.Contains("Jedna vzorka sama osebe nepotvrdzuje stabilitu", m.ReferenceStatusHelp);
         Assert.Contains("odchýlka aj drift", m.ReferenceStatusHelp);

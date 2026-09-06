@@ -51,8 +51,8 @@ public sealed class CalibrationDeviceOptionsStore
 
 public sealed class CalibrationDeviceOptions
 {
-    public bool ControlTemperatureByReference { get; set; } = true;
-    public int ReferenceControlConfigurationVersion { get; set; } = 3;
+    public bool ControlTemperatureByReference { get; set; }
+    public int ReferenceControlConfigurationVersion { get; set; } = 4;
     public double ReferenceControlGain { get; set; } = 0.35;
     public double ReferenceControlDeadbandC { get; set; } = 0.05;
     public double ReferenceControlMaxCorrectionC { get; set; } = 3.0;
@@ -80,6 +80,11 @@ public sealed class CalibrationDeviceOptions
             ReferenceControlResponseDelaySeconds = 120;
             ReferenceControlObservationSeconds = 30;
             ReferenceControlConfigurationVersion = 3;
+        }
+        if (ReferenceControlConfigurationVersion < 4)
+        {
+            ControlTemperatureByReference = false;
+            ReferenceControlConfigurationVersion = 4;
         }
         ReferenceControlResponseDelaySeconds = Math.Clamp(double.IsFinite(ReferenceControlResponseDelaySeconds) ? ReferenceControlResponseDelaySeconds : 120, 30, 600);
         ReferenceControlObservationSeconds = Math.Clamp(double.IsFinite(ReferenceControlObservationSeconds) ? ReferenceControlObservationSeconds : 30, 10, 120);
