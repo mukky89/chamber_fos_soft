@@ -111,4 +111,41 @@ public sealed class CalibrationCheckpointRecoveryTests
         Assert.False(CalibrationCheckpointRecovery.RestoreRunConfiguration(setup, new CalibrationCheckpoint()));
         Assert.Equal(73, setup.Settings.RequiredStableSamples);
     }
+
+    [Fact]
+    public void CurrentDefaults_CanBeExplicitlyAppliedWithoutChangingCompletedWorkOrWiring()
+    {
+        var completed = new CalibrationPlateauResult { PlateauIndex = 4, TargetTemperatureC = 20 };
+        var mapping = new CalibrationSensorMapping { SerialNumber = "295441/0001", Selected = true };
+        var setup = new CalibrationSetup
+        {
+            Settings = new CalibrationProfileSettings { SampleAcquisitionIntervalSeconds = 1 },
+            Mappings = { mapping },
+        };
+        var checkpoint = new CalibrationCheckpoint
+        {
+            SettingsSnapshot = new CalibrationProfileSettings { SampleAcquisitionIntervalSeconds = 1 },
+            CompletedPlateaus = { completed },
+            Mappings = { mapping },
+        };
+        var defaults = new CalibrationProfileSettings
+        {
+            ChamberToleranceC = 1,
+            ChamberStableDuration = TimeSpan.FromMinutes(5),
+            MaxChamberDriftCPerMinute = 0.03,
+            SampleAcquisitionIntervalSeconds = 10,
+        };
+
+        CalibrationCheckpointRecovery.ApplyCurrentDefaults(setup, checkpoint, defaults);
+
+        Assert.Equal(10, setup.Settings.SampleAcquisitionIntervalSeconds);
+        Assert.Equal(TimeSpan.FromMinutes(5), checkpoint.SettingsSnapshot!.ChamberStableDuration);
+        Assert.Equal(0.03, checkpoint.SettingsSnapshot.MaxChamberDriftCPerMinute);
+        Assert.Same(completed, Assert.Single(checkpoint.CompletedPlateaus));
+        Assert.Same(mapping, Assert.Single(checkpoint.Mappings));
+
+        defaults.SampleAcquisitionIntervalSeconds = 30;
+        Assert.Equal(10, setup.Settings.SampleAcquisitionIntervalSeconds);
+        Assert.Equal(10, checkpoint.SettingsSnapshot.SampleAcquisitionIntervalSeconds);
+    }
 }

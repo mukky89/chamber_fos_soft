@@ -85,6 +85,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private double _calibrationProgressPercent;
     private string? _reservedF100Key;
     private string? _reservedPeakLoggerKey;
+    private ThermometerDeviceViewModel? _resumeObservedF100;
+    private string _resumeReferencePort = string.Empty;
+    private string _resumeReferenceSerialNumber = string.Empty;
+    private bool _resumeRequiresReference;
 
     private static readonly Regex ProductionSerialNumberPattern = new(
         "^[A-Za-z0-9]{6}/[A-Za-z0-9]{4}$",
@@ -107,7 +111,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         Peaks = new ObservableCollection<CalibrationPeakRowViewModel>();
         PeaksView = CollectionViewSource.GetDefaultView(Peaks);
         PeaksView.Filter = MatchesPeakFilter;
-        Peaks.CollectionChanged += (_, _) => NotifyPeakCounts();
+        Peaks.CollectionChanged += (_, _) =>
+        {
+            NotifyPeakCounts();
+            RefreshResumeReadiness();
+        };
         CalibrationPoints = new ObservableCollection<CalibrationPointRowViewModel>();
         TargetProgress = new ObservableCollection<CalibrationTargetProgressViewModel>();
         History = new ObservableCollection<CalibrationRunRecord>(_calibrationStore.LoadHistory());
@@ -120,7 +128,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         ClearPeakSearchCommand = new RelayCommand(() => PeakSearchText = string.Empty);
         MarkAllPlateausCommand = new RelayCommand(MarkAllPlateaus, () => CalibrationPoints.Count > 0 && !IsRunning);
         StartCalibrationCommand = new AsyncRelayCommand(StartCalibrationAsync, CanStartCalibration, ReportError);
-        ResumeCalibrationCommand = new AsyncRelayCommand(ResumeCalibrationAsync, () => CanStartCalibration() && HasResumableCalibration, ReportError);
+        ResumeCalibrationCommand = new AsyncRelayCommand(ResumeCalibrationAsync, CanResumeCalibration, ReportError);
+        ApplyCurrentDefaultsToResumeCommand = new RelayCommand(ApplyCurrentDefaultsToResume, () => HasResumableCalibration && !IsRunning);
         PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null);
         ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending);
         ExtendStabilityTimeCommand = new RelayCommand(ExtendStabilityTime, () => IsRunning && _runner is not null && Dashboard.CanExtendStabilityTime);
@@ -231,6 +240,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand MarkAllPlateausCommand { get; }
     public AsyncRelayCommand StartCalibrationCommand { get; }
     public AsyncRelayCommand ResumeCalibrationCommand { get; }
+    public RelayCommand ApplyCurrentDefaultsToResumeCommand { get; }
     public RelayCommand PauseResumeCommand { get; }
     public RelayCommand ForceNextStepCommand { get; }
     public RelayCommand ExtendStabilityTimeCommand { get; }
@@ -341,6 +351,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _selectedF100, value))
             {
+                ObserveResumeReference(value);
                 if (value is not null)
                 {
                     if (value.ChannelAutoDetected)
@@ -356,6 +367,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 OnPropertyChanged(nameof(F100TemperatureLabel));
                 OnPropertyChanged(nameof(F100ConnectionLabel));
                 OnPropertyChanged(nameof(ReferenceThermometerTitle));
+                RefreshResumeReadiness();
             }
         }
     }
@@ -450,7 +462,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         get => _peakLoggerConnected;
         private set
         {
-            if (SetProperty(ref _peakLoggerConnected, value)) RefreshCommands();
+            if (SetProperty(ref _peakLoggerConnected, value))
+            {
+                RefreshCommands();
+                RefreshResumeReadiness();
+            }
         }
     }
 
@@ -487,7 +503,26 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         : $"Pokračovať od plata č. {_resumeCheckpoint.CompletedPlateaus.Count + 1}";
     public string ResumeCalibrationDetail => _resumeCheckpoint is null
         ? string.Empty
-        : $"Obnoví beh s {_resumeCheckpoint.CompletedPlateaus.Count} dokončenými platami. Rozpracované plato sa stabilizuje a zmeria nanovo.";
+        : $"Obnoví beh s {_resumeCheckpoint.CompletedPlateaus.Count} dokončenými platami. Rozpracované plato sa stabilizuje a zmeria nanovo. {ResumeHardwareStatus}";
+    public bool ResumeHardwareReady => _resumeCheckpoint is not null &&
+        PeakLoggerConnected && Peaks.Count > 0 &&
+        (!_resumeRequiresReference || ResumeReferenceIsReady());
+    public string ResumeHardwareStatus
+    {
+        get
+        {
+            if (_resumeCheckpoint is null) return string.Empty;
+            string peakLogger = PeakLoggerConnected && Peaks.Count > 0
+                ? "PeakLogger načítaný ✓"
+                : "najprv načítaj PeakLogger";
+            string wika = !_resumeRequiresReference
+                ? "WIKA nebola súčasťou pôvodného behu"
+                : ResumeReferenceIsReady()
+                    ? "WIKA načítaná ✓"
+                    : $"najprv načítaj pôvodnú WIKA {(_resumeReferencePort.Length > 0 ? _resumeReferencePort : _resumeReferenceSerialNumber)}";
+            return $"{peakLogger} · {wika}";
+        }
+    }
 
     private string _runState = "Idle";
     public string RunState { get => _runState; private set => SetProperty(ref _runState, value); }
@@ -715,6 +750,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                             checkpoint.ProfileId == SelectedProfile.Id
             ? checkpoint
             : null;
+        CalibrationRunRecord? resumeRun = _resumeCheckpoint is null
+            ? null
+            : _calibrationStore.LoadRun(_resumeCheckpoint.RunId);
+        _resumeReferencePort = resumeRun?.ReferenceThermometerPort?.Trim() ?? string.Empty;
+        _resumeReferenceSerialNumber = resumeRun?.ReferenceThermometerSerialNumber?.Trim() ?? string.Empty;
+        _resumeRequiresReference = _resumeReferencePort.Length > 0 || _resumeReferenceSerialNumber.Length > 0;
         bool setupRecovered = false;
         if (_resumeCheckpoint is not null && CalibrationCheckpointRecovery.RestoreRunConfiguration(_setup, _resumeCheckpoint))
         {
@@ -733,6 +774,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(HasResumableCalibration));
         OnPropertyChanged(nameof(ResumeCalibrationLabel));
         OnPropertyChanged(nameof(ResumeCalibrationDetail));
+        RefreshResumeReadiness();
+        ApplyCurrentDefaultsToResumeCommand.RaiseCanExecuteChanged();
         ResumeCalibrationCommand.RaiseCanExecuteChanged();
         StopCalibrationCommand.RaiseCanExecuteChanged();
     }
@@ -1596,6 +1639,98 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         return selected.Count > 0 && selected.All(p => !string.IsNullOrWhiteSpace(p.SerialNumber));
     }
 
+    private bool CanResumeCalibration() =>
+        HasResumableCalibration && ResumeHardwareReady && CanStartCalibration();
+
+    private bool ResumeReferenceIsReady()
+    {
+        if (SelectedF100 is not { IsConnected: true, Temperature: { } temperature } ||
+            !double.IsFinite(temperature))
+        {
+            return false;
+        }
+
+        if (_resumeReferenceSerialNumber.Length > 0 && !string.IsNullOrWhiteSpace(SelectedF100.SerialNumber))
+        {
+            return string.Equals(SelectedF100.SerialNumber, _resumeReferenceSerialNumber, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return _resumeReferencePort.Length == 0 ||
+               string.Equals(SelectedF100.PortName, _resumeReferencePort, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ObserveResumeReference(ThermometerDeviceViewModel? device)
+    {
+        if (ReferenceEquals(_resumeObservedF100, device)) return;
+        if (_resumeObservedF100 is not null)
+            _resumeObservedF100.PropertyChanged -= OnResumeReferencePropertyChanged;
+        _resumeObservedF100 = device;
+        if (_resumeObservedF100 is not null)
+            _resumeObservedF100.PropertyChanged += OnResumeReferencePropertyChanged;
+    }
+
+    private void OnResumeReferencePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ThermometerDeviceViewModel.IsConnected)
+            or nameof(ThermometerDeviceViewModel.Temperature)
+            or nameof(ThermometerDeviceViewModel.SerialNumber))
+        {
+            RefreshResumeReadiness();
+        }
+    }
+
+    private void RefreshResumeReadiness()
+    {
+        OnPropertyChanged(nameof(ResumeHardwareReady));
+        OnPropertyChanged(nameof(ResumeHardwareStatus));
+        OnPropertyChanged(nameof(ResumeCalibrationDetail));
+        ResumeCalibrationCommand.RaiseCanExecuteChanged();
+    }
+
+    private void ApplyCurrentDefaultsToResume()
+    {
+        if (_resumeCheckpoint is null || IsRunning) return;
+
+        MessageBoxResult answer = MessageBox.Show(
+            "Aktuálne administrátorské predvoľby nahradia pôvodné rozhodovacie limity obnoveného behu.\n\n" +
+            "Dokončené plata a zapojenie zostanú zachované. Rozpracované plato sa po pokračovaní stabilizuje a zmeria odznova. Zmena bude zapísaná do histórie behu.\n\n" +
+            "Použiť aktuálne predvolené nastavenia?",
+            "Predvoľby pre obnovenú kalibráciu",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) return;
+
+        CalibrationProfileSettings defaults = _calibrationDefaultsStore.Load();
+        CalibrationCheckpointRecovery.ApplyCurrentDefaults(_setup, _resumeCheckpoint, defaults);
+        _calibrationStore.SaveCheckpoint(_resumeCheckpoint);
+        _calibrationStore.SaveSetup(_setup);
+
+        CalibrationRunRecord? run = _calibrationStore.LoadRun(_resumeCheckpoint.RunId);
+        if (run is not null)
+        {
+            run.Warnings.Add(new CalibrationWarning
+            {
+                Code = "RECOVERY_DEFAULTS_APPLIED",
+                Message = $"Operátor pred pokračovaním použil aktuálne predvolené nastavenia: " +
+                          $"WIKA tolerancia ±{defaults.ChamberToleranceC:0.###} °C, stabilný čas {defaults.ChamberStableDuration.TotalMinutes:0.###} min, " +
+                          $"WIKA rozsah {defaults.MaxChamberRangeC:0.###} °C, σ {defaults.MaxChamberStdDevC:0.###} °C, " +
+                          $"drift {defaults.MaxChamberDriftCPerMinute:0.###} °C/min, FBG interval {defaults.SampleAcquisitionIntervalSeconds} s, " +
+                          $"stabilita {defaults.RequiredStableSamples} vzoriek, finálne meranie {defaults.RequiredMeasurementSamples} vzoriek, " +
+                          $"range {defaults.MaxWavelengthRangePm:0.###} pm, σ {defaults.MaxWavelengthStdDevPm:0.###} pm, " +
+                          $"drift {defaults.MaxWavelengthDriftPmPerMinute:0.###} pm/min.",
+                PlateauIndex = _resumeCheckpoint.CurrentPlateauIndex,
+                Overridden = true,
+                OverrideReason = "Aktuálne administrátorské predvoľby potvrdené operátorom pred obnovením.",
+            });
+            _calibrationStore.SaveRun(run);
+        }
+
+        RefreshSettingsBindings();
+        RefreshDashboardPlan();
+        StatusMessage = "Aktuálne predvolené nastavenia boli použité a uložené do obnovenej kalibrácie. Dokončené plata zostali zachované.";
+        AppLog.Warn("FBG kalibrácia", $"Checkpoint {_resumeCheckpoint.RunId:N}: operátor použil aktuálne administrátorské predvoľby pred pokračovaním.");
+    }
+
     private async Task StartCalibrationAsync()
         => await StartCalibrationAsync(resumeFromCheckpoint: false);
 
@@ -2367,6 +2502,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshSensorsCommand.RaiseCanExecuteChanged();
         StartCalibrationCommand.RaiseCanExecuteChanged();
         ResumeCalibrationCommand.RaiseCanExecuteChanged();
+        ApplyCurrentDefaultsToResumeCommand.RaiseCanExecuteChanged();
         StopCalibrationCommand.RaiseCanExecuteChanged();
         PauseResumeCommand.RaiseCanExecuteChanged();
         ForceNextStepCommand.RaiseCanExecuteChanged();
@@ -2382,6 +2518,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        ObserveResumeReference(null);
         _setupAutosaveCts?.Cancel();
         _setupAutosaveCts?.Dispose();
         _setupAutosaveCts = null;

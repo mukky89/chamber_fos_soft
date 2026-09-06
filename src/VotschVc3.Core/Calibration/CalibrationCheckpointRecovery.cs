@@ -74,6 +74,23 @@ public static class CalibrationCheckpointRecovery
         return true;
     }
 
+    /// <summary>
+    /// Explicitly replaces the interrupted run's decision settings with the current administrator
+    /// defaults. Completed plateaus, wiring and the selected calibration plan remain untouched.
+    /// </summary>
+    public static void ApplyCurrentDefaults(
+        CalibrationSetup setup,
+        CalibrationCheckpoint checkpoint,
+        CalibrationProfileSettings currentDefaults)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        ArgumentNullException.ThrowIfNull(checkpoint);
+        ArgumentNullException.ThrowIfNull(currentDefaults);
+
+        setup.Settings = CloneSettings(currentDefaults);
+        checkpoint.SettingsSnapshot = CloneSettings(currentDefaults);
+    }
+
     public static CalibrationProfileSettings CloneSettings(CalibrationProfileSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);

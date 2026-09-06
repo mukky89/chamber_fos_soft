@@ -20,6 +20,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -91,6 +92,22 @@
                 </Button>
             </StackPanel>
         </DockPanel>
+
+        <Border Grid.Row="2" Margin="6,0,6,8" Padding="10,6" CornerRadius="7"
+                Background="#15283A" BorderBrush="#315477" BorderThickness="1"
+                Visibility="{Binding HasResumableCalibration, Converter={StaticResource BoolToVisibility}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}"
+                        Command="{Binding ApplyCurrentDefaultsToResumeCommand}" Margin="12,0,0,0" Padding="10,5"
+                        ToolTip="Po potvrdení nahradí pôvodný snapshot aktuálnymi administrátorskými predvoľbami. Dokončené plata a zapojenie zostanú zachované.">
+                    <TextBlock Text="Použiť aktuálne predvoľby" Style="{StaticResource IconLabel}" />
+                </Button>
+                <TextBlock Text="PODMIENKY OBNOVENIA" Foreground="#7DBDFF" FontSize="10" FontWeight="SemiBold"
+                           Margin="0,0,12,0" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ResumeHardwareStatus}" TextWrapping="Wrap" Foreground="#D8E9FC"
+                           VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
 
         <!-- ===== Zostava: čo sa kalibruje, čím sa meria a proti čomu =====
              Three boxed groups instead of one row of loose controls: the previous layout put
@@ -307,7 +324,7 @@
         </Border>
 
         <!-- Reference-temperature trace, folded away until the operator asks for it. -->
-        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="6,0,6,10"
+        <Border Grid.Row="3" Style="{StaticResource Card}" Margin="6,0,6,10"
                 Visibility="{Binding ShowF100Chart, Converter={StaticResource BoolToVisibility}}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -337,7 +354,7 @@
             </Grid>
         </Border>
 
-        <TabControl x:Name="CalibrationTabs" Grid.Row="3" Margin="6,0,6,8">
+        <TabControl x:Name="CalibrationTabs" Grid.Row="4" Margin="6,0,6,8">
             <TabItem Header="Zapojenie">
                 <TabItem.Resources>
                     <Style x:Key="WiringFilterChip" TargetType="RadioButton">
@@ -708,7 +725,7 @@
             </TabItem>
         </TabControl>
 
-        <Border Grid.Row="4" Margin="6,0,6,4" Padding="12,8">
+        <Border Grid.Row="5" Margin="6,0,6,4" Padding="12,8">
             <Border.Style>
                 <Style TargetType="Border" BasedOn="{StaticResource Card}">
                     <Style.Triggers>

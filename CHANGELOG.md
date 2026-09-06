@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.215] – 2026-09-06
+
+### Pridané
+- Obnovená kalibrácia ponúka potvrdenú akciu „Použiť aktuálne predvoľby“, ktorá prenesie administrátorské nastavenia do checkpointu, zachová dokončené plata a zmenu zapíše do histórie behu.
+- Pokračovanie z checkpointu je dostupné až po načítaní PeakLoggera a platného živého merania pôvodne použitej WIKA; stav oboch podmienok je viditeľný priamo v pracovnom priestore.
+
+### Opravené
+- Obnovenie už nemožno spustiť iba s načítaným zapojením bez dostupnej referencie, ak pôvodný kalibračný beh používal WIKA CTH7000.
+
 ## [1.76.214] – 2026-09-06
 
 ### Zmenené
