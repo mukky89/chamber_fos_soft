@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.233] – 2026-09-06
+
+### Opravené
+
+- POL-EKO po úspešnom zápise a potvrdenom spustení programu `FOS LAB` toleruje chybnú odpoveď `DATA_CORRUPTED` z nepodporovaného katalógu `GET_PROGRAMS`. Karta preto správne zobrazí nastavenú teplotu a stav `Aktívna`; ostatné chyby a skutočný nesúlad teploty naďalej spustenie zamietnu.
+
 ## [1.76.232] – 2026-09-06
 
 ### Opravené

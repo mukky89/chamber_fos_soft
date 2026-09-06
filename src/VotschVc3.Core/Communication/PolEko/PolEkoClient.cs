@@ -201,7 +201,20 @@ public sealed class PolEkoClient : IChamberDevice
 
     private async Task VerifyManualProgramDefinitionAsync(double expectedTemperatureC, CancellationToken cancellationToken)
     {
-        PolEkoRpcResponse response = await SendAsync("GET_PROGRAMS", null, true, cancellationToken).ConfigureAwait(false);
+        PolEkoRpcResponse response;
+        try
+        {
+            response = await SendAsync("GET_PROGRAMS", null, true, cancellationToken).ConfigureAwait(false);
+        }
+        catch (PolEkoRpcException ex) when (IsUnavailableProgramCatalog(ex.ResponseStatus))
+        {
+            // Some SLN 115/LabDesk versions accept UPDATE_PROGRAM and confirm the
+            // running program through GET_STATUS, but their GET_PROGRAMS endpoint
+            // always answers DATA_CORRUPTED. Runtime verification above is the
+            // authoritative confirmation in that compatibility mode.
+            return;
+        }
+
         if (!PolEkoLabDeskProtocol.TryReadProgramTemperature(
                 response.Data, ManualProgramId, out double storedTemperatureC))
             throw new InvalidDataException($"POL-EKO po spustení nevrátilo definíciu programu {ManualProgramId} ({ManualProgramName}).");
@@ -212,6 +225,9 @@ public sealed class PolEkoClient : IChamberDevice
                 $"POL-EKO uložilo do programu {ManualProgramName} teplotu {storedTemperatureC:0.0} °C namiesto požadovaných {expectedTemperatureC:0.0} °C; program bol zastavený.");
         }
     }
+
+    public static bool IsUnavailableProgramCatalog(string? responseStatus) =>
+        string.Equals(responseStatus, "DATA_CORRUPTED", StringComparison.OrdinalIgnoreCase);
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {

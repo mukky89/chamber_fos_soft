@@ -141,4 +141,14 @@ public sealed class PolEkoLabDeskProtocolTests
         Assert.Contains("\"programId\": 99", result);
         Assert.Contains("\"temperature\": 250", result);
     }
+
+    [Theory]
+    [InlineData("DATA_CORRUPTED", true)]
+    [InlineData("data_corrupted", true)]
+    [InlineData("GENERAL_ERROR", false)]
+    [InlineData("OK", false)]
+    public void Only_broken_program_catalog_status_is_treated_as_unavailable(string status, bool expected)
+    {
+        Assert.Equal(expected, PolEkoClient.IsUnavailableProgramCatalog(status));
+    }
 }
