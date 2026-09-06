@@ -59,12 +59,8 @@ public sealed class PolEkoClient : IChamberDevice
     {
         PolEkoRpcResponse response = await SendAsync("GET_STATUS", "version-2", false, cancellationToken).ConfigureAwait(false);
         using JsonDocument status = ParseDataObject(response, "GET_STATUS");
-        bool hasMeasured = TryFindElement(status.RootElement, "TEMPERATURE_MAIN", out JsonElement mainProbe)
-            ? TryFindNumber(mainProbe, out double measuredValue, "valueProbe", "value")
-            : TryFindNumber(status.RootElement, out measuredValue, "TEMPERATURE_MAIN_VALUE", "temperatureMain", "temperature");
-        if (!hasMeasured)
+        if (!PolEkoLabDeskProtocol.TryReadMainTemperature(status.RootElement, out double measured))
             throw new InvalidDataException("POL-EKO GET_STATUS neobsahuje platnú hlavnú teplotu.");
-        double measured = measuredValue;
         double? setpoint = TryFindNumber(status.RootElement, out double sp, "TEMPERATURE_SET", "SET_TEMPERATURE", "temperatureSetpoint", "setpoint") ? sp : _lastSetpoint;
         bool running = TryFindBoolean(status.RootElement, out bool active, "IS_RUNNING") && active;
         var digital = new DigitalChannels { StartChannelIndex = 0, Start = running };
@@ -166,7 +162,7 @@ public sealed class PolEkoClient : IChamberDevice
         catch (JsonException) { value = 0; return false; }
     }
 
-    private static bool TryFindNumber(JsonElement e, out double value, params string[] names)
+    internal static bool TryFindNumber(JsonElement e, out double value, params string[] names)
     {
         if (e.ValueKind == JsonValueKind.Object) foreach (JsonProperty p in e.EnumerateObject())
         {
@@ -182,7 +178,7 @@ public sealed class PolEkoClient : IChamberDevice
         value = 0; return false;
     }
 
-    private static bool TryFindElement(JsonElement e, string name, out JsonElement value)
+    internal static bool TryFindElement(JsonElement e, string name, out JsonElement value)
     {
         if (e.ValueKind == JsonValueKind.Object) foreach (JsonProperty p in e.EnumerateObject())
         {
@@ -216,6 +212,25 @@ public static class PolEkoLabDeskProtocol
         UserCredential = credentials ? new PolEkoCredential() : null,
         Data = data,
     }, Json);
+
+    /// <summary>Reads the main probe from both known GET_STATUS response shapes.</summary>
+    public static bool TryReadMainTemperature(JsonElement status, out double value)
+    {
+        if (PolEkoClient.TryFindElement(status, "TEMPERATURE_MAIN", out JsonElement mainProbe))
+        {
+            if (mainProbe.ValueKind == JsonValueKind.Number && mainProbe.TryGetDouble(out value))
+                return double.IsFinite(value);
+            if (mainProbe.ValueKind == JsonValueKind.String &&
+                double.TryParse(mainProbe.GetString(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out value))
+                return double.IsFinite(value);
+            return PolEkoClient.TryFindNumber(mainProbe, out value, "valueProbe", "value") && double.IsFinite(value);
+        }
+
+        return PolEkoClient.TryFindNumber(
+            status, out value, "TEMPERATURE_MAIN_VALUE", "temperatureMain", "temperature") && double.IsFinite(value);
+    }
+
     public static string BuildSingleSetpointProgram(long id, double temperatureC)
     {
         if (!double.IsFinite(temperatureC)) throw new ArgumentOutOfRangeException(nameof(temperatureC));

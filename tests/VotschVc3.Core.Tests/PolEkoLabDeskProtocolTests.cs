@@ -6,6 +6,26 @@ namespace VotschVc3.Core.Tests;
 
 public sealed class PolEkoLabDeskProtocolTests
 {
+    [Theory]
+    [InlineData("{\"TEMPERATURE_MAIN\":24.23}", 24.23)]
+    [InlineData("{\"TEMPERATURE_MAIN\":{\"valueProbe\":24.23}}", 24.23)]
+    [InlineData("{\"temperatureMain\":\"24.23\"}", 24.23)]
+    public void Main_temperature_accepts_real_and_legacy_status_shapes(string json, double expected)
+    {
+        using JsonDocument status = JsonDocument.Parse(json);
+
+        Assert.True(PolEkoLabDeskProtocol.TryReadMainTemperature(status.RootElement, out double actual));
+        Assert.Equal(expected, actual, precision: 6);
+    }
+
+    [Fact]
+    public void Main_temperature_rejects_missing_or_non_finite_value()
+    {
+        using JsonDocument status = JsonDocument.Parse("{\"TEMPERATURE_MAIN\":\"NaN\"}");
+
+        Assert.False(PolEkoLabDeskProtocol.TryReadMainTemperature(status.RootElement, out _));
+    }
+
     [Fact]
     public void Status_request_uses_camel_case_and_version_2()
     {

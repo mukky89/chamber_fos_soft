@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.185] – 2026-09-06
+
+### Opravené
+- POL-EKO LabDesk parser prijíma aktuálny formát `TEMPERATURE_MAIN` ako priamu číselnú hodnotu a už neoznačuje platnú odpoveď sušiarne ako stratu spojenia.
+- Zachovaná zostala kompatibilita so starším vnoreným formátom `valueProbe`/`value` aj textovou číselnou hodnotou; neplatné a nekonečné hodnoty sa naďalej odmietnu.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.185.
+
 ## [1.76.184] – 2026-09-06
 
 ### Opravené
