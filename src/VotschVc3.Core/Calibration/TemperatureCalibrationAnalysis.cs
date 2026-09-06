@@ -11,15 +11,18 @@ public sealed class TemperatureCalibrationResult
     public string Channel { get; set; } = string.Empty;
     public string PeakId { get; set; } = string.Empty;
     public int PeakIndex { get; set; }
+    public string CalibrationType { get; set; } = string.Empty;
     public int PointCount { get; set; }
     public double MinimumTemperatureC { get; set; }
     public double MaximumTemperatureC { get; set; }
     public double ReferenceTemperatureC { get; set; }
     public double LambdaTRefNm { get; set; }
     public double SensitivityPmPerC { get; set; }
-    public double CoefficientA { get; set; }
-    public double CoefficientB { get; set; }
-    public double CoefficientC { get; set; }
+    public double? CoefficientS1 { get; set; }
+    public double? CoefficientS2 { get; set; }
+    public double? CoefficientA { get; set; }
+    public double? CoefficientB { get; set; }
+    public double? CoefficientC { get; set; }
     public double? CoefficientD { get; set; }
     public double MaxErrorC { get; set; }
     public double ErrorToleranceC { get; set; }
@@ -51,8 +54,6 @@ public static class TemperatureCalibrationAnalyzer
             AnalysisPoint[] points = group.OrderBy(point => point.TemperatureC).ToArray();
             if (points.Length < 3 || points.Select(point => point.TemperatureC).Distinct().Count() < 3) continue;
 
-            try
-            {
             double[] temperature = points.Select(point => point.TemperatureC).ToArray();
             double[] wavelength = points.Select(point => point.Target.MeanWavelengthNm).ToArray();
             double min = temperature.Min(), max = temperature.Max();
@@ -60,53 +61,79 @@ public static class TemperatureCalibrationAnalyzer
             if (min >= 0 && (min > referenceTemperature || referenceTemperature - min > 12.5))
                 referenceTemperature = (min + max) / 2d;
 
-            int order = max > 100 ? 3 : 2;
-            double[] wavelengthFromTemperature = FitPolynomial(temperature, wavelength, order);
-            double lambdaTRef = Evaluate(wavelengthFromTemperature, referenceTemperature);
-            if (!double.IsFinite(lambdaTRef) || Math.Abs(lambdaTRef) < 1e-12) continue;
-
-            double[] normalizedWavelength = wavelength.Select(value => (value - lambdaTRef) / lambdaTRef).ToArray();
-            double[] coefficientsAscending = FitPolynomial(normalizedWavelength, temperature, order);
-            double[] predicted = normalizedWavelength.Select(value => Evaluate(coefficientsAscending, value)).ToArray();
-            double maxError = predicted.Zip(temperature, (estimate, actual) => Math.Abs(actual - estimate)).Max();
-            double average = temperature.Average();
-            double totalSquares = temperature.Sum(value => Square(value - average));
-            double residualSquares = predicted.Zip(temperature, (estimate, actual) => Square(actual - estimate)).Sum();
-            double rSquared = totalSquares <= 1e-20 ? 1 : 1 - residualSquares / totalSquares;
             double sensitivity = LinearSlope(temperature, wavelength) * 1000d;
             double tolerance = (max - min) * 0.01d;
             CalibrationMeasurementResult first = points[0].Target;
-
-            results.Add(new TemperatureCalibrationResult
-            {
-                SerialNumber = first.SerialNumber,
-                PeakLoggerDeviceSerialNumber = first.PeakLoggerDeviceSerialNumber,
-                Channel = first.Channel,
-                PeakId = first.PeakId,
-                PeakIndex = first.PeakIndex,
-                PointCount = points.Length,
-                MinimumTemperatureC = min,
-                MaximumTemperatureC = max,
-                ReferenceTemperatureC = referenceTemperature,
-                LambdaTRefNm = lambdaTRef,
-                SensitivityPmPerC = sensitivity,
-                CoefficientA = coefficientsAscending[order],
-                CoefficientB = coefficientsAscending[order - 1],
-                CoefficientC = coefficientsAscending[order - 2],
-                CoefficientD = order == 3 ? coefficientsAscending[0] : null,
-                MaxErrorC = maxError,
-                ErrorToleranceC = tolerance,
-                RSquared = rSquared,
-                Result = maxError <= tolerance ? "PASS" : "FAIL",
-            });
-            }
-            catch (InvalidOperationException)
-            {
-                // Degenerate or numerically singular points must not invalidate the run.
-                // They simply do not produce a misleading coefficient row.
-            }
+            TryAddFbgs(results, first, temperature, wavelength, referenceTemperature, sensitivity, tolerance);
+            TryAddPolynomial(results, first, temperature, wavelength, referenceTemperature, sensitivity, tolerance, 2);
+            if (points.Select(point => point.TemperatureC).Distinct().Count() >= 4)
+                TryAddPolynomial(results, first, temperature, wavelength, referenceTemperature, sensitivity, tolerance, 3);
         }
-        return results.OrderBy(result => result.SerialNumber).ThenBy(result => result.Channel).ThenBy(result => result.PeakIndex).ToList();
+        return results.OrderBy(result => result.SerialNumber).ThenBy(result => result.Channel).ThenBy(result => result.PeakIndex)
+            .ThenBy(result => result.CalibrationType).ToList();
+    }
+
+    private static void TryAddPolynomial(List<TemperatureCalibrationResult> results, CalibrationMeasurementResult target,
+        double[] temperature, double[] wavelength, double referenceTemperature, double sensitivity, double tolerance, int order)
+    {
+        try
+        {
+            double lambdaTRef = Evaluate(FitPolynomial(temperature, wavelength, order), referenceTemperature);
+            if (!double.IsFinite(lambdaTRef) || Math.Abs(lambdaTRef) < 1e-12) return;
+            double[] normalized = wavelength.Select(value => (value - lambdaTRef) / lambdaTRef).ToArray();
+            double[] coefficients = FitPolynomial(normalized, temperature, order);
+            double[] predicted = normalized.Select(value => Evaluate(coefficients, value)).ToArray();
+            results.Add(CreateResult(target, temperature, referenceTemperature, lambdaTRef, sensitivity, tolerance,
+                order == 2 ? "2nd · ABC" : "3rd · ABCD", predicted,
+                coefficientA: coefficients[order], coefficientB: coefficients[order - 1],
+                coefficientC: coefficients[order - 2], coefficientD: order == 3 ? coefficients[0] : null));
+        }
+        catch (InvalidOperationException) { }
+    }
+
+    private static void TryAddFbgs(List<TemperatureCalibrationResult> results, CalibrationMeasurementResult target,
+        double[] temperature, double[] wavelength, double referenceTemperature, double sensitivity, double tolerance)
+    {
+        try
+        {
+            double[] direct = FitPolynomial(wavelength, temperature, 2);
+            double discriminant = Square(direct[1]) / (4 * Square(direct[2])) - direct[0] / direct[2] + referenceTemperature / direct[2];
+            if (discriminant < 0 || Math.Abs(direct[2]) < 1e-20) return;
+            double lambdaTRef = -direct[1] / (2 * direct[2]) + (direct[2] < 0 ? -1 : 1) * Math.Sqrt(discriminant);
+            double[] deltaTemperature = temperature.Select(value => value - referenceTemperature).ToArray();
+            double[] logWavelength = wavelength.Select(value => Math.Log(value / lambdaTRef)).ToArray();
+            double[] s = FitTwoPredictors(deltaTemperature, deltaTemperature.Select(Square).ToArray(), logWavelength);
+            double s1 = s[1], s2 = s[2];
+            if (Math.Abs(s2) < 1e-20) return;
+            double[] predicted = logWavelength.Select(log => referenceTemperature - s1 / (2 * s2) +
+                (s2 > 0 ? 1 : -1) * Math.Sqrt(Math.Max(0, Square(s1 / (2 * s2)) + log / s2))).ToArray();
+            results.Add(CreateResult(target, temperature, referenceTemperature, lambdaTRef, sensitivity, tolerance,
+                "FBGS · s1/s2", predicted, coefficientS1: s1, coefficientS2: s2));
+        }
+        catch (InvalidOperationException) { }
+    }
+
+    private static TemperatureCalibrationResult CreateResult(CalibrationMeasurementResult target, double[] temperature,
+        double referenceTemperature, double lambdaTRef, double sensitivity, double tolerance, string type, double[] predicted,
+        double? coefficientS1 = null, double? coefficientS2 = null, double? coefficientA = null,
+        double? coefficientB = null, double? coefficientC = null, double? coefficientD = null)
+    {
+        double maxError = predicted.Zip(temperature, (estimate, actual) => Math.Abs(actual - estimate)).Max();
+        double average = temperature.Average();
+        double totalSquares = temperature.Sum(value => Square(value - average));
+        double residualSquares = predicted.Zip(temperature, (estimate, actual) => Square(actual - estimate)).Sum();
+        return new TemperatureCalibrationResult
+        {
+            SerialNumber = target.SerialNumber, PeakLoggerDeviceSerialNumber = target.PeakLoggerDeviceSerialNumber,
+            Channel = target.Channel, PeakId = target.PeakId, PeakIndex = target.PeakIndex, CalibrationType = type,
+            PointCount = temperature.Length, MinimumTemperatureC = temperature.Min(), MaximumTemperatureC = temperature.Max(),
+            ReferenceTemperatureC = referenceTemperature, LambdaTRefNm = lambdaTRef, SensitivityPmPerC = sensitivity,
+            CoefficientS1 = coefficientS1, CoefficientS2 = coefficientS2, CoefficientA = coefficientA,
+            CoefficientB = coefficientB, CoefficientC = coefficientC, CoefficientD = coefficientD,
+            MaxErrorC = maxError, ErrorToleranceC = tolerance,
+            RSquared = totalSquares <= 1e-20 ? 1 : 1 - residualSquares / totalSquares,
+            Result = maxError <= tolerance ? "PASS" : "FAIL",
+        };
     }
 
     public static void Export(CalibrationRunRecord run, string directory)
@@ -119,12 +146,13 @@ public static class TemperatureCalibrationAnalyzer
 
     public static void ExportCsv(IEnumerable<TemperatureCalibrationResult> results, string path)
     {
-        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result\r\n");
+        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;CalibrationType;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefS1;CoefS2;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result\r\n");
         foreach (TemperatureCalibrationResult item in results)
             text.AppendJoin(';', E(item.SerialNumber), E(item.PeakLoggerDeviceSerialNumber), E(item.Channel), E(item.PeakId), item.PeakIndex,
+                E(item.CalibrationType),
                 item.PointCount, F(item.MinimumTemperatureC), F(item.MaximumTemperatureC), F(item.ReferenceTemperatureC), F(item.LambdaTRefNm),
-                F(item.SensitivityPmPerC), F(item.CoefficientA), F(item.CoefficientB), F(item.CoefficientC),
-                item.CoefficientD is { } d ? F(d) : string.Empty, F(item.MaxErrorC), F(item.ErrorToleranceC), F(item.RSquared), item.Result).Append("\r\n");
+                F(item.SensitivityPmPerC), FN(item.CoefficientS1), FN(item.CoefficientS2), FN(item.CoefficientA), FN(item.CoefficientB), FN(item.CoefficientC),
+                FN(item.CoefficientD), F(item.MaxErrorC), F(item.ErrorToleranceC), F(item.RSquared), item.Result).Append("\r\n");
         File.WriteAllText(path, text.ToString(), Encoding.UTF8);
     }
 
@@ -133,21 +161,22 @@ public static class TemperatureCalibrationAnalyzer
         using var workbook = new XLWorkbook();
         IXLWorksheet sheet = workbook.Worksheets.Add("Koeficienty");
         sheet.Cell("A1").Value = "FBG TEPLOTNÁ KALIBRÁCIA – KOEFICIENTY";
-        sheet.Range("A1:S1").Merge().Style.Fill.SetBackgroundColor(XLColor.FromHtml("#182A40"));
+        sheet.Range("A1:V1").Merge().Style.Fill.SetBackgroundColor(XLColor.FromHtml("#182A40"));
         sheet.Cell("A1").Style.Font.SetBold().Font.SetFontSize(18).Font.SetFontColor(XLColor.White);
         sheet.Cell("A2").Value = $"{run.DisplayRunId} · {run.DisplayProfileId} · {run.ChamberName}";
-        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok"];
+        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Kalibrácia", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "s1", "s2", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok"];
         for (int i = 0; i < headers.Length; i++) sheet.Cell(4, i + 1).Value = headers[i];
         sheet.Range(4, 1, 4, headers.Length).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#2C4770")).Font.SetBold().Font.SetFontColor(XLColor.White);
         int row = 5;
         foreach (TemperatureCalibrationResult item in run.CalibrationResults)
         {
-            object?[] values = [item.SerialNumber, item.PeakLoggerDeviceSerialNumber, item.Channel, item.PeakId, item.PeakIndex, item.PointCount,
+            object?[] values = [item.SerialNumber, item.PeakLoggerDeviceSerialNumber, item.Channel, item.PeakId, item.PeakIndex, item.CalibrationType, item.PointCount,
                 item.MinimumTemperatureC, item.MaximumTemperatureC, item.ReferenceTemperatureC, item.LambdaTRefNm, item.SensitivityPmPerC,
-                item.CoefficientA, item.CoefficientB, item.CoefficientC, item.CoefficientD, item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result];
+                item.CoefficientS1, item.CoefficientS2, item.CoefficientA, item.CoefficientB, item.CoefficientC, item.CoefficientD,
+                item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result];
             for (int col = 0; col < values.Length; col++)
                 if (values[col] is not null) sheet.Cell(row, col + 1).Value = XLCellValue.FromObject(values[col]);
-            sheet.Cell(row, 19).Style.Font.SetBold().Font.SetFontColor(item.Result == "PASS" ? XLColor.FromHtml("#087F5B") : XLColor.FromHtml("#C92A2A"));
+            sheet.Cell(row, 22).Style.Font.SetBold().Font.SetFontColor(item.Result == "PASS" ? XLColor.FromHtml("#087F5B") : XLColor.FromHtml("#C92A2A"));
             row++;
         }
         sheet.SheetView.FreezeRows(4);
@@ -180,6 +209,22 @@ public static class TemperatureCalibrationAnalyzer
                 coefficients[targetPower] += scaledCoefficients[power] * Binomial(power, targetPower) *
                     Math.Pow(-center, power - targetPower) / Math.Pow(scale, power);
         return coefficients;
+    }
+
+    private static double[] FitTwoPredictors(double[] first, double[] second, double[] y)
+    {
+        var matrix = new double[3, 3];
+        var vector = new double[3];
+        for (int index = 0; index < y.Length; index++)
+        {
+            double[] row = [1, first[index], second[index]];
+            for (int i = 0; i < 3; i++)
+            {
+                vector[i] += row[i] * y[index];
+                for (int j = 0; j < 3; j++) matrix[i, j] += row[i] * row[j];
+            }
+        }
+        return Solve(matrix, vector);
     }
 
     private static double[] Solve(double[,] matrix, double[] vector)
@@ -227,6 +272,7 @@ public static class TemperatureCalibrationAnalyzer
     }
     private static double Square(double value) => value * value;
     private static string F(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
+    private static string FN(double? value) => value is { } number ? F(number) : string.Empty;
     private static string E(string value) => value.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
     private sealed record AnalysisPoint(double TemperatureC, CalibrationMeasurementResult Target);
 }

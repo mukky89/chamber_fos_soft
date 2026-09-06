@@ -33,12 +33,42 @@ public sealed class TemperatureCalibrationAnalysisTests
             });
         }
 
-        TemperatureCalibrationResult result = Assert.Single(TemperatureCalibrationAnalyzer.Analyze(run));
+        List<TemperatureCalibrationResult> results = TemperatureCalibrationAnalyzer.Analyze(run);
+        TemperatureCalibrationResult result = Assert.Single(results, item => item.CalibrationType == "2nd · ABC");
+        Assert.Single(results, item => item.CalibrationType == "3rd · ABCD");
 
         Assert.Equal(1550.225, result.LambdaTRefNm, 6);
         Assert.Equal(10, result.SensitivityPmPerC, 6);
         Assert.True(result.MaxErrorC < 1e-6);
         Assert.Equal(1, result.RSquared, 8);
+        Assert.Equal("PASS", result.Result);
+    }
+
+    [Fact]
+    public void CurvedSensorAlsoProducesFbgsS1S2Calibration()
+    {
+        double[] temperatures = [-20, 0, 20, 40, 60, 80];
+        var run = new CalibrationRunRecord();
+        for (int index = 0; index < temperatures.Length; index++)
+        {
+            double temperature = temperatures[index];
+            run.Plateaus.Add(new CalibrationPlateauResult
+            {
+                ReferenceTemperatureC = temperature,
+                Targets = [new CalibrationMeasurementResult
+                {
+                    SerialNumber = "FBGS", Channel = "1", PeakId = "P1", Status = CalibrationTargetState.Stable,
+                    SampleCount = 50, MeanWavelengthNm = 1550 * Math.Exp(7e-6 * (temperature - 22.5) + 1e-8 * Math.Pow(temperature - 22.5, 2)),
+                }],
+            });
+        }
+
+        TemperatureCalibrationResult result = Assert.Single(
+            TemperatureCalibrationAnalyzer.Analyze(run), item => item.CalibrationType == "FBGS · s1/s2");
+
+        Assert.NotNull(result.CoefficientS1);
+        Assert.NotNull(result.CoefficientS2);
+        Assert.True(result.MaxErrorC < 0.1);
         Assert.Equal("PASS", result.Result);
     }
 

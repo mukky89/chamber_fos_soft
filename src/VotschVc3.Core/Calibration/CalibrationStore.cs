@@ -120,10 +120,12 @@ public sealed class CalibrationStore
                 if (run is not null)
                 {
                     run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
+                    string directory = Path.GetDirectoryName(file)!;
+                    string coefficientsCsv = Path.Combine(directory, "calibration-coefficients.csv");
+                    bool currentFormat = File.Exists(coefficientsCsv) && File.ReadLines(coefficientsCsv).FirstOrDefault()?.Contains("CalibrationType", StringComparison.Ordinal) == true;
                     if ((run.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings) &&
-                        (!File.Exists(Path.Combine(Path.GetDirectoryName(file)!, "calibration-coefficients.csv")) ||
-                         !File.Exists(Path.Combine(Path.GetDirectoryName(file)!, "calibration-coefficients.xlsx"))))
-                        TemperatureCalibrationAnalyzer.Export(run, Path.GetDirectoryName(file)!);
+                        (!currentFormat || !File.Exists(Path.Combine(directory, "calibration-coefficients.xlsx"))))
+                        TemperatureCalibrationAnalyzer.Export(run, directory);
                     result.Add(run);
                 }
             }

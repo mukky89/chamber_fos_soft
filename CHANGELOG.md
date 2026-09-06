@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.177] – 2026-09-06
+
+### Pridané
+- Každý FBG peak má samostatne vypočítané všetky tri podporované teplotné kalibrácie: `FBGS · s1/s2`, `2nd · ABC` a `3rd · ABCD`.
+- História, CSV aj Excel zobrazujú typ kalibrácie a samostatné stĺpce s1, s2, A, B, C a D.
+- Existujúce exporty z predchádzajúceho formátu sa pri načítaní dokončeného behu automaticky prepočítajú a nahradia úplným formátom.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.177.
+
 ## [1.76.176] – 2026-09-06
 
 ### Pridané
