@@ -110,7 +110,11 @@ public partial class NumericStepper : UserControl
         if (Math.Abs(parsed - Value) > 1e-9)
         {
             _suppressTextSync = true;
-            Value = parsed;
+            // Preserve the existing TwoWay BindingExpression. Assigning through the
+            // CLR wrapper calls SetValue and can replace the binding, leaving the UI
+            // text changed while the view model still contains the previous value.
+            SetCurrentValue(ValueProperty, parsed);
+            GetBindingExpression(ValueProperty)?.UpdateSource();
             _suppressTextSync = false;
         }
 
@@ -142,6 +146,7 @@ public partial class NumericStepper : UserControl
     {
         double next = Value + (direction * Step);
         next = Math.Max(Minimum, Math.Min(Maximum, next));
-        Value = Math.Round(next, 3);
+        SetCurrentValue(ValueProperty, Math.Round(next, 3));
+        GetBindingExpression(ValueProperty)?.UpdateSource();
     }
 }

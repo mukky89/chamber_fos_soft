@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.230] – 2026-09-06
+
+### Opravené
+
+- Ručne prepísaná hodnota v číselnom editore už nezruší WPF dátovú väzbu. Tlačidlo `Nastaviť` preto odošle presne zobrazenú teplotu (napr. 20 °C), nie predchádzajúcu hodnotu 25 °C; rovnaká oprava platí aj pre ostatné číselné polia a ich šípky.
+
 ## [1.76.229] – 2026-09-06
 
 ### Zmenené
