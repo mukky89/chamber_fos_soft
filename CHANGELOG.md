@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.225] – 2026-09-06
+
+### Opravené
+- Po zbalení veľkého grafu WIKA už jeho pracovná plocha nenecháva nad kartami kalibračného prehľadu veľké prázdne miesto. Riadok kariet sa prispôsobí obsahu a zostane zarovnaný hneď pod hornými ovládacími prvkami.
+
 ## [1.76.224] – 2026-09-06
 
 ### Opravené

@@ -54,12 +54,16 @@ public partial class CalibrationWindow
 
         if (Content is not Grid rootGrid) return;
 
-        // Row 3 used to be '*'. When the 220 px chart became visible WPF compressed this row,
-        // effectively hiding the wiring table. Give the tab workspace a stable operator height
-        // and let the page ScrollViewer handle overall overflow instead.
+        // Both the optional chart and the fixed-height tab workspace must size to their content.
+        // Leaving the tab row as '*' inside the page ScrollViewer makes WPF reserve the unused
+        // viewport above the tabs when the chart is collapsed, producing a large empty area.
         if (rootGrid.RowDefinitions.Count > 3)
         {
             rootGrid.RowDefinitions[3].Height = GridLength.Auto;
+        }
+        if (rootGrid.RowDefinitions.Count > 4)
+        {
+            rootGrid.RowDefinitions[4].Height = GridLength.Auto;
         }
 
         TabControl? workspaceTabs = FindCalibrationTabs(rootGrid);
@@ -67,6 +71,7 @@ public partial class CalibrationWindow
         {
             workspaceTabs.Height = 420;
             workspaceTabs.MinHeight = 360;
+            workspaceTabs.VerticalAlignment = VerticalAlignment.Top;
         }
 
         DataGrid? wiringGrid = FindWiringGrid(rootGrid);
