@@ -448,21 +448,17 @@ public static class PolEkoLabDeskProtocol
         if (temperatureC < underTemperatureC || temperatureC > overTemperatureC)
             throw new ArgumentOutOfRangeException(nameof(temperatureC),
                 $"Setpoint {temperatureC:0.###} °C je mimo ochrany programu [{underTemperatureC:0.###}; {overTemperatureC:0.###}] °C.");
-        int wire = checked((int)Math.Round(temperatureC * 10d, MidpointRounding.AwayFromZero));
-        int underProtectionWire = checked((int)Math.Round(underTemperatureC * 10d, MidpointRounding.AwayFromZero));
-        int overProtectionWire = checked((int)Math.Round(overTemperatureC * 10d, MidpointRounding.AwayFromZero));
         return JsonSerializer.Serialize(new PolEkoProgram
         {
             ProgramId = id,
             Name = id == PolEkoClient.ManualProgramId ? PolEkoClient.ManualProgramName : $"LabControl {temperatureC:0.0}C",
             TempProtection = new PolEkoTemperatureProtection
             {
-                // LabDesk represents both the segment target and Class 3.1 protection limits
-                // in tenths of a degree Celsius.
-                UnderTemperatureLimit = underProtectionWire,
-                OverTemperatureLimit = overProtectionWire,
+                UnderTemperatureLimit = underTemperatureC,
+                OverTemperatureLimit = overTemperatureC,
             },
-            Segments = [new PolEkoProgramSegment { Temperature = wire, IsInfinityEnabled = true }],
+            // LabDesk program fields are expressed directly in degrees Celsius.
+            Segments = [new PolEkoProgramSegment { Temperature = temperatureC, IsInfinityEnabled = true }],
         }, Json);
     }
 
@@ -482,7 +478,7 @@ public static class PolEkoLabDeskProtocol
                 segments.ValueKind != JsonValueKind.Array || segments.GetArrayLength() == 0 ||
                 !PolEkoClient.TryFindNumber(segments[0], out double wireTemperature, "temperature"))
                 return false;
-            temperatureC = wireTemperature / 10d;
+            temperatureC = wireTemperature;
             return double.IsFinite(temperatureC);
         }
         return false;
@@ -521,7 +517,7 @@ public sealed class PolEkoLoop { public bool Enabled { get; set; } public bool I
 public sealed class PolEkoTemperatureProtection { public string ProtectionMode { get; set; } = "Class_3_1"; public double OverTemperatureLimit { get; set; } = 50; public double UnderTemperatureLimit { get; set; } = 50; }
 public sealed class PolEkoProgramSegment
 {
-    public long Duration { get; set; } public string Priority { get; set; } = "Parameters"; public int Temperature { get; set; } public short Fan { get; set; } = 100; public short Flap { get; set; } public bool Bolt { get; set; }
+    public long Duration { get; set; } public string Priority { get; set; } = "Parameters"; public double Temperature { get; set; } public short Fan { get; set; } = 100; public short Flap { get; set; } public bool Bolt { get; set; }
     [JsonPropertyName("edge.duration")] public int EdgeDuration { get; set; }
     [JsonPropertyName("edge.fan")] public int EdgeFan { get; set; } = 100;
     [JsonPropertyName("edge.airFlap")] public short EdgeAirFlap { get; set; }

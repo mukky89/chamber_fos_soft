@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.232] – 2026-09-06
+
+### Opravené
+
+- Program POL-EKO `FOS LAB` odosiela cieľovú teplotu aj ochranné limity priamo v stupňoch Celzia podľa reálneho správania SLN 115. Hodnota 20 °C sa odošle ako `20`, nie `200`, ktoré zariadenie interpretovalo ako 200 °C a preto nesprávne kúrilo.
+- Spätné overenie uloženého programu používa rovnaké priame jednotky.
+
 ## [1.76.231] – 2026-09-06
 
 ### Opravené

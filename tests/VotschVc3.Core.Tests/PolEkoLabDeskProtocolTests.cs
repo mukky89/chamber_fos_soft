@@ -83,16 +83,16 @@ public sealed class PolEkoLabDeskProtocolTests
     }
 
     [Theory]
-    [InlineData(25.0, 250)]
-    [InlineData(-20.0, -200)]
-    [InlineData(20.05, 201)]
-    public void Program_scales_temperature_and_uses_dotted_edge_fields(double celsius, int expected)
+    [InlineData(25.0, 25.0)]
+    [InlineData(-20.0, -20.0)]
+    [InlineData(20.05, 20.05)]
+    public void Program_uses_celsius_temperature_and_dotted_edge_fields(double celsius, double expected)
     {
         using JsonDocument json = JsonDocument.Parse(
             PolEkoLabDeskProtocol.BuildSingleSetpointProgram(17, celsius));
 
         JsonElement segment = json.RootElement.GetProperty("segments")[0];
-        Assert.Equal(expected, segment.GetProperty("temperature").GetInt32());
+        Assert.Equal(expected, segment.GetProperty("temperature").GetDouble(), precision: 6);
         Assert.True(segment.GetProperty("IsInfinityEnabled").GetBoolean());
         Assert.True(segment.TryGetProperty("edge.duration", out _));
         Assert.True(segment.TryGetProperty("edge.fan", out _));
@@ -118,14 +118,14 @@ public sealed class PolEkoLabDeskProtocolTests
             PolEkoLabDeskProtocol.BuildSingleSetpointProgram(PolEkoClient.ManualProgramId, 20, -45, 190));
 
         JsonElement protection = json.RootElement.GetProperty("tempProtection");
-        Assert.Equal(-450, protection.GetProperty("underTemperatureLimit").GetDouble());
-        Assert.Equal(1900, protection.GetProperty("overTemperatureLimit").GetDouble());
+        Assert.Equal(-45, protection.GetProperty("underTemperatureLimit").GetDouble());
+        Assert.Equal(190, protection.GetProperty("overTemperatureLimit").GetDouble());
     }
 
     [Fact]
     public void Program_catalog_temperature_is_read_back_in_celsius()
     {
-        const string programs = "[{\"programId\":11,\"segments\":[{\"temperature\":200}]}]";
+        const string programs = "[{\"programId\":11,\"segments\":[{\"temperature\":20}]}]";
 
         Assert.True(PolEkoLabDeskProtocol.TryReadProgramTemperature(programs, 11, out double temperature));
         Assert.Equal(20, temperature);
