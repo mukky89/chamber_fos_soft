@@ -26,8 +26,10 @@
         </Grid>
 
         <Border Grid.Row="1" Style="{StaticResource Card}">
-            <DataGrid ItemsSource="{Binding Entries}" IsReadOnly="True" FontFamily="Consolas"
+            <DataGrid x:Name="LogGrid" ItemsSource="{Binding Entries}" IsReadOnly="True" FontFamily="Consolas"
                       SelectionMode="Extended" SelectionUnit="FullRow"
+                      IsSynchronizedWithCurrentItem="False"
+                      VirtualizingPanel.ScrollUnit="Item"
                       ClipboardCopyMode="IncludeHeader">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Čas" Width="170" Binding="{Binding TimestampText}" />

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.183] – 2026-09-06
+
+### Opravené
+- Diagnostický App log pri príchode nových záznamov už neposúva riadky, ktoré operátor práve číta po odscrollovaní od začiatku zoznamu.
+- Ručný výber a pozícia v logu zostávajú nezávislé od automaticky vloženého prvého riadku; na začiatku zoznamu sa nové udalosti naďalej zobrazujú okamžite.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.183.
+
 ## [1.76.182] – 2026-09-06
 
 ### Opravené
