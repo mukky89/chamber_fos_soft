@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.220] – 2026-09-06
+
+### Opravené
+- Veľký graf „Priebeh USB referenčnej teploty“ je po otvorení alebo obnovení FBG kalibrácie opäť predvolene zbalený. Zobrazí sa iba na výslovnú požiadavku operátora, takže neposúva karty a prehľad mimo úvodnej obrazovky.
+
 ## [1.76.219] – 2026-09-06
 
 ### Opravené

@@ -91,7 +91,9 @@ public partial class CalibrationWindow
 
             _viewModel.UseSimulator = saved.UseSimulator;
             _viewModel.SimulatorScenario = saved.SimulatorScenario;
-            _viewModel.ShowF100Chart = saved.ShowF100Chart;
+            // The large reference trace is an on-demand diagnostic view. Always start with it
+            // folded so it cannot push the calibration tabs and overview below the viewport.
+            _viewModel.ShowF100Chart = false;
 
             TestProfile? profile = _viewModel.Profiles.FirstOrDefault(x => x.Id == saved.ProfileId);
             if (profile is not null && _viewModel.SelectedProfile?.Id != profile.Id)
@@ -323,7 +325,7 @@ public partial class CalibrationWindow
         {
             UseSimulator = _viewModel.UseSimulator,
             SimulatorScenario = _viewModel.SimulatorScenario,
-            ShowF100Chart = _viewModel.ShowF100Chart,
+            ShowF100Chart = false,
             SelectedTabHeader = selectedTab,
         });
     }
