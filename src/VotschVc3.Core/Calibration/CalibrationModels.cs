@@ -105,7 +105,7 @@ public sealed class CalibrationProfileSettings
 
     public double ChamberToleranceC { get; set; } = 1.0;
     public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(5);
-    public double MaxChamberDriftCPerMinute { get; set; } = 0.02;
+    public double MaxChamberDriftCPerMinute { get; set; } = 0.03;
     public double MaxChamberRangeC { get; set; } = 0.1;
     public double MaxChamberStdDevC { get; set; } = 0.03;
     public TimeSpan ChamberStabilityTimeout { get; set; } = TimeSpan.FromHours(1);

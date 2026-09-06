@@ -18,6 +18,14 @@ public sealed class CalibrationTests
     }
 
     [Fact]
+    public void Calibration_profile_defaults_to_three_hundredths_drift_tolerance()
+    {
+        var settings = new CalibrationProfileSettings();
+
+        Assert.Equal(0.03, settings.MaxChamberDriftCPerMinute);
+    }
+
+    [Fact]
     public void SensorTimeoutBudget_UsesObservedCadenceForACompleteRetry()
     {
         TimeSpan allowance = SensorTimeoutBudget.CompleteAttempt(50, 50, TimeSpan.FromSeconds(3.4));

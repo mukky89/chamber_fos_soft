@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.205] – 2026-09-06
+
+### Zmenené
+- Predvolená maximálna tolerancia driftu referenčnej teploty WIKA bola nastavená na 0,030 °C/min pre nové kalibrácie.
+
 ## [1.76.204] – 2026-09-06
 
 ### Zmenené
