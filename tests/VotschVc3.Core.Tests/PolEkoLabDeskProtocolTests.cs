@@ -118,8 +118,8 @@ public sealed class PolEkoLabDeskProtocolTests
             PolEkoLabDeskProtocol.BuildSingleSetpointProgram(PolEkoClient.ManualProgramId, 20, -45, 190));
 
         JsonElement protection = json.RootElement.GetProperty("tempProtection");
-        Assert.Equal(-45, protection.GetProperty("underTemperatureLimit").GetDouble());
-        Assert.Equal(190, protection.GetProperty("overTemperatureLimit").GetDouble());
+        Assert.Equal(-450, protection.GetProperty("underTemperatureLimit").GetDouble());
+        Assert.Equal(1900, protection.GetProperty("overTemperatureLimit").GetDouble());
     }
 
     [Fact]

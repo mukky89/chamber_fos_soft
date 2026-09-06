@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.228] – 2026-09-06
+
+### Opravené
+
+- Ochranné teploty programu POL-EKO `FOS LAB` sa teraz odosielajú v správnych desatinách stupňa Celzia. Nastavenie rozsahu `-45 až 190 °C` sa teda uloží ako `-450 až 1900`, takže zariadenie pri setpointe 20 °C nesprávne nevyhlási alarm `OVER_TEMP_PROTECTION`.
+
 ## [1.76.227] – 2026-09-06
 
 ### Opravené

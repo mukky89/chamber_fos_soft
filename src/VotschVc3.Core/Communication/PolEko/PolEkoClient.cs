@@ -449,14 +449,18 @@ public static class PolEkoLabDeskProtocol
             throw new ArgumentOutOfRangeException(nameof(temperatureC),
                 $"Setpoint {temperatureC:0.###} °C je mimo ochrany programu [{underTemperatureC:0.###}; {overTemperatureC:0.###}] °C.");
         int wire = checked((int)Math.Round(temperatureC * 10d, MidpointRounding.AwayFromZero));
+        int underProtectionWire = checked((int)Math.Round(underTemperatureC * 10d, MidpointRounding.AwayFromZero));
+        int overProtectionWire = checked((int)Math.Round(overTemperatureC * 10d, MidpointRounding.AwayFromZero));
         return JsonSerializer.Serialize(new PolEkoProgram
         {
             ProgramId = id,
             Name = id == PolEkoClient.ManualProgramId ? PolEkoClient.ManualProgramName : $"LabControl {temperatureC:0.0}C",
             TempProtection = new PolEkoTemperatureProtection
             {
-                UnderTemperatureLimit = underTemperatureC,
-                OverTemperatureLimit = overTemperatureC,
+                // LabDesk represents both the segment target and Class 3.1 protection limits
+                // in tenths of a degree Celsius.
+                UnderTemperatureLimit = underProtectionWire,
+                OverTemperatureLimit = overProtectionWire,
             },
             Segments = [new PolEkoProgramSegment { Temperature = wire, IsInfinityEnabled = true }],
         }, Json);
