@@ -105,15 +105,15 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ReferenceToleranceHelp =>
         $"WIKA musí byť pri cieľovej teplote {Target} v povolenej odchýlke ±{StabilityToleranceC:F3} °C. " +
         "Ak je odchýlka väčšia, stabilný čas sa nezbiera a FBG stabilizácia sa ešte nespustí. " +
-        "Predvolene zapnutá funkcia „Automaticky jemne dorovnať setpoint komory podľa WIKA“ zasiahne iba mimo povolenej odchýlky a pomaly upravuje setpoint komory: najviac o 0,30 °C každých 10 s a celkovo najviac o ±3,0 °C. " +
+        "Predvolene zapnutá funkcia „Automaticky jemne dorovnať setpoint komory podľa WIKA“ zasiahne iba mimo povolenej odchýlky. Nový krok vykoná až po odozve komory a ustálení pohybu WIKA: najviac o 0,30 °C a celkovo najviac o ±3,0 °C. " +
         "Komora sa pritom stále reguluje vlastným interným regulátorom. Funkcia je predvolene zapnutá a jej stav sa počas kalibrácie nedá meniť.";
     public bool IsReferenceControlAdjusting =>
-        _snapshot?.Message.Contains("WIKA control: dorovnáva WIKA do tolerancie", StringComparison.Ordinal) == true;
+        _snapshot?.Message.Contains("WIKA control: dorovnávanie ", StringComparison.Ordinal) == true;
     public string ReferenceControlAdjustmentLabel
     {
         get
         {
-            const string marker = "WIKA control: dorovnáva WIKA do tolerancie · ";
+            const string marker = "WIKA control: dorovnávanie ";
             string message = _snapshot?.Message ?? string.Empty;
             int start = message.IndexOf(marker, StringComparison.Ordinal);
             if (start < 0) return string.Empty;
@@ -121,7 +121,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             start += marker.Length;
             int end = message.IndexOf('\n', start);
             string detail = end < 0 ? message[start..] : message[start..end];
-            return $"↕ DOROVNÁVANIE PREBIEHA · {detail.Trim()}";
+            return $"↕ DOROVNÁVANIE · {detail.Trim()}";
         }
     }
     public string ReferenceToleranceTone => _snapshot?.ReferenceTemperatureC is { } reference &&

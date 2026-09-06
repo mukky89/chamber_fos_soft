@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.76.191] – 2026-09-06
+
+### Opravené
+- Jemné dorovnávanie podľa WIKA už nepridáva korekciu každých 10 sekúnd bez ohľadu na tepelnú zotrvačnosť. Po každom kroku čaká 2 minúty na odozvu komory a ďalší krok povolí až po vyhodnotení 30-sekundového trendu WIKA.
+- Korekcia sa nevykoná, kým sa WIKA pohybuje rýchlejšie než povolený stabilný drift. Tým sa odstraňuje kumulovanie biasu a rozkmitanie teploty okolo cieľa.
+- Živá WIKA karta zobrazuje vykonaný krok, aktuálny bias, čakanie na odozvu, zber trendu aj čakanie na spomalenie WIKA.
+
+### Zmenené
+- Existujúce nastavenia zariadení sa migrujú na bezpečnú odozvu 120 sekúnd a pozorovacie okno 30 sekúnd. Limity jedného kroku ±0,30 °C a celkového biasu ±3,0 °C zostali zachované.
+- Záložná verzia bola zvýšená na 1.76.191.
+
 ## [1.76.190] – 2026-09-06
 
 ### Pridané

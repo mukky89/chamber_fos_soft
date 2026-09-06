@@ -137,7 +137,8 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("30 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("súčasne splnené obe podmienky", m.ReferenceTimeHelp);
         Assert.Contains("Automaticky jemne dorovnať setpoint komory podľa WIKA", m.ReferenceToleranceHelp);
-        Assert.Contains("0,30 °C každých 10 s", m.ReferenceToleranceHelp);
+        Assert.Contains("0,30 °C", m.ReferenceToleranceHelp);
+        Assert.Contains("po odozve komory", m.ReferenceToleranceHelp);
         Assert.Contains("±3,0 °C", m.ReferenceToleranceHelp);
         Assert.Contains("predvolene zapnutá", m.ReferenceToleranceHelp);
         Assert.Contains("najnovšia úspešne načítaná teplota", m.ReferenceStatusHelp);
@@ -157,11 +158,12 @@ public sealed class CalibrationDashboardTests
         var m = Model();
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
         {
-            Message = "KROK 2/5 · Stabilizácia teploty · WIKA control: dorovnáva WIKA do tolerancie · setpoint komory 19,70 °C (bias -0,30 °C)\nĎALŠÍ KROK"
+            Message = "KROK 2/5 · Stabilizácia teploty · WIKA control: dorovnávanie vykonalo krok -0,30 °C · setpoint komory 19,70 °C (bias -0,30 °C)\nĎALŠÍ KROK"
         }, Start);
 
         Assert.True(m.IsReferenceControlAdjusting);
-        Assert.Contains("DOROVNÁVANIE PREBIEHA", m.ReferenceControlAdjustmentLabel);
+        Assert.Contains("DOROVNÁVANIE", m.ReferenceControlAdjustmentLabel);
+        Assert.Contains("vykonalo krok -0,30 °C", m.ReferenceControlAdjustmentLabel);
         Assert.Contains("setpoint komory 19,70 °C", m.ReferenceControlAdjustmentLabel);
 
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
@@ -170,6 +172,18 @@ public sealed class CalibrationDashboardTests
         }, Start.AddSeconds(10));
         Assert.False(m.IsReferenceControlAdjusting);
         Assert.Equal(string.Empty, m.ReferenceControlAdjustmentLabel);
+    }
+    [Fact] public void WikaCardKeepsCorrectionVisibleWhileWaitingForChamberResponse()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
+        {
+            Message = "WIKA control: dorovnávanie čaká na odozvu komory · ďalšie vyhodnotenie o 96 s · setpoint komory 19,70 °C (bias -0,30 °C)"
+        }, Start);
+
+        Assert.True(m.IsReferenceControlAdjusting);
+        Assert.Contains("čaká na odozvu komory", m.ReferenceControlAdjustmentLabel);
+        Assert.Contains("96 s", m.ReferenceControlAdjustmentLabel);
     }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {

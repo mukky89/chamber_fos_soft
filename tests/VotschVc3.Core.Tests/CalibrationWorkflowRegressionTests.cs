@@ -432,7 +432,7 @@ public sealed class CalibrationWorkflowRegressionTests
             setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(200);
             setup.Settings.MaxAutomaticChamberStabilityExtension = TimeSpan.Zero;
             CalibrationReferenceControlRegistry.Configure(chamberId, new CalibrationReferenceControlOptions(
-                true, 0.35, 0.05, 3.0, 0.30, TimeSpan.FromSeconds(10)));
+                true, 0.35, 0.05, 3.0, 0.30, TimeSpan.Zero, TimeSpan.Zero));
 
             var store = new CalibrationStore(root);
             var run = new CalibrationRunRecord { ProfileId = profile.Id, ProfileName = profile.Name, ChamberId = chamberId };

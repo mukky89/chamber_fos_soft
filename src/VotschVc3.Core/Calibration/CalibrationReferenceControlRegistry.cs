@@ -29,10 +29,11 @@ public sealed record CalibrationReferenceControlOptions(
     double DeadbandC,
     double MaxCorrectionC,
     double MaxStepC,
-    TimeSpan UpdateInterval)
+    TimeSpan? ResponseDelay = null,
+    TimeSpan? ObservationWindow = null)
 {
     public static CalibrationReferenceControlOptions Disabled { get; } =
-        new(false, 0.35, 0.05, 3.0, 0.30, TimeSpan.FromSeconds(10));
+        new(false, 0.35, 0.05, 3.0, 0.30, TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30));
 
     public CalibrationReferenceControlOptions Normalize() => this with
     {
@@ -40,6 +41,7 @@ public sealed record CalibrationReferenceControlOptions(
         DeadbandC = Math.Clamp(double.IsFinite(DeadbandC) ? Math.Abs(DeadbandC) : 0.05, 0.01, 1.0),
         MaxCorrectionC = Math.Clamp(double.IsFinite(MaxCorrectionC) ? Math.Abs(MaxCorrectionC) : 3.0, 0.1, 10.0),
         MaxStepC = Math.Clamp(double.IsFinite(MaxStepC) ? Math.Abs(MaxStepC) : 0.30, 0.02, 2.0),
-        UpdateInterval = UpdateInterval < TimeSpan.FromSeconds(2) ? TimeSpan.FromSeconds(2) : UpdateInterval,
+        ResponseDelay = ResponseDelay is null ? TimeSpan.FromMinutes(2) : ResponseDelay < TimeSpan.Zero ? TimeSpan.Zero : ResponseDelay,
+        ObservationWindow = ObservationWindow is null ? TimeSpan.FromSeconds(30) : ObservationWindow < TimeSpan.Zero ? TimeSpan.Zero : ObservationWindow,
     };
 }

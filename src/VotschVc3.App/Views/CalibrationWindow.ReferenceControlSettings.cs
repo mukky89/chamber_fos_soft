@@ -84,7 +84,7 @@ public partial class CalibrationWindow
         });
         body.Children.Add(new TextBlock
         {
-            Text = "Bezpečné limity: krok max. 0,30 °C / 10 s, celková korekcia max. ±3,0 °C, deadband 0,05 °C. Nastavenie je uložené samostatne pre toto zariadenie.",
+            Text = "Bezpečné limity: krok max. 0,30 °C, po kroku 120 s na odozvu a potom 30 s na vyhodnotenie pokojného trendu WIKA; celková korekcia max. ±3,0 °C. Nastavenie je uložené samostatne pre toto zariadenie.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(22, 3, 0, 0),
             Opacity = 0.68,

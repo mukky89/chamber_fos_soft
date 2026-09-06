@@ -52,12 +52,13 @@ public sealed class CalibrationDeviceOptionsStore
 public sealed class CalibrationDeviceOptions
 {
     public bool ControlTemperatureByReference { get; set; } = true;
-    public int ReferenceControlConfigurationVersion { get; set; } = 2;
+    public int ReferenceControlConfigurationVersion { get; set; } = 3;
     public double ReferenceControlGain { get; set; } = 0.35;
     public double ReferenceControlDeadbandC { get; set; } = 0.05;
     public double ReferenceControlMaxCorrectionC { get; set; } = 3.0;
     public double ReferenceControlMaxStepC { get; set; } = 0.30;
-    public double ReferenceControlIntervalSeconds { get; set; } = 10;
+    public double ReferenceControlResponseDelaySeconds { get; set; } = 120;
+    public double ReferenceControlObservationSeconds { get; set; } = 30;
 
     public CalibrationDeviceOptions Normalize()
     {
@@ -74,7 +75,14 @@ public sealed class CalibrationDeviceOptions
         ReferenceControlDeadbandC = Math.Clamp(double.IsFinite(ReferenceControlDeadbandC) ? Math.Abs(ReferenceControlDeadbandC) : 0.05, 0.01, 1.0);
         ReferenceControlMaxCorrectionC = Math.Clamp(double.IsFinite(ReferenceControlMaxCorrectionC) ? Math.Abs(ReferenceControlMaxCorrectionC) : 3.0, 0.1, 10.0);
         ReferenceControlMaxStepC = Math.Clamp(double.IsFinite(ReferenceControlMaxStepC) ? Math.Abs(ReferenceControlMaxStepC) : 0.30, 0.02, 2.0);
-        ReferenceControlIntervalSeconds = Math.Clamp(double.IsFinite(ReferenceControlIntervalSeconds) ? ReferenceControlIntervalSeconds : 10, 2, 120);
+        if (ReferenceControlConfigurationVersion < 3)
+        {
+            ReferenceControlResponseDelaySeconds = 120;
+            ReferenceControlObservationSeconds = 30;
+            ReferenceControlConfigurationVersion = 3;
+        }
+        ReferenceControlResponseDelaySeconds = Math.Clamp(double.IsFinite(ReferenceControlResponseDelaySeconds) ? ReferenceControlResponseDelaySeconds : 120, 30, 600);
+        ReferenceControlObservationSeconds = Math.Clamp(double.IsFinite(ReferenceControlObservationSeconds) ? ReferenceControlObservationSeconds : 30, 10, 120);
         return this;
     }
 
@@ -84,5 +92,6 @@ public sealed class CalibrationDeviceOptions
         ReferenceControlDeadbandC,
         ReferenceControlMaxCorrectionC,
         ReferenceControlMaxStepC,
-        TimeSpan.FromSeconds(ReferenceControlIntervalSeconds));
+        TimeSpan.FromSeconds(ReferenceControlResponseDelaySeconds),
+        TimeSpan.FromSeconds(ReferenceControlObservationSeconds));
 }
