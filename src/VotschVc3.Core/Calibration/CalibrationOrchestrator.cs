@@ -99,7 +99,9 @@ public sealed class CalibrationOrchestrator
         var temperatureDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
-            settings.MaxChamberDriftCPerMinute);
+            settings.MaxChamberDriftCPerMinute,
+            settings.MaxChamberRangeC,
+            settings.MaxChamberStdDevC);
         var chamberWait = Stopwatch.StartNew();
         double actualTemperature = double.NaN;
         double? referenceTemperature = null;

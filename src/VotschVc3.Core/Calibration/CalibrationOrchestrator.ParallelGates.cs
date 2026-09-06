@@ -146,11 +146,15 @@ public sealed class CalibrationOrchestrator
         var referenceDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
-            settings.MaxChamberDriftCPerMinute);
+            settings.MaxChamberDriftCPerMinute,
+            settings.MaxChamberRangeC,
+            settings.MaxChamberStdDevC);
         var chamberDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
-            settings.MaxChamberDriftCPerMinute);
+            settings.MaxChamberDriftCPerMinute,
+            settings.MaxChamberRangeC,
+            settings.MaxChamberStdDevC);
         var trackers = selected.ToDictionary(
             m => m.Identity,
             m => new TargetTracker(m, settings),
@@ -198,6 +202,13 @@ public sealed class CalibrationOrchestrator
             string controlDetail = referenceControlAsync is null
                 ? string.Empty
                 : await referenceControlAsync(targetTemperatureC, referenceTemperature, cancellationToken).ConfigureAwait(false) ?? string.Empty;
+
+            if (controlDetail.Contains("vykonalo krok", StringComparison.OrdinalIgnoreCase))
+            {
+                // A changed chamber setpoint starts a new physical settling period. Samples taken
+                // before the correction must never contribute to the authoritative WIKA dwell.
+                referenceDetector.Reset();
+            }
 
             if (_peakLogger is IPeakLoggerSimulationControl simulation)
                 simulation.SimulatedTemperatureC = referenceTemperature ?? actualTemperature;
@@ -639,8 +650,12 @@ public sealed class CalibrationOrchestrator
         bool toleranceOk = Math.Abs(error) <= settings.ChamberToleranceC;
         bool durationOk = metrics.WindowDuration >= settings.ChamberStableDuration;
         bool driftOk = settings.MaxChamberDriftCPerMinute <= 0 || Math.Abs(metrics.SlopePerMinute) <= settings.MaxChamberDriftCPerMinute;
+        bool rangeOk = settings.MaxChamberRangeC <= 0 || metrics.Range <= settings.MaxChamberRangeC;
+        bool stdDevOk = settings.MaxChamberStdDevC <= 0 || metrics.StandardDeviation <= settings.MaxChamberStdDevC;
         return $"{source} {measured:F3} °C · Δ {error:+0.000;-0.000;0.000} / ±{settings.ChamberToleranceC:F3} {(toleranceOk ? "✓" : "×")} · " +
                $"stable čas {FormatTime(metrics.WindowDuration)}/{FormatTime(settings.ChamberStableDuration)} {(durationOk ? "✓" : "…")} · " +
+               $"rozsah {metrics.Range:F3}/{settings.MaxChamberRangeC:F3} °C {(rangeOk ? "✓" : "×")} · " +
+               $"σ {metrics.StandardDeviation:F3}/{settings.MaxChamberStdDevC:F3} °C {(stdDevOk ? "✓" : "×")} · " +
                $"drift {Math.Abs(metrics.SlopePerMinute):F3}/{settings.MaxChamberDriftCPerMinute:F3} °C/min {(driftOk ? "✓" : "×")}";
     }
 

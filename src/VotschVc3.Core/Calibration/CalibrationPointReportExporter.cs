@@ -273,7 +273,7 @@ internal static class CalibrationPointReportExporter
             row++;
         }
         sheet.Cell(row + 1, 1).Value = "Použité limity";
-        sheet.Cell(row + 2, 1).Value = $"WIKA: cieľ ± {settings.ChamberToleranceC:0.###} °C; stabilný čas {settings.ChamberStableDuration.TotalSeconds:0} s; drift ≤ {settings.MaxChamberDriftCPerMinute:0.###} °C/min";
+        sheet.Cell(row + 2, 1).Value = $"WIKA: cieľ ± {settings.ChamberToleranceC:0.###} °C; súvislý stabilný čas {settings.ChamberStableDuration.TotalSeconds:0} s; rozsah ≤ {settings.MaxChamberRangeC:0.###} °C; σ ≤ {settings.MaxChamberStdDevC:0.###} °C; drift ≤ {settings.MaxChamberDriftCPerMinute:0.###} °C/min";
         sheet.Cell(row + 3, 1).Value = $"FBG: {settings.RequiredStableSamples} stabilizačných + {settings.RequiredMeasurementSamples} finálnych vzoriek; range ≤ {settings.MaxWavelengthRangePm:0.###} pm; σ ≤ {settings.MaxWavelengthStdDevPm:0.###} pm; drift ≤ {settings.MaxWavelengthDriftPmPerMinute:0.###} pm/min";
         sheet.Range(row + 2, 1, row + 3, 11).Merge();
         FormatSheet(sheet, 11, Math.Max(11, row - 1));

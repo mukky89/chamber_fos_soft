@@ -130,9 +130,13 @@ public sealed class CalibrationProfileRunner
                 TimeSpan originalStableDuration = setup.Settings.ChamberStableDuration;
                 double originalTolerance = setup.Settings.ChamberToleranceC;
                 double originalDrift = setup.Settings.MaxChamberDriftCPerMinute;
+                double originalRange = setup.Settings.MaxChamberRangeC;
+                double originalStdDev = setup.Settings.MaxChamberStdDevC;
                 setup.Settings.ChamberStableDuration = TimeSpan.Zero;
                 setup.Settings.ChamberToleranceC = double.MaxValue;
                 setup.Settings.MaxChamberDriftCPerMinute = 0;
+                setup.Settings.MaxChamberRangeC = 0;
+                setup.Settings.MaxChamberStdDevC = 0;
 
                 CalibrationPlateauResult plateau;
                 try
@@ -154,6 +158,8 @@ public sealed class CalibrationProfileRunner
                     setup.Settings.ChamberStableDuration = originalStableDuration;
                     setup.Settings.ChamberToleranceC = originalTolerance;
                     setup.Settings.MaxChamberDriftCPerMinute = originalDrift;
+                    setup.Settings.MaxChamberRangeC = originalRange;
+                    setup.Settings.MaxChamberStdDevC = originalStdDev;
                 }
 
                 run.Plateaus.Add(plateau);
@@ -237,7 +243,9 @@ public sealed class CalibrationProfileRunner
         var referenceDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
-            settings.MaxChamberDriftCPerMinute);
+            settings.MaxChamberDriftCPerMinute,
+            settings.MaxChamberRangeC,
+            settings.MaxChamberStdDevC);
         Stopwatch wait = Stopwatch.StartNew();
         Stopwatch plateauClock = Stopwatch.StartNew();
         double? lastReference = null;
@@ -278,6 +286,7 @@ public sealed class CalibrationProfileRunner
                         referenceControl.MaxCorrectionC);
                     lastCommandedSetpoint = targetTemperatureC + referenceBiasC;
                     await WriteSetpointAsync(lastCommandedSetpoint, targetHumidity, cancellationToken).ConfigureAwait(false);
+                    referenceDetector.Reset();
                     nextReferenceControlUpdate = now + referenceControl.UpdateInterval;
                 }
 

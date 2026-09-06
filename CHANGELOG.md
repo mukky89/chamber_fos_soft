@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.200] – 2026-09-06
+
+### Opravené
+- Stabilita referencie WIKA sa už nezbiera bodovým skóre počas pomalého rastu alebo poklesu. Vyžaduje jedno neprerušené okno, v ktorom každá vzorka spĺňa toleranciu a celé okno spĺňa limit rozsahu, smerodajnej odchýlky aj lineárneho driftu.
+- Každé prekročenie podmienky a každý vykonaný krok automatického dorovnania setpointu vynuluje stabilný čas; staršie vzorky sa nepoužijú na otvorenie FBG fázy.
+- Nové predvolené nastavenia sú: tolerancia ±0,2 °C, súvislá stabilita 5 min, drift najviac 0,02 °C/min, rozsah WIKA najviac 0,1 °C a smerodajná odchýlka najviac 0,03 °C. Rozsah a smerodajnú odchýlku možno nastaviť aj v administrácii a v nastavení kalibrácie.
+- Live diagnostika, pomocník a Excel protokol zobrazujú nové WIKA kritériá; záložná verzia bola zvýšená na 1.76.200.
+
 ## [1.76.199] – 2026-09-06
 
 ### Zmenené

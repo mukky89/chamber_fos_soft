@@ -33,7 +33,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         $"{RequiredStableSamples} vzoriek · odber každých {SampleAcquisitionIntervalSeconds} s · range ≤ {MaxRangePm:F3} pm · " +
         $"σ ≤ {MaxStdDevPm:F3} pm · drift ≤ {MaxDriftPmPerMinute:F3} pm/min. " +
         "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
-        "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.",
+        $"WIKA musí podmienky spĺňať súvisle; porušenie alebo dorovnanie setpointu čas vynuluje. " +
+        $"Rozsah WIKA ≤ {_setup.Settings.MaxChamberRangeC:F3} °C · σ ≤ {_setup.Settings.MaxChamberStdDevC:F3} °C.",
         referenceChamberId: _workspaceChamberId,
         toleranceC: ChamberToleranceC,
         maxDriftCPerMinute: _setup.Settings.MaxChamberDriftCPerMinute,
@@ -605,6 +606,18 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         get => _setup.Settings.ChamberStableDuration.TotalMinutes;
         set { _setup.Settings.ChamberStableDuration = TimeSpan.FromMinutes(Math.Max(0, value)); OnPropertyChanged(); }
+    }
+
+    public double MaxChamberRangeC
+    {
+        get => _setup.Settings.MaxChamberRangeC;
+        set { _setup.Settings.MaxChamberRangeC = Math.Max(0, value); OnPropertyChanged(); }
+    }
+
+    public double MaxChamberStdDevC
+    {
+        get => _setup.Settings.MaxChamberStdDevC;
+        set { _setup.Settings.MaxChamberStdDevC = Math.Max(0, value); OnPropertyChanged(); }
     }
 
     public double SensorTimeoutMinutes
@@ -1661,7 +1674,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                     $"savedAt={resume.SavedAt:O}; completedPlateaus={resume.CompletedPlateaus.Count}; nextPlateau={resume.CompletedPlateaus.Count + 1}");
             writer.WriteDiagnostic("INFO", "STABILITY_CONFIGURATION",
                 $"temperatureToleranceC={diagnosticSettings.ChamberToleranceC:G17}; temperatureStableSeconds={diagnosticSettings.ChamberStableDuration.TotalSeconds:G17}; " +
-                $"temperatureMaxDriftCPerMinute={diagnosticSettings.MaxChamberDriftCPerMinute:G17}; temperatureTimeoutSeconds={diagnosticSettings.ChamberStabilityTimeout.TotalSeconds:G17}; " +
+                $"temperatureMaxDriftCPerMinute={diagnosticSettings.MaxChamberDriftCPerMinute:G17}; temperatureMaxRangeC={diagnosticSettings.MaxChamberRangeC:G17}; " +
+                $"temperatureMaxStdDevC={diagnosticSettings.MaxChamberStdDevC:G17}; temperatureTimeoutSeconds={diagnosticSettings.ChamberStabilityTimeout.TotalSeconds:G17}; " +
                 $"temperatureExtensionStepSeconds={diagnosticSettings.ChamberStabilityExtensionStep.TotalSeconds:G17}; temperatureMaxExtensionSeconds={diagnosticSettings.MaxAutomaticChamberStabilityExtension.TotalSeconds:G17}; " +
                 $"wavelengthStableSamples={diagnosticSettings.RequiredStableSamples}; measurementSamples={diagnosticSettings.RequiredMeasurementSamples}; sampleIntervalSeconds={diagnosticSettings.SampleAcquisitionIntervalSeconds}; " +
                 $"rangeLimitPm={diagnosticSettings.MaxWavelengthRangePm:G17}; stdDevLimitPm={diagnosticSettings.MaxWavelengthStdDevPm:G17}; driftLimitPmPerMinute={diagnosticSettings.MaxWavelengthDriftPmPerMinute:G17}");
@@ -2319,6 +2333,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(MaxDriftPmPerMinute));
         OnPropertyChanged(nameof(ChamberToleranceC));
         OnPropertyChanged(nameof(ChamberStableMinutes));
+        OnPropertyChanged(nameof(MaxChamberRangeC));
+        OnPropertyChanged(nameof(MaxChamberStdDevC));
         OnPropertyChanged(nameof(SensorTimeoutMinutes));
         OnPropertyChanged(nameof(ValidationMinimumDeltaTemperatureC));
         OnPropertyChanged(nameof(ValidationMinimumResponsePm));

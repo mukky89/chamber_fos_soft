@@ -94,6 +94,8 @@ public static class CalibrationCheckpointRecovery
             ChamberToleranceC = settings.ChamberToleranceC,
             ChamberStableDuration = settings.ChamberStableDuration,
             MaxChamberDriftCPerMinute = settings.MaxChamberDriftCPerMinute,
+            MaxChamberRangeC = settings.MaxChamberRangeC,
+            MaxChamberStdDevC = settings.MaxChamberStdDevC,
             ChamberStabilityTimeout = settings.ChamberStabilityTimeout,
             ChamberStabilityExtensionStep = settings.ChamberStabilityExtensionStep,
             MaxAutomaticChamberStabilityExtension = settings.MaxAutomaticChamberStabilityExtension,

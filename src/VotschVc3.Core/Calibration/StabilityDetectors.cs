@@ -126,147 +126,110 @@ public sealed class RollingStabilityDetector
 }
 
 /// <summary>
-/// Temperature-stability gate modelled after Auto_calibrator_Pali/SensTemp/CalibrationThread.py.
-///
-/// Pali does not require the reference probe to converge to the exact setpoint and does not use a
-/// rolling linear-regression window. It evaluates temperature in groups of five samples:
-/// - the latest reference value must be inside the configured target tolerance;
-/// - the mean absolute change of the five samples against the current baseline must be small;
-/// - a good block adds five stability points;
-/// - a bad block changes the baseline and removes ten points (never below zero).
-///
-/// The original Pali setting for change is an absolute delta. chamber_fos_soft already stores the
-/// equivalent limit as °C/min, so the same Pali five-sample delta is normalized by the average sample
-/// age before it is compared with that existing limit. This preserves the configured units while
-/// matching Pali's baseline/block/score behaviour.
+/// Strict continuous reference-temperature stability gate. Every sample in the uninterrupted dwell
+/// must remain inside target tolerance and the complete window must satisfy range, standard-deviation
+/// and linear-drift limits. Any violation resets the dwell and the newest valid sample may start a
+/// fresh window.
 /// </summary>
 public sealed class TemperatureStabilityDetector
 {
-    private const int PaliBlockSize = 5;
-    private const int PaliFailurePenaltyMultiplier = 2;
-
     private readonly TimeSpan _requiredDuration;
     private readonly double _toleranceC;
     private readonly double _maxDriftCPerMinute;
-    private readonly List<(DateTimeOffset Timestamp, double Value)> _block = new(PaliBlockSize);
-
-    private DateTimeOffset? _baselineTimestamp;
-    private DateTimeOffset? _scoreTimestamp;
-    private double _baselineValue;
+    private readonly double _maxRangeC;
+    private readonly double _maxStdDevC;
+    private readonly List<(DateTimeOffset Timestamp, double Value)> _window = new();
     private int _stableScoreSeconds;
     private int _displayedStableScoreSeconds;
     private double _lastAverageDeltaC;
     private double _lastNormalizedChangeCPerMinute;
     private bool _isStable;
 
-    public TemperatureStabilityDetector(TimeSpan requiredDuration, double toleranceC, double maxDriftCPerMinute)
+    public TemperatureStabilityDetector(
+        TimeSpan requiredDuration,
+        double toleranceC,
+        double maxDriftCPerMinute,
+        double maxRangeC = 0.1,
+        double maxStdDevC = 0.03)
     {
         _requiredDuration = requiredDuration < TimeSpan.Zero ? TimeSpan.Zero : requiredDuration;
         _toleranceC = Math.Abs(toleranceC);
         _maxDriftCPerMinute = Math.Max(0, maxDriftCPerMinute);
+        _maxRangeC = Math.Max(0, maxRangeC);
+        _maxStdDevC = Math.Max(0, maxStdDevC);
     }
 
-    /// <summary>Pali-style accumulated stability score. Good 5-sample block: +5, bad block: -10.</summary>
+    /// <summary>Validated uninterrupted stability time in seconds.</summary>
     public int StableScoreSeconds => _stableScoreSeconds;
 
     /// <summary>
-    /// Stability time shown to the operator. Between completed five-sample validation blocks it
-    /// follows the real sample timestamps, while <see cref="StableScoreSeconds"/> remains the
-    /// authoritative block-validated score used to open the calibration gate.
+    /// Stability time shown to the operator; identical to the authoritative continuous dwell.
     /// </summary>
     public int DisplayedStableScoreSeconds => _displayedStableScoreSeconds;
 
-    /// <summary>Configured score required before the temperature gate opens.</summary>
+    /// <summary>Configured uninterrupted seconds required before the temperature gate opens.</summary>
     public int RequiredStableScoreSeconds => (int)Math.Ceiling(_requiredDuration.TotalSeconds);
 
-    /// <summary>Mean |T - baseline| of the last completed five-sample block.</summary>
+    /// <summary>Mean |T - first sample| of the current uninterrupted window.</summary>
     public double LastAverageDeltaC => _lastAverageDeltaC;
 
-    /// <summary>The Pali block delta normalized to °C/min so the existing drift setting keeps its unit.</summary>
+    /// <summary>Linear-regression drift of the current uninterrupted window in °C/min.</summary>
     public double LastNormalizedChangeCPerMinute => _lastNormalizedChangeCPerMinute;
 
     public StabilityMetrics Add(DateTimeOffset timestamp, double value, double target)
     {
-        // Pali captures prev_temp before entering the five-sample loop. The first sample therefore
-        // establishes the baseline and is not itself one of the five evaluated samples.
-        if (_baselineTimestamp is null)
+        bool toleranceOk = Math.Abs(value - target) <= _toleranceC;
+        if (!toleranceOk || !double.IsFinite(value))
         {
-            _baselineTimestamp = timestamp;
-            _scoreTimestamp = timestamp;
-            _baselineValue = value;
-            _block.Clear();
-            _displayedStableScoreSeconds = 0;
-            // A zero dwell time removes only the time requirement; it must not bypass
-            // the target-tolerance gate on the very first reference sample.
-            _isStable = _requiredDuration <= TimeSpan.Zero &&
-                        (Math.Abs(value - target) < _toleranceC ||
-                         (_toleranceC == 0 && Math.Abs(value - target) <= double.Epsilon));
-            return BuildMetrics(new[] { (timestamp, value) }, _isStable);
+            ResetWindow();
+            return BuildMetrics(new[] { (timestamp, value) }, false);
         }
 
-        _block.Add((timestamp, value));
-        if (_block.Count < PaliBlockSize)
+        _window.Add((timestamp, value));
+        // Once enough history exists, retain the shortest suffix that still spans the configured
+        // dwell. This keeps the gate continuously supervised without making harmless multi-hour
+        // reference movement accumulate forever after the gate has opened.
+        while (_requiredDuration > TimeSpan.Zero &&
+               _window.Count > 2 &&
+               timestamp - _window[1].Timestamp >= _requiredDuration)
         {
-            double partialAverageDelta = _block.Average(x => Math.Abs(x.Value - _baselineValue));
-            double partialAverageAgeMinutes = _block.Average(x => Math.Max(0, (x.Timestamp - _baselineTimestamp.Value).TotalMinutes));
-            double partialChangePerMinute = partialAverageAgeMinutes <= double.Epsilon
-                ? 0
-                : partialAverageDelta / partialAverageAgeMinutes;
-            bool partialToleranceOk = Math.Abs(value - target) < _toleranceC ||
-                                      (_toleranceC == 0 && Math.Abs(value - target) <= double.Epsilon);
-            bool partialChangeOk = _maxDriftCPerMinute <= 0 || partialChangePerMinute < _maxDriftCPerMinute;
-            int pendingSeconds = Math.Max(0, (int)Math.Floor((timestamp - (_scoreTimestamp ?? timestamp)).TotalSeconds));
-            _displayedStableScoreSeconds = partialToleranceOk && partialChangeOk
-                ? Math.Min(RequiredStableScoreSeconds, _stableScoreSeconds + pendingSeconds)
-                : _stableScoreSeconds;
-            return BuildMetrics(_block, _isStable);
+            _window.RemoveAt(0);
+        }
+        StabilityMetrics candidate = BuildMetrics(_window, false);
+        bool rangeOk = _maxRangeC <= 0 || candidate.Range <= _maxRangeC;
+        bool stdDevOk = _maxStdDevC <= 0 || candidate.StandardDeviation <= _maxStdDevC;
+        bool driftOk = _maxDriftCPerMinute <= 0 || Math.Abs(candidate.SlopePerMinute) <= _maxDriftCPerMinute;
+
+        if (!rangeOk || !stdDevOk || !driftOk)
+        {
+            // A failed sample invalidates the complete dwell. Keep only the newest valid sample as
+            // the possible beginning of a fresh uninterrupted stability window.
+            ResetWindow();
+            _window.Add((timestamp, value));
+            // Return the rejected metrics for this refresh so the operator can see exactly which
+            // criterion caused the reset; the next sample is evaluated from the fresh window.
+            return candidate with { WindowDuration = TimeSpan.Zero, IsStable = false };
         }
 
-        DateTimeOffset baselineTimestamp = _baselineTimestamp.Value;
-        double averageDelta = _block.Average(x => Math.Abs(x.Value - _baselineValue));
-        double averageAgeMinutes = _block.Average(x => Math.Max(0, (x.Timestamp - baselineTimestamp).TotalMinutes));
-        double normalizedChangePerMinute = averageAgeMinutes <= double.Epsilon
-            ? 0
-            : averageDelta / averageAgeMinutes;
-
-        _lastAverageDeltaC = averageDelta;
-        _lastNormalizedChangeCPerMinute = normalizedChangePerMinute;
-
-        double latest = _block[^1].Value;
-        bool toleranceOk = Math.Abs(latest - target) < _toleranceC ||
-                           (_toleranceC == 0 && Math.Abs(latest - target) <= double.Epsilon);
-        bool changeOk = _maxDriftCPerMinute <= 0 || normalizedChangePerMinute < _maxDriftCPerMinute;
-        int elapsedScoreSeconds = Math.Max(1, (int)Math.Round(
-            (timestamp - (_scoreTimestamp ?? timestamp)).TotalSeconds,
-            MidpointRounding.AwayFromZero));
-        _scoreTimestamp = timestamp;
-
-        if (toleranceOk && changeOk)
-        {
-            // Pali sampled at roughly 1 Hz, where five samples also meant five seconds. Real CTH7000
-            // reads take longer, so count the measured wall-clock interval instead of pretending
-            // every completed block lasted exactly five seconds.
-            _stableScoreSeconds = Math.Min(RequiredStableScoreSeconds, _stableScoreSeconds + elapsedScoreSeconds);
-            _isStable = _stableScoreSeconds >= RequiredStableScoreSeconds;
-        }
-        else
-        {
-            // Pali sets prev_temp to the current temperature and subtracts i*2 from the stability
-            // counter. A single disturbance therefore penalizes accumulated stability instead of
-            // erasing the entire history.
-            _baselineTimestamp = _block[^1].Timestamp;
-            _baselineValue = latest;
-            _stableScoreSeconds = Math.Max(
-                0,
-                _stableScoreSeconds - (elapsedScoreSeconds * PaliFailurePenaltyMultiplier));
-            _isStable = false;
-        }
-
+        TimeSpan continuousDuration = _window.Count > 1 ? timestamp - _window[0].Timestamp : TimeSpan.Zero;
+        _stableScoreSeconds = Math.Min(RequiredStableScoreSeconds, Math.Max(0, (int)Math.Floor(continuousDuration.TotalSeconds)));
         _displayedStableScoreSeconds = _stableScoreSeconds;
+        _lastAverageDeltaC = _window.Average(sample => Math.Abs(sample.Value - _window[0].Value));
+        _lastNormalizedChangeCPerMinute = candidate.SlopePerMinute;
+        _isStable = continuousDuration >= _requiredDuration;
+        return BuildMetrics(_window, _isStable);
+    }
 
-        StabilityMetrics result = BuildMetrics(_block, _isStable);
-        _block.Clear();
-        return result;
+    public void Reset() => ResetWindow();
+
+    private void ResetWindow()
+    {
+        _window.Clear();
+        _stableScoreSeconds = 0;
+        _displayedStableScoreSeconds = 0;
+        _lastAverageDeltaC = 0;
+        _lastNormalizedChangeCPerMinute = 0;
+        _isStable = false;
     }
 
     private StabilityMetrics BuildMetrics(
@@ -277,10 +240,10 @@ public sealed class TemperatureStabilityDetector
         {
             return new StabilityMetrics(
                 0,
-                _baselineValue,
-                _baselineValue,
-                _baselineValue,
-                _baselineValue,
+                0,
+                0,
+                0,
+                0,
                 0,
                 0,
                 _lastNormalizedChangeCPerMinute,

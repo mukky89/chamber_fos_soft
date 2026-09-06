@@ -49,6 +49,14 @@
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxChamberDriftCPerMinute, Mode=TwoWay}" Step="0.01" Minimum="0" Maximum="10" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Max. rozsah WIKA [°C]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxChamberRangeC, Mode=TwoWay}" Step="0.01" Minimum="0" Maximum="10" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Max. StdDev WIKA [°C]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxChamberStdDevC, Mode=TwoWay}" Step="0.01" Minimum="0" Maximum="10" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
                             <TextBlock Text="Timeout komory [min]" Style="{StaticResource Label}" />
                             <views:NumericStepper Value="{Binding Admin.ChamberStabilityTimeoutMinutes, Mode=TwoWay}" Step="5" Minimum="1" Maximum="1440" />
                         </StackPanel>

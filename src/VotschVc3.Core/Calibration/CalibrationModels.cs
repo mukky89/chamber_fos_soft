@@ -103,9 +103,11 @@ public sealed class CalibrationProfileSettings
     /// <summary>0 disables the criterion. Unit: pm/min.</summary>
     public double MaxWavelengthDriftPmPerMinute { get; set; } = 1.0;
 
-    public double ChamberToleranceC { get; set; } = 0.5;
-    public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(1);
-    public double MaxChamberDriftCPerMinute { get; set; } = 0.1;
+    public double ChamberToleranceC { get; set; } = 0.2;
+    public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(5);
+    public double MaxChamberDriftCPerMinute { get; set; } = 0.02;
+    public double MaxChamberRangeC { get; set; } = 0.1;
+    public double MaxChamberStdDevC { get; set; } = 0.03;
     public TimeSpan ChamberStabilityTimeout { get; set; } = TimeSpan.FromHours(1);
     /// <summary>One automatic temperature-settling extension step after the base timeout.</summary>
     public TimeSpan ChamberStabilityExtensionStep { get; set; } = TimeSpan.FromMinutes(15);

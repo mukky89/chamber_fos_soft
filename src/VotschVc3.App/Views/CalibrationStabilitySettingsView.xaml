@@ -112,6 +112,20 @@
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding ChamberStableMinutes, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Najvyššia mínus najnižšia hodnota WIKA v celom súvislom stabilizačnom okne. Prekročenie vynuluje čas.">
+                    <StackPanel>
+                        <TextBlock Text="Max. rozsah WIKA [°C]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Zabráni prijatiu teploty, ktorá sa síce mení pomaly, ale stále súvisle rastie alebo klesá." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxChamberRangeC, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Smerodajná odchýlka WIKA v celom súvislom stabilizačnom okne. Prekročenie vynuluje čas.">
+                    <StackPanel>
+                        <TextBlock Text="Max. StdDev WIKA [°C]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Kontroluje šum a kolísanie referencie, ktoré samotný lineárny drift nemusí odhaliť." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxChamberStdDevC, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
                 <Border Style="{StaticResource SettingCard}" ToolTip="Po základnom timeoute sa čakanie pri platných dátach WIKA predĺži po 15 minútach. Celkové automatické predĺženie nikdy neprekročí 60 minút.">
                     <StackPanel>
                         <TextBlock Text="Automatické predĺženie stability" Style="{StaticResource SettingName}" />
