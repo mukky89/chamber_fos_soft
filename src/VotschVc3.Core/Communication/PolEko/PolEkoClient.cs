@@ -23,10 +23,24 @@ public sealed class PolEkoClient : IChamberDevice
     private IDuplexOutputChannel? _channel;
     private long? _activeProgramId;
     private double? _lastSetpoint;
+    private double _manualProtectionUnderC = 0;
+    private double _manualProtectionOverC = 300;
 
     public ChamberConnectionSettings Settings { get; private set; } = new() { Port = DefaultPort };
     public bool IsConnected => _channel?.IsConnected == true;
     public event EventHandler<FrameExchangedEventArgs>? FrameExchanged;
+
+    /// <summary>Uses the operator's active safety limits when rebuilding FOS LAB.</summary>
+    public void ConfigureManualProgramProtection(double underTemperatureC, double overTemperatureC)
+    {
+        if (!double.IsFinite(underTemperatureC) || !double.IsFinite(overTemperatureC) ||
+            underTemperatureC >= overTemperatureC)
+            throw new ArgumentOutOfRangeException(nameof(underTemperatureC),
+                "Dolná ochrana programu FOS LAB musí byť menšia ako horná ochrana.");
+
+        _manualProtectionUnderC = underTemperatureC;
+        _manualProtectionOverC = overTemperatureC;
+    }
 
     public async Task ConnectAsync(ChamberConnectionSettings settings, CancellationToken cancellationToken = default)
     {
@@ -98,7 +112,8 @@ public sealed class PolEkoClient : IChamberDevice
         _activeProgramId = null;
         await WaitForProgramStoppedAsync(cancellationToken).ConfigureAwait(false);
 
-        string programJson = PolEkoLabDeskProtocol.BuildSingleSetpointProgram(ManualProgramId, temperature);
+        string programJson = PolEkoLabDeskProtocol.BuildSingleSetpointProgram(
+            ManualProgramId, temperature, _manualProtectionUnderC, _manualProtectionOverC);
         PolEkoRpcResponse update = await UpdateManualProgramAsync(programJson, cancellationToken).ConfigureAwait(false);
         if (!update.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase))
         {
@@ -110,6 +125,7 @@ public sealed class PolEkoClient : IChamberDevice
 
         await LaunchManualProgramAsync(cancellationToken).ConfigureAwait(false);
         await VerifyManualProgramStartedAsync(cancellationToken).ConfigureAwait(false);
+        await VerifyManualProgramDefinitionAsync(temperature, cancellationToken).ConfigureAwait(false);
         _activeProgramId = ManualProgramId;
         _lastSetpoint = temperature;
     }
@@ -181,6 +197,20 @@ public sealed class PolEkoClient : IChamberDevice
         return TryFindBoolean(status.RootElement, out bool running, "IS_RUNNING") && running &&
                (!TryFindNumber(status.RootElement, out double programId, "PROGRAM_ID") ||
                 Math.Abs(programId - ManualProgramId) < 0.5);
+    }
+
+    private async Task VerifyManualProgramDefinitionAsync(double expectedTemperatureC, CancellationToken cancellationToken)
+    {
+        PolEkoRpcResponse response = await SendAsync("GET_PROGRAMS", null, true, cancellationToken).ConfigureAwait(false);
+        if (!PolEkoLabDeskProtocol.TryReadProgramTemperature(
+                response.Data, ManualProgramId, out double storedTemperatureC))
+            throw new InvalidDataException($"POL-EKO po spustení nevrátilo definíciu programu {ManualProgramId} ({ManualProgramName}).");
+        if (Math.Abs(storedTemperatureC - expectedTemperatureC) > 0.051)
+        {
+            await SendAllowingAsync("STOP", null, true, CancellationToken.None, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
+            throw new InvalidDataException(
+                $"POL-EKO uložilo do programu {ManualProgramName} teplotu {storedTemperatureC:0.0} °C namiesto požadovaných {expectedTemperatureC:0.0} °C; program bol zastavený.");
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -405,16 +435,53 @@ public static class PolEkoLabDeskProtocol
             status, out value, "TEMPERATURE_MAIN_VALUE", "temperatureMain", "temperature") && double.IsFinite(value);
     }
 
-    public static string BuildSingleSetpointProgram(long id, double temperatureC)
+    public static string BuildSingleSetpointProgram(
+        long id,
+        double temperatureC,
+        double underTemperatureC = -100,
+        double overTemperatureC = 300)
     {
         if (!double.IsFinite(temperatureC)) throw new ArgumentOutOfRangeException(nameof(temperatureC));
+        if (!double.IsFinite(underTemperatureC) || !double.IsFinite(overTemperatureC) ||
+            underTemperatureC >= overTemperatureC)
+            throw new ArgumentOutOfRangeException(nameof(underTemperatureC));
+        if (temperatureC < underTemperatureC || temperatureC > overTemperatureC)
+            throw new ArgumentOutOfRangeException(nameof(temperatureC),
+                $"Setpoint {temperatureC:0.###} °C je mimo ochrany programu [{underTemperatureC:0.###}; {overTemperatureC:0.###}] °C.");
         int wire = checked((int)Math.Round(temperatureC * 10d, MidpointRounding.AwayFromZero));
         return JsonSerializer.Serialize(new PolEkoProgram
         {
             ProgramId = id,
             Name = id == PolEkoClient.ManualProgramId ? PolEkoClient.ManualProgramName : $"LabControl {temperatureC:0.0}C",
+            TempProtection = new PolEkoTemperatureProtection
+            {
+                UnderTemperatureLimit = underTemperatureC,
+                OverTemperatureLimit = overTemperatureC,
+            },
             Segments = [new PolEkoProgramSegment { Temperature = wire, IsInfinityEnabled = true }],
         }, Json);
+    }
+
+    public static bool TryReadProgramTemperature(string? data, long programId, out double temperatureC)
+    {
+        temperatureC = 0;
+        if (string.IsNullOrWhiteSpace(data)) return false;
+        using JsonDocument document = JsonDocument.Parse(data);
+        IEnumerable<JsonElement> programs = document.RootElement.ValueKind == JsonValueKind.Array
+            ? document.RootElement.EnumerateArray()
+            : new[] { document.RootElement };
+        foreach (JsonElement program in programs)
+        {
+            if (!PolEkoClient.TryFindNumber(program, out double id, "programId") || Math.Abs(id - programId) >= 0.5)
+                continue;
+            if (!PolEkoClient.TryFindElement(program, "segments", out JsonElement segments) ||
+                segments.ValueKind != JsonValueKind.Array || segments.GetArrayLength() == 0 ||
+                !PolEkoClient.TryFindNumber(segments[0], out double wireTemperature, "temperature"))
+                return false;
+            temperatureC = wireTemperature / 10d;
+            return double.IsFinite(temperatureC);
+        }
+        return false;
     }
 
     public static string FormatProgramCatalog(string? data)

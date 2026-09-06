@@ -1179,6 +1179,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         var setpoints = humidity
             ? new List<double> { ManualTemperature, ManualHumidity }
             : new List<double> { ManualTemperature };
+        if (_rawClient is PolEkoClient polEko)
+        {
+            double programUnder = Math.Min(SafetyTempMin, ManualTemperature - 2);
+            double programOver = Math.Max(SafetyTempMax, ManualTemperature + 2);
+            polEko.ConfigureManualProgramProtection(programUnder, programOver);
+        }
         string summary = $"{ManualTemperature:0.0} °C" + (humidity ? $", {ManualHumidity:0.0} %" : string.Empty);
         AppLog.Info(Name, $"Zápis setpointu: {summary} · adresa {Address} · štart kanál #{StartChannelIndex + 1} = ON · " +
             $"analóg. kanálov {AnalogChannelCount} · digitálne '{DigitalChannelsText}'.");

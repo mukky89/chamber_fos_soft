@@ -112,6 +112,26 @@ public sealed class PolEkoLabDeskProtocolTests
     }
 
     [Fact]
+    public void Manual_program_uses_requested_temperature_protection()
+    {
+        using JsonDocument json = JsonDocument.Parse(
+            PolEkoLabDeskProtocol.BuildSingleSetpointProgram(PolEkoClient.ManualProgramId, 20, -45, 190));
+
+        JsonElement protection = json.RootElement.GetProperty("tempProtection");
+        Assert.Equal(-45, protection.GetProperty("underTemperatureLimit").GetDouble());
+        Assert.Equal(190, protection.GetProperty("overTemperatureLimit").GetDouble());
+    }
+
+    [Fact]
+    public void Program_catalog_temperature_is_read_back_in_celsius()
+    {
+        const string programs = "[{\"programId\":11,\"segments\":[{\"temperature\":200}]}]";
+
+        Assert.True(PolEkoLabDeskProtocol.TryReadProgramTemperature(programs, 11, out double temperature));
+        Assert.Equal(20, temperature);
+    }
+
+    [Fact]
     public void Program_catalog_reports_count_and_preserves_all_program_fields()
     {
         string result = PolEkoLabDeskProtocol.FormatProgramCatalog(

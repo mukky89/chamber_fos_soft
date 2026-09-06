@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.227] – 2026-09-06
+
+### Opravené
+- Program POL-EKO „FOS LAB“ sa pri manuálnom nastavení vytvára z aktuálneho setpointu a teplotnej poistky nastavenej na karte namiesto pevných neplatných limitov `50/50`. Po spustení aplikácia načíta katalóg programov, overí skutočne uloženú teplotu a pri nesúlade program bezpečne zastaví; lokálny časovač naďalej nezávisle vypína výkon po zvolenom čase.
+
 ## [1.76.226] – 2026-09-06
 
 ### Opravené
