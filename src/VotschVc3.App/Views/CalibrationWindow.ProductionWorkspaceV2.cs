@@ -49,6 +49,8 @@ public partial class CalibrationWindow
     private readonly Dictionary<Control, bool> _productionInputEnabled = new();
     private HashSet<string> _knownPeakIdentities = new(StringComparer.OrdinalIgnoreCase);
     private bool _peakIdentityBaselineReady;
+    private HashSet<string>? _pendingTopologyChange;
+    private int _pendingTopologyChangeConfirmations;
     private CancellationTokenSource? _rowReconcileCts;
     private CancellationTokenSource? _topologyPollCts;
     private DispatcherTimer? _referenceFiveSecondTimer;
@@ -567,9 +569,9 @@ public partial class CalibrationWindow
             {
                 // Only trigger a refresh if the API reports topology that is genuinely different
                 // from the UI. The row reconciliation will then focus the new item.
-                if (live.SetEquals(CurrentPeakIdentities())) return;
+                if (PeakTopologyComparer.AreEquivalent(live, CurrentPeakIdentities())) return;
             }
-            if (live.SetEquals(CurrentPeakIdentities())) return;
+            if (!ConfirmTopologyChange(live, CurrentPeakIdentities())) return;
 
             if (_viewModel.SaveSetupCommand.CanExecute(null)) _viewModel.SaveSetupCommand.Execute(null);
             ShowProductionInfo("PeakLogger hlási zmenu zapojenia – aktualizujem tabuľku…");
@@ -661,6 +663,25 @@ public partial class CalibrationWindow
 
     private HashSet<string> CurrentPeakIdentities() =>
         _viewModel.Peaks.Select(PeakIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private bool ConfirmTopologyChange(HashSet<string> live, HashSet<string> displayed)
+    {
+        if (PeakTopologyComparer.AreEquivalent(live, displayed))
+        {
+            _pendingTopologyChange = null;
+            _pendingTopologyChangeConfirmations = 0;
+            return false;
+        }
+
+        if (_pendingTopologyChange is null || !_pendingTopologyChange.SetEquals(live))
+        {
+            _pendingTopologyChange = live.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _pendingTopologyChangeConfirmations = 1;
+            return false;
+        }
+
+        return ++_pendingTopologyChangeConfirmations >= 2;
+    }
 
     private static string PeakIdentity(CalibrationPeakRowViewModel row) =>
         $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}|{row.PeakId}";

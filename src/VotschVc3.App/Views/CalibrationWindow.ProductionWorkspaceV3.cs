@@ -316,7 +316,7 @@ public partial class CalibrationWindow
             if (topology is null || IsWiringGridEditingV3()) return;
 
             HashSet<string> live = topology.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (live.SetEquals(CurrentPeakIdentities())) return;
+            if (!ConfirmTopologyChange(live, CurrentPeakIdentities())) return;
 
             if (_viewModel.SaveSetupCommand.CanExecute(null)) _viewModel.SaveSetupCommand.Execute(null);
             ShowProductionInfo("PeakLogger hlási zmenu zapojenia – po ukončení editácie aktualizujem tabuľku…");

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.179] – 2026-09-06
+
+### Opravené
+- Obnovenie kalibrácie už nevyvolá falošné hlásenie o zmene zapojenia, keď PeakLogger v pomocnom zozname peakov dočasne vynechá sériové číslo interrogátora.
+- Automatická obnova tabuľky sa spustí až po dvoch zhodných kontrolách skutočne zmenenej topológie; zmena kanála alebo peaku sa naďalej rozpozná.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.179.
+
 ## [1.76.178] – 2026-09-06
 
 ### Pridané

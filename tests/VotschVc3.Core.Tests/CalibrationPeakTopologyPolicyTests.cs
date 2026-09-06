@@ -6,6 +6,24 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationPeakTopologyPolicyTests
 {
     [Fact]
+    public void EquivalentTopology_IgnoresMissingInterrogatorSerialAfterResume()
+    {
+        string[] live = ["|1.1|P1", "|1.1|P2", "|2.4|P1"];
+        string[] displayed = ["289594|1.1|P1", "289594|1.1|P2", "289594|2.4|P1"];
+
+        Assert.True(PeakTopologyComparer.AreEquivalent(live, displayed));
+    }
+
+    [Fact]
+    public void EquivalentTopology_StillDetectsRealPeakChange()
+    {
+        string[] live = ["|1.1|P1", "|1.1|P3"];
+        string[] displayed = ["289594|1.1|P1", "289594|1.1|P2"];
+
+        Assert.False(PeakTopologyComparer.AreEquivalent(live, displayed));
+    }
+
+    [Fact]
     public void ActiveRun_DoesNotMaterializeUnknownLiveSources()
     {
         IReadOnlyList<string> result = CalibrationPeakTopologyPolicy.SelectNewSources(
