@@ -174,6 +174,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int MeasuringCount => _snapshot?.Targets.Count(t => t.Phase == "Measuring") ?? 0;
     public string PeakSummary => $"{StableCount} / {TotalTargets} stabilných";
     public string PeakDetail => $"{DoneCount} hotových · {MeasuringCount} práve meria";
+    public string PeakStabilityCriteria =>
+        $"{_requiredStableSamples} vzoriek · range ≤ {_maxRangePm:F3} pm · σ ≤ {_maxStdDevPm:F3} pm · drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min";
+    public string PeakStabilityCriteriaHelp =>
+        "Každý peak musí v jednom spoločnom rolling okne splniť všetky štyri podmienky súčasne: požadovaný počet vzoriek, maximálny rozsah, smerodajnú odchýlku a absolútny drift. " +
+        "Ak niektorá podmienka nevyhovie, okno sa zahodí a stabilizácia daného peaku začne od 0. Zobrazené hodnoty sú aktuálne nastavenia tejto kalibrácie.";
     public double StabilityProgress => TotalTargets == 0 ? 0 : 100d * StableCount / TotalTargets;
     public int Samples => _snapshot?.Targets.Sum(t => t.MeasurementSamples) ?? 0;
     public int RequiredSamples => _snapshot?.Targets.Sum(t => t.RequiredMeasurementSamples) ?? 0;
@@ -281,7 +286,20 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         double finalConditioningTemperatureC = 25, TimeSpan? finalConditioningDuration = null,
         IReadOnlyList<CalibrationPlateauStatistics>? historicalPlateaus = null)
     {
-        if (_started is not null) return;
+        if (_started is not null)
+        {
+            StabilityToleranceC = Math.Abs(toleranceC);
+            _stabilityMaxDriftCPerMinute = Math.Max(0, maxDriftCPerMinute);
+            _requiredStableSamples = Math.Max(2, requiredStableSamples);
+            _requiredMeasurementSamples = Math.Max(2, requiredMeasurementSamples);
+            _sampleAcquisitionIntervalSeconds = Math.Clamp(sampleAcquisitionIntervalSeconds, 1, 30);
+            _maxRangePm = Math.Max(0, maxRangePm);
+            _maxStdDevPm = Math.Max(0, maxStdDevPm);
+            _maxPeakDriftPmPerMinute = Math.Max(0, maxPeakDriftPmPerMinute);
+            _stableDuration = stableDuration ?? TimeSpan.Zero;
+            Notify();
+            return;
+        }
         double[] plan = temperatures.ToArray();
         string signature = $"{profileCode}|{profile}|{chamber}|{hasReference}|{rules}|{referenceChamberId}|{Math.Abs(toleranceC)}|{maxDriftCPerMinute}|" +
             $"{requiredStableSamples}|{requiredMeasurementSamples}|{sampleAcquisitionIntervalSeconds}|{maxRangePm}|{maxStdDevPm}|{maxPeakDriftPmPerMinute}|{stableDuration}|{stabilityTimeout}|{stabilityExtensionStep}|{maxAutomaticStabilityExtension}|{sensorTimeout}|{enableSetpointRamp}|{setpointRampCPerMinute}|{finalConditioningTemperatureC}|{finalConditioningDuration}|" +

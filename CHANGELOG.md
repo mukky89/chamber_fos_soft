@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.209] – 2026-09-06
+
+### Pridané
+- Karta FBG peaky v živom prehľade zobrazuje aktuálne podmienky stability: počet vzoriek, maximálny range, smerodajnú odchýlku a drift.
+- Zobrazené tolerancie sa obnovujú podľa aktuálnych nastavení kalibrácie.
+
 ## [1.76.208] – 2026-09-06
 
 ### Opravené

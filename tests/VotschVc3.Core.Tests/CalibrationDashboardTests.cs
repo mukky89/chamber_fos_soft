@@ -117,6 +117,26 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("5 nových", m.Steps[5].Detail);
         Assert.Contains("20 s", m.Steps[5].Detail);
     }
+    [Fact] public void PeakCardShowsCurrentStabilityCriteria()
+    {
+        var m = new CalibrationDashboardViewModel();
+        m.Configure("Profil", "Komora", new[] { -40d }, true, "Rules",
+            requiredStableSamples: 32, maxRangePm: 4.25, maxStdDevPm: 1.2,
+            maxPeakDriftPmPerMinute: 0.35);
+
+        Assert.Contains("32 vzoriek", m.PeakStabilityCriteria);
+        Assert.Contains($"range ≤ {4.25d.ToString("F3", CultureInfo.CurrentCulture)} pm", m.PeakStabilityCriteria);
+        Assert.Contains($"σ ≤ {1.2d.ToString("F3", CultureInfo.CurrentCulture)} pm", m.PeakStabilityCriteria);
+        Assert.Contains($"drift ≤ {0.35d.ToString("F3", CultureInfo.CurrentCulture)} pm/min", m.PeakStabilityCriteria);
+        Assert.Contains("všetky štyri podmienky súčasne", m.PeakStabilityCriteriaHelp);
+
+        m.Begin(Start);
+        m.Configure("Profil", "Komora", new[] { -40d }, true, "Rules",
+            requiredStableSamples: 50, maxRangePm: 5, maxStdDevPm: 1.5,
+            maxPeakDriftPmPerMinute: 1);
+        Assert.Contains("50 vzoriek", m.PeakStabilityCriteria);
+        Assert.Contains($"range ≤ {5d.ToString("F3", CultureInfo.CurrentCulture)} pm", m.PeakStabilityCriteria);
+    }
     [Fact] public void WikaWorkflowHelpExplainsHowStableScoreIsCollectedAndPenalized()
     {
         var m = new CalibrationDashboardViewModel();
