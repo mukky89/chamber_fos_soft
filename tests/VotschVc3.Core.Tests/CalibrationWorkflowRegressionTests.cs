@@ -26,7 +26,7 @@ public sealed class CalibrationWorkflowRegressionTests
             await using CalibrationRunWriter writer = store.CreateRunWriter(run);
             var orchestrator = new CalibrationOrchestrator(peakLogger);
 
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
             CalibrationPlateauResult plateau = await orchestrator.WaitForPlateauAsync(
                 run, setup, 0, 1, 20,
                 _ => Task.FromResult(20d),
@@ -39,6 +39,7 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.Equal(2, target.SampleCount);
             Assert.Equal(2, target.StableSamples.Count);
             Assert.Contains("nedokončil stabilizáciu/meranie", target.Problem);
+            Assert.Contains("priemerovaním po 3 surových odberoch", target.Problem);
             Assert.Contains(run.Warnings, warning => warning.Code == "SENSOR_STABILITY_TIMEOUT");
         }
         finally

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.213] – 2026-09-06
+
+### Zmenené
+- Záchranné finálne meranie po neúspešnej stabilizácii vytvára každú výslednú vzorku ako priemer troch po sebe idúcich surových odberov. Pri 50 výsledných vzorkách sa preto odoberie 150 surových hodnôt.
+- Živý stav zobrazuje počet hotových priemerovaných vzoriek aj rozpracovanú trojicu; auditné upozornenie pri SN zostáva zachované.
+
 ## [1.76.212] – 2026-09-06
 
 ### Zmenené

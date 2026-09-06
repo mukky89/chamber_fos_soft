@@ -792,6 +792,7 @@ public sealed class CalibrationOrchestrator
         private readonly int _averagingSamples;
         private readonly Queue<PeakLoggerMeasurement> _averagingWindow = new();
         private readonly List<CalibrationRawSample> _measurementSamples = new();
+        private readonly Queue<CalibrationRawSample> _fallbackAveragingWindow = new();
         private readonly Queue<double> _observedCadenceSeconds = new();
         private DateTimeOffset? _missingSince;
         private DateTimeOffset? _previousMeasurementAt;
@@ -889,7 +890,10 @@ public sealed class CalibrationOrchestrator
             if (_stabilityWarning is not null)
             {
                 State = CalibrationTargetState.Live;
-                _measurementSamples.Add(raw);
+                _fallbackAveragingWindow.Enqueue(raw);
+                if (_fallbackAveragingWindow.Count < 3) return null;
+                _measurementSamples.Add(AverageFallbackWindow(_fallbackAveragingWindow));
+                _fallbackAveragingWindow.Clear();
                 if (_measurementSamples.Count >= Math.Max(2, settings.RequiredMeasurementSamples))
                     CompleteMeasurementWithStabilityWarning();
                 return null;
@@ -943,6 +947,7 @@ public sealed class CalibrationOrchestrator
             State = CalibrationTargetState.WaitingForTemperature;
             IsMeasuring = false;
             _measurementSamples.Clear();
+            _fallbackAveragingWindow.Clear();
             _averagingWindow.Clear();
             _stabilityDetector = NewStabilityDetector();
             LastMetrics = null;
@@ -956,9 +961,11 @@ public sealed class CalibrationOrchestrator
             State = CalibrationTargetState.WaitingForTemperature;
             IsMeasuring = false;
             _measurementSamples.Clear();
+            _fallbackAveragingWindow.Clear();
             _averagingWindow.Clear();
             _stabilityDetector = NewStabilityDetector();
             LastMetrics = null;
+            _stabilityWarning = null;
             _lastResetMessage = "Nastavenia stability boli zmenené operátorom; začína sa nové čisté okno.";
         }
 
@@ -985,9 +992,10 @@ public sealed class CalibrationOrchestrator
         public void BeginMeasurementAfterStabilityTimeout(string problem)
         {
             if (IsTerminal || _stabilityWarning is not null) return;
-            _stabilityWarning = problem;
+            _stabilityWarning = problem + " Finálne výsledné vzorky boli vytvorené priemerovaním po 3 surových odberoch.";
             _lastResetMessage = problem;
             _measurementSamples.Clear();
+            _fallbackAveragingWindow.Clear();
             _stabilityDetector = NewStabilityDetector();
             LastMetrics = null;
             IsMeasuring = true;
@@ -1035,7 +1043,8 @@ public sealed class CalibrationOrchestrator
                 if (_stabilityWarning is not null)
                 {
                     string warningMeasurement =
-                        $"MERANIE PO TIMEOUTE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples · výsledok bude označený problémom so stabilizáciou";
+                        $"MERANIE PO TIMEOUTE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} priemerovaných samples · " +
+                        $"trojica {_fallbackAveragingWindow.Count}/3 surových odberov · výsledok bude označený problémom so stabilizáciou";
                     return BuildProgress(CalibrationTargetState.Live, _measurementSamples.Count, Math.Max(2, settings.RequiredMeasurementSamples), warningMeasurement);
                 }
                 string measuring =
@@ -1222,6 +1231,35 @@ public sealed class CalibrationOrchestrator
             foreach (CalibrationRawSample sample in samples)
                 metrics = detector.Add(sample.Timestamp, sample.WavelengthNm);
             return metrics;
+        }
+
+        private static CalibrationRawSample AverageFallbackWindow(IEnumerable<CalibrationRawSample> window)
+        {
+            CalibrationRawSample[] samples = window.ToArray();
+            CalibrationRawSample last = samples[^1];
+            double? intensity = samples.Any(sample => sample.Intensity.HasValue)
+                ? samples.Where(sample => sample.Intensity.HasValue).Average(sample => sample.Intensity!.Value)
+                : null;
+            double? reference = samples.Any(sample => sample.ReferenceTemperatureC.HasValue)
+                ? samples.Where(sample => sample.ReferenceTemperatureC.HasValue).Average(sample => sample.ReferenceTemperatureC!.Value)
+                : null;
+            return new CalibrationRawSample
+            {
+                RunId = last.RunId,
+                ProfileId = last.ProfileId,
+                PlateauIndex = last.PlateauIndex,
+                TargetTemperatureC = last.TargetTemperatureC,
+                ActualTemperatureC = samples.Average(sample => sample.ActualTemperatureC),
+                ReferenceTemperatureC = reference,
+                Timestamp = last.Timestamp,
+                SerialNumber = last.SerialNumber,
+                PeakLoggerDeviceSerialNumber = last.PeakLoggerDeviceSerialNumber,
+                Channel = last.Channel,
+                PeakId = last.PeakId,
+                PeakIndex = last.PeakIndex,
+                WavelengthNm = samples.Average(sample => sample.WavelengthNm),
+                Intensity = intensity,
+            };
         }
     }
 }
