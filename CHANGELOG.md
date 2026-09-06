@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.167] – 2026-09-06
+
+### Opravené
+- Číselné hodnoty na karte `Nastavenia stability` sa už vertikálne neorezávajú na pomlčky a zostávajú čitateľné aj počas zamknutého bežiaceho alebo obnoveného behu.
+- Vnútorné odsadenie vstupov bolo prispôsobené spoločnej šablóne WPF TextBox bez zmeny uložených kalibračných nastavení.
+- Záložná verzia bola zvýšená na 1.76.167.
+
 ## [1.76.166] – 2026-09-06
 
 ### Opravené

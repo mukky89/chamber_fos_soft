@@ -33,7 +33,9 @@
             <Setter Property="Width" Value="160" />
             <Setter Property="Height" Value="40" />
             <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="Padding" Value="12,8" />
+            <!-- The shared TextBox template already applies Padding to its content host.
+                 Keep the vertical value compact so glyphs are not clipped to a thin dash. -->
+            <Setter Property="Padding" Value="12,2" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontFamily" Value="Segoe UI Semibold" />
             <Setter Property="Background" Value="#101A29" />
