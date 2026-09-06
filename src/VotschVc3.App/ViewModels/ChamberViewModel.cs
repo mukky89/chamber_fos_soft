@@ -49,6 +49,9 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private DateTime? _profileActualStart;
     private DateTime? _profileEstimatedEnd;
     private System.Windows.Threading.DispatcherTimer? _countdownTimer;
+    private System.Windows.Threading.DispatcherTimer? _manualCountdownTimer;
+    private DateTime? _manualRunEndsAt;
+    private bool _manualTimerStopInProgress;
     private ProfileRunner? _activeRunner;
     private ProfileRunCheckpoint? _interruptedRun;
 
@@ -1054,6 +1057,61 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private double _manualHumidity = 50;
     public double ManualHumidity { get => _manualHumidity; set => SetProperty(ref _manualHumidity, value); }
 
+    private bool _manualTimerEnabled;
+    /// <summary>When enabled, manual/quick control powers the chamber off after the selected duration.</summary>
+    public bool ManualTimerEnabled
+    {
+        get => _manualTimerEnabled;
+        set
+        {
+            if (SetProperty(ref _manualTimerEnabled, value))
+            {
+                if (!value)
+                {
+                    StopManualCountdown();
+                }
+                OnPropertyChanged(nameof(ManualTimerStatusText));
+            }
+        }
+    }
+
+    private double _manualDurationMinutes = 30;
+    /// <summary>Selected duration of a timed manual run, in minutes.</summary>
+    public double ManualDurationMinutes
+    {
+        get => _manualDurationMinutes;
+        set
+        {
+            if (SetProperty(ref _manualDurationMinutes, Math.Clamp(value, 1, 10080)))
+            {
+                OnPropertyChanged(nameof(ManualTimerStatusText));
+            }
+        }
+    }
+
+    /// <summary>Compact timer state shown beside manual controls.</summary>
+    public string ManualTimerStatusText
+    {
+        get
+        {
+            if (!ManualTimerEnabled)
+            {
+                return "∞ bez limitu";
+            }
+
+            if (_manualRunEndsAt is not { } endsAt)
+            {
+                return $"{ManualDurationMinutes:0.#} min";
+            }
+
+            TimeSpan remaining = endsAt - DateTime.Now;
+            return remaining > TimeSpan.Zero ? $"zostáva {FormatManualCountdown(remaining)}" : "vypínam…";
+        }
+    }
+
+    /// <summary>Scheduled end of the current timed manual run; null means unlimited or inactive.</summary>
+    public DateTime? ManualRunEnd => _manualRunEndsAt;
+
     private string _digitalChannelsText = new('0', DigitalChannels.Count);
     public string DigitalChannelsText { get => _digitalChannelsText; set => SetProperty(ref _digitalChannelsText, value); }
 
@@ -1117,6 +1175,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             $"analóg. kanálov {AnalogChannelCount} · digitálne '{DigitalChannelsText}'.");
         await _client.WriteSetpointsAsync(setpoints, digital);
         SetManualStarted(true);
+        StartManualCountdown();
         ShowActionInfo($"✔ Nastavené {summary} · štart ZAPNUTÝ");
         // Safety: lock the device after a manual set point so it can't be changed by accident.
         AutoLockOnRun("manuálne ovládanie");
@@ -1210,12 +1269,94 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private async Task StopChamberAsync()
     {
+        StopManualCountdown();
         AppLog.Info(Name, $"Stop komory: adresa {Address} · úplné vypnutie výkonu (stop programu + štart kanál OFF).");
         await _client.StopAsync();
         SetManualStarted(false);
         ShowActionInfo("⏹ Stop – výkon komory VYPNUTÝ");
         _audit.Log(Name, "Stop komory", string.Empty);
         AppLog.Info(Name, "Komora zastavená – výkon vypnutý.");
+    }
+
+    private void StartManualCountdown()
+    {
+        StopManualCountdown();
+        if (!ManualTimerEnabled)
+        {
+            return;
+        }
+
+        _manualRunEndsAt = DateTime.Now.AddMinutes(ManualDurationMinutes);
+        _manualCountdownTimer ??= CreateManualCountdownTimer();
+        _manualCountdownTimer.Start();
+        OnPropertyChanged(nameof(ManualRunEnd));
+        OnPropertyChanged(nameof(ManualTimerStatusText));
+        _audit.Log(Name, "Manuálny časovač spustený", $"{ManualDurationMinutes:0.#} min");
+    }
+
+    private System.Windows.Threading.DispatcherTimer CreateManualCountdownTimer()
+    {
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        timer.Tick += ManualCountdownTimer_Tick;
+        return timer;
+    }
+
+    private async void ManualCountdownTimer_Tick(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(ManualTimerStatusText));
+        if (_manualTimerStopInProgress || _manualRunEndsAt is not { } endsAt || DateTime.Now < endsAt)
+        {
+            return;
+        }
+
+        _manualCountdownTimer?.Stop();
+        _manualTimerStopInProgress = true;
+        OnPropertyChanged(nameof(ManualTimerStatusText));
+
+        try
+        {
+            bool stopped = await StopChamberOutputAsync("po uplynutí manuálneho časovača");
+            if (stopped)
+            {
+                SetReadRunning(false);
+                SetManualStarted(false);
+                const string message = "⏱ Časovač skončil – výkon komory VYPNUTÝ";
+                ShowActionInfo(message);
+                StatusMessage = message;
+                _audit.Log(Name, "Manuálny časovač dokončený", "Výkon komory vypnutý");
+                AppLog.Info(Name, "Manuálny časovač skončil – výkon komory vypnutý.");
+                DesktopNotifier.Notify($"Časovač dokončený · {Name}", "Nastavený čas uplynul a výkon komory bol vypnutý.", DesktopNotificationKind.Success);
+            }
+            else
+            {
+                const string message = "⚠ Časovač skončil – VYPNUTIE VÝKONU ZLYHALO, skontroluj komoru";
+                ShowActionInfo(message);
+                StatusMessage = message;
+                _audit.Log(Name, "Manuálny časovač – chyba vypnutia", string.Empty);
+                DesktopNotifier.Notify($"VYPNUTIE ZLYHALO · {Name}", message, DesktopNotificationKind.Warning);
+            }
+        }
+        finally
+        {
+            _manualTimerStopInProgress = false;
+            StopManualCountdown();
+        }
+    }
+
+    private void StopManualCountdown()
+    {
+        _manualCountdownTimer?.Stop();
+        _manualRunEndsAt = null;
+        OnPropertyChanged(nameof(ManualRunEnd));
+        OnPropertyChanged(nameof(ManualTimerStatusText));
+    }
+
+    private static string FormatManualCountdown(TimeSpan remaining)
+    {
+        int totalHours = (int)remaining.TotalHours;
+        return totalHours > 0
+            ? $"{totalHours}:{remaining.Minutes:00}:{remaining.Seconds:00}"
+            : $"{Math.Max(0, remaining.Minutes):00}:{Math.Max(0, remaining.Seconds):00}";
     }
 
     private DigitalChannels ParseDigitalText() => DigitalChannels.Parse(DigitalChannelsText, StartChannelIndex);
@@ -1441,6 +1582,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private void SetManualStarted(bool value)
     {
+        if (!value)
+        {
+            StopManualCountdown();
+        }
+
         if (_manualStarted != value)
         {
             _manualStarted = value;
@@ -4501,6 +4647,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SikaSerialPort = c.SikaSerialPort;
         SikaGradientCPerMinute = c.SikaGradientCPerMinute;
         AutoRecoverProfile = c.AutoRecoverProfile;
+        _manualTimerEnabled = c.ManualTimerEnabled;
+        _manualDurationMinutes = Math.Clamp(c.ManualDurationMinutes <= 0 ? 30 : c.ManualDurationMinutes, 1, 10080);
+        OnPropertyChanged(nameof(ManualTimerEnabled));
+        OnPropertyChanged(nameof(ManualDurationMinutes));
+        OnPropertyChanged(nameof(ManualTimerStatusText));
 
         List<double> presets = c.QuickPresets is { Count: > 0 } ? new List<double>(c.QuickPresets) : DefaultQuickPresets();
 
@@ -4556,6 +4707,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SikaGradientCPerMinute = SikaGradientCPerMinute,
         AutoRecoverProfile = AutoRecoverProfile,
         QuickPresets = new List<double>(_quickPresets),
+        ManualTimerEnabled = ManualTimerEnabled,
+        ManualDurationMinutes = ManualDurationMinutes,
         Nameplate = _nameplate.Clone(),
         IsLocked = IsLocked,
         LockPasswordHash = LockPasswordHash,
@@ -4652,6 +4805,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        StopManualCountdown();
+        if (_manualCountdownTimer is not null)
+        {
+            _manualCountdownTimer.Tick -= ManualCountdownTimer_Tick;
+            _manualCountdownTimer = null;
+        }
         StopReconnect();
         StopPolling();
         StopProfile(confirm: false);

@@ -120,6 +120,7 @@ public partial class FleetGanttView : UserControl
             or nameof(ChamberViewModel.ProfileRunStart)
             or nameof(ChamberViewModel.ProfileRunEnd)
             or nameof(ChamberViewModel.ActiveSince)
+            or nameof(ChamberViewModel.ManualRunEnd)
             or nameof(ChamberViewModel.ProfileName)
             or nameof(ChamberViewModel.Name))
         {
@@ -215,6 +216,11 @@ public partial class FleetGanttView : UserControl
             if (!calibration.IsRunning && vm.IsProfileRunning && vm.ProfileRunEnd is { } e && e > end)
             {
                 end = e;
+            }
+
+            if (!calibration.IsRunning && !vm.IsProfileRunning && vm.ManualRunEnd is { } manualEnd && manualEnd > end)
+            {
+                end = manualEnd;
             }
 
             if (!calibration.IsRunning && vm.IsProfileRunning && vm.ProfileRunStart is null && vm.UseDelayedStart)
@@ -374,8 +380,15 @@ public partial class FleetGanttView : UserControl
         }
         else if (vm.IsActive)
         {
-            // Manual run: no scheduled end — the bar runs to the edge and fades out ("∞").
             DateTime start = BarStart(vm, now) ?? now;
+            if (vm.ManualRunEnd is { } manualEnd)
+            {
+                DrawBar(barY, x(start), x(manualEnd), OkBrush, "manuál · časovač",
+                    $"{vm.ActivityLabel} · {start:dd.MM HH:mm} → {manualEnd:dd.MM HH:mm} · {vm.ManualTimerStatusText}", dimmed: false);
+                return;
+            }
+
+            // Unlimited manual run: the bar runs to the edge and fades out ("∞").
             double x1 = x(start);
             double x2 = plotX + plotW;
             Brush fade = MakeFadeBrush(OkBrush);

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.170] – 2026-09-06
+
+### Pridané
+- Manuálne rýchle ovládanie môže bežať bez časového limitu alebo s nastaviteľným časovačom v minútach.
+- Po uplynutí časovača aplikácia bezpečne vypne výkon komory, zobrazí výsledok operátorovi a udalosť zaznamená.
+- Počas časovaného manuálneho behu sa priamo na karte zariadenia zobrazuje zostávajúci čas.
+- Voľba časovača a jeho trvanie sa ukladajú samostatne pre každú komoru.
+- Časová os zariadení zobrazuje časovaný manuálny beh s konkrétnym plánovaným koncom; nekonečný beh zostáva označený symbolom ∞.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.170.
+
 ## [1.76.169] – 2026-09-06
 
 ### Zmenené

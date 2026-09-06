@@ -685,6 +685,30 @@
                                              actions – so nothing can wrap or clip. -->
                                         <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,10,0,0">
                                             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="10" Padding="10,8">
+                                                <StackPanel>
+                                                <Grid Margin="0,0,0,7">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="Čas" Style="{StaticResource Caption}"
+                                                               FontFamily="Segoe UI Semibold" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <CheckBox Grid.Column="1" Content="časovač" IsChecked="{Binding ManualTimerEnabled, Mode=TwoWay}"
+                                                              VerticalAlignment="Center" Margin="0,0,8,0"
+                                                              ToolTip="Vypnuté = manuálne ovládanie beží bez časového limitu. Zapnuté = po zadanom čase sa výkon komory vypne." />
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                                                                IsEnabled="{Binding ManualTimerEnabled}">
+                                                        <views:NumericStepper Width="68" Height="30" Value="{Binding ManualDurationMinutes, Mode=TwoWay}"
+                                                                              Minimum="1" Maximum="10080" Step="5"
+                                                                              ToolTip="Trvanie manuálneho ovládania v minútach" />
+                                                        <TextBlock Text="min" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="3" Text="{Binding ManualTimerStatusText}" Style="{StaticResource Caption}"
+                                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                </Grid>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
@@ -747,6 +771,7 @@
                                                         </Button>
                                                     </StackPanel>
                                                 </Grid>
+                                                </StackPanel>
                                             </Border>
                                         </StackPanel>
 

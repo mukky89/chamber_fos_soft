@@ -57,6 +57,12 @@ public sealed class ChamberConfig
     /// </summary>
     public List<double>? QuickPresets { get; set; }
 
+    /// <summary>Whether quick/manual control uses the automatic power-off timer.</summary>
+    public bool ManualTimerEnabled { get; set; }
+
+    /// <summary>Duration of a timed manual run in minutes.</summary>
+    public double ManualDurationMinutes { get; set; } = 30;
+
     /// <summary>Nameplate / type-plate details (from the chamber's rating label).</summary>
     public ChamberNameplate? Nameplate { get; set; }
 
