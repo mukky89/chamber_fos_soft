@@ -109,7 +109,7 @@ public partial class CalibrationWindow
         if (_wiringGrid is null) return;
 
         // Keep sixteen production lines visible at once. Additional rows remain scrollable.
-        _wiringGrid.MinHeight = (16 * 36) + 38 + 4;
+        _wiringGrid.MinHeight = (16 * 35) + 42 + 4;
         _wiringGrid.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
         _wiringGrid.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
 
@@ -138,16 +138,19 @@ public partial class CalibrationWindow
             _wiringGrid.Columns.Insert(Math.Max(0, inputSnIndex), sylexColumn);
         }
 
-        DataGridColumn? timeout = _wiringGrid.Columns.FirstOrDefault(c => HeaderText(c.Header) == "Timeout [min]");
-        if (timeout is not null)
+        // Keep one deterministic left-to-right table composition on every window size.
+        // The check box is followed by 14 data fields; production metadata never moves
+        // into a secondary panel or changes position when runtime enrichments load.
+        string[] columnOrder =
         {
-            timeout.Header = new TextBlock
-            {
-                Text = "Max. stabilizácia [min]",
-                ToolTip = "Maximálny čas čakania na stabilitu tohto konkrétneho FBG peaku. 0 = použiť globálny Default sensor timeout z Nastavení stability.",
-                TextWrapping = TextWrapping.Wrap,
-            };
-            timeout.Width = new DataGridLength(120);
+            "Kalibrovať", "Kanál", "Peak ID", "FBG index", "Aktuálna λ [nm]", "Intenzita",
+            "Typ FBG", "Sylex SN", "FBG sensor SN (kanál)", "FBG sensor SN CHAIN",
+            "Zákazka", "Poznámky", "Názov snímača", "Popis výrobku", "Zákazník",
+        };
+        for (int displayIndex = 0; displayIndex < columnOrder.Length; displayIndex++)
+        {
+            DataGridColumn? column = _wiringGrid.Columns.FirstOrDefault(c => HeaderText(c.Header) == columnOrder[displayIndex]);
+            if (column is not null) column.DisplayIndex = displayIndex;
         }
 
         if (_wiringGrid.ContextMenu is null)

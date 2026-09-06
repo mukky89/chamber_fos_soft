@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.197] – 2026-09-06
+
+### Opravené
+- Návrh tabuľky Zapojenie bol dorovnaný na definitívnu sadu 14 údajových polí a výberový stĺpec bez dodatočného stĺpca timeoutu. Všetky stĺpce majú pevné návrhové šírky, takže sa ich veľkosť nemení podľa okna ani dĺžky obsahu.
+- Obnovené boli plné názvy hlavičiek a presné kompaktné rozmery: riadok 35 px, hlavička 42 px, šestnásť viditeľných pracovných riadkov a tri desatinné miesta meraní.
+- Záložná verzia bola zvýšená na 1.76.197.
+
 ## [1.76.196] – 2026-09-06
 
 ### Zmenené
