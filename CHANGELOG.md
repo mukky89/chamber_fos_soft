@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.181] – 2026-09-06
+
+### Zmenené
+- Všetky prechodné upozornenia používajú jednotné plávajúce karty v pravom hornom rohu aplikácie; viac udalostí sa skladá pod seba.
+- Karta má farebnú závažnosť, odpočet s časovým pruhom, tlačidlo kopírovania a krížik na okamžité zatvorenie.
+- Zelená označuje úspech, modrá informáciu, oranžová upozornenie a červená kritickú chybu.
+- Systémové Windows bubliny a duplicitný textový alarm v hornej lište detailu zariadenia boli odstránené; stav alarmu zariadenia zostáva viditeľný na jeho karte.
+- Záložná verzia bola zvýšená na 1.76.181.
+
 ## [1.76.180] – 2026-09-06
 
 ### Pridané

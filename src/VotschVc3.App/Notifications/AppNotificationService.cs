@@ -24,10 +24,9 @@ public enum AppNotificationKind
 public static class AppNotificationService
 {
     private static readonly object Gate = new();
-    private static readonly Queue<AppNotification> Queue = new();
+    private static readonly List<AppNotificationWindow> Active = new();
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastShown = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, byte> SessionOnceShown = new(StringComparer.Ordinal);
-    private static AppNotificationWindow? _active;
 
     public static void Show(
         string title,
@@ -109,23 +108,6 @@ public static class AppNotificationService
 
     private static void EnqueueOnUi(AppNotification notification)
     {
-        lock (Gate)
-        {
-            Queue.Enqueue(notification);
-            if (_active is not null) return;
-        }
-        ShowNextOnUi();
-    }
-
-    private static void ShowNextOnUi()
-    {
-        AppNotification next;
-        lock (Gate)
-        {
-            if (_active is not null || Queue.Count == 0) return;
-            next = Queue.Dequeue();
-        }
-
         Window? owner = Application.Current?.Windows
             .OfType<Window>()
             .FirstOrDefault(window => window.IsActive && window.IsVisible)
@@ -135,21 +117,36 @@ public static class AppNotificationService
         // notification UX. Do not open a separate top-most WPF popup over other programs.
         if (owner is null)
         {
-            lock (Gate) _active = null;
-            if (Queue.Count > 0)
-                _ = Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(ShowNextOnUi));
             return;
         }
 
-        var popup = new AppNotificationWindow(next, owner);
+        var popup = new AppNotificationWindow(notification, owner);
         popup.Closed += (_, _) =>
         {
-            lock (Gate) _active = null;
-            _ = Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(ShowNextOnUi));
+            lock (Gate) Active.Remove(popup);
+            PositionActive(owner);
         };
 
-        lock (Gate) _active = popup;
+        lock (Gate)
+        {
+            Active.Add(popup);
+            if (Active.Count > 5) Active[0].Dismiss();
+        }
         popup.Show();
+        PositionActive(owner);
+    }
+
+    private static void PositionActive(Window owner)
+    {
+        AppNotificationWindow[] windows;
+        lock (Gate) windows = Active.Where(window => ReferenceEquals(window.Owner, owner) && window.IsVisible).ToArray();
+        double top = owner.Top + 18;
+        for (int index = windows.Length - 1; index >= 0; index--)
+        {
+            AppNotificationWindow window = windows[index];
+            window.Position(owner, top);
+            top += window.ActualHeight + 10;
+        }
     }
 
     private static TimeSpan DefaultDuration(AppNotificationKind kind) => kind switch
@@ -166,13 +163,19 @@ public static class AppNotificationService
     private sealed class AppNotificationWindow : Window
     {
         private readonly DispatcherTimer _closeTimer;
+        private readonly DispatcherTimer _countdownTimer;
+        private readonly DateTimeOffset _expiresAt;
+        private readonly TextBlock _countdown = new();
+        private readonly ProgressBar _progress = new();
+        private readonly AppNotification _notification;
         private bool _closingAnimated;
 
         public AppNotificationWindow(AppNotification notification, Window owner)
         {
+            _notification = notification;
             Owner = owner;
-            Width = 520;
-            MaxWidth = 720;
+            Width = 410;
+            MaxWidth = 520;
             SizeToContent = SizeToContent.Height;
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
@@ -185,8 +188,19 @@ public static class AppNotificationService
             Content = BuildContent(notification);
 
             Loaded += OnLoaded;
+            owner.LocationChanged += OwnerMoved;
+            owner.SizeChanged += OwnerMoved;
             _closeTimer = new DispatcherTimer { Interval = notification.Duration };
             _closeTimer.Tick += (_, _) => BeginClose();
+            _expiresAt = DateTimeOffset.UtcNow + notification.Duration;
+            _countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _countdownTimer.Tick += (_, _) => UpdateCountdown();
+            Closed += (_, _) =>
+            {
+                owner.LocationChanged -= OwnerMoved;
+                owner.SizeChanged -= OwnerMoved;
+                _countdownTimer.Stop();
+            };
         }
 
         private UIElement BuildContent(AppNotification notification)
@@ -248,16 +262,46 @@ public static class AppNotificationService
             };
             close.Click += (_, _) => BeginClose();
 
+            var copy = new Button
+            {
+                Content = "⧉", Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Foreground = Brushes.White, FontSize = 15, Width = 28, Height = 28, Padding = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Top, Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Kopírovať upozornenie",
+            };
+            copy.Click += (_, _) => Clipboard.SetText($"{notification.Title}\r\n{notification.Message}".Trim());
+
+            _countdown.Foreground = new SolidColorBrush(Color.FromRgb(235, 239, 248));
+            _countdown.FontSize = 10.5;
+            _countdown.HorizontalAlignment = HorizontalAlignment.Right;
+            _countdown.Margin = new Thickness(0, 5, 2, 2);
+            _progress.Height = 3;
+            _progress.Minimum = 0;
+            _progress.Maximum = notification.Duration.TotalSeconds;
+            _progress.Value = notification.Duration.TotalSeconds;
+            _progress.Foreground = new SolidColorBrush(border);
+            _progress.Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255));
+
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             Grid.SetColumn(glyphText, 0);
             Grid.SetColumn(textStack, 1);
-            Grid.SetColumn(close, 2);
+            Grid.SetColumn(copy, 2);
+            Grid.SetColumn(close, 3);
             grid.Children.Add(glyphText);
             grid.Children.Add(textStack);
+            grid.Children.Add(copy);
             grid.Children.Add(close);
+            Grid.SetRow(_countdown, 1); Grid.SetColumn(_countdown, 1); Grid.SetColumnSpan(_countdown, 3);
+            Grid.SetRow(_progress, 2); Grid.SetColumn(_progress, 0); Grid.SetColumnSpan(_progress, 4);
+            grid.Children.Add(_countdown);
+            grid.Children.Add(_progress);
 
             return new Border
             {
@@ -272,17 +316,30 @@ public static class AppNotificationService
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            PositionNearOwner();
+            PositionActive(Owner);
             BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
             _closeTimer.Start();
+            _countdownTimer.Start();
+            UpdateCountdown();
+            _progress.BeginAnimation(ProgressBar.ValueProperty,
+                new DoubleAnimation(_notification.Duration.TotalSeconds, 0, _notification.Duration));
         }
 
-        private void PositionNearOwner()
+        public void Position(Window owner, double top)
         {
-            Window owner = Owner;
             double width = ActualWidth > 0 ? ActualWidth : Width;
-            Left = owner.Left + Math.Max(12, (owner.ActualWidth - width) / 2);
-            Top = owner.Top + 48;
+            Left = owner.Left + Math.Max(12, owner.ActualWidth - width - 18);
+            Top = top;
+        }
+
+        public void Dismiss() => BeginClose();
+
+        private void OwnerMoved(object? sender, EventArgs e) => PositionActive(Owner);
+
+        private void UpdateCountdown()
+        {
+            int seconds = Math.Max(0, (int)Math.Ceiling((_expiresAt - DateTimeOffset.UtcNow).TotalSeconds));
+            _countdown.Text = $"{seconds} s";
         }
 
         private void BeginClose()
@@ -290,6 +347,7 @@ public static class AppNotificationService
             if (_closingAnimated) return;
             _closingAnimated = true;
             _closeTimer.Stop();
+            _countdownTimer.Stop();
             var fade = new DoubleAnimation(Opacity, 0, TimeSpan.FromMilliseconds(150));
             fade.Completed += (_, _) => Close();
             BeginAnimation(OpacityProperty, fade);

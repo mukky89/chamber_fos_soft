@@ -50,11 +50,6 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Border Background="{StaticResource DangerBrush}" CornerRadius="6" Padding="9,3" Margin="0,0,12,0"
-                        VerticalAlignment="Center"
-                        Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Text="{Binding AlarmMessage}" Foreground="White" FontFamily="Segoe UI Semibold" />
-                </Border>
                 <Ellipse Width="12" Height="12" VerticalAlignment="Center"
                          Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
                 <TextBlock Text="{Binding ConnectionState}" Margin="8,0,0,0" />

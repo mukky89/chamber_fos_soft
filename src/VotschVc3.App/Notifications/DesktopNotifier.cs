@@ -1,7 +1,4 @@
-using System.Media;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 using WinForms = System.Windows.Forms;
 
 namespace VotschVc3.App.Notifications;
@@ -21,8 +18,8 @@ public enum DesktopNotificationKind
 
 /// <summary>
 /// Desktop notifications for long-running lab tests. When the app is visible the same event
-/// also goes through AppNotificationService so every operator-facing transient message uses
-/// one in-app popup UX. Tray balloon/sound/taskbar flashing are retained for background use.
+/// goes through AppNotificationService so every operator-facing transient message uses
+/// one in-app popup UX. The tray icon remains navigation-only and does not duplicate alerts.
 /// </summary>
 public static class DesktopNotifier
 {
@@ -55,7 +52,7 @@ public static class DesktopNotifier
         }
     }
 
-    /// <summary>Shows one application notification and preserves Windows background alerting.</summary>
+    /// <summary>Shows one application notification in the unified in-app toast host.</summary>
     public static void Notify(string title, string message, DesktopNotificationKind kind)
     {
         try
@@ -76,31 +73,6 @@ public static class DesktopNotifier
             // In-app notifications are auxiliary. Continue with the desktop path.
         }
 
-        try
-        {
-            (kind switch
-            {
-                DesktopNotificationKind.Alarm => SystemSounds.Hand,
-                DesktopNotificationKind.Warning => SystemSounds.Exclamation,
-                _ => SystemSounds.Asterisk,
-            }).Play();
-
-            EnsureTrayIcon();
-            _tray?.ShowBalloonTip(
-                8000, title, string.IsNullOrWhiteSpace(message) ? title : message,
-                kind switch
-                {
-                    DesktopNotificationKind.Alarm => WinForms.ToolTipIcon.Error,
-                    DesktopNotificationKind.Warning => WinForms.ToolTipIcon.Warning,
-                    _ => WinForms.ToolTipIcon.Info,
-                });
-
-            FlashTaskbarIfInactive();
-        }
-        catch
-        {
-            // Notifications are auxiliary – they must never break chamber control.
-        }
     }
 
     /// <summary>Removes the tray icon (call on application exit).</summary>
@@ -145,42 +117,4 @@ public static class DesktopNotifier
         _tray.DoubleClick += (_, _) => ShowRequested?.Invoke();
     }
 
-    private static void FlashTaskbarIfInactive()
-    {
-        Window? window = Application.Current?.MainWindow;
-        if (window is null || window.IsActive)
-        {
-            return;
-        }
-
-        nint handle = new WindowInteropHelper(window).Handle;
-        if (handle == 0)
-        {
-            return;
-        }
-
-        var info = new FLASHWINFO
-        {
-            cbSize = (uint)Marshal.SizeOf<FLASHWINFO>(),
-            hwnd = handle,
-            dwFlags = 0x00000002 | 0x0000000C, // FLASHW_TASKBAR | FLASHW_TIMERNOFG (until focused)
-            uCount = uint.MaxValue,
-            dwTimeout = 0,
-        };
-        _ = FlashWindowEx(ref info);
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct FLASHWINFO
-    {
-        public uint cbSize;
-        public nint hwnd;
-        public uint dwFlags;
-        public uint uCount;
-        public uint dwTimeout;
-    }
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
 }
