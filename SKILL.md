@@ -35,7 +35,7 @@ For **every code change** in this repository:
 7. Never force-push. If `main` has moved or is protected, integrate safely or report the blocker instead of overwriting history.
 8. Before reporting completion, verify that local `HEAD` matches GitHub `refs/heads/main` and that no task changes remain uncommitted.
 
-Current fallback baseline at the time of this change: `1.76.58`.
+Current fallback baseline at the time of this documentation update: `1.76.223`.
 
 ## Changelog format
 
@@ -95,10 +95,18 @@ The following settings were validated on the real production reference thermomet
 - Long-running FBG live charts must retain the complete visible time span. Bound rendering cost with chronological min/max envelope reduction; never drop the oldest samples while continuing to label X from the run start, because that makes an 11-hour run look like an 11-hour flat/noisy trace when only the last minutes remain.
 - The operator may explicitly bypass the temperature-stability wait for the current plateau only when a valid authoritative temperature is visible. This override must be limited to that plateau and recorded as a warning with target, WIKA and chamber temperatures in the run history.
 - Do not introduce a second chamber-stability dwell after the WIKA reference becomes stable.
-- The calibration setpoint ramp is command shaping only: it may limit how quickly the application moves the requested chamber setpoint, but the chamber must continue regulating from its own internal sensor. It must never turn WIKA into a PID/feedback loop. WIKA setpoint correction is enabled by default per device but remains independently switchable before a run; it may adjust the chamber setpoint only while WIKA is outside the configured target tolerance, must remain rate- and magnitude-limited, and must be locked while a calibration run is active. Reflect the active ramp rate in workflow `?` help.
+- The calibration setpoint ramp is command shaping only: it may limit how quickly the application moves the requested chamber setpoint, but the chamber must continue regulating from its own internal sensor. It must never turn WIKA into a PID/feedback loop. WIKA setpoint correction is disabled by default per device and may be explicitly enabled before a run; it may adjust the chamber setpoint only while WIKA is outside the configured target tolerance, must remain rate- and magnitude-limited, and must be locked while a calibration run is active. Reflect the active ramp rate in workflow `?` help.
 - After reference stability is achieved, **each selected PeakLogger peak must independently satisfy its own wavelength stability criteria** before its result is accepted. One stable peak must never make another peak stable.
 - The operator may select one suggested peak per channel or explicitly select all peaks. `Vybrať všetky peaky` means every discovered peak is independently evaluated and recorded.
 - Default peak stability remains 50 samples, 5 pm max range, 1.5 pm max standard deviation, and 1 pm/min max drift unless the saved setup explicitly changes these values.
+- New calibration setups default to WIKA target tolerance 1 °C, stable duration 5 minutes, maximum WIKA drift 0.03 °C/min, FBG acquisition interval 10 seconds, 50 stability samples and 50 final samples. A saved setup or checkpoint keeps its own snapshot until the operator explicitly applies current defaults.
+- Temperature stability must evaluate target tolerance, full-window range, standard deviation, full-window linear drift and short-term drift from real timestamps. A visibly rising or falling WIKA trace must reset the stable dwell even when a long-window regression happens to be close to zero.
+- Runtime edits of stability settings are allowed during an active calibration. Apply them immediately, audit the change and reset only unfinished WIKA/FBG stability and final-measurement windows; never rewrite completed plateaus.
+- A peak window that reaches its sample count but violates range, standard deviation or drift must reset and begin a clean attempt. Never leave a failed full window displayed as if it were still progressing toward acceptance.
+- Under `ContinueAndFlag`, exhausting peak-stability attempts/time must not discard the run. Collect and persist fresh final samples, finish the plateau and mark the affected sensor/result with an explicit stability problem for final evaluation.
+- Final wavelength fallback values use three consecutive raw acquisitions per stored averaged sample. The averaged sample, not each constituent acquisition, advances the final-sample counter.
+- Status totals must derive from the same target states as the visible rows. `stable/total`, `done`, `measuring` and `waiting` may not contradict one another, and state labels use consistent colored chips.
+- Clicking an SN/peak row in the compact monitor must focus and reveal that peak's detailed graph without changing calibration state.
 - The operator-facing run monitor must show the planned plateau order before start and, during a run, the current step, what the runner is waiting for, current plateau, reference temperature, active peak/SN/channel, wavelength sample progress and stable-peak count.
 - Every operator-facing workflow step must expose a visible `?` help affordance. Its text must explain what the step does, its gates, sample counts, reset/failure behaviour and timing. Build these descriptions from the active `CalibrationProfileSettings` and observed acquisition cadence; whenever calibration logic or defaults change, update the workflow help in the same change so it never becomes stale documentation.
 - Calibration ETA must use profile/plateau history when available, account for the configured setpoint ramp, and subtract only elapsed time from the active plateau. If the active WIKA/FBG stability wait exceeds the available historical evidence, show an explicitly uncertain estimate and no fabricated finish time.
@@ -115,6 +123,11 @@ The following settings were validated on the real production reference thermomet
 - When PeakLogger reconnects, restore saved mappings by stable source identity `PeakLoggerDeviceSerialNumber|Channel|PeakId`; wavelength is measurement data, not identity.
 - A failed automatic reconnect must leave the FBG window responsive and editable and must not clear the saved wiring.
 - Persistent WIKA assignment is separate from workspace/profile persistence and remains governed by `CalibrationReferenceStatusStore`.
+- Continuing from a checkpoint is enabled only after the saved PeakLogger endpoint and the originally assigned WIKA produce valid live data. Loading a checkpoint alone is insufficient readiness.
+- `Použiť aktuálne predvolené nastavenia` explicitly copies current administrator defaults into a resumed run, preserves completed plateaus, resets unfinished windows, updates the checkpoint and writes an audit warning. Never apply new defaults silently to an existing run.
+- Resume work is calculated from plateau indices, not merely the number of completed results. Deferred plateaus remain queued for their one retry, and the UI label must identify the actual next plateau.
+- The first resumed sampling cycle must not issue a redundant second chamber read after WIKA. Reuse the fresh chamber value already obtained for that cycle so a device cannot fail on duplicate access.
+- Runner failures must be written while `CalibrationRunWriter` is still alive. Do not make the primary diagnostic write only after an `await using` writer has been disposed, because that masks the original exception.
 
 ### FBG wiring edit transaction — never interrupt operator input
 
@@ -193,11 +206,22 @@ The following settings were validated on the real production reference thermomet
 - Expanding the reference-temperature chart must never make the `Zapojenie` table unreachable.
 - Keep a page-level vertical scrollbar for content overflow and independent scrollbars for wide/long DataGrids.
 - The `Zapojenie` workspace should provide enough vertical space to see approximately **16 production rows** at once when the operator scrolls to that section; extra rows remain independently scrollable.
-- Keep the `Zapojenie` workspace as a master-detail layout: a virtualized compact table of scanning-critical fields on the left and the selected sensor's SN/CHAIN/production metadata/notes on the right. Filtering must be debounced and must never refresh the collection view during a DataGrid edit transaction.
+- Keep all wiring data in one virtualized table; do not move secondary SN/CHAIN/production metadata or notes into a right-side detail panel. Freeze leading identification columns and expose remaining columns through horizontal scrolling. Filtering must be debounced and must never refresh the collection view during a DataGrid edit transaction.
+- Preserve the approved dense table appearance: uniform row heights, three-decimal numeric values, pencil affordances in editable cells and errors shown inside the affected cell. Row focus/selection must remain visibly blue after clicking or editing a cell.
 - Do not compress production table columns until headers/text overlap; prefer column minimum widths plus horizontal scrolling.
 - Dynamic status/port text must not visually collide with section headings.
 - The dashboard FBG run card must be a separate sibling **above the entire `Rýchle ovládanie` section**. Never inject it into the Quick-control header/DockPanel where it can overlap `Rýchle ovládanie` or `Upraviť predvoľby`.
 - The FBG run card should remain collapsed while no FBG run is active; the FBG button/control-mode badge already communicate inactive availability without consuming vertical space.
+- The large USB reference-temperature chart is collapsed by default after opening or restoring a calibration and expands only on explicit operator action.
+
+## POL-EKO SLN / LabDesk manual control
+
+- Manual quick temperature control uses the existing reserved LabDesk program **FOS LAB**, program ID `11`. Never revert to the nonexistent historical ID `99` and never create a new program for every setpoint.
+- LabDesk credentials come from local protected application settings. Never hard-code or log a real password; diagnostic requests must redact it.
+- POL-EKO has no reliable direct live `SET_TEMPERATURE` command. Changing a running manual setpoint is one atomic operator action: authenticated `STOP` → poll `GET_STATUS` until `IS_RUNNING=false` → allow the program-edit lock to settle → `UPDATE_PROGRAM` 11 → `LAUNCH_BY_ID` 11 → verify `IS_RUNNING=true` and `PROGRAM_ID=11`.
+- A successful `STOP` response does not mean the program is immediately editable. The real SLN 115 can temporarily return `GENERAL_ERROR` from `UPDATE_PROGRAM`; use bounded delayed retries instead of requiring the operator to press Stop manually.
+- Do not report a new setpoint in the UI until update and launch both succeed and live status confirms program 11 is running. If verification fails, surface the error and keep the displayed device state truthful.
+- Preserve temperature protection and optional shutdown-timer behavior when quick control restarts FOS LAB. Every write remains wrapped by `TemperatureSafetyChamberDevice`.
 
 ## Changelog UI architecture
 

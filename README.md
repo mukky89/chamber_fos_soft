@@ -277,31 +277,77 @@ Záložka **Bezpečnosť** na detaile komory:
 
 E-mail pri alarme sa odošle, ak sú notifikácie nastavené v *Administrácii*.
 
-## Teplomery ASL F100 (USB)
+## Referenčné teplomery WIKA CTH7000 (USB)
 
-Tlačidlo **„Teplomery ASL F100 →"** na home page otvorí správu presných
-teplomerov **ASL F100** (a príbuzných F150/F250), ktoré sa pripájajú cez **USB
-ako virtuálny COM port**.
+Správa referenčných teplomerov podporuje **WIKA CTH7000**, ktoré sa pripájajú
+cez USB ako virtuálny COM port. Historické názvy `F100Client` a `F100Protocol`
+zostávajú iba ako interné kompatibilné symboly v zdrojovom kóde.
 
 - **Enumerácia portov so sériovým číslom** – keďže máš viac rovnakých kusov,
   každý sa zobrazí ako `COMx · <sériové číslo> (popis)`; vyberáš podľa portu
   alebo S/N. Tlačidlo *Obnoviť zoznam* znova prehľadá USB.
 - **Viacero teplomerov naraz** – každý má vlastné spojenie, živú teplotu, graf a
   **CSV záznam**.
-- **Referenčné meranie pri komore** – ku komore priradíš F100 ako externú
+- **Referenčné meranie pri komore** – ku komore priradíš WIKA ako externú
   referenciu; v live zobrazení vidíš referenčnú teplotu a **odchýlku**
   (komora − referencia), ktorá sa zapíše aj do CSV záznamu komory.
-- **Komunikácia**: 9600 8N1. Pôvodný F100 sa automaticky číta z pasívneho
-  USB „talk-only“ prúdu (vrátane rozlíšenia kanála A/B alebo 1/2). Na prístroji
-  musí byť zapnuté **Menu → Options → Talk Only → On**. Ak prúd
-  neprichádza, aplikácia skúsi dotazovací SCPI režim príbuzných firmvérov;
-  príkaz čítania je konfigurovateľný (default `READ?`).
-- **Terminál** na kalibráciu a ladenie dotazovacích firmvérov; pôvodný F100
-  v talk-only režime nepotrebuje prijímať žiadne príkazy.
+- **Komunikácia**: 9600 8N1, CR terminátor, DTR/RTS zapnuté a 25 ms medzi
+  vysielanými znakmi. Overená sekvencia je `SYSTEM:REMOTE`, aspoň 1 s čakanie,
+  prvotná identifikácia a `MEASURE:CHANNEL? 1/2`, vždy ukončená
+  `SYSTEM:LOCAL`.
+- **Viac pracovísk** – jeden fyzický teplomer môže byť trvalo priradený iba
+  jednej FBG kalibrácii. Priradenie prežije reštart aj dočasné odpojenie USB;
+  neaktuálna teplota sa však po odpojení nezobrazuje.
 
-> Pozn.: parsovanie hodnoty/jednotky je v `F100Protocol` (jadro, testované);
+> Pozn.: parsovanie hodnoty/jednotky je v kompatibilnom symbole `F100Protocol`
+> v súbore CTH7000 protokolu (jadro, testované);
 > sériová komunikácia (`System.IO.Ports`) a enumerácia USB sériových čísiel
 > (WMI) sú vo WPF projekte – fungujú na Windowse.
+
+## FBG teplotná kalibrácia
+
+Kalibračné pracovisko používa WIKA CTH7000 ako autoritatívnu referenciu a
+PeakLogger na paralelné meranie vybraných FBG peakov. Komora reguluje vlastným
+snímačom; jej teplota sa zobrazuje a loguje, ale stabilitu kalibračného bodu
+rozhoduje WIKA.
+
+- Nové zapojenie predvolene používa toleranciu WIKA 1 °C, stabilný čas 5 min,
+  maximálny drift 0,03 °C/min, interval FBG 10 s a po 50 stabilizačných a
+  finálnych vzoriek. Uložené zapojenie alebo checkpoint si drží vlastný snapshot.
+- Stabilita WIKA súčasne kontroluje toleranciu voči cieľu, rozsah, smerodajnú
+  odchýlku, celkový lineárny drift aj krátkodobý drift. Nevyhovujúci pohyb
+  vynuluje stabilný čas.
+- Automatické jemné dorovnanie setpointu podľa WIKA je predvolene vypnuté. Po
+  vedomom zapnutí zostáva pomalé a obmedzené; nemení WIKA na regulačnú slučku
+  komory.
+- Každý peak sa vyhodnocuje nezávisle. Nevyhovujúce plné okno sa zahodí a začne
+  sa čistý pokus; po vyčerpaní povolených pokusov sa pri politike
+  `ContinueAndFlag` meranie dokončí a snímač zostane označený problémom stability.
+- Počas behu možno meniť tolerancie. Nové hodnoty sa použijú okamžite a vynulujú
+  iba rozpracované okná. Dokončené plata sa nemenia.
+- Obnovenie je možné až po živom načítaní pôvodnej WIKA aj PeakLoggera. Ak chce
+  operátor použiť nové administrátorské hodnoty, musí zvoliť
+  **Použiť aktuálne predvolené nastavenia**; zmena sa uloží a audituje.
+- Zapojenie zostáva v jednej širokej tabuľke so zmrazenými identifikačnými
+  stĺpcami a horizontálnym posunom. Kliknutie na SN v monitore otvorí príslušný
+  detailný graf.
+
+Každý beh ukladá raw vzorky, wavelength trace, checkpoint, súhrn a diagnostický
+log. Pri chybe sa pôvodná výnimka zapíše ešte pred zatvorením logu, aby bolo
+možné spoľahlivo analyzovať zlyhanie po obnovení.
+
+## Sušiareň POL-EKO SLN / LabDesk
+
+Manuálne nastavenie teploty používa existujúci vyhradený program **FOS LAB**
+s ID `11`. Pri zmene teploty počas behu tlačidlo **Nastaviť** automaticky vykoná
+celú sekvenciu: zastaví program, počká na potvrdené zastavenie a uvoľnenie
+editácie, aktualizuje program, znovu ho spustí a overí živý stav. Dočasné
+`GENERAL_ERROR` po zastavení sa rieši obmedzeným opakovaním, takže nie je
+potrebné najskôr ručne stlačiť Stop.
+
+Prihlasovacie údaje LabDesk sa čítajú z lokálnych chránených nastavení a heslo
+sa v diagnostike maskuje. Teplotná poistka zostáva aktívna pri manuálnom
+ovládaní aj profiloch; voliteľný časovač vypnutia ukončí beh po zadanom čase.
 
 ## Profily (rampy a plata)
 

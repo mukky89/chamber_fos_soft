@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.223] – 2026-09-06
+
+### Zmenené
+- Projektový `SKILL.md` a GitHub `README.md` boli zosúladené s aktuálnou implementáciou FBG kalibrácie, WIKA CTH7000, obnovovania checkpointov, živého ladenia stability, tabuľkového zapojenia a manuálneho ovládania POL-EKO cez program FOS LAB.
+
 ## [1.76.222] – 2026-09-06
 
 ### Opravené
