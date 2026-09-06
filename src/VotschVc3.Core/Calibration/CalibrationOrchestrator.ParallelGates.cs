@@ -446,7 +446,7 @@ public sealed class CalibrationOrchestrator
                 if (resetMessage is not null)
                     writer.WriteDiagnostic("WARNING", "FBG_MEASUREMENT_RESET", resetMessage);
 
-                if (!tracker.IsTerminal && tracker.ActiveElapsed >= tracker.EffectiveTimeout)
+                if (!tracker.IsTerminal && !tracker.IsSamplingAfterStabilityTimeout && tracker.ActiveElapsed >= tracker.EffectiveTimeout)
                 {
                     CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
                     {
@@ -459,7 +459,7 @@ public sealed class CalibrationOrchestrator
                         PeakId = tracker.Mapping.PeakId,
                     });
                     if (settings.SensorTimeoutPolicy == CalibrationFailurePolicy.ContinueAndFlag)
-                        tracker.CompleteTimedOut(run, plateauIndex, targetTemperatureC, actualTemperature, referenceTemperature, warning.Message);
+                        tracker.BeginMeasurementAfterStabilityTimeout(warning.Message);
                     else
                         ApplyFailurePolicy(settings.SensorTimeoutPolicy, warning);
                 }
@@ -799,6 +799,7 @@ public sealed class CalibrationOrchestrator
         private bool _sensorPhaseStarted;
         private bool _completeRetryGranted;
         private string? _lastResetMessage;
+        private string? _stabilityWarning;
 
         public TargetTracker(CalibrationSensorMapping mapping, CalibrationProfileSettings settings)
         {
@@ -823,6 +824,7 @@ public sealed class CalibrationOrchestrator
         public CalibrationMeasurementResult? Result { get; private set; }
         public TimeSpan MissingFor => _missingSince is { } since ? DateTimeOffset.UtcNow - since : TimeSpan.Zero;
         public bool IsMeasuring { get; private set; }
+        public bool IsSamplingAfterStabilityTimeout => _stabilityWarning is not null && !IsTerminal;
         public bool IsTerminal => Result is not null;
         public bool IsCompletedStable => Result?.Status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden;
 
@@ -883,6 +885,15 @@ public sealed class CalibrationOrchestrator
         {
             if (IsTerminal) return null;
             LastMetrics = _stabilityDetector.Add(raw.Timestamp, raw.WavelengthNm);
+
+            if (_stabilityWarning is not null)
+            {
+                State = CalibrationTargetState.Live;
+                _measurementSamples.Add(raw);
+                if (_measurementSamples.Count >= Math.Max(2, settings.RequiredMeasurementSamples))
+                    CompleteMeasurementWithStabilityWarning();
+                return null;
+            }
 
             if (!IsMeasuring)
             {
@@ -971,6 +982,18 @@ public sealed class CalibrationOrchestrator
             Result = CreateResultFromCurrentWindow(State, problem);
         }
 
+        public void BeginMeasurementAfterStabilityTimeout(string problem)
+        {
+            if (IsTerminal || _stabilityWarning is not null) return;
+            _stabilityWarning = problem;
+            _lastResetMessage = problem;
+            _measurementSamples.Clear();
+            _stabilityDetector = NewStabilityDetector();
+            LastMetrics = null;
+            IsMeasuring = true;
+            State = CalibrationTargetState.Live;
+        }
+
         public CalibrationMeasurementResult CreateFallbackResult() =>
             Result ?? CreateResultFromCurrentWindow(State, "Meranie skončilo bez kompletného výsledku.");
 
@@ -995,6 +1018,8 @@ public sealed class CalibrationOrchestrator
             {
                 string terminal = Result?.Status == CalibrationTargetState.Stable
                     ? $"HOTOVO · meranie {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples ✓"
+                    : Result?.Status == CalibrationTargetState.CompletedWithStabilityWarning
+                        ? $"HOTOVO S UPOZORNENÍM · finálne meranie {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples · problém so stabilizáciou"
                     : $"KONIEC · {Result?.Status}: {Result?.Problem}";
                 return BuildProgress(Result?.Status ?? State, _measurementSamples.Count, Math.Max(2, settings.RequiredMeasurementSamples), terminal);
             }
@@ -1007,6 +1032,12 @@ public sealed class CalibrationOrchestrator
 
             if (IsMeasuring)
             {
+                if (_stabilityWarning is not null)
+                {
+                    string warningMeasurement =
+                        $"MERANIE PO TIMEOUTE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples · výsledok bude označený problémom so stabilizáciou";
+                    return BuildProgress(CalibrationTargetState.Live, _measurementSamples.Count, Math.Max(2, settings.RequiredMeasurementSamples), warningMeasurement);
+                }
                 string measuring =
                     $"MERANIE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples · " +
                     $"stabilita stále OK: range {metrics.Range:F3}/{settings.MaxWavelengthRangePm:F3} pm {(rangeOk ? "✓" : "×")} · " +
@@ -1054,7 +1085,7 @@ public sealed class CalibrationOrchestrator
                 RangeLimitPm: _settings.MaxWavelengthRangePm,
                 StdDevLimitPm: _settings.MaxWavelengthStdDevPm,
                 DriftLimitPmPerMinute: _settings.MaxWavelengthDriftPmPerMinute,
-                Phase: IsTerminal ? "Done" : state == CalibrationTargetState.WaitingForTemperature ? "Temperature" : IsMeasuring ? "Measuring" : "Stabilizing",
+                Phase: IsTerminal ? "Done" : state == CalibrationTargetState.WaitingForTemperature ? "Temperature" : IsSamplingAfterStabilityTimeout ? "MeasuringWithStabilityWarning" : IsMeasuring ? "Measuring" : "Stabilizing",
                 BlockingReason: Result?.Problem ?? (state == CalibrationTargetState.WaitingForTemperature ? detail : string.Empty));
         }
 
@@ -1116,6 +1147,13 @@ public sealed class CalibrationOrchestrator
             State = CalibrationTargetState.Stable;
             IsMeasuring = false;
             Result = CreateResultFromMeasurementSamples(CalibrationTargetState.Stable, null);
+        }
+
+        private void CompleteMeasurementWithStabilityWarning()
+        {
+            State = CalibrationTargetState.CompletedWithStabilityWarning;
+            IsMeasuring = false;
+            Result = CreateResultFromMeasurementSamples(State, _stabilityWarning);
         }
 
         private CalibrationMeasurementResult CreateResultFromMeasurementSamples(

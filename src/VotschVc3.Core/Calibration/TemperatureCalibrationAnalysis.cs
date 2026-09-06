@@ -28,6 +28,8 @@ public sealed class TemperatureCalibrationResult
     public double ErrorToleranceC { get; set; }
     public double RSquared { get; set; }
     public string Result { get; set; } = "N/A";
+    public string StabilityStatus { get; set; } = "OK";
+    public string? StabilityProblem { get; set; }
 
     public string Identity => $"{SerialNumber}|{Channel}|{PeakId}";
 }
@@ -64,10 +66,20 @@ public static class TemperatureCalibrationAnalyzer
             double sensitivity = LinearSlope(temperature, wavelength) * 1000d;
             double tolerance = (max - min) * 0.01d;
             CalibrationMeasurementResult first = points[0].Target;
+            int firstResultIndex = results.Count;
             TryAddFbgs(results, first, temperature, wavelength, referenceTemperature, sensitivity, tolerance);
             TryAddPolynomial(results, first, temperature, wavelength, referenceTemperature, sensitivity, tolerance, 2);
             if (points.Select(point => point.TemperatureC).Distinct().Count() >= 4)
                 TryAddPolynomial(results, first, temperature, wavelength, referenceTemperature, sensitivity, tolerance, 3);
+            CalibrationMeasurementResult[] stabilityWarnings = points.Select(point => point.Target)
+                .Where(target => target.Status == CalibrationTargetState.CompletedWithStabilityWarning).ToArray();
+            foreach (TemperatureCalibrationResult result in results.Skip(firstResultIndex))
+            {
+                result.StabilityStatus = stabilityWarnings.Length == 0 ? "OK" : "PROBLÉM";
+                result.StabilityProblem = stabilityWarnings.Length == 0
+                    ? null
+                    : string.Join(" | ", stabilityWarnings.Select(target => target.Problem).Where(problem => !string.IsNullOrWhiteSpace(problem)).Distinct());
+            }
         }
         return results.OrderBy(result => result.SerialNumber).ThenBy(result => result.Channel).ThenBy(result => result.PeakIndex)
             .ThenBy(result => result.CalibrationType).ToList();
@@ -146,13 +158,14 @@ public static class TemperatureCalibrationAnalyzer
 
     public static void ExportCsv(IEnumerable<TemperatureCalibrationResult> results, string path)
     {
-        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;CalibrationType;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefS1;CoefS2;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result\r\n");
+        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;CalibrationType;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefS1;CoefS2;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result;StabilityStatus;StabilityProblem\r\n");
         foreach (TemperatureCalibrationResult item in results)
             text.AppendJoin(';', E(item.SerialNumber), E(item.PeakLoggerDeviceSerialNumber), E(item.Channel), E(item.PeakId), item.PeakIndex,
                 E(item.CalibrationType),
                 item.PointCount, F(item.MinimumTemperatureC), F(item.MaximumTemperatureC), F(item.ReferenceTemperatureC), F(item.LambdaTRefNm),
                 F(item.SensitivityPmPerC), FN(item.CoefficientS1), FN(item.CoefficientS2), FN(item.CoefficientA), FN(item.CoefficientB), FN(item.CoefficientC),
-                FN(item.CoefficientD), F(item.MaxErrorC), F(item.ErrorToleranceC), F(item.RSquared), item.Result).Append("\r\n");
+                FN(item.CoefficientD), F(item.MaxErrorC), F(item.ErrorToleranceC), F(item.RSquared), item.Result,
+                E(item.StabilityStatus), E(item.StabilityProblem ?? string.Empty)).Append("\r\n");
         File.WriteAllText(path, text.ToString(), Encoding.UTF8);
     }
 
@@ -161,10 +174,10 @@ public static class TemperatureCalibrationAnalyzer
         using var workbook = new XLWorkbook();
         IXLWorksheet sheet = workbook.Worksheets.Add("Koeficienty");
         sheet.Cell("A1").Value = "FBG TEPLOTNÁ KALIBRÁCIA – KOEFICIENTY";
-        sheet.Range("A1:V1").Merge().Style.Fill.SetBackgroundColor(XLColor.FromHtml("#182A40"));
+        sheet.Range("A1:X1").Merge().Style.Fill.SetBackgroundColor(XLColor.FromHtml("#182A40"));
         sheet.Cell("A1").Style.Font.SetBold().Font.SetFontSize(18).Font.SetFontColor(XLColor.White);
         sheet.Cell("A2").Value = $"{run.DisplayRunId} · {run.DisplayProfileId} · {run.ChamberName}";
-        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Kalibrácia", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "s1", "s2", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok"];
+        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Kalibrácia", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "s1", "s2", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok", "Stabilizácia", "Problém stabilizácie"];
         for (int i = 0; i < headers.Length; i++) sheet.Cell(4, i + 1).Value = headers[i];
         sheet.Range(4, 1, 4, headers.Length).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#2C4770")).Font.SetBold().Font.SetFontColor(XLColor.White);
         int row = 5;
@@ -173,10 +186,12 @@ public static class TemperatureCalibrationAnalyzer
             object?[] values = [item.SerialNumber, item.PeakLoggerDeviceSerialNumber, item.Channel, item.PeakId, item.PeakIndex, item.CalibrationType, item.PointCount,
                 item.MinimumTemperatureC, item.MaximumTemperatureC, item.ReferenceTemperatureC, item.LambdaTRefNm, item.SensitivityPmPerC,
                 item.CoefficientS1, item.CoefficientS2, item.CoefficientA, item.CoefficientB, item.CoefficientC, item.CoefficientD,
-                item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result];
+                item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result, item.StabilityStatus, item.StabilityProblem];
             for (int col = 0; col < values.Length; col++)
                 if (values[col] is not null) sheet.Cell(row, col + 1).Value = XLCellValue.FromObject(values[col]);
             sheet.Cell(row, 22).Style.Font.SetBold().Font.SetFontColor(item.Result == "PASS" ? XLColor.FromHtml("#087F5B") : XLColor.FromHtml("#C92A2A"));
+            if (item.StabilityStatus != "OK")
+                sheet.Cell(row, 23).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#FFF3CD")).Font.SetBold().Font.SetFontColor(XLColor.FromHtml("#9A6700"));
             row++;
         }
         sheet.SheetView.FreezeRows(4);
@@ -186,7 +201,7 @@ public static class TemperatureCalibrationAnalyzer
     }
 
     private static bool IsAccepted(CalibrationMeasurementResult target) =>
-        target.Status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden && target.SampleCount > 0;
+        (target.Status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden or CalibrationTargetState.CompletedWithStabilityWarning) && target.SampleCount > 0;
 
     private static double[] FitPolynomial(double[] x, double[] y, int order)
     {

@@ -170,10 +170,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string TemperatureStatus => _snapshot is null || _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Stabilita WIKA sa ešte nevyhodnocuje" : _snapshot?.TemperatureGateOpen == true ? "✓ STABLE · WIKA referencia potvrdená" : "WAITING · WIKA teplotná brána";
     public int TotalTargets => _snapshot?.TotalTargets ?? 0;
     public int StableCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable || t.Phase == "Measuring") ?? 0;
-    public int DoneCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable) ?? 0;
-    public int MeasuringCount => _snapshot?.Targets.Count(t => t.Phase == "Measuring") ?? 0;
+    public int DoneCount => _snapshot?.Targets.Count(t => t.State is CalibrationTargetState.Stable or CalibrationTargetState.Overridden or CalibrationTargetState.CompletedWithStabilityWarning) ?? 0;
+    public int MeasuringCount => _snapshot?.Targets.Count(t => t.Phase is "Measuring" or "MeasuringWithStabilityWarning") ?? 0;
+    public int WarningMeasuringCount => _snapshot?.Targets.Count(t => t.Phase == "MeasuringWithStabilityWarning") ?? 0;
     public string PeakSummary => $"{StableCount} / {TotalTargets} prešlo stabilitou";
-    public string PeakDetail => $"{MeasuringCount} vo finálnom meraní · {DoneCount} úplne dokončených";
+    public string PeakDetail => $"{MeasuringCount} vo finálnom meraní{(WarningMeasuringCount > 0 ? $" · {WarningMeasuringCount} po timeout-e" : string.Empty)} · {DoneCount} úplne dokončených";
     public string PeakStabilityCriteria =>
         $"{_requiredStableSamples} vzoriek · range ≤ {_maxRangePm:F3} pm · σ ≤ {_maxStdDevPm:F3} pm · drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min";
     public string PeakStabilityCriteriaHelp =>
@@ -194,7 +195,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string PeakCardTone => RunStoppedWithError ? "Error" : PeakCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : PeakCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
     public string MeasurementCardState => RunStoppedWithError ? "! STOPPED" : PointFinished ? "✓ DONE" : MeasuringCount > 0 || Samples > 0 ? "● RUNNING" : "○ PENDING";
     public string MeasurementCardTone => RunStoppedWithError ? "Error" : MeasurementCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : MeasurementCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
-    public string ActivePeakKey => _snapshot?.Targets.FirstOrDefault(t => t.Phase == "Measuring") is { } m ? $"{m.SerialNumber}|{m.Channel}|{m.PeakId}" :
+    public string ActivePeakKey => _snapshot?.Targets.FirstOrDefault(t => t.Phase is "Measuring" or "MeasuringWithStabilityWarning") is { } m ? $"{m.SerialNumber}|{m.Channel}|{m.PeakId}" :
         _snapshot?.Targets.FirstOrDefault(t => t.State != CalibrationTargetState.Stable) is { } s ? $"{s.SerialNumber}|{s.Channel}|{s.PeakId}" : "";
     public string ActivePeak => ActivePeakKey.Length == 0 ? "—" : ActivePeakKey.Replace("|", " · ");
     public string Phase => _paused ? "Pozastavené" : _state switch
@@ -483,6 +484,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                     _lastWarning = Alert;
                 }
                 else if (t.Phase == "Measuring") AddEvent(now, "INFO", $"Peak {key.Replace("|", " · ")} je stabilný, začína meranie.");
+                else if (t.Phase == "MeasuringWithStabilityWarning") AddEvent(now, "WARNING", $"Peak {key.Replace("|", " · ")} po timeout-e začína finálne meranie s upozornením na stabilizáciu.");
                 _targetEvents[key] = state;
             }
         }
@@ -726,7 +728,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             "4. Úspešný blok pripočíta reálne uplynuté sekundy ku skóre.\n" +
             "5. Neúspešný blok odpočíta dvojnásobok času bloku (najviac po nulu) a nastaví novú základňu.\n" +
             $"Brána sa otvorí po potvrdenom skóre {Duration(_stableDuration)}. Medzi uzavretými blokmi sa čas zobrazuje priebežne, ale potvrdí ho až celý blok. Timeout: {Duration(_stabilityTimeout)}.",
-            $"Každý vybraný peak má vlastný detektor. Potrebuje {_requiredStableSamples} vzoriek vyhodnotených po sebe, range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm a drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Ak celé stabilizačné okno nevyhovie, zahodí sa a nový čistý pokus začne od 0. Peaky sa kontrolujú paralelne; {Estimate(_requiredStableSamples)}. Základný timeout peaku: {Duration(_sensorTimeout)}. Po prvom zrušení rozpracovaného finálneho merania sa k nemu pripočíta čas na jeden celý nový pokus vypočítaný zo skutočného cyklu dát. Ďalšie restarty už limit nepredlžujú. {cycle}.",
+            $"Každý vybraný peak má vlastný detektor. Potrebuje {_requiredStableSamples} vzoriek vyhodnotených po sebe, range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm a drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Ak celé stabilizačné okno nevyhovie, zahodí sa a nový čistý pokus začne od 0. Peaky sa kontrolujú paralelne; {Estimate(_requiredStableSamples)}. Základný timeout peaku: {Duration(_sensorTimeout)}. Po prvom zrušení rozpracovaného finálneho merania sa k nemu pripočíta čas na jeden celý nový pokus vypočítaný zo skutočného cyklu dát. Ak pri politike ContinueAndFlag vyprší aj celý limit, peak nazbiera nové finálne vzorky bez ďalšej brány a výsledok zostane označený problémom so stabilizáciou. {cycle}.",
             $"Po potvrdení stability sa stabilizačné vzorky nepoužijú ako výsledok. Každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek paralelne; {Estimate(_requiredMeasurementSamples)}. Ak peak prestane spĺňať limity, rozpracované vzorky sa zahodia, zobrazí sa ich počet a konkrétne prekročené kritérium a peak dostane jeden kompletný nový pokus. {cycle}.",
             "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
             "Po dokončení všetkých vybraných peakov uloží checkpoint a nastaví cieľ nasledujúceho vybraného plata. Ak žiadne nezostáva, prejde na záverečné temperovanie.",
@@ -833,10 +835,12 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
     public string State => _progress?.Phase switch
     {
         "Measuring" => "MERANIE",
+        "MeasuringWithStabilityWarning" => "MERANIE · UPOZORNENIE",
         _ when _progress?.State == CalibrationTargetState.Stable => "HOTOVO",
+        _ when _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning => "UPOZORNENIE",
         _ => "STABILIZÁCIA",
     };
-    public string StateBrush => _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
+    public string StateBrush => _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning || _progress?.Phase == "MeasuringWithStabilityWarning" ? "#E5AA54" : _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
         ? "#3CB371"
         : "#DAA520";
     public string MeasurementSamples => _progress is null ? "Finálne vzorky —" : $"Finálne vzorky {_progress.MeasurementSamples} / {_progress.RequiredMeasurementSamples}";
@@ -846,10 +850,12 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
     public string MeasurementState => _progress?.Phase switch
     {
         "Measuring" => "MERANIE",
+        "MeasuringWithStabilityWarning" => "MERANIE · UPOZORNENIE",
         "Done" when _progress.State == CalibrationTargetState.Stable => "HOTOVO",
+        "Done" when _progress.State == CalibrationTargetState.CompletedWithStabilityWarning => "UPOZORNENIE",
         _ => "ČAKÁ",
     };
-    public string MeasurementStateBrush => _progress?.Phase == "Measuring" ||
+    public string MeasurementStateBrush => _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning || _progress?.Phase == "MeasuringWithStabilityWarning" ? "#E5AA54" : _progress?.Phase == "Measuring" ||
         _progress is { Phase: "Done", State: CalibrationTargetState.Stable }
         ? "#3CB371"
         : "#DAA520";

@@ -26,7 +26,8 @@ public static class CalibrationCompletionEmail
         string finished = run.CompletedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.CurrentCulture) ?? "—";
         TimeSpan? duration = run.CompletedAt - run.StartedAt;
         int targetCount = run.Plateaus.Sum(p => p.Targets.Count);
-        int failedCount = run.Plateaus.Sum(p => p.Targets.Count(t => !IsTargetPass(t.Status)));
+        int stabilityWarningCount = run.Plateaus.Sum(p => p.Targets.Count(t => t.Status == CalibrationTargetState.CompletedWithStabilityWarning));
+        int failedCount = run.Plateaus.Sum(p => p.Targets.Count(t => !IsTargetPass(t.Status) && t.Status != CalibrationTargetState.CompletedWithStabilityWarning));
         List<TemperatureCalibrationResult> calibrationResults = run.CalibrationResults.Count > 0
             ? run.CalibrationResults
             : TemperatureCalibrationAnalyzer.Analyze(run);
@@ -38,15 +39,16 @@ public static class CalibrationCompletionEmail
             $"Spustené: {run.StartedAt.ToLocalTime():dd.MM.yyyy HH:mm:ss}\r\nDokončené: {finished}\r\n" +
             $"Trvanie: {(duration is { } d ? FormatDuration(d) : "—")}\r\n" +
             $"WIKA: {run.ReferenceThermometerPort} / {run.ReferenceThermometerChannel} / SN {Value(run.ReferenceThermometerSerialNumber)}\r\n" +
-            $"Plata: {run.Plateaus.Count}\r\nFBG výsledky: {targetCount - failedCount} PASS / {failedCount} FAIL\r\n" +
+            $"Plata: {run.Plateaus.Count}\r\nFBG výsledky: {targetCount - failedCount - stabilityWarningCount} PASS / {stabilityWarningCount} UPOZORNENIE / {failedCount} FAIL\r\n" +
             $"Kalibračné modely: {calibrationPassCount} PASS / {calibrationResults.Count - calibrationPassCount} FAIL\r\n" +
             $"Upozornenia: {run.Warnings.Count}\r\n\r\nLokálny priečinok: {Path.GetFullPath(runDirectory)}";
 
         string rows = string.Join(string.Empty, run.Plateaus.SelectMany(plateau => plateau.Targets.Select(target =>
         {
             bool targetPassed = IsTargetPass(target.Status);
-            string targetResult = targetPassed ? "PASS" : "FAIL";
-            string color = targetPassed ? "#087F5B" : "#C92A2A";
+            bool stabilityWarning = target.Status == CalibrationTargetState.CompletedWithStabilityWarning;
+            string targetResult = stabilityWarning ? "UPOZORNENIE" : targetPassed ? "PASS" : "FAIL";
+            string color = stabilityWarning ? "#9A6700" : targetPassed ? "#087F5B" : "#C92A2A";
             return $"<tr>" +
                 Cell((plateau.PlateauIndex + 1).ToString(CultureInfo.InvariantCulture)) +
                 Cell($"{plateau.TargetTemperatureC:0.###} °C") +
@@ -66,11 +68,11 @@ public static class CalibrationCompletionEmail
             return "<tr>" + Cell(Value(item.SerialNumber)) + Cell(Value(item.Channel)) + Cell(Value(item.PeakId)) +
                 Cell(Value(item.CalibrationType)) + Cell($"{item.LambdaTRefNm:0.000000} nm") +
                 Cell($"{item.SensitivityPmPerC:0.######} pm/°C") + Cell(FormatCoefficients(item)) +
-                Cell($"{item.MaxErrorC:0.######} °C") + Cell(item.RSquared.ToString("0.########", CultureInfo.InvariantCulture)) +
+                Cell($"{item.MaxErrorC:0.######} °C") + Cell(item.RSquared.ToString("0.########", CultureInfo.InvariantCulture)) + Cell(item.StabilityStatus) +
                 $"<td style=\"padding:9px;border-bottom:1px solid #E5EBF2;color:{color};font-weight:700\">{H(item.Result)}</td></tr>";
         }));
         if (coefficientRows.Length == 0)
-            coefficientRows = "<tr><td colspan=\"10\" style=\"padding:14px;color:#C92A2A\">Koeficienty nebolo možné vypočítať – nie sú dostupné aspoň tri platné teplotné body.</td></tr>";
+            coefficientRows = "<tr><td colspan=\"11\" style=\"padding:14px;color:#C92A2A\">Koeficienty nebolo možné vypočítať – nie sú dostupné aspoň tri platné teplotné body.</td></tr>";
 
         string fullDirectory = Path.GetFullPath(runDirectory);
         string folderUri = new Uri(fullDirectory.EndsWith(Path.DirectorySeparatorChar) ? fullDirectory : fullDirectory + Path.DirectorySeparatorChar).AbsoluteUri;
@@ -85,7 +87,7 @@ public static class CalibrationCompletionEmail
 <tr><td class="content-pad" style="padding:0 32px 28px">
 <h2 style="margin:0 0 12px;color:#182A40;font-size:19px">Kalibračné koeficienty</h2>
 <div style="overflow-x:auto"><table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:11px;color:#334155">
-<thead><tr style="background:#EEF3F8"><th style="padding:9px;text-align:left">SN</th><th style="padding:9px;text-align:left">Kanál</th><th style="padding:9px;text-align:left">Peak</th><th style="padding:9px;text-align:left">Kalibrácia</th><th style="padding:9px;text-align:left">λTref</th><th style="padding:9px;text-align:left">Citlivosť</th><th style="padding:9px;text-align:left">Koeficienty</th><th style="padding:9px;text-align:left">Max. chyba</th><th style="padding:9px;text-align:left">R²</th><th style="padding:9px;text-align:left">Výsledok</th></tr></thead>
+<thead><tr style="background:#EEF3F8"><th style="padding:9px;text-align:left">SN</th><th style="padding:9px;text-align:left">Kanál</th><th style="padding:9px;text-align:left">Peak</th><th style="padding:9px;text-align:left">Kalibrácia</th><th style="padding:9px;text-align:left">λTref</th><th style="padding:9px;text-align:left">Citlivosť</th><th style="padding:9px;text-align:left">Koeficienty</th><th style="padding:9px;text-align:left">Max. chyba</th><th style="padding:9px;text-align:left">R²</th><th style="padding:9px;text-align:left">Stabilizácia</th><th style="padding:9px;text-align:left">Výsledok</th></tr></thead>
 <tbody>{coefficientRows}</tbody></table></div>
 </td></tr>
 <tr><td class="content-pad" style="padding:0 32px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;border:1px solid #E5EBF2;border-radius:10px"><tr><td style="padding:18px 20px;color:#52647C;font-size:13px;line-height:22px;word-break:break-word">
@@ -140,7 +142,12 @@ public static class CalibrationCompletionEmail
     }
 
     private static bool IsTargetPass(CalibrationTargetState status) => status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden;
-    private static string StatusText(CalibrationTargetState status) => status == CalibrationTargetState.Overridden ? "Schválený override" : status.ToString();
+    private static string StatusText(CalibrationTargetState status) => status switch
+    {
+        CalibrationTargetState.Overridden => "Schválený override",
+        CalibrationTargetState.CompletedWithStabilityWarning => "Vzorkovanie dokončené · problém so stabilizáciou",
+        _ => status.ToString(),
+    };
     private static string FormatDuration(TimeSpan duration) => duration.TotalHours >= 1 ? $"{(int)duration.TotalHours} h {duration.Minutes:00} min" : $"{Math.Max(0, duration.Minutes)} min {Math.Max(0, duration.Seconds):00} s";
     private static string Value(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
     private static string SafeFileName(string value) => string.Concat(value.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));

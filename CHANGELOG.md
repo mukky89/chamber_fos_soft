@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.212] – 2026-09-06
+
+### Zmenené
+- Peak, ktorý do timeoutu nesplní stabilizačné podmienky, pri politike pokračovania dokončí celé finálne vzorkovanie a jeho dáta sa uložia a použijú na záverečný výpočet kalibrácie.
+- Takýto peak zostáva označený upozornením na problém so stabilizáciou v živom prehľade, histórii, CSV, Exceli a záverečnom e-maile; výsledok kalibračného modelu PASS/FAIL zostáva vyhodnotený samostatne.
+
 ## [1.76.211] – 2026-09-06
 
 ### Pridané

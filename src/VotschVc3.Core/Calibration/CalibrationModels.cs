@@ -37,6 +37,7 @@ public enum CalibrationTargetState
     Disconnected,
     Overridden,
     Failed,
+    CompletedWithStabilityWarning,
 }
 
 public enum CalibrationFailurePolicy

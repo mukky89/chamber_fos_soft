@@ -682,6 +682,8 @@
                                     <DataGridTextColumn Header="Max. chyba [°C]" Binding="{Binding MaxErrorC, StringFormat=F4}" Width="115" />
                                     <DataGridTextColumn Header="Limit [°C]" Binding="{Binding ErrorToleranceC, StringFormat=F3}" Width="90" />
                                     <DataGridTextColumn Header="R²" Binding="{Binding RSquared, StringFormat=F6}" Width="85" />
+                                    <DataGridTextColumn Header="Stabilizácia" Binding="{Binding StabilityStatus}" Width="105" />
+                                    <DataGridTextColumn Header="Problém stabilizácie" Binding="{Binding StabilityProblem}" Width="220" />
                                     <DataGridTextColumn Header="Výsledok" Binding="{Binding Result}" Width="85" />
                                 </DataGrid.Columns>
                             </DataGrid>

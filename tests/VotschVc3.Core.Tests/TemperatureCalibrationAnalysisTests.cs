@@ -73,6 +73,35 @@ public sealed class TemperatureCalibrationAnalysisTests
     }
 
     [Fact]
+    public void CompletedSamplingWithStabilityWarningIsAnalyzedAndMarked()
+    {
+        double[] temperatures = [-20, 0, 20, 40];
+        var run = new CalibrationRunRecord();
+        for (int index = 0; index < temperatures.Length; index++)
+        {
+            double temperature = temperatures[index];
+            run.Plateaus.Add(new CalibrationPlateauResult
+            {
+                ReferenceTemperatureC = temperature,
+                Targets = [new CalibrationMeasurementResult
+                {
+                    SerialNumber = "WARN-SN", Channel = "1", PeakId = "P1", SampleCount = 50,
+                    Status = index == 1 ? CalibrationTargetState.CompletedWithStabilityWarning : CalibrationTargetState.Stable,
+                    Problem = index == 1 ? "Peak mal problém so stabilizáciou." : null,
+                    MeanWavelengthNm = 1550 + 0.01 * temperature,
+                }],
+            });
+        }
+
+        List<TemperatureCalibrationResult> results = TemperatureCalibrationAnalyzer.Analyze(run);
+
+        Assert.NotEmpty(results);
+        Assert.All(results, result => Assert.Equal("PROBLÉM", result.StabilityStatus));
+        Assert.All(results, result => Assert.Contains("problém so stabilizáciou", result.StabilityProblem));
+        Assert.Contains(results, result => result.Result == "PASS");
+    }
+
+    [Fact]
     public void FewerThanThreeTemperaturesDoesNotProduceMisleadingCoefficients()
     {
         var run = new CalibrationRunRecord

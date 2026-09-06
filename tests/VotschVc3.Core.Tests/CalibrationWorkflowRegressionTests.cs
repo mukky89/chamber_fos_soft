@@ -9,6 +9,45 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Fact]
+    public async Task ContinueAndFlagSamplesCompleteFinalWindowAfterStabilityTimeout()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            CalibrationSetup setup = StableSetup(Guid.NewGuid());
+            setup.Settings.RequiredStableSamples = 1000;
+            setup.Settings.RequiredMeasurementSamples = 2;
+            setup.Settings.DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(1);
+            setup.Settings.SensorTimeoutPolicy = CalibrationFailurePolicy.ContinueAndFlag;
+            var run = new CalibrationRunRecord { ProfileId = setup.ProfileId, ProfileName = "Flagged sampling" };
+            var store = new CalibrationStore(root);
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            CalibrationPlateauResult plateau = await orchestrator.WaitForPlateauAsync(
+                run, setup, 0, 1, 20,
+                _ => Task.FromResult(20d),
+                null,
+                writer,
+                cancellationToken: timeout.Token);
+
+            CalibrationMeasurementResult target = Assert.Single(plateau.Targets);
+            Assert.Equal(CalibrationTargetState.CompletedWithStabilityWarning, target.Status);
+            Assert.Equal(2, target.SampleCount);
+            Assert.Equal(2, target.StableSamples.Count);
+            Assert.Contains("nedokončil stabilizáciu/meranie", target.Problem);
+            Assert.Contains(run.Warnings, warning => warning.Code == "SENSOR_STABILITY_TIMEOUT");
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task Running_plateau_applies_changed_stability_limits_and_audits_reset()
     {
         string root = TempDirectory();
