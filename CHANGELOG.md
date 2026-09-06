@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.218] – 2026-09-06
+
+### Opravené
+- Karta „Prehľad“ FBG kalibrácie už omylom neskrýva celý pracovný panel s kartami. Pri aktívnej alebo obnovenej kalibrácii zostáva kompletný prehľad viditeľný pod voliteľným grafom WIKA.
+
 ## [1.76.217] – 2026-09-06
 
 ### Zmenené

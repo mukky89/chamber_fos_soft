@@ -31,7 +31,11 @@ public partial class CalibrationWindow
         while (content is ScrollViewer scroll) content = scroll.Content as DependencyObject;
         if (content is Grid root)
         {
-            var footer = root.Children.Cast<UIElement>().FirstOrDefault(c => Grid.GetRow(c) == 4);
+            // Row 4 is the production TabControl itself. Hiding it while selecting Overview
+            // leaves only the WIKA chart visible and makes the complete calibration dashboard
+            // unreachable. The real status footer lives in the final root row (row 5).
+            int footerRow = root.RowDefinitions.Count - 1;
+            var footer = root.Children.Cast<UIElement>().FirstOrDefault(c => Grid.GetRow(c) == footerRow);
             if (footer is not null)
             {
                 footer.Visibility = Visibility.Collapsed;
