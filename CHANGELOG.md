@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.201] – 2026-09-06
+
+### Zmenené
+- Predvolená teplotná tolerancia WIKA pre nové FBG kalibrácie bola nastavená na ±1,0 °C. Ostatné sprísnené podmienky súvislej stability, rozsahu, smerodajnej odchýlky a driftu zostávajú zachované.
+
+### Opravené
+- Otvorenie kalibračného okna už nezlyhá na chýbajúcom WPF zdroji `SuccessBrush`; indikátor pripojeného PeakLoggera používa existujúci jednotný zelený zdroj aplikácie.
+
 ## [1.76.200] – 2026-09-06
 
 ### Opravené

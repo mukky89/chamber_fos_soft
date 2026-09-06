@@ -516,7 +516,7 @@
                                     <Ellipse.Style>
                                         <Style TargetType="Ellipse">
                                             <Setter Property="Fill" Value="{StaticResource MutedBrush}" />
-                                            <Style.Triggers><DataTrigger Binding="{Binding PeakLoggerConnected}" Value="True"><Setter Property="Fill" Value="{StaticResource SuccessBrush}" /></DataTrigger></Style.Triggers>
+                                            <Style.Triggers><DataTrigger Binding="{Binding PeakLoggerConnected}" Value="True"><Setter Property="Fill" Value="{StaticResource OkBrush}" /></DataTrigger></Style.Triggers>
                                         </Style>
                                     </Ellipse.Style>
                                 </Ellipse>
