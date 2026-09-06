@@ -5,6 +5,15 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void ConfigureKeepsExplicitReferenceChamberIdentity()
+    {
+        var dashboard = new CalibrationDashboardViewModel();
+        Guid chamberId = Guid.NewGuid();
+        dashboard.Configure("Profil", "Komora 2", new[] { -20d, 0d, 20d }, true, "pravidlá",
+            referenceChamberId: chamberId);
+        Assert.Equal(chamberId, dashboard.ReferenceChamberId);
+    }
+
     [Fact] public void RampShowsReasonWithoutStartingCalibrationPoint_AndCanBeStopped()
     {
         var m = Model();

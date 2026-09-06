@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.188] – 2026-09-06
+
+### Opravené
+- WIKA graf v živom prehľade je explicitne priradený ku komore svojej kalibrácie. Pri dvoch alebo viacerých súbežných kalibráciách sa už nevymaže pre nejednoznačný výber aktívneho behu.
+- Aktuálna WIKA hodnota, detailný graf a kompaktný graf stabilného času teraz používajú rovnakú identitu komory.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.188.
+
 ## [1.76.187] – 2026-09-06
 
 ### Opravené

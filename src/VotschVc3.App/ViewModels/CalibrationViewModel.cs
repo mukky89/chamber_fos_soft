@@ -32,6 +32,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         $"σ ≤ {MaxStdDevPm:F3} pm · drift ≤ {MaxDriftPmPerMinute:F3} pm/min. " +
         "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
         "Teplotná stabilita používa skóre blokov (+5 / −10), nie súvislý čas v tolerancii.",
+        referenceChamberId: _workspaceChamberId,
         toleranceC: ChamberToleranceC,
         maxDriftCPerMinute: _setup.Settings.MaxChamberDriftCPerMinute,
         profileCode: SelectedProfile?.Code,
