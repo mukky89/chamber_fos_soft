@@ -10,6 +10,34 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationTests
 {
     [Fact]
+    public void CalibrationDefaultsStore_RoundTripsTemplateAndReturnsIndependentCopy()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "votsch-cal-defaults-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new CalibrationDefaultsStore(Path.Combine(root, "defaults.json"));
+            var expected = new CalibrationProfileSettings
+            {
+                ChamberToleranceC = 0.25,
+                RequiredStableSamples = 75,
+                ChamberStableDuration = TimeSpan.FromMinutes(12),
+            };
+
+            store.Save(expected);
+            CalibrationProfileSettings loaded = store.Load();
+
+            Assert.Equal(0.25, loaded.ChamberToleranceC);
+            Assert.Equal(75, loaded.RequiredStableSamples);
+            Assert.Equal(TimeSpan.FromMinutes(12), loaded.ChamberStableDuration);
+            Assert.NotSame(expected, loaded);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void StabilityTimeoutExtensionDefaultsToFifteenMinuteStepsWithOneHourMaximum()
     {
         var settings = new CalibrationProfileSettings();

@@ -25,6 +25,70 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
             <StackPanel>
 
+            <!-- ===== FBG calibration defaults ===== -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Predvolené nastavenia FBG kalibrácie" Style="{StaticResource Heading}" />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
+                               Text="Spoločný základ pre všetky budúce nové kalibračné zapojenia. Existujúce uložené zapojenia a rozbehnuté kalibrácie si ponechajú vlastné hodnoty." />
+                    <WrapPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Rýchlosť setpointu [°C/min]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.SetpointRampCPerMinute, Mode=TwoWay}" Step="0.1" Minimum="0.1" Maximum="50" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Teplotná tolerancia [°C]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.ChamberToleranceC, Mode=TwoWay}" Step="0.1" Minimum="0.01" Maximum="20" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Stabilný čas [min]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.ChamberStableMinutes, Mode=TwoWay}" Step="1" Minimum="0" Maximum="1440" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Max. drift teploty [°C/min]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxChamberDriftCPerMinute, Mode=TwoWay}" Step="0.01" Minimum="0" Maximum="10" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Timeout komory [min]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.ChamberStabilityTimeoutMinutes, Mode=TwoWay}" Step="5" Minimum="1" Maximum="1440" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Interval odberu FBG [s]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.SampleAcquisitionIntervalSeconds, Mode=TwoWay}" Step="1" Minimum="1" Maximum="30" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Vzorky pre stabilitu" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.RequiredStableSamples, Mode=TwoWay}" Step="1" Minimum="2" Maximum="10000" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Finálne vzorky" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.RequiredMeasurementSamples, Mode=TwoWay}" Step="1" Minimum="1" Maximum="10000" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Max. range [pm]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxWavelengthRangePm, Mode=TwoWay}" Step="0.1" Minimum="0" Maximum="10000" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Max. StdDev [pm]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxWavelengthStdDevPm, Mode=TwoWay}" Step="0.1" Minimum="0" Maximum="10000" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Max. drift FBG [pm/min]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxWavelengthDriftPmPerMinute, Mode=TwoWay}" Step="0.1" Minimum="0" Maximum="10000" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}">
+                            <TextBlock Text="Timeout peaku [min]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.SensorStabilityTimeoutMinutes, Mode=TwoWay}" Step="5" Minimum="1" Maximum="1440" />
+                        </StackPanel>
+                    </WrapPanel>
+                    <CheckBox Content="Plynulo posúvať setpoint" IsChecked="{Binding Admin.CalibrationDefaults.EnableSetpointRamp, Mode=TwoWay}" Margin="0,2,0,10" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Uložiť predvolené nastavenia" Style="{StaticResource AccentButton}" Command="{Binding Admin.SaveCalibrationDefaultsCommand}" />
+                        <TextBlock Text="{Binding Admin.CalibrationDefaultsStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- ===== FOS Dashboard Bridge ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>

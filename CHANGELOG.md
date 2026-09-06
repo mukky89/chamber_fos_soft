@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.178] – 2026-09-06
+
+### Pridané
+- Administrácia obsahuje spoločné predvolené nastavenia stability FBG kalibrácie vrátane tolerancie a driftu komory, časov, počtov vzoriek a limitov vlnovej dĺžky.
+- Predvoľby sa ukladajú do samostatného súboru `fbg-calibration-defaults.json` a automaticky sa skopírujú do každého nového kalibračného zapojenia.
+
+### Zachované
+- Existujúce uložené zapojenia a rozbehnuté kalibrácie si ponechávajú svoje vlastné nastavenia a zmena administrátorskej predvoľby ich spätne neprepíše.
+
+### Zmenené
+- Záložná verzia bola zvýšená na 1.76.178.
+
 ## [1.76.177] – 2026-09-06
 
 ### Pridané

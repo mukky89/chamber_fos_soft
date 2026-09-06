@@ -1,4 +1,6 @@
 using VotschVc3.App.Mvvm;
+using VotschVc3.Core.Calibration;
+using VotschVc3.Core.Profiles;
 
 namespace VotschVc3.App.ViewModels;
 
@@ -14,11 +16,31 @@ namespace VotschVc3.App.ViewModels;
 /// </remarks>
 public sealed class AdminViewModel : ObservableObject
 {
+    private readonly CalibrationDefaultsStore _defaultsStore;
+    private CalibrationProfileSettings _calibrationDefaults;
+    private string _calibrationDefaultsStatus = "Tieto hodnoty sa skopírujú do každého nového zapojenia kalibrácie.";
+
     public AdminViewModel(ShellViewModel shell)
     {
         Shell = shell ?? throw new ArgumentNullException(nameof(shell));
+        _defaultsStore = new CalibrationDefaultsStore(System.IO.Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json"));
+        _calibrationDefaults = _defaultsStore.Load();
+        SaveCalibrationDefaultsCommand = new RelayCommand(SaveCalibrationDefaults);
     }
 
     /// <summary>The root view model that owns the actual settings and commands.</summary>
     public ShellViewModel Shell { get; }
+
+    public CalibrationProfileSettings CalibrationDefaults => _calibrationDefaults;
+    public double ChamberStableMinutes { get => _calibrationDefaults.ChamberStableDuration.TotalMinutes; set => _calibrationDefaults.ChamberStableDuration = TimeSpan.FromMinutes(Math.Clamp(value, 0, 1440)); }
+    public double ChamberStabilityTimeoutMinutes { get => _calibrationDefaults.ChamberStabilityTimeout.TotalMinutes; set => _calibrationDefaults.ChamberStabilityTimeout = TimeSpan.FromMinutes(Math.Clamp(value, 1, 1440)); }
+    public double SensorStabilityTimeoutMinutes { get => _calibrationDefaults.DefaultSensorStabilizationTimeout.TotalMinutes; set => _calibrationDefaults.DefaultSensorStabilizationTimeout = TimeSpan.FromMinutes(Math.Clamp(value, 1, 1440)); }
+    public string CalibrationDefaultsStatus { get => _calibrationDefaultsStatus; private set => SetProperty(ref _calibrationDefaultsStatus, value); }
+    public RelayCommand SaveCalibrationDefaultsCommand { get; }
+
+    private void SaveCalibrationDefaults()
+    {
+        _defaultsStore.Save(_calibrationDefaults);
+        CalibrationDefaultsStatus = $"Uložené {DateTime.Now:HH:mm}. Použijú sa pri vytvorení ďalšieho nového zapojenia.";
+    }
 }

@@ -54,6 +54,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
     private readonly CalibrationStore _calibrationStore;
+    private readonly CalibrationDefaultsStore _calibrationDefaultsStore;
     private readonly EmailNotifier _email = new();
     private readonly ThermometersViewModel _referenceThermometers;
     private readonly Guid _workspaceChamberId;
@@ -92,6 +93,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _profileStore = new ProfileStore(AppPaths.ProfilesDir);
         _chamberStore = new ChamberConfigStore(Path.Combine(AppPaths.SettingsDir, "chambers.json"));
         _calibrationStore = new CalibrationStore(AppPaths.CalibrationDir);
+        _calibrationDefaultsStore = new CalibrationDefaultsStore(Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json"));
         _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();
         _referenceThermometers = new ThermometersViewModel();
 
@@ -596,7 +598,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
         Guid chamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
         _setup = _calibrationStore.LoadSetup(SelectedProfile.Id, chamberId)
-            ?? new CalibrationSetup { ProfileId = SelectedProfile.Id, ChamberId = chamberId };
+            ?? new CalibrationSetup
+            {
+                ProfileId = SelectedProfile.Id,
+                ChamberId = chamberId,
+                Settings = CalibrationCheckpointRecovery.CloneSettings(_calibrationDefaultsStore.Load()),
+            };
         for (int i = 0; i < SelectedProfile.Segments.Count; i++)
         {
             ProfileSegment segment = SelectedProfile.Segments[i];
