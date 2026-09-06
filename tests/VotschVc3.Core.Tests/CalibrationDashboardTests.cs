@@ -139,7 +139,7 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("Automaticky jemne dorovnať setpoint komory podľa WIKA", m.ReferenceToleranceHelp);
         Assert.Contains("0,30 °C každých 10 s", m.ReferenceToleranceHelp);
         Assert.Contains("±3,0 °C", m.ReferenceToleranceHelp);
-        Assert.Contains("predvolene vypnutá", m.ReferenceToleranceHelp);
+        Assert.Contains("predvolene zapnutá", m.ReferenceToleranceHelp);
         Assert.Contains("najnovšia úspešne načítaná teplota", m.ReferenceStatusHelp);
         Assert.Contains("Jedna vzorka sama osebe nepotvrdzuje stabilitu", m.ReferenceStatusHelp);
         Assert.Contains("odchýlka aj drift", m.ReferenceStatusHelp);
@@ -151,6 +151,25 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("nevyhovujúci bod sa nikdy automaticky neprijme", m.ReferenceTimeHelp);
         Assert.Contains("pokračuje ďalším platom", m.ReferenceTimeHelp);
         Assert.Contains("automaticky raz vráti", m.ReferenceTimeHelp);
+    }
+    [Fact] public void WikaCardShowsActiveReferenceSetpointCorrection()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
+        {
+            Message = "KROK 2/5 · Stabilizácia teploty · WIKA control: dorovnáva WIKA do tolerancie · setpoint komory 19,70 °C (bias -0,30 °C)\nĎALŠÍ KROK"
+        }, Start);
+
+        Assert.True(m.IsReferenceControlAdjusting);
+        Assert.Contains("DOROVNÁVANIE PREBIEHA", m.ReferenceControlAdjustmentLabel);
+        Assert.Contains("setpoint komory 19,70 °C", m.ReferenceControlAdjustmentLabel);
+
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
+        {
+            Message = "WIKA control: WIKA je v tolerancii, bez ďalšej korekcie · setpoint komory 19,70 °C"
+        }, Start.AddSeconds(10));
+        Assert.False(m.IsReferenceControlAdjusting);
+        Assert.Equal(string.Empty, m.ReferenceControlAdjustmentLabel);
     }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.190] – 2026-09-06
+
+### Pridané
+- Živá WIKA karta počas aktívneho jemného dorovnávania výrazne zobrazí stav „DOROVNÁVANIE PREBIEHA“, aktuálny setpoint komory a celkovú korekciu (bias).
+
+### Opravené
+- Text pomoci pri WIKA dorovnávaní teraz správne uvádza, že funkcia je predvolene zapnutá.
+- Záložná verzia bola zvýšená na 1.76.190.
+
 ## [1.76.189] – 2026-09-06
 
 ### Zmenené

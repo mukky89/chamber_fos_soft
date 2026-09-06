@@ -210,6 +210,10 @@
        <StackPanel>
         <CheckBox x:Name="ReferenceControlToggle" Content="Automaticky jemne dorovnať setpoint komory podľa WIKA" FontSize="11.5" FontWeight="SemiBold" Click="ReferenceControlToggle_Click" ToolTip="Predvolene zapnutá bezpečne obmedzená korekcia. Zasiahne iba vtedy, keď je WIKA mimo povolenej odchýlky. Komora naďalej používa vlastný regulátor; aplikácia iba pomaly posúva jej setpoint, aby sa WIKA dostala do rozsahu."/>
         <TextBlock Text="Krok max. 0,30 °C / 10 s · celkom max. ±3,0 °C · počas behu sa nastavenie nemení" Style="{StaticResource Muted}" FontSize="10.5" Margin="22,3,0,0"/>
+        <Border Background="#3A2B16" BorderBrush="#C98B25" BorderThickness="1" CornerRadius="5" Padding="8,5" Margin="22,6,0,0"
+                Visibility="{Binding IsReferenceControlAdjusting, Converter={StaticResource BoolToVisibility}}">
+         <TextBlock Text="{Binding ReferenceControlAdjustmentLabel}" Foreground="#FFD27A" FontSize="10.5" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        </Border>
        </StackPanel>
       </Border>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ReferenceDriftTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ReferenceDriftLabel}" FontSize="11.5" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ReferenceDriftHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
