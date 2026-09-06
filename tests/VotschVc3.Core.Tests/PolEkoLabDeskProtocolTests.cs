@@ -77,4 +77,15 @@ public sealed class PolEkoLabDeskProtocolTests
         Assert.Equal("LabControl MANUAL", json.RootElement.GetProperty("name").GetString());
         Assert.True(json.RootElement.GetProperty("segments")[0].GetProperty("IsInfinityEnabled").GetBoolean());
     }
+
+    [Fact]
+    public void Program_catalog_reports_count_and_preserves_all_program_fields()
+    {
+        string result = PolEkoLabDeskProtocol.FormatProgramCatalog(
+            "[{\"programId\":1,\"name\":\"A\",\"segments\":[]},{\"programId\":99,\"name\":\"LabControl MANUAL\",\"segments\":[{\"temperature\":250}]}]");
+
+        Assert.Contains("POL-EKO programy: 2", result);
+        Assert.Contains("\"programId\": 99", result);
+        Assert.Contains("\"temperature\": 250", result);
+    }
 }

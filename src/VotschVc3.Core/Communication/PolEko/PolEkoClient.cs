@@ -132,6 +132,13 @@ public sealed class PolEkoClient : IChamberDevice
         return "LabDesk RPC GET_STATUS:\r\n" + status.Data + "\r\n\r\nLabDesk RPC GET_CONFIG:\r\n" + config.Data;
     }
 
+    /// <summary>Reads the complete LabDesk program catalogue without changing device state.</summary>
+    public async Task<string> GetProgramsAsync(CancellationToken cancellationToken = default)
+    {
+        PolEkoRpcResponse response = await SendAsync("GET_PROGRAMS", null, true, cancellationToken).ConfigureAwait(false);
+        return PolEkoLabDeskProtocol.FormatProgramCatalog(response.Data);
+    }
+
     private async Task<PolEkoRpcResponse> SendAsync(string command, string? data, bool credentials, CancellationToken ct)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
@@ -266,6 +273,19 @@ public static class PolEkoLabDeskProtocol
             Name = id == PolEkoClient.ManualProgramId ? "LabControl MANUAL" : $"LabControl {temperatureC:0.0}C",
             Segments = [new PolEkoProgramSegment { Temperature = wire, IsInfinityEnabled = true }],
         }, Json);
+    }
+
+    public static string FormatProgramCatalog(string? data)
+    {
+        if (string.IsNullOrWhiteSpace(data))
+            return "POL-EKO nevrátilo žiadne programy.";
+
+        using JsonDocument document = JsonDocument.Parse(data);
+        int count = document.RootElement.ValueKind == JsonValueKind.Array
+            ? document.RootElement.GetArrayLength()
+            : 1;
+        string formatted = JsonSerializer.Serialize(document.RootElement, new JsonSerializerOptions { WriteIndented = true });
+        return $"POL-EKO programy: {count}\r\n\r\n{formatted}";
     }
 }
 

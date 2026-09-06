@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.194] – 2026-09-06
+
+### Pridané
+- V diagnostike POL-EKO pribudlo tlačidlo „Načítať všetky programy“. Bez zmeny stavu zariadenia načíta cez `GET_PROGRAMS` kompletný katalóg a zobrazí počet aj všetky polia programov vrátane ID, názvu a segmentov.
+
+### Opravené
+- Existujúce tlačidlo diagnostiky POL-EKO teraz správne používa priamy klient zariadenia aj pri zapnutej nadradenej teplotnej poistke.
+- Záložná verzia bola zvýšená na 1.76.194.
+
 ## [1.76.193] – 2026-09-06
 
 ### Opravené

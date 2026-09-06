@@ -161,6 +161,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         SimservProbeCommand = new AsyncRelayCommand(SimservProbeAsync, () => IsConnected && IsAsciiProtocol, ReportError);
         ReadProgramInfoCommand = new AsyncRelayCommand(ReadProgramInfoAsync, () => IsConnected && IsAsciiProtocol, ReportError);
         ModbusScanCommand = new AsyncRelayCommand(ModbusScanAsync, () => IsConnected && IsPolEko, ReportError);
+        ReadPolEkoProgramsCommand = new AsyncRelayCommand(ReadPolEkoProgramsAsync, () => IsConnected && IsPolEko, ReportError);
         SikaInfoReportCommand = new AsyncRelayCommand(SikaInfoReportAsync, () => IsConnected && IsSika, ReportError);
         SikaCalibrationStatusCommand = new AsyncRelayCommand(SikaCalibrationStatusAsync, () => IsConnected && IsSika, ReportError);
         ForceSikaRemoteControlCommand = new AsyncRelayCommand(ForceSikaRemoteControlAsync,
@@ -3626,6 +3627,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand SimservProbeCommand { get; }
     public AsyncRelayCommand ReadProgramInfoCommand { get; }
     public AsyncRelayCommand ModbusScanCommand { get; }
+    public AsyncRelayCommand ReadPolEkoProgramsCommand { get; }
     public AsyncRelayCommand SikaInfoReportCommand { get; }
     public AsyncRelayCommand SikaCalibrationStatusCommand { get; }
 
@@ -3734,7 +3736,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private async Task ModbusScanAsync()
     {
-        if (_client is not VotschVc3.Core.Communication.PolEko.PolEkoClient poleko)
+        if (_rawClient is not VotschVc3.Core.Communication.PolEko.PolEkoClient poleko)
         {
             DiagResult = "LabDesk RPC diagnostika je len pre POL-EKO.";
             return;
@@ -3743,6 +3745,19 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         DiagResult = "LabDesk RPC diagnostika prebieha…";
         DiagResult = await poleko.ScanRegistersAsync(64);
         AppLog.Info(Name, "[POL-EKO RPC] Diagnostika dokončená.");
+    }
+
+    private async Task ReadPolEkoProgramsAsync()
+    {
+        if (_rawClient is not PolEkoClient poleko)
+        {
+            DiagResult = "Zoznam programov je dostupný len pre POL-EKO.";
+            return;
+        }
+
+        DiagResult = "Načítavam všetky programy z POL-EKO…";
+        DiagResult = await poleko.GetProgramsAsync();
+        AppLog.Info(Name, "[POL-EKO RPC] Zoznam programov načítaný.");
     }
 
     /// <summary>Reads and shows the SIKA <c>getInfoReport</c> (device details, calibration dates, temp range).</summary>
@@ -4746,6 +4761,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         StartChainCommand.RaiseCanExecuteChanged();
         SendTerminalCommand.RaiseCanExecuteChanged();
         RunSetpointDiagnosticCommand.RaiseCanExecuteChanged();
+        ModbusScanCommand.RaiseCanExecuteChanged();
+        ReadPolEkoProgramsCommand.RaiseCanExecuteChanged();
         ReadDigitalCommand.RaiseCanExecuteChanged();
         RefreshSikaLogsCommand.RaiseCanExecuteChanged();
         ForceSikaRemoteControlCommand.RaiseCanExecuteChanged();
