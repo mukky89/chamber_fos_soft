@@ -75,6 +75,10 @@
     </Trigger>
    </Style.Triggers>
   </Style>
+  <Style x:Key="CompactPeakStateChip" TargetType="Border">
+   <Setter Property="Background" Value="#172A3E"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="5"/>
+   <Setter Property="Padding" Value="7,2"/><Setter Property="MinWidth" Value="62"/><Setter Property="HorizontalAlignment" Value="Right"/>
+  </Style>
   <DataTemplate x:Key="CompactStabilityPeakTemplate">
    <Border Background="#101A29" BorderBrush="#29415D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,6"
            Cursor="Hand" Focusable="True" MouseLeftButtonUp="CompactStabilityPeak_Click" KeyDown="CompactStabilityPeak_KeyDown"
@@ -83,7 +87,9 @@
      <Grid>
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <TextBlock Text="{Binding Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="11.5" FontWeight="SemiBold" Margin="0,0,8,0"/>
-      <TextBlock Grid.Column="1" Text="{Binding State}" Foreground="{Binding StateBrush}" FontSize="10" FontWeight="SemiBold"/>
+      <Border Grid.Column="1" Style="{StaticResource CompactPeakStateChip}" BorderBrush="{Binding StateBrush}">
+       <TextBlock Text="{Binding State}" Foreground="{Binding StateBrush}" FontSize="9.5" FontWeight="SemiBold" TextWrapping="NoWrap" HorizontalAlignment="Center"/>
+      </Border>
      </Grid>
      <Grid Margin="0,4,0,0">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -101,7 +107,9 @@
      <Grid>
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <TextBlock Text="{Binding Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="11.5" FontWeight="SemiBold" Margin="0,0,8,0"/>
-      <TextBlock Grid.Column="1" Text="{Binding MeasurementState}" Foreground="{Binding MeasurementStateBrush}" FontSize="10" FontWeight="SemiBold"/>
+      <Border Grid.Column="1" Style="{StaticResource CompactPeakStateChip}" BorderBrush="{Binding MeasurementStateBrush}">
+       <TextBlock Text="{Binding MeasurementState}" Foreground="{Binding MeasurementStateBrush}" FontSize="9.5" FontWeight="SemiBold" TextWrapping="NoWrap" HorizontalAlignment="Center"/>
+      </Border>
      </Grid>
      <Grid Margin="0,4,0,0">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

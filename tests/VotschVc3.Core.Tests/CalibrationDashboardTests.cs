@@ -241,6 +241,19 @@ public sealed class CalibrationDashboardTests
         Assert.Equal("1 / 2 prešlo stabilitou", m.PeakSummary);
         Assert.Equal("1 vo finálnom meraní · 0 úplne dokončených", m.PeakDetail);
     }
+    [Fact] public void CompactPeakStatesUseDistinctColorsForMeasuringAndCompleted()
+    {
+        var item = new FbgStabilityChartItem("SN1|CH1|P1");
+        item.Update(Target("Measuring", 2), Start);
+        Assert.Equal("MERANIE", item.State);
+        Assert.Equal("#58A6FF", item.StateBrush);
+        Assert.Equal("#58A6FF", item.MeasurementStateBrush);
+
+        item.Update(Target("Done", 5, CalibrationTargetState.Stable), Start.AddSeconds(1));
+        Assert.Equal("HOTOVO", item.State);
+        Assert.Equal("#45C99A", item.StateBrush);
+        Assert.Equal("#45C99A", item.MeasurementStateBrush);
+    }
     [Fact] public void WikaCardShowsCurrentSettlingLimitAndItsBreakdown()
     {
         var m = Model();

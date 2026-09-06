@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.214] – 2026-09-06
+
+### Zmenené
+- Stavy peakov v kompaktných zoznamoch sú zobrazené ako farebné chipy: meranie modrou, hotovo zelenou a stabilizácia, čakanie alebo upozornenie oranžovou.
+- Farebné rozlíšenie sa používa konzistentne v prehľade stability aj finálneho merania.
+
 ## [1.76.213] – 2026-09-06
 
 ### Zmenené

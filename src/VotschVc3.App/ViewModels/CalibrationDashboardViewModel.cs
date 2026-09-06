@@ -841,7 +841,7 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
         _ => "STABILIZÁCIA",
     };
     public string StateBrush => _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning || _progress?.Phase == "MeasuringWithStabilityWarning" ? "#E5AA54" : _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
-        ? "#3CB371"
+        ? (_progress?.Phase == "Measuring" ? "#58A6FF" : "#45C99A")
         : "#DAA520";
     public string MeasurementSamples => _progress is null ? "Finálne vzorky —" : $"Finálne vzorky {_progress.MeasurementSamples} / {_progress.RequiredMeasurementSamples}";
     public double MeasurementProgress => _progress?.RequiredMeasurementSamples > 0
@@ -857,7 +857,7 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
     };
     public string MeasurementStateBrush => _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning || _progress?.Phase == "MeasuringWithStabilityWarning" ? "#E5AA54" : _progress?.Phase == "Measuring" ||
         _progress is { Phase: "Done", State: CalibrationTargetState.Stable }
-        ? "#3CB371"
+        ? (_progress?.Phase == "Measuring" ? "#58A6FF" : "#45C99A")
         : "#DAA520";
     public IReadOnlyList<FbgStabilitySample> ChartPoints => Project(_stabilitySamples);
     public IReadOnlyList<FbgStabilitySample> MeasurementChartPoints => Project(_measurementSamples);
