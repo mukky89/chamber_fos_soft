@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.206] – 2026-09-06
+
+### Pridané
+- Počas spustenej FBG kalibrácie možno meniť toleranciu, stabilný čas, rozsah, smerodajnú odchýlku a drift WIKA aj počet a limity stabilizačných vzoriek FBG.
+- Zmenené limity sa okamžite prenesú do aktívneho plata, bezpečne vynulujú rozpracované stabilizačné a finálne meracie okná a zapíšu sa s pôvodnými aj novými hodnotami do auditu behu.
+
+### Zmenené
+- Parametre riadenia komory, interval odberu, timeouty, finálne meranie, filtrovanie a validačná politika zostávajú počas behu uzamknuté.
+
 ## [1.76.205] – 2026-09-06
 
 ### Zmenené

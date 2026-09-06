@@ -9,6 +9,44 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Fact]
+    public async Task Running_plateau_applies_changed_stability_limits_and_audits_reset()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            CalibrationSetup setup = StableSetup(Guid.NewGuid());
+            setup.Settings.RequiredStableSamples = 100;
+            setup.Settings.DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(15);
+            var run = new CalibrationRunRecord { ProfileId = setup.ProfileId, ProfileName = "Runtime settings" };
+            var store = new CalibrationStore(root);
+            await using CalibrationRunWriter writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            Task<CalibrationPlateauResult> active = orchestrator.WaitForPlateauAsync(
+                run, setup, 0, 1, 20,
+                _ => Task.FromResult(20d),
+                null,
+                writer,
+                cancellationToken: timeout.Token);
+
+            await Task.Delay(1200, timeout.Token);
+            setup.Settings.RequiredStableSamples = 2;
+            CalibrationPlateauResult result = await active;
+
+            Assert.Single(result.Targets);
+            Assert.Equal(CalibrationTargetState.Stable, result.Targets[0].Status);
+            Assert.Contains(run.Warnings, warning => warning.Code == "STABILITY_SETTINGS_CHANGED" && warning.Message.Contains("100 → 2"));
+        }
+        finally
+        {
+            DeleteTempDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task Runner_ResumePreservesCompletedPlateausAndStartsAtFirstUnfinishedPlateau()
     {
         string root = TempDirectory();

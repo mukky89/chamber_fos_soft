@@ -63,8 +63,7 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                   PanningMode="VerticalOnly" Padding="4,4,10,14">
-        <StackPanel MaxWidth="1180" HorizontalAlignment="Left"
-                    IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}">
+        <StackPanel MaxWidth="1180" HorizontalAlignment="Left">
             <Border Background="#222B3B52" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
                     CornerRadius="9" Padding="13,10" Margin="0,0,0,14">
                 <StackPanel>
@@ -74,10 +73,14 @@
                 </StackPanel>
             </Border>
 
+            <Border Background="#3A2B16" BorderBrush="#C98B25" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,14">
+                <TextBlock Text="Počas kalibrácie možno meniť označené tolerancie stability. Po potvrdení hodnoty sa rozpracované stabilizačné a finálne meracie okná bezpečne vynulujú, nové limity začnú platiť okamžite a zmena sa zapíše do auditu behu." TextWrapping="Wrap" Foreground="#FFD27A" />
+            </Border>
+
             <TextBlock Text="0 · Plynulý nábeh komory" Style="{StaticResource Heading}" Margin="0,0,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Aplikácia obmedzí iba rýchlosť zmeny setpointu. PID komory sa naďalej riadi interným snímačom a WIKA iba overuje výslednú stabilitu; nevytvára sa druhá regulačná slučka." />
-            <WrapPanel>
+            <WrapPanel IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}">
                 <Border Style="{StaticResource SettingCard}" ToolTip="Odporúčané zapnúť. Namiesto skoku na nový cieľ posúva aplikácia setpoint po malých krokoch. Interný regulátor komory zostáva jediným regulátorom.">
                     <StackPanel>
                         <TextBlock Text="Riadený nábeh setpointu" Style="{StaticResource SettingName}" />
@@ -126,6 +129,13 @@
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxChamberStdDevC, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource SettingCard}" ToolTip="Absolútna hodnota lineárneho trendu WIKA počas súvislého stabilizačného okna. Prekročenie vynuluje čas.">
+                    <StackPanel>
+                        <TextBlock Text="Max. drift WIKA [°C/min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Kontroluje pomalý súvislý pohyb referenčnej teploty. Zmena počas behu začne nové čisté stabilizačné okno." Style="{StaticResource SettingHelp}" />
+                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxChamberDriftCPerMinute, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                </Border>
                 <Border Style="{StaticResource SettingCard}" ToolTip="Po základnom timeoute sa čakanie pri platných dátach WIKA predĺži po 15 minútach. Celkové automatické predĺženie nikdy neprekročí 60 minút.">
                     <StackPanel>
                         <TextBlock Text="Automatické predĺženie stability" Style="{StaticResource SettingName}" />
@@ -138,7 +148,7 @@
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Každý označený peak má vlastné rolling okno a vyhodnocuje sa nezávisle. Jeden senzor už môže merať finálne samples, zatiaľ čo druhý sa ešte stabilizuje." />
             <WrapPanel>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Určuje reálny interval medzi vzorkami, ktoré kalibrácia použije na stabilitu a finálne meranie FBG. Povolený rozsah je 1 až 30 sekúnd. Toto nie je interval auditného trace logu.">
+                <Border Style="{StaticResource SettingCard}" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}" ToolTip="Určuje reálny interval medzi vzorkami, ktoré kalibrácia použije na stabilitu a finálne meranie FBG. Povolený rozsah je 1 až 30 sekúnd. Toto nie je interval auditného trace logu.">
                     <StackPanel>
                         <TextBlock Text="Interval odberu FBG [s]" Style="{StaticResource SettingName}" />
                         <TextBlock Text="Každých koľko sekúnd sa odoberie jedna kalibračná λ vzorka. Napríklad 50 vzoriek pri 1 s trvá približne 50 s; pri 30 s približne 25 min." Style="{StaticResource SettingHelp}" />
@@ -173,7 +183,7 @@
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxDriftPmPerMinute, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" ToolTip="Maximálny čas aktívnej FBG fázy pre jeden peak. Riadok v Zapojení môže mať vlastný override. Po prekročení sa použije nakonfigurovaná failure policy.">
+                <Border Style="{StaticResource SettingCard}" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}" ToolTip="Maximálny čas aktívnej FBG fázy pre jeden peak. Riadok v Zapojení môže mať vlastný override. Po prekročení sa použije nakonfigurovaná failure policy.">
                     <StackPanel>
                         <TextBlock Text="Default FBG peak timeout [min]" Style="{StaticResource SettingName}" />
                         <TextBlock Text="Bezpečnostný limit, aby jeden nestabilný peak neblokoval kalibráciu donekonečna. Začína sa počítať až po stabilizácii teploty." Style="{StaticResource SettingHelp}" />
@@ -185,7 +195,7 @@
             <TextBlock Text="3 · Finálne meranie a logovanie" Style="{StaticResource Heading}" Margin="0,12,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Stabilizačné samples sa nikdy nepoužijú ako finálny kalibračný priemer. Po potvrdení stability začne pre konkrétny peak nové meracie okno s vlastným počtom vzoriek. Live monitor zobrazuje stabilizačné a meracie počítadlo oddelene." />
-            <WrapPanel>
+            <WrapPanel IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}">
                 <Border Style="{StaticResource SettingCard}" ToolTip="Počet nových vzoriek uložených do finálneho kalibračného výsledku. Stabilizačné vzorky sa do tohto počtu nezapočítavajú.">
                     <StackPanel>
                         <TextBlock Text="Počet finálnych samples" Style="{StaticResource SettingName}" />
@@ -220,7 +230,7 @@
             <TextBlock Text="4 · Kontrola správnej odozvy FBG na teplotu" Style="{StaticResource Heading}" Margin="0,12,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Po aspoň dvoch kalibračných bodoch aplikácia kontroluje, či sa wavelength pri zmene teploty reálne zmenila. Táto kontrola chráni pred nesprávnym peakom, SN alebo fyzicky nefunkčným snímačom." />
-            <WrapPanel>
+            <WrapPanel IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}">
                 <Border Style="{StaticResource SettingCard}" ToolTip="Teplotný rozdiel medzi dvoma hotovými platami musí byť aspoň táto hodnota, inak sa validačný test ešte nevykoná.">
                     <StackPanel>
                         <TextBlock Text="Minimálna ΔT [°C]" Style="{StaticResource SettingName}" />

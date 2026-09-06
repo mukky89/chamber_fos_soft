@@ -159,6 +159,7 @@ public sealed class CalibrationOrchestrator
             m => m.Identity,
             m => new TargetTracker(m, settings),
             StringComparer.OrdinalIgnoreCase);
+        StabilityConfiguration activeStabilityConfiguration = StabilityConfiguration.From(settings);
 
         double actualTemperature = double.NaN;
         double? referenceTemperature = null;
@@ -178,6 +179,29 @@ public sealed class CalibrationOrchestrator
             DateTimeOffset loopAt = DateTimeOffset.UtcNow;
             TimeSpan loopDelta = loopAt - previousLoopAt;
             previousLoopAt = loopAt;
+
+            StabilityConfiguration requestedStabilityConfiguration = StabilityConfiguration.From(settings);
+            if (requestedStabilityConfiguration != activeStabilityConfiguration)
+            {
+                string change = activeStabilityConfiguration.DescribeChanges(requestedStabilityConfiguration);
+                activeStabilityConfiguration = requestedStabilityConfiguration;
+                referenceDetector = NewTemperatureDetector(settings);
+                chamberDetector = NewTemperatureDetector(settings);
+                foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
+                    tracker.ResetForRuntimeSettingsChange();
+                temperatureGateOpen = false;
+                temperatureGateForced = false;
+                temperatureRecoveryStartedAt = loopAt;
+
+                CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
+                {
+                    Code = "STABILITY_SETTINGS_CHANGED",
+                    PlateauIndex = plateauIndex,
+                    Message = $"Operátor počas kalibrácie zmenil nastavenia stability: {change}. " +
+                              "Rozpracované stabilizačné a finálne meracie okná boli vynulované; nové limity platia okamžite.",
+                });
+                writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
+            }
 
             actualTemperature = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
             referenceTemperature = hasExternalReference
@@ -710,6 +734,58 @@ public sealed class CalibrationOrchestrator
         return value.TotalHours >= 1 ? value.ToString(@"hh\:mm\:ss") : value.ToString(@"mm\:ss");
     }
 
+    private static TemperatureStabilityDetector NewTemperatureDetector(CalibrationProfileSettings settings) => new(
+        settings.ChamberStableDuration,
+        settings.ChamberToleranceC,
+        settings.MaxChamberDriftCPerMinute,
+        settings.MaxChamberRangeC,
+        settings.MaxChamberStdDevC);
+
+    private readonly record struct StabilityConfiguration(
+        double ChamberToleranceC,
+        TimeSpan ChamberStableDuration,
+        double MaxChamberDriftCPerMinute,
+        double MaxChamberRangeC,
+        double MaxChamberStdDevC,
+        int RequiredStableSamples,
+        double MaxWavelengthRangePm,
+        double MaxWavelengthStdDevPm,
+        double MaxWavelengthDriftPmPerMinute)
+    {
+        public static StabilityConfiguration From(CalibrationProfileSettings settings) => new(
+            settings.ChamberToleranceC,
+            settings.ChamberStableDuration,
+            settings.MaxChamberDriftCPerMinute,
+            settings.MaxChamberRangeC,
+            settings.MaxChamberStdDevC,
+            settings.RequiredStableSamples,
+            settings.MaxWavelengthRangePm,
+            settings.MaxWavelengthStdDevPm,
+            settings.MaxWavelengthDriftPmPerMinute);
+
+        public string DescribeChanges(StabilityConfiguration next)
+        {
+            var changes = new List<string>();
+            Add(changes, "teplotná tolerancia", ChamberToleranceC, next.ChamberToleranceC, "°C");
+            if (ChamberStableDuration != next.ChamberStableDuration)
+                changes.Add($"stabilný čas {ChamberStableDuration.TotalMinutes:0.###} → {next.ChamberStableDuration.TotalMinutes:0.###} min");
+            Add(changes, "drift WIKA", MaxChamberDriftCPerMinute, next.MaxChamberDriftCPerMinute, "°C/min");
+            Add(changes, "rozsah WIKA", MaxChamberRangeC, next.MaxChamberRangeC, "°C");
+            Add(changes, "StdDev WIKA", MaxChamberStdDevC, next.MaxChamberStdDevC, "°C");
+            if (RequiredStableSamples != next.RequiredStableSamples)
+                changes.Add($"FBG vzorky stability {RequiredStableSamples} → {next.RequiredStableSamples}");
+            Add(changes, "FBG range", MaxWavelengthRangePm, next.MaxWavelengthRangePm, "pm");
+            Add(changes, "FBG StdDev", MaxWavelengthStdDevPm, next.MaxWavelengthStdDevPm, "pm");
+            Add(changes, "FBG drift", MaxWavelengthDriftPmPerMinute, next.MaxWavelengthDriftPmPerMinute, "pm/min");
+            return string.Join(", ", changes);
+        }
+
+        private static void Add(List<string> changes, string name, double before, double after, string unit)
+        {
+            if (before != after) changes.Add($"{name} {before:0.###} → {after:0.###} {unit}");
+        }
+    }
+
     private sealed class TargetTracker
     {
         private readonly CalibrationProfileSettings _settings;
@@ -860,6 +936,19 @@ public sealed class CalibrationOrchestrator
             _stabilityDetector = NewStabilityDetector();
             LastMetrics = null;
             _lastResetMessage = null;
+        }
+
+        public void ResetForRuntimeSettingsChange()
+        {
+            if (IsTerminal) return;
+            _sensorPhaseStarted = false;
+            State = CalibrationTargetState.WaitingForTemperature;
+            IsMeasuring = false;
+            _measurementSamples.Clear();
+            _averagingWindow.Clear();
+            _stabilityDetector = NewStabilityDetector();
+            LastMetrics = null;
+            _lastResetMessage = "Nastavenia stability boli zmenené operátorom; začína sa nové čisté okno.";
         }
 
         public void Fail(CalibrationTargetState state, string problem)

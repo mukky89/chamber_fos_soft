@@ -517,7 +517,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public int RequiredStableSamples
     {
         get => _setup.Settings.RequiredStableSamples;
-        set { _setup.Settings.RequiredStableSamples = Math.Clamp(value, 2, 10000); OnPropertyChanged(); }
+        set { _setup.Settings.RequiredStableSamples = Math.Clamp(value, 2, 10000); OnRuntimeStabilitySettingChanged(); }
     }
 
     public bool EnableSetpointRamp
@@ -581,43 +581,55 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public double MaxRangePm
     {
         get => _setup.Settings.MaxWavelengthRangePm;
-        set { _setup.Settings.MaxWavelengthRangePm = Math.Max(0, value); OnPropertyChanged(); }
+        set { _setup.Settings.MaxWavelengthRangePm = Math.Max(0, value); OnRuntimeStabilitySettingChanged(); }
     }
 
     public double MaxStdDevPm
     {
         get => _setup.Settings.MaxWavelengthStdDevPm;
-        set { _setup.Settings.MaxWavelengthStdDevPm = Math.Max(0, value); OnPropertyChanged(); }
+        set { _setup.Settings.MaxWavelengthStdDevPm = Math.Max(0, value); OnRuntimeStabilitySettingChanged(); }
     }
 
     public double MaxDriftPmPerMinute
     {
         get => _setup.Settings.MaxWavelengthDriftPmPerMinute;
-        set { _setup.Settings.MaxWavelengthDriftPmPerMinute = Math.Max(0, value); OnPropertyChanged(); }
+        set { _setup.Settings.MaxWavelengthDriftPmPerMinute = Math.Max(0, value); OnRuntimeStabilitySettingChanged(); }
     }
 
     public double ChamberToleranceC
     {
         get => _setup.Settings.ChamberToleranceC;
-        set { _setup.Settings.ChamberToleranceC = Math.Abs(value); OnPropertyChanged(); }
+        set { _setup.Settings.ChamberToleranceC = Math.Abs(value); OnRuntimeStabilitySettingChanged(); }
     }
 
     public double ChamberStableMinutes
     {
         get => _setup.Settings.ChamberStableDuration.TotalMinutes;
-        set { _setup.Settings.ChamberStableDuration = TimeSpan.FromMinutes(Math.Max(0, value)); OnPropertyChanged(); }
+        set { _setup.Settings.ChamberStableDuration = TimeSpan.FromMinutes(Math.Max(0, value)); OnRuntimeStabilitySettingChanged(); }
+    }
+
+    public double MaxChamberDriftCPerMinute
+    {
+        get => _setup.Settings.MaxChamberDriftCPerMinute;
+        set { _setup.Settings.MaxChamberDriftCPerMinute = Math.Max(0, value); OnRuntimeStabilitySettingChanged(); }
     }
 
     public double MaxChamberRangeC
     {
         get => _setup.Settings.MaxChamberRangeC;
-        set { _setup.Settings.MaxChamberRangeC = Math.Max(0, value); OnPropertyChanged(); }
+        set { _setup.Settings.MaxChamberRangeC = Math.Max(0, value); OnRuntimeStabilitySettingChanged(); }
     }
 
     public double MaxChamberStdDevC
     {
         get => _setup.Settings.MaxChamberStdDevC;
-        set { _setup.Settings.MaxChamberStdDevC = Math.Max(0, value); OnPropertyChanged(); }
+        set { _setup.Settings.MaxChamberStdDevC = Math.Max(0, value); OnRuntimeStabilitySettingChanged(); }
+    }
+
+    private void OnRuntimeStabilitySettingChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        OnPropertyChanged(propertyName);
+        RefreshDashboardPlan();
     }
 
     public double SensorTimeoutMinutes
