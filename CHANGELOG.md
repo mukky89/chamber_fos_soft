@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.203] – 2026-09-06
+
+### Zmenené
+- Predvolený interval odberu FBG pre každú novú kalibráciu bol nastavený na 10 sekúnd. Existujúce uložené a rozbehnuté kalibrácie si ponechávajú vlastný interval.
+
 ## [1.76.202] – 2026-09-06
 
 ### Opravené

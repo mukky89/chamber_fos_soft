@@ -42,6 +42,7 @@ public sealed class CalibrationReferenceGateRegressionTests
                 Settings = new CalibrationProfileSettings
                 {
                     EnableSetpointRamp = false,
+                    SampleAcquisitionIntervalSeconds = 1,
                     RequiredStableSamples = 2,
                     RequiredMeasurementSamples = 2,
                     MaxWavelengthRangePm = 0,

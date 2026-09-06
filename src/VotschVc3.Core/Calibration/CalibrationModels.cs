@@ -83,7 +83,7 @@ public sealed class CalibrationProfileSettings
     public int WavelengthTraceIntervalSeconds { get; set; } = 30;
 
     /// <summary>Delay between FBG calibration samples. Operator-configurable from 1 to 30 seconds.</summary>
-    public int SampleAcquisitionIntervalSeconds { get; set; } = 1;
+    public int SampleAcquisitionIntervalSeconds { get; set; } = 10;
 
     /// <summary>Rolling sample window used only to prove wavelength stability.</summary>
     public int RequiredStableSamples { get; set; } = 50;
