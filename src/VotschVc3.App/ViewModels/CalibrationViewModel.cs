@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Data;
 using Microsoft.Win32;
 using VotschVc3.App.Mvvm;
 using VotschVc3.App.Notifications;
@@ -102,6 +104,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         Chambers = new ObservableCollection<CalibrationChamberOption>(
             _chamberStore.LoadAll().Select(c => new CalibrationChamberOption(c)));
         Peaks = new ObservableCollection<CalibrationPeakRowViewModel>();
+        PeaksView = CollectionViewSource.GetDefaultView(Peaks);
+        PeaksView.Filter = MatchesPeakFilter;
+        Peaks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(PeakSelectionSummary));
         CalibrationPoints = new ObservableCollection<CalibrationPointRowViewModel>();
         TargetProgress = new ObservableCollection<CalibrationTargetProgressViewModel>();
         History = new ObservableCollection<CalibrationRunRecord>(_calibrationStore.LoadHistory());
@@ -144,6 +149,41 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public ObservableCollection<TestProfile> Profiles { get; }
     public ObservableCollection<CalibrationChamberOption> Chambers { get; }
     public ObservableCollection<CalibrationPeakRowViewModel> Peaks { get; }
+    public ICollectionView PeaksView { get; }
+
+    private string _peakSearchText = string.Empty;
+    private string _peakFilterMode = "All";
+    public string PeakSearchText
+    {
+        get => _peakSearchText;
+        set { if (SetProperty(ref _peakSearchText, value ?? string.Empty)) PeaksView.Refresh(); }
+    }
+    public bool PeakFilterAll { get => _peakFilterMode == "All"; set { if (value) SetPeakFilter("All"); } }
+    public bool PeakFilterSelected { get => _peakFilterMode == "Selected"; set { if (value) SetPeakFilter("Selected"); } }
+    public bool PeakFilterErrors { get => _peakFilterMode == "Errors"; set { if (value) SetPeakFilter("Errors"); } }
+    public string PeakSelectionSummary => $"{Peaks.Count(p => p.Selected)} z {Peaks.Count} vybraných · {Peaks.Select(p => p.Channel).Distinct(StringComparer.OrdinalIgnoreCase).Count()} kanálov";
+
+    private void SetPeakFilter(string mode)
+    {
+        if (_peakFilterMode == mode) return;
+        _peakFilterMode = mode;
+        OnPropertyChanged(nameof(PeakFilterAll));
+        OnPropertyChanged(nameof(PeakFilterSelected));
+        OnPropertyChanged(nameof(PeakFilterErrors));
+        PeaksView.Refresh();
+    }
+
+    private bool MatchesPeakFilter(object item)
+    {
+        if (item is not CalibrationPeakRowViewModel row) return false;
+        if (_peakFilterMode == "Selected" && !row.Selected) return false;
+        if (_peakFilterMode == "Errors" && !row.NeedsSensorSerialNumber && !row.HasSerialNumberWarning) return false;
+        string query = _peakSearchText.Trim();
+        if (query.Length == 0) return true;
+        return new[] { row.Channel, row.PeakId, row.PeakIndex.ToString(), row.SerialNumber, row.ChannelSerialNumber,
+                row.ChainSerialNumber, row.Order, row.ProductDescription, row.Notes, row.FbgType }
+            .Any(value => value?.Contains(query, StringComparison.OrdinalIgnoreCase) == true);
+    }
     public ObservableCollection<CalibrationPointRowViewModel> CalibrationPoints { get; }
     public ObservableCollection<CalibrationTargetProgressViewModel> TargetProgress { get; }
     public ObservableCollection<CalibrationRunRecord> History { get; }
@@ -893,6 +933,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             {
                 ValidateSerialNumbers();
                 StartCalibrationCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(PeakSelectionSummary));
+                if (_peakFilterMode == "Selected" && e.PropertyName == nameof(CalibrationPeakRowViewModel.Selected))
+                    PeaksView.Refresh();
             }
 
             if (!_applyingRecoveredMappings &&

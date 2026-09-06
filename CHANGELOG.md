@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.196] – 2026-09-06
+
+### Zmenené
+- Zapojenie FBG bolo prerobené podľa schváleného plnošírkového tabuľkového návrhu bez bočného detailu. Všetky produkčné údaje zostávajú v riadkoch, prvých šesť stĺpcov je zmrazených a zvyšok je dostupný vodorovným posunom.
+- Pribudlo okamžité vyhľadávanie, filtre Všetky/Vybrané/Chyby a súhrn počtu vybraných peakov a kanálov.
+- Riadky majú jednotnú výšku 35 px, merania jednotný font a tri desatinné miesta. Výrazné modré rámiky skupín nahradili jemné deliace čiary; editovacie ceruzky a ochrana rozpracovanej bunky zostali zachované.
+- Záložná verzia bola zvýšená na 1.76.196.
+
 ## [1.76.195] – 2026-09-06
 
 ### Zmenené

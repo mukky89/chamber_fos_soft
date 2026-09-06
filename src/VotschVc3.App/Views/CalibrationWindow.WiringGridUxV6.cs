@@ -60,8 +60,8 @@ public partial class CalibrationWindow
 
         // Keep every column that the production workspace currently exposes. Horizontal scrolling is
         // preferable to squeezing sixteen+ fields into unreadable slivers.
-        _wiringGrid.RowHeight = 36;
-        _wiringGrid.ColumnHeaderHeight = 46;
+        _wiringGrid.RowHeight = 35;
+        _wiringGrid.ColumnHeaderHeight = 42;
         _wiringGrid.MinRowHeight = 34;
         _wiringGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
         _wiringGrid.RowHeaderWidth = 0;
@@ -141,8 +141,8 @@ public partial class CalibrationWindow
             "Kanál" => 72,
             "Peak ID" => 72,
             "FBG index" => 82,
-            "Aktuálna λ [nm]" => 128,
-            "Intenzita" => 88,
+            "Aktuálna λ [nm]" or "λ [nm]" => 115,
+            "Intenzita" or "Intenzita [dBm]" => 125,
             "Snímač" => 112,
             "Typ FBG" => 98,
             "Sylex SN" => 116,

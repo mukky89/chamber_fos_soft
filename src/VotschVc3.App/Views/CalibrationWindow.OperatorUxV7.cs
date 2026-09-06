@@ -78,7 +78,7 @@ public partial class CalibrationWindow
     private void ConfigureWiringGridV7()
     {
         _wiringGrid ??= FindOperatorDescendantsV7<DataGrid>(this)
-            .FirstOrDefault(grid => IsItemsBindingV7(grid, "Peaks"));
+            .FirstOrDefault(grid => IsItemsBindingV7(grid, "PeaksView"));
         if (_wiringGrid is null) return;
 
         _wiringGrid.SelectionUnit = DataGridSelectionUnit.Cell;
@@ -129,9 +129,7 @@ public partial class CalibrationWindow
         int index = _wiringGrid.Items.IndexOf(current);
         if (index < 0) return;
 
-        CalibrationPeakRowViewModel? previous = index > 0 ? _wiringGrid.Items[index - 1] as CalibrationPeakRowViewModel : null;
         CalibrationPeakRowViewModel? next = index + 1 < _wiringGrid.Items.Count ? _wiringGrid.Items[index + 1] as CalibrationPeakRowViewModel : null;
-        bool first = previous is null || !SameChannelV7(previous, current);
         bool last = next is null || !SameChannelV7(next, current);
 
         // Put grouping in style setters so validation and selection triggers retain priority.
@@ -140,11 +138,10 @@ public partial class CalibrationWindow
         row.ClearValue(FrameworkElement.MarginProperty);
         row.ClearValue(FrameworkElement.ToolTipProperty);
         var style = new Style(typeof(DataGridRow), _wiringGrid.RowStyle);
-        if (!first || !last)
+        if (last)
         {
-            style.Setters.Add(new Setter(Control.BorderBrushProperty, TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue));
-            style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(2, first ? 2 : 0, 2, last ? 2 : 0)));
-            style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0, first ? 3 : 0, 0, last ? 3 : 0)));
+            style.Setters.Add(new Setter(Control.BorderBrushProperty, TryFindResource("BorderBrush") as Brush ?? Brushes.DimGray));
+            style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
             style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, $"Kanál {current.Channel} · {CountChannelRowsV7(current.Channel)} peakov"));
         }
         row.Style = style;

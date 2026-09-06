@@ -35,7 +35,7 @@ internal static class CalibrationWindowSelectionUnitCompatibilityHotfix
             foreach (DataGrid grid in FindVisualChildren<DataGrid>(window))
             {
                 Binding? itemsBinding = BindingOperations.GetBinding(grid, ItemsControl.ItemsSourceProperty);
-                if (!string.Equals(itemsBinding?.Path?.Path, "Peaks", StringComparison.Ordinal)) continue;
+                if (!string.Equals(itemsBinding?.Path?.Path, "PeaksView", StringComparison.Ordinal)) continue;
 
                 grid.SelectionUnit = DataGridSelectionUnit.CellOrRowHeader;
                 grid.SelectionMode = DataGridSelectionMode.Extended;

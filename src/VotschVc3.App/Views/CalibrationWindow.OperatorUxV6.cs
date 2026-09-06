@@ -67,7 +67,7 @@ public partial class CalibrationWindow
     private void ConfigureWiringGridV6()
     {
         _wiringGrid ??= FindOperatorDescendants<DataGrid>(this)
-            .FirstOrDefault(grid => IsItemsBinding(grid, "Peaks"));
+            .FirstOrDefault(grid => IsItemsBinding(grid, "PeaksView"));
         if (_wiringGrid is null) return;
 
         _wiringGrid.SelectionUnit = DataGridSelectionUnit.Cell;
