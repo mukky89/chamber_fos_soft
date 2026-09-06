@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using VotschVc3.App.Charting;
 using VotschVc3.App.Mvvm;
 using VotschVc3.App.Thermometers;
@@ -23,12 +24,14 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private readonly List<(DateTimeOffset time, double value)> _live = new();
     private readonly SemaphoreSlim _connectionGate = new(1, 1);
+    private readonly Dispatcher _uiDispatcher;
     private F100Client? _client;
     private CancellationTokenSource? _pollingCts;
     private ThermometerCsvRecorder? _recorder;
 
     public ThermometerDeviceViewModel(SerialDeviceInfo info)
     {
+        _uiDispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         Info = info;
         _recordingPath = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
@@ -274,22 +277,38 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         if (_client is null) return null;
         (string detectedChannel, ThermometerReading reading) =
             await _client.ReadAvailableChannelAsync(SelectedChannel, ReadCommand, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(_client.InstrumentIdentity) && Identity != _client.InstrumentIdentity)
-        {
-            Identity = _client.InstrumentIdentity;
-            NotifyIdentityProperties();
-        }
-        if (reading.Temperature is not null && !string.Equals(SelectedChannel, detectedChannel, StringComparison.Ordinal))
-        {
-            SelectedChannel = detectedChannel;
-        }
-        if (reading.Temperature is not null)
-        {
-            ChannelAutoDetected = true;
-            OnPropertyChanged(nameof(ChannelAutoDetected));
-        }
-        ApplyReading(reading);
+        await ApplyReferenceReadingOnUiAsync(detectedChannel, reading);
         return reading.Temperature;
+    }
+
+    private Task ApplyReferenceReadingOnUiAsync(string detectedChannel, ThermometerReading reading)
+    {
+        void Apply()
+        {
+            if (!string.IsNullOrWhiteSpace(_client?.InstrumentIdentity) && Identity != _client.InstrumentIdentity)
+            {
+                Identity = _client.InstrumentIdentity;
+                NotifyIdentityProperties();
+            }
+            if (reading.Temperature is not null && !string.Equals(SelectedChannel, detectedChannel, StringComparison.Ordinal))
+            {
+                SelectedChannel = detectedChannel;
+            }
+            if (reading.Temperature is not null)
+            {
+                ChannelAutoDetected = true;
+                OnPropertyChanged(nameof(ChannelAutoDetected));
+            }
+            ApplyReading(reading);
+        }
+
+        if (_uiDispatcher.CheckAccess())
+        {
+            Apply();
+            return Task.CompletedTask;
+        }
+
+        return _uiDispatcher.InvokeAsync(Apply, DispatcherPriority.DataBind).Task;
     }
 
     private void NotifyIdentityProperties()
@@ -392,6 +411,12 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private void ApplyReading(ThermometerReading reading)
     {
+        if (!_uiDispatcher.CheckAccess())
+        {
+            _uiDispatcher.Invoke(() => ApplyReading(reading), DispatcherPriority.DataBind);
+            return;
+        }
+
         if (reading.Temperature is { } t)
         {
             Temperature = t;

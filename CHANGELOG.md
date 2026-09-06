@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.224] – 2026-09-06
+
+### Opravené
+- Aktualizácia teploty WIKA počas FBG kalibrácie sa teraz vždy prenesie na WPF UI vlákno. Čítanie referencie na pracovnom vlákne už nezastaví nový ani obnovený beh chybou „The calling thread cannot access this object because a different thread owns it“.
+
 ## [1.76.223] – 2026-09-06
 
 ### Zmenené
