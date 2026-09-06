@@ -13,6 +13,8 @@ namespace VotschVc3.Core.Communication.PolEko;
 public sealed class PolEkoClient : IChamberDevice
 {
     public const int DefaultPort = 56506;
+    /// <summary>Reserved LabDesk profile used exclusively by quick/manual control.</summary>
+    public const long ManualProgramId = 99;
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ISyncDuplexTypedMessageSender<string, string>? _sender;
@@ -77,19 +79,27 @@ public sealed class PolEkoClient : IChamberDevice
         if (setpoints.Count == 0 || !double.IsFinite(setpoints[0])) throw new ArgumentException("POL-EKO vyžaduje platnú cieľovú teplotu.", nameof(setpoints));
 
         double temperature = setpoints[0];
-        if (_activeProgramId is { } oldId)
+
+        // This controller has no direct SET_TEMPERATURE command. Keep one stable,
+        // reserved LabDesk profile instead of asking older firmware for the unsupported
+        // GET_NEXT_PROGRAM_ID command or continuously creating/deleting profiles.
+        await SendAllowingAsync("STOP", null, true, cancellationToken, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
+        _activeProgramId = null;
+
+        string programJson = PolEkoLabDeskProtocol.BuildSingleSetpointProgram(ManualProgramId, temperature);
+        PolEkoRpcResponse update = await SendAllowingAsync(
+            "UPDATE_PROGRAM", programJson, true, cancellationToken, "NO_DATA").ConfigureAwait(false);
+        if (!update.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase))
         {
-            await SendAllowingAsync("STOP", null, true, cancellationToken, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
-            await SendAllowingAsync("DELETE_PROGRAM", oldId.ToString(), true, cancellationToken, "NO_DATA", "CURRENT_PROGRAM_IS_USER").ConfigureAwait(false);
-            _activeProgramId = null;
+            PolEkoRpcResponse save = await SendAllowingAsync(
+                "SAVE_PROGRAM", programJson, true, cancellationToken, "PROGRAM_ALREADY_EXIST").ConfigureAwait(false);
+            if (save.ResponseStatus.Equals("PROGRAM_ALREADY_EXIST", StringComparison.OrdinalIgnoreCase))
+                await SendAsync("UPDATE_PROGRAM", programJson, true, cancellationToken).ConfigureAwait(false);
         }
 
-        long programId = ParseLongData(await SendAsync("GET_NEXT_PROGRAM_ID", null, true, cancellationToken).ConfigureAwait(false), "GET_NEXT_PROGRAM_ID");
-        string programJson = PolEkoLabDeskProtocol.BuildSingleSetpointProgram(programId, temperature);
-        PolEkoRpcResponse save = await SendAsync("SAVE_PROGRAM", programJson, true, cancellationToken).ConfigureAwait(false);
-        if (TryParseLong(save.Data, out long savedId)) programId = savedId;
-        await SendAsync("LAUNCH_BY_ID", programId.ToString(), false, cancellationToken).ConfigureAwait(false);
-        _activeProgramId = programId;
+        await SendAsync("LAUNCH_BY_ID", ManualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
+        await VerifyManualProgramStartedAsync(cancellationToken).ConfigureAwait(false);
+        _activeProgramId = ManualProgramId;
         _lastSetpoint = temperature;
     }
 
@@ -145,6 +155,29 @@ public sealed class PolEkoClient : IChamberDevice
         { return new PolEkoRpcResponse { RequestCommand = command, ResponseStatus = ex.ResponseStatus, Data = ex.ResponseData }; }
     }
 
+    private async Task VerifyManualProgramStartedAsync(CancellationToken cancellationToken)
+    {
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            PolEkoRpcResponse response = await SendAsync("GET_STATUS", "version-2", false, cancellationToken).ConfigureAwait(false);
+            using JsonDocument status = ParseDataObject(response, "GET_STATUS");
+            if (TryFindBoolean(status.RootElement, out bool running, "IS_RUNNING") && running &&
+                (!TryFindNumber(status.RootElement, out double programId, "PROGRAM_ID") ||
+                 Math.Abs(programId - ManualProgramId) < 0.5))
+            {
+                return;
+            }
+
+            if (attempt < 5)
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+        }
+
+        // Do not report success to the UI (and therefore do not start its timer) when
+        // LabDesk accepted LAUNCH_BY_ID but the controller remained idle.
+        await SendAllowingAsync("STOP", null, true, CancellationToken.None, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
+        throw new IOException($"POL-EKO prijalo spustenie manuálneho programu {ManualProgramId}, ale sušiareň do 3 sekúnd nepotvrdila stav RUNNING.");
+    }
+
     private void DisconnectCore()
     {
         try { _channel?.CloseConnection(); } catch { }
@@ -154,14 +187,6 @@ public sealed class PolEkoClient : IChamberDevice
 
     private static JsonDocument ParseDataObject(PolEkoRpcResponse response, string command) =>
         string.IsNullOrWhiteSpace(response.Data) ? throw new InvalidDataException($"POL-EKO {command} vrátilo prázdne Data.") : JsonDocument.Parse(response.Data);
-    private static long ParseLongData(PolEkoRpcResponse response, string command) => TryParseLong(response.Data, out long value) ? value : throw new InvalidDataException($"POL-EKO {command} nevrátilo platné ID programu.");
-    private static bool TryParseLong(string? text, out long value)
-    {
-        if (long.TryParse(text?.Trim().Trim('"'), out value)) return true;
-        try { using JsonDocument doc = JsonDocument.Parse(text ?? ""); return doc.RootElement.ValueKind == JsonValueKind.Number && doc.RootElement.TryGetInt64(out value); }
-        catch (JsonException) { value = 0; return false; }
-    }
-
     internal static bool TryFindNumber(JsonElement e, out double value, params string[] names)
     {
         if (e.ValueKind == JsonValueKind.Object) foreach (JsonProperty p in e.EnumerateObject())
@@ -238,7 +263,7 @@ public static class PolEkoLabDeskProtocol
         return JsonSerializer.Serialize(new PolEkoProgram
         {
             ProgramId = id,
-            Name = $"LabControl {temperatureC:0.0}C",
+            Name = id == PolEkoClient.ManualProgramId ? "LabControl MANUAL" : $"LabControl {temperatureC:0.0}C",
             Segments = [new PolEkoProgramSegment { Temperature = wire, IsInfinityEnabled = true }],
         }, Json);
     }

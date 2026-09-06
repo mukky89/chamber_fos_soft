@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.193] – 2026-09-06
+
+### Opravené
+- Manuálne nastavenie teploty POL-EKO už nepoužíva nepodporovaný príkaz `GET_NEXT_PROGRAM_ID`. Aplikácia používa jediný vyhradený nekonečný program s ID 99, ktorý podľa potreby uloží alebo aktualizuje, spustí a overí cez stav sušiarne.
+- Pred nastavením novej manuálnej teploty sa zastaví predchádzajúci program. Teplotná poistka zostáva nadradená zápisu a manuálny časovač po uplynutí naďalej fyzicky zastaví program sušiarne.
+- Záložná verzia bola zvýšená na 1.76.193.
+
 ## [1.76.192] – 2026-09-06
 
 ### Opravené
