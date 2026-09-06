@@ -75,6 +75,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _sylexFosApiStore = new SylexFosApiSettingsStore(System.IO.Path.Combine(dir, "sylex-fos-api.json"));
         _sylexFosApi = _sylexFosApiStore.Load();
         ChamberViewModel.ProfileLogIntervalSeconds = _ui.ProfileLogIntervalSeconds;
+        _ui.PolEkoManualProgramId = Math.Clamp(_ui.PolEkoManualProgramId, 1, int.MaxValue);
+        ChamberViewModel.PolEkoManualProgramId = _ui.PolEkoManualProgramId;
         ChamberViewModel.SikaSoakToleranceC = _ui.SikaSoakToleranceC;
         ChamberViewModel.SikaSettling = BuildSikaSettling(_ui);
         _notifier.Settings = _emailStore.Load();
@@ -940,6 +942,25 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
                 // Bring the now-visible POL-EKO oven(s) online.
                 _ = Task.WhenAll(Chambers.Where(c => c.IsPolEko).Select(c => c.ConnectIfPossibleAsync()));
             }
+        }
+    }
+
+    /// <summary>Persisted LabDesk program ID used by all POL-EKO manual controls.</summary>
+    public double PolEkoManualProgramId
+    {
+        get => _ui.PolEkoManualProgramId;
+        set
+        {
+            int programId = (int)Math.Clamp(Math.Round(value), 1, int.MaxValue);
+            if (_ui.PolEkoManualProgramId == programId)
+                return;
+
+            _ui.PolEkoManualProgramId = programId;
+            ChamberViewModel.PolEkoManualProgramId = programId;
+            foreach (ChamberViewModel chamber in Chambers)
+                chamber.ApplyPolEkoManualProgramId(programId);
+            SaveUiSettings();
+            OnPropertyChanged();
         }
     }
 

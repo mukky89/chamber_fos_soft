@@ -222,11 +222,11 @@ The following settings were validated on the real production reference thermomet
 
 ## POL-EKO SLN / LabDesk manual control
 
-- Manual quick temperature control uses the existing reserved LabDesk program **FOS LAB**, program ID `11`. Never revert to the nonexistent historical ID `99` and never create a new program for every setpoint.
+- Manual quick temperature control uses an existing reserved LabDesk program **FOS LAB**. Its program ID is configured persistently in the Admin zone (default `11`); never assume the nonexistent historical ID `99` and never create a new program for every setpoint.
 - LabDesk credentials come from local protected application settings. Never hard-code or log a real password; diagnostic requests must redact it.
-- POL-EKO has no reliable direct live `SET_TEMPERATURE` command. Changing a running manual setpoint is one atomic operator action: authenticated `STOP` → poll `GET_STATUS` until `IS_RUNNING=false` → allow the program-edit lock to settle → `UPDATE_PROGRAM` 11 → `LAUNCH_BY_ID` 11 → verify `IS_RUNNING=true` and `PROGRAM_ID=11`.
+- POL-EKO has no reliable direct live `SET_TEMPERATURE` command. Changing a running manual setpoint is one atomic operator action: authenticated `STOP` → poll `GET_STATUS` until `IS_RUNNING=false` → allow the program-edit lock to settle → `UPDATE_PROGRAM` with the configured FOS LAB ID → `LAUNCH_BY_ID` with the same ID → verify `IS_RUNNING=true` and the matching `PROGRAM_ID`.
 - A successful `STOP` response does not mean the program is immediately editable. The real SLN 115 can temporarily return `GENERAL_ERROR` from `UPDATE_PROGRAM`; use bounded delayed retries instead of requiring the operator to press Stop manually.
-- Do not report a new setpoint in the UI until update and launch both succeed and live status confirms program 11 is running. If verification fails, surface the error and keep the displayed device state truthful.
+- Do not report a new setpoint in the UI until update and launch both succeed and live status confirms the configured FOS LAB program ID is running. If verification fails, surface the error and keep the displayed device state truthful.
 - Preserve temperature protection and optional shutdown-timer behavior when quick control restarts FOS LAB. Every write remains wrapped by `TemperatureSafetyChamberDevice`.
 
 ## Changelog UI architecture

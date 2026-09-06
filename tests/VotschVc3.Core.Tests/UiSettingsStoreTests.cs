@@ -67,4 +67,15 @@ public class UiSettingsStoreTests : IDisposable
         Assert.Equal(0.7, settings.SikaSoakToleranceC);
         Assert.Equal(15, settings.ProfileLogIntervalSeconds);
     }
+
+    [Fact]
+    public void Pol_eko_manual_program_id_is_persisted()
+    {
+        var store = new UiSettingsStore(SettingsPath);
+        var settings = new UiSettings { PolEkoManualProgramId = 27, TimelineDefaultApplied = true };
+
+        store.Save(settings);
+
+        Assert.Equal(27, store.Load().PolEkoManualProgramId);
+    }
 }

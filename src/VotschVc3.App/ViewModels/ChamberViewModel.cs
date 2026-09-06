@@ -26,6 +26,7 @@ namespace VotschVc3.App.ViewModels;
 public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 {
     private const int MaxTerminalLines = 1000;
+    public static int PolEkoManualProgramId { get; set; } = 11;
 
     private readonly IChamberDevice _client;
     private readonly IChamberDevice _rawClient;
@@ -78,6 +79,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _ => new ChamberClient(),
         };
         _rawClient = rawClient;
+        if (rawClient is PolEkoClient polEkoClient)
+            polEkoClient.ConfigureManualProgram(PolEkoManualProgramId);
         _temperatureSafety = TemperatureSafetyRegistry.Get(Id, config.SafetyTempMin, config.SafetyTempMax);
         _temperatureSafety.Configured += OnTemperatureSafetyConfigured;
         _temperatureSafety.Configure(config.SafetyTempMin, config.SafetyTempMax);
@@ -219,6 +222,12 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary><c>true</c> for a POL-EKO LabDesk RPC oven (temperature only).</summary>
     public bool IsPolEko => Protocol == ChamberProtocol.PolEkoModbus;
+
+    public void ApplyPolEkoManualProgramId(int programId)
+    {
+        if (_rawClient is PolEkoClient polEko)
+            polEko.ConfigureManualProgram(programId);
+    }
 
     /// <summary><c>true</c> for a SIKA TP Premium bath / dry block (REST-API, temperature only).</summary>
     public bool IsSika => Protocol == ChamberProtocol.SikaRestApi;

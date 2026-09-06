@@ -51,6 +51,9 @@ public sealed class UiSettings
     /// </summary>
     public bool ShowPolEko { get; set; } = true;
 
+    /// <summary>Existing LabDesk program reserved for POL-EKO quick/manual control.</summary>
+    public int PolEkoManualProgramId { get; set; } = 11;
+
     /// <summary>
     /// Tolerance (°C) for the guaranteed soak on SIKA thermal baths: on every hold the
     /// bath first reaches the target within this band before the dwell time starts.

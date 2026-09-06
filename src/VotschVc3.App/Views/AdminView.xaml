@@ -234,6 +234,13 @@
                               IsChecked="{Binding ShowPolEko}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="26,2,0,0"
                                Text="Sušiareň POL-EKO je po aktivácii LabDesk TCP predvolene zobrazená a automaticky sa pripája. Vypnutím ju môžeš dočasne skryť aj odpojiť." />
+                    <TextBlock Text="ID programu POL-EKO pre manuálne ovládanie" Style="{StaticResource Label}" Margin="0,14,0,0" />
+                    <views:NumericStepper Width="130" HorizontalAlignment="Left"
+                                          Value="{Binding PolEkoManualProgramId, Mode=TwoWay}"
+                                          Step="1" Minimum="1" Maximum="2147483647"
+                                          ToolTip="ID existujúceho programu FOS LAB, ktorý aplikácia upraví a spustí pri manuálnom nastavení teploty." />
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="Predvolene 11. Zmena sa uloží a začne platiť pre ďalší príkaz Nastaviť; zadané ID musí patriť existujúcemu programu FOS LAB v LabDesk." />
                 </StackPanel>
             </Border>
 

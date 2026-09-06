@@ -23,12 +23,21 @@ public sealed class PolEkoClient : IChamberDevice
     private IDuplexOutputChannel? _channel;
     private long? _activeProgramId;
     private double? _lastSetpoint;
+    private long _manualProgramId = ManualProgramId;
     private double _manualProtectionUnderC = 0;
     private double _manualProtectionOverC = 300;
 
     public ChamberConnectionSettings Settings { get; private set; } = new() { Port = DefaultPort };
     public bool IsConnected => _channel?.IsConnected == true;
     public event EventHandler<FrameExchangedEventArgs>? FrameExchanged;
+
+    /// <summary>Chooses the existing LabDesk profile used for quick/manual control.</summary>
+    public void ConfigureManualProgram(long programId)
+    {
+        if (programId <= 0 || programId > int.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(programId));
+        _manualProgramId = programId;
+    }
 
     /// <summary>Uses the operator's active safety limits when rebuilding FOS LAB.</summary>
     public void ConfigureManualProgramProtection(double underTemperatureC, double overTemperatureC)
@@ -113,7 +122,7 @@ public sealed class PolEkoClient : IChamberDevice
         await WaitForProgramStoppedAsync(cancellationToken).ConfigureAwait(false);
 
         string programJson = PolEkoLabDeskProtocol.BuildSingleSetpointProgram(
-            ManualProgramId, temperature, _manualProtectionUnderC, _manualProtectionOverC);
+            _manualProgramId, temperature, _manualProtectionUnderC, _manualProtectionOverC, ManualProgramName);
         PolEkoRpcResponse update = await UpdateManualProgramAsync(programJson, cancellationToken).ConfigureAwait(false);
         if (!update.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase))
         {
@@ -126,7 +135,7 @@ public sealed class PolEkoClient : IChamberDevice
         await LaunchManualProgramAsync(cancellationToken).ConfigureAwait(false);
         await VerifyManualProgramStartedAsync(cancellationToken).ConfigureAwait(false);
         await VerifyManualProgramDefinitionAsync(temperature, cancellationToken).ConfigureAwait(false);
-        _activeProgramId = ManualProgramId;
+        _activeProgramId = _manualProgramId;
         _lastSetpoint = temperature;
     }
 
@@ -172,7 +181,7 @@ public sealed class PolEkoClient : IChamberDevice
     {
         try
         {
-            await SendAsync("LAUNCH_BY_ID", ManualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
+            await SendAsync("LAUNCH_BY_ID", _manualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
             return;
         }
         catch (TimeoutException)
@@ -186,7 +195,7 @@ public sealed class PolEkoClient : IChamberDevice
             if (await IsManualProgramRunningAsync(cancellationToken).ConfigureAwait(false))
                 return;
 
-            await SendAsync("LAUNCH_BY_ID", ManualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
+            await SendAsync("LAUNCH_BY_ID", _manualProgramId.ToString(), false, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -196,7 +205,7 @@ public sealed class PolEkoClient : IChamberDevice
         using JsonDocument status = ParseDataObject(response, "GET_STATUS");
         return TryFindBoolean(status.RootElement, out bool running, "IS_RUNNING") && running &&
                (!TryFindNumber(status.RootElement, out double programId, "PROGRAM_ID") ||
-                Math.Abs(programId - ManualProgramId) < 0.5);
+                Math.Abs(programId - _manualProgramId) < 0.5);
     }
 
     private async Task VerifyManualProgramDefinitionAsync(double expectedTemperatureC, CancellationToken cancellationToken)
@@ -216,8 +225,8 @@ public sealed class PolEkoClient : IChamberDevice
         }
 
         if (!PolEkoLabDeskProtocol.TryReadProgramTemperature(
-                response.Data, ManualProgramId, out double storedTemperatureC))
-            throw new InvalidDataException($"POL-EKO po spustení nevrátilo definíciu programu {ManualProgramId} ({ManualProgramName}).");
+                response.Data, _manualProgramId, out double storedTemperatureC))
+            throw new InvalidDataException($"POL-EKO po spustení nevrátilo definíciu programu {_manualProgramId} ({ManualProgramName}).");
         if (Math.Abs(storedTemperatureC - expectedTemperatureC) > 0.051)
         {
             await SendAllowingAsync("STOP", null, true, CancellationToken.None, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
@@ -320,7 +329,7 @@ public sealed class PolEkoClient : IChamberDevice
             using JsonDocument status = ParseDataObject(response, "GET_STATUS");
             if (TryFindBoolean(status.RootElement, out bool running, "IS_RUNNING") && running &&
                 (!TryFindNumber(status.RootElement, out double programId, "PROGRAM_ID") ||
-                 Math.Abs(programId - ManualProgramId) < 0.5))
+                 Math.Abs(programId - _manualProgramId) < 0.5))
             {
                 return;
             }
@@ -332,7 +341,7 @@ public sealed class PolEkoClient : IChamberDevice
         // Do not report success to the UI (and therefore do not start its timer) when
         // LabDesk accepted LAUNCH_BY_ID but the controller remained idle.
         await SendAllowingAsync("STOP", null, true, CancellationToken.None, "NO_PROGRAM_IS_RUNNING").ConfigureAwait(false);
-        throw new IOException($"POL-EKO prijalo spustenie manuálneho programu {ManualProgramId}, ale sušiareň do 3 sekúnd nepotvrdila stav RUNNING.");
+        throw new IOException($"POL-EKO prijalo spustenie manuálneho programu {_manualProgramId}, ale sušiareň do 3 sekúnd nepotvrdila stav RUNNING.");
     }
 
     private void DisconnectCore()
@@ -455,7 +464,8 @@ public static class PolEkoLabDeskProtocol
         long id,
         double temperatureC,
         double underTemperatureC = -100,
-        double overTemperatureC = 300)
+        double overTemperatureC = 300,
+        string? programName = null)
     {
         if (!double.IsFinite(temperatureC)) throw new ArgumentOutOfRangeException(nameof(temperatureC));
         if (!double.IsFinite(underTemperatureC) || !double.IsFinite(overTemperatureC) ||
@@ -467,7 +477,7 @@ public static class PolEkoLabDeskProtocol
         return JsonSerializer.Serialize(new PolEkoProgram
         {
             ProgramId = id,
-            Name = id == PolEkoClient.ManualProgramId ? PolEkoClient.ManualProgramName : $"LabControl {temperatureC:0.0}C",
+            Name = programName ?? (id == PolEkoClient.ManualProgramId ? PolEkoClient.ManualProgramName : $"LabControl {temperatureC:0.0}C"),
             TempProtection = new PolEkoTemperatureProtection
             {
                 UnderTemperatureLimit = underTemperatureC,

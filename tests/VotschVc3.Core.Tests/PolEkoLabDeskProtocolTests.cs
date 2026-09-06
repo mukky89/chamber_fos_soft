@@ -112,6 +112,16 @@ public sealed class PolEkoLabDeskProtocolTests
     }
 
     [Fact]
+    public void Configured_manual_program_id_keeps_fos_lab_name()
+    {
+        using JsonDocument json = JsonDocument.Parse(
+            PolEkoLabDeskProtocol.BuildSingleSetpointProgram(27, 25, -45, 190, PolEkoClient.ManualProgramName));
+
+        Assert.Equal(27, json.RootElement.GetProperty("programId").GetInt64());
+        Assert.Equal("FOS LAB", json.RootElement.GetProperty("name").GetString());
+    }
+
+    [Fact]
     public void Manual_program_uses_requested_temperature_protection()
     {
         using JsonDocument json = JsonDocument.Parse(

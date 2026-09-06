@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.234] – 2026-09-06
+
+### Pridané
+
+- Administrátor môže v časti `Rozloženie nástenky` nastaviť ID existujúceho programu POL-EKO `FOS LAB`. Hodnota sa trvalo uloží a používa sa pri úprave, spustení aj overení ďalšieho manuálneho setpointu bez pevnej závislosti od programu 11.
+
 ## [1.76.233] – 2026-09-06
 
 ### Opravené
