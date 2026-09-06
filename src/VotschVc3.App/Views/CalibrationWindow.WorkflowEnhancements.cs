@@ -332,6 +332,13 @@ public partial class CalibrationWindow
     {
         if (_selectAllPeaksButton is not null) return;
 
+        Button? existingButton = FindButtonByContent(this, "Vybrať všetky peaky");
+        if (existingButton is not null)
+        {
+            _selectAllPeaksButton = existingButton;
+            return;
+        }
+
         Button? suggestedButton = FindButtonByContent(this, "Navrhnúť 1 peak / kanál");
         if (suggestedButton?.Parent is not DockPanel header) return;
 

@@ -122,17 +122,15 @@ public partial class CalibrationWindow : Window
 
         DataGridColumn? chainSn = FindColumn(_wiringGrid, "FBG sensor SN CHAIN");
         DataGridColumn? order = FindColumn(_wiringGrid, "Zákazka");
-        DataGridColumn? customer = FindColumn(_wiringGrid, "Zákazník");
         DataGridColumn? productDescription = FindColumn(_wiringGrid, "Popis produktu")
             ?? FindColumn(_wiringGrid, "Popis výrobku");
-        if (order is null || customer is null || productDescription is null)
+        if (order is null || productDescription is null)
         {
             AttachStrictSerialValidation();
             return;
         }
 
         // Restore the correct business meaning. Customer is customer name, never sensor name.
-        customer.Header = "Zákazník";
         productDescription.Header = "Popis výrobku";
 
         DataGridColumn? sensorName = FindColumn(_wiringGrid, "Názov snímača");
@@ -153,14 +151,13 @@ public partial class CalibrationWindow : Window
         }
 
         // Operator-facing production data stays together after the FBG SN columns.
-        // FBG SN -> Zakázka -> Názov snímača -> Popis výrobku -> Zákazník.
+        // FBG SN -> Zakázka -> Názov snímača -> Popis výrobku -> Poznámky.
         int firstProductionIndex = Math.Min(
-            _wiringGrid.Columns.Count - 4,
+            _wiringGrid.Columns.Count - 3,
             (chainSn?.DisplayIndex ?? FindColumn(_wiringGrid, "FBG sensor SN (kanál)")?.DisplayIndex ?? 0) + 1);
         order.DisplayIndex = firstProductionIndex;
         sensorName.DisplayIndex = firstProductionIndex + 1;
         productDescription.DisplayIndex = firstProductionIndex + 2;
-        customer.DisplayIndex = firstProductionIndex + 3;
 
         AttachStrictSerialValidation();
     }

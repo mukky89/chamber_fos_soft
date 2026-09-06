@@ -106,7 +106,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         Peaks = new ObservableCollection<CalibrationPeakRowViewModel>();
         PeaksView = CollectionViewSource.GetDefaultView(Peaks);
         PeaksView.Filter = MatchesPeakFilter;
-        Peaks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(PeakSelectionSummary));
+        Peaks.CollectionChanged += (_, _) => NotifyPeakCounts();
         CalibrationPoints = new ObservableCollection<CalibrationPointRowViewModel>();
         TargetProgress = new ObservableCollection<CalibrationTargetProgressViewModel>();
         History = new ObservableCollection<CalibrationRunRecord>(_calibrationStore.LoadHistory());
@@ -116,6 +116,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RefreshSensorsCommand = new AsyncRelayCommand(DiscoverSensorsAsync, () => PeakLoggerConnected && !IsRunning, ReportError);
         SaveSetupCommand = new RelayCommand(SaveSetup, () => SelectedProfile is not null && !IsRunning);
         SelectSuggestedPeaksCommand = new RelayCommand(SelectSuggestedPeaks, () => Peaks.Count > 0 && !IsRunning);
+        ClearPeakSearchCommand = new RelayCommand(() => PeakSearchText = string.Empty);
         MarkAllPlateausCommand = new RelayCommand(MarkAllPlateaus, () => CalibrationPoints.Count > 0 && !IsRunning);
         StartCalibrationCommand = new AsyncRelayCommand(StartCalibrationAsync, CanStartCalibration, ReportError);
         ResumeCalibrationCommand = new AsyncRelayCommand(ResumeCalibrationAsync, () => CanStartCalibration() && HasResumableCalibration, ReportError);
@@ -161,7 +162,18 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public bool PeakFilterAll { get => _peakFilterMode == "All"; set { if (value) SetPeakFilter("All"); } }
     public bool PeakFilterSelected { get => _peakFilterMode == "Selected"; set { if (value) SetPeakFilter("Selected"); } }
     public bool PeakFilterErrors { get => _peakFilterMode == "Errors"; set { if (value) SetPeakFilter("Errors"); } }
-    public string PeakSelectionSummary => $"{Peaks.Count(p => p.Selected)} z {Peaks.Count} vybraných · {Peaks.Select(p => p.Channel).Distinct(StringComparer.OrdinalIgnoreCase).Count()} kanálov";
+    public int PeakTotalCount => Peaks.Count;
+    public int PeakSelectedCount => Peaks.Count(p => p.Selected);
+    public int PeakErrorCount => Peaks.Count(p => p.NeedsSensorSerialNumber || p.HasSerialNumberWarning);
+    public string PeakSelectionSummary => $"{PeakSelectedCount} z {PeakTotalCount} vybraných · {Peaks.Where(p => p.Selected).Select(p => p.Channel).Distinct(StringComparer.OrdinalIgnoreCase).Count()} kanálov";
+
+    private void NotifyPeakCounts()
+    {
+        OnPropertyChanged(nameof(PeakTotalCount));
+        OnPropertyChanged(nameof(PeakSelectedCount));
+        OnPropertyChanged(nameof(PeakErrorCount));
+        OnPropertyChanged(nameof(PeakSelectionSummary));
+    }
 
     private void SetPeakFilter(string mode)
     {
@@ -214,6 +226,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public AsyncRelayCommand RefreshSensorsCommand { get; }
     public RelayCommand SaveSetupCommand { get; }
     public RelayCommand SelectSuggestedPeaksCommand { get; }
+    public RelayCommand ClearPeakSearchCommand { get; }
     public RelayCommand MarkAllPlateausCommand { get; }
     public AsyncRelayCommand StartCalibrationCommand { get; }
     public AsyncRelayCommand ResumeCalibrationCommand { get; }
@@ -933,7 +946,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             {
                 ValidateSerialNumbers();
                 StartCalibrationCommand.RaiseCanExecuteChanged();
-                OnPropertyChanged(nameof(PeakSelectionSummary));
+                NotifyPeakCounts();
                 if (_peakFilterMode == "Selected" && e.PropertyName == nameof(CalibrationPeakRowViewModel.Selected))
                     PeaksView.Refresh();
             }

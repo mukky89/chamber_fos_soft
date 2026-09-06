@@ -45,55 +45,8 @@ public partial class CalibrationWindow
 
     private void ConfigureWiringModesV9()
     {
-        if (_wiringGrid?.Parent is not Grid root || root.Children.OfType<FrameworkElement>().Any(x => Equals(x.Tag, "WIRING_MODES_V9"))) return;
-        if (root.Children.OfType<DockPanel>().FirstOrDefault(x => Grid.GetRow(x) == 0) is not DockPanel header) return;
-
-        var table = new RadioButton
-        {
-            Content = "Tabuľka SN",
-            IsChecked = true,
-            GroupName = "WiringEntryModeV9",
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 10, 0),
-            ToolTip = "Enter uloží SN a presunie kurzor na ďalší riadok v rovnakom stĺpci.",
-        };
-        var sequential = new RadioButton
-        {
-            Content = "Poradové párovanie",
-            GroupName = "WiringEntryModeV9",
-            VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = "Najprv zadaj SN, potom pripoj snímač. Nový kanál sa priradí automaticky.",
-        };
-        table.Checked += (_, _) =>
-        {
-            _wiringEntryModeSequential = false;
-            _sequentialPendingSn = null;
-            CloseSequentialWiringV9();
-            FocusFirstEmptySerialV9();
-        };
-        sequential.Checked += (_, _) =>
-        {
-            _wiringEntryModeSequential = true;
-            OpenSequentialWiringV9();
-        };
-        var soundToggle = new CheckBox
-        {
-            Content = "Zvuk pri chybe SN",
-            IsChecked = OperatorAlertSoundService.Enabled,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(22, 0, 0, 0),
-            ToolTip = "Jednorazové zvukové upozornenie pri neplatnom alebo duplicitnom SN a pri nezhode sondy s kanálom. Nastavenie platí pre celú aplikáciu.",
-        };
-        soundToggle.Checked += (_, _) => OperatorAlertSoundService.Enabled = true;
-        soundToggle.Unchecked += (_, _) => OperatorAlertSoundService.Enabled = false;
-
-        var modes = new StackPanel { Tag = "WIRING_MODES_V9", Orientation = Orientation.Horizontal };
-        modes.Children.Add(table);
-        modes.Children.Add(sequential);
-        modes.Children.Add(soundToggle);
-        DockPanel.SetDock(modes, Dock.Right);
-        header.Children.Insert(0, modes);
-
+        if (_wiringGrid is null) return;
+        _wiringEntryModeSequential = false;
         _wiringGrid.PreviewKeyDown -= WiringGridPreviewKeyDownV9;
         _wiringGrid.PreviewKeyDown += WiringGridPreviewKeyDownV9;
         FocusFirstEmptySerialV9();

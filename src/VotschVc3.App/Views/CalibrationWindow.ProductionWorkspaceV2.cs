@@ -109,7 +109,8 @@ public partial class CalibrationWindow
         if (_wiringGrid is null) return;
 
         // Keep sixteen production lines visible at once. Additional rows remain scrollable.
-        _wiringGrid.MinHeight = (16 * 35) + 42 + 4;
+        _wiringGrid.ClearValue(FrameworkElement.MinHeightProperty);
+        _wiringGrid.MaxHeight = (16 * 31) + 36 + 16;
         _wiringGrid.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
         _wiringGrid.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
 
@@ -145,7 +146,7 @@ public partial class CalibrationWindow
         {
             "Kalibrovať", "Kanál", "Peak ID", "FBG index", "Aktuálna λ [nm]", "Intenzita",
             "Typ FBG", "Sylex SN", "FBG sensor SN (kanál)", "FBG sensor SN CHAIN",
-            "Zákazka", "Poznámky", "Názov snímača", "Popis výrobku", "Zákazník",
+            "Zákazka", "Názov snímača", "Popis výrobku", "Poznámky",
         };
         for (int displayIndex = 0; displayIndex < columnOrder.Length; displayIndex++)
         {

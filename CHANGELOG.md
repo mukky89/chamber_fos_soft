@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.199] – 2026-09-06
+
+### Zmenené
+- Zapojenie FBG bolo vizuálne prerobené podľa schváleného referenčného návrhu: kompaktná lišta vyhľadávania a filtrov s počítadlami, 14 stĺpcov v rovnakom poradí, jemné tmavé riadky bez modrých blokov a úzky stavový pás PeakLoggera.
+- Tabuľka sa prispôsobí skutočnému počtu peakov a rastie najviac po 16 viditeľných riadkov; pri menšom počte už nevytvára veľkú prázdnu plochu.
+- Odstránené boli ovládacie prvky a druhý spodný stavový panel, ktoré neboli súčasťou návrhu; záložná verzia bola zvýšená na 1.76.199.
+
 ## [1.76.198] – 2026-09-06
 
 ### Opravené

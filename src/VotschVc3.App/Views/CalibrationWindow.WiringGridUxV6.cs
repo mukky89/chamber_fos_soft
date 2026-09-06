@@ -60,9 +60,9 @@ public partial class CalibrationWindow
 
         // Keep every column that the production workspace currently exposes. Horizontal scrolling is
         // preferable to squeezing sixteen+ fields into unreadable slivers.
-        _wiringGrid.RowHeight = 35;
-        _wiringGrid.ColumnHeaderHeight = 42;
-        _wiringGrid.MinRowHeight = 34;
+        _wiringGrid.RowHeight = 31;
+        _wiringGrid.ColumnHeaderHeight = 36;
+        _wiringGrid.MinRowHeight = 31;
         _wiringGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
         _wiringGrid.RowHeaderWidth = 0;
         _wiringGrid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
@@ -118,11 +118,8 @@ public partial class CalibrationWindow
 
         if (editable)
         {
-            Brush surface = new SolidColorBrush(Color.FromArgb(0x35, 0x58, 0x92, 0xE8));
-            Brush accent = TryFindResource("AccentBrush") as Brush ?? Brushes.CornflowerBlue;
-            style.Setters.Add(new Setter(Control.BackgroundProperty, surface));
-            style.Setters.Add(new Setter(Control.BorderBrushProperty, accent));
-            style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+            style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
             style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Klikni raz a píš. Toto pole je editovateľné."));
         }
         else
@@ -137,25 +134,24 @@ public partial class CalibrationWindow
     {
         double? width = header switch
         {
-            "Kalibrovať" => 88,
-            "Kanál" => 72,
-            "Peak ID" => 72,
-            "FBG index" => 82,
-            "Aktuálna λ [nm]" or "λ [nm]" => 128,
-            "Intenzita" or "Intenzita [dBm]" => 88,
+            "Kalibrovať" => 72,
+            "Kanál" => 56,
+            "Peak ID" => 70,
+            "FBG index" => 78,
+            "Aktuálna λ [nm]" or "λ [nm]" => 96,
+            "Intenzita" or "Intenzita [dBm]" => 108,
             "Snímač" => 112,
-            "Typ FBG" => 98,
-            "Sylex SN" => 116,
-            "FBG sensor SN (kanál)" => 180,
-            "FBG sensor SN CHAIN" => 185,
+            "Typ FBG" => 85,
+            "Sylex SN" => 110,
+            "FBG sensor SN (kanál)" => 150,
+            "FBG sensor SN CHAIN" => 150,
             "Timeout [min]" => 128,
             "Max. stabilizácia [min]" => 138,
-            "Poznámky" => 220,
-            "Popis produktu" => 175,
-            "Popis výrobku" => 175,
-            "Zákazník" => 145,
-            "Zákazka" => 120,
-            "Názov snímača" => 170,
+            "Poznámky" => 90,
+            "Popis produktu" => 120,
+            "Popis výrobku" => 120,
+            "Zákazka" => 105,
+            "Názov snímača" => 100,
             _ => null,
         };
 
