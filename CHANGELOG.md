@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.192] – 2026-09-06
+
+### Opravené
+- Číselné polia minimálnej a maximálnej teplotnej poistky aj časovača vypnutia už nie sú natlačené do výšky menšej než ich ovládací prvok. Hodnoty a obe šípky sú celé viditeľné.
+- Záložná verzia bola zvýšená na 1.76.192.
+
 ## [1.76.191] – 2026-09-06
 
 ### Opravené

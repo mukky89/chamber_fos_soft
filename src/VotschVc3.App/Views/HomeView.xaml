@@ -687,12 +687,12 @@
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Grid.Column="0" Text="Min" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                    <views:NumericStepper Grid.Column="1" MinWidth="78" Height="30" HorizontalAlignment="Stretch"
+                                                    <views:NumericStepper Grid.Column="1" MinWidth="78" HorizontalAlignment="Stretch"
                                                                           Value="{Binding SafetyTempMin, Mode=TwoWay}" Step="1"
                                                                           IsEnabled="{Binding CanEditDeviceSettings}" ToolTip="Minimálna bezpečná teplota" />
                                                     <TextBlock Grid.Column="2" Text="°C" Margin="4,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
                                                     <TextBlock Grid.Column="3" Text="Max" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                    <views:NumericStepper Grid.Column="4" MinWidth="78" Height="30" HorizontalAlignment="Stretch"
+                                                    <views:NumericStepper Grid.Column="4" MinWidth="78" HorizontalAlignment="Stretch"
                                                                           Value="{Binding SafetyTempMax, Mode=TwoWay}" Step="1"
                                                                           IsEnabled="{Binding CanEditDeviceSettings}" ToolTip="Maximálna bezpečná teplota" />
                                                     <TextBlock Grid.Column="5" Text="°C" Margin="4,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
@@ -728,7 +728,7 @@
                                                               ToolTip="Vypnuté = manuálne ovládanie beží bez časového limitu. Zapnuté = po zadanom čase sa výkon komory vypne." />
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                                                                 IsEnabled="{Binding ManualTimerEnabled}">
-                                                        <views:NumericStepper Width="80" Height="30" Value="{Binding ManualDurationMinutes, Mode=TwoWay}"
+                                                        <views:NumericStepper Width="80" Value="{Binding ManualDurationMinutes, Mode=TwoWay}"
                                                                               Minimum="1" Maximum="10080" Step="5"
                                                                               ToolTip="Trvanie manuálneho ovládania v minútach" />
                                                         <TextBlock Text="min" VerticalAlignment="Center" Margin="4,0,0,0"
