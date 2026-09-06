@@ -50,6 +50,18 @@ public sealed class PolEkoLabDeskProtocolTests
     }
 
     [Fact]
+    public void Authenticated_request_accepts_locally_configured_device_credentials()
+    {
+        using JsonDocument json = JsonDocument.Parse(
+            PolEkoLabDeskProtocol.BuildRequest(
+                "GET_PROGRAMS", null, true, username: "device-user", password: "device-secret"));
+
+        JsonElement credential = json.RootElement.GetProperty("userCredential");
+        Assert.Equal("device-user", credential.GetProperty("username").GetString());
+        Assert.Equal("device-secret", credential.GetProperty("password").GetString());
+    }
+
+    [Fact]
     public void Diagnostic_request_redacts_password()
     {
         using JsonDocument json = JsonDocument.Parse(
@@ -58,6 +70,16 @@ public sealed class PolEkoLabDeskProtocolTests
         JsonElement credential = json.RootElement.GetProperty("userCredential");
         Assert.Equal("admin", credential.GetProperty("username").GetString());
         Assert.Equal("***", credential.GetProperty("password").GetString());
+    }
+
+    [Fact]
+    public void Diagnostic_request_never_logs_locally_configured_password()
+    {
+        string request = PolEkoLabDeskProtocol.BuildRequest(
+            "STOP", null, true, redactPassword: true, username: "device-user", password: "device-secret");
+
+        Assert.DoesNotContain("device-secret", request, StringComparison.Ordinal);
+        Assert.Contains("\"password\":\"***\"", request, StringComparison.Ordinal);
     }
 
     [Theory]

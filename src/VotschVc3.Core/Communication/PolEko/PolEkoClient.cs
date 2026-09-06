@@ -145,9 +145,11 @@ public sealed class PolEkoClient : IChamberDevice
         try
         {
             var sender = _sender ?? throw new InvalidOperationException("POL-EKO nie je pripojené.");
-            string request = PolEkoLabDeskProtocol.BuildRequest(command, data, credentials);
+            (string username, string password) = PolEkoLabDeskProtocol.ResolveCredential();
+            string request = PolEkoLabDeskProtocol.BuildRequest(command, data, credentials, username: username, password: password);
             string raw = await Task.Run(() => sender.SendRequestMessage(request), ct).ConfigureAwait(false);
-            string diagnosticRequest = PolEkoLabDeskProtocol.BuildRequest(command, data, credentials, redactPassword: true);
+            string diagnosticRequest = PolEkoLabDeskProtocol.BuildRequest(
+                command, data, credentials, redactPassword: true, username: username, password: password);
             FrameExchanged?.Invoke(this, new FrameExchangedEventArgs(diagnosticRequest, raw));
             var response = JsonSerializer.Deserialize<PolEkoRpcResponse>(raw, Json) ?? throw new InvalidDataException("POL-EKO vrátilo prázdnu RPC odpoveď.");
             if (!response.ResponseStatus.Equals("OK", StringComparison.OrdinalIgnoreCase)) throw new PolEkoRpcException(command, response.ResponseStatus, response.Data);
@@ -238,13 +240,51 @@ public sealed class PolEkoClient : IChamberDevice
 /// <summary>Pure LabDesk JSON helpers, separated for protocol regression tests.</summary>
 public static class PolEkoLabDeskProtocol
 {
+    public const string UsernameEnvironmentVariable = "CHAMBER_FOS_POL_EKO_USERNAME";
+    public const string PasswordEnvironmentVariable = "CHAMBER_FOS_POL_EKO_PASSWORD";
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-    public static string BuildRequest(string command, string? data, bool credentials, bool redactPassword = false) => JsonSerializer.Serialize(new PolEkoRpcRequest
+    public static string BuildRequest(
+        string command,
+        string? data,
+        bool credentials,
+        bool redactPassword = false,
+        string? username = null,
+        string? password = null) => JsonSerializer.Serialize(new PolEkoRpcRequest
     {
         RequestCommand = command,
-        UserCredential = credentials ? new PolEkoCredential { Password = redactPassword ? "***" : "admin" } : null,
+        UserCredential = credentials
+            ? new PolEkoCredential
+            {
+                Username = string.IsNullOrWhiteSpace(username) ? "admin" : username,
+                Password = redactPassword ? "***" : password ?? "admin",
+            }
+            : null,
         Data = data,
     }, Json);
+
+    public static (string Username, string Password) ResolveCredential()
+    {
+        string username = ResolveEnvironmentVariable(UsernameEnvironmentVariable) ?? "admin";
+        string password = ResolveEnvironmentVariable(PasswordEnvironmentVariable) ?? "admin";
+        return (username, password);
+    }
+
+    private static string? ResolveEnvironmentVariable(string name)
+    {
+        string? value = Environment.GetEnvironmentVariable(name);
+        if (!string.IsNullOrWhiteSpace(value)) return value;
+        try
+        {
+            value = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
+            if (!string.IsNullOrWhiteSpace(value)) return value;
+            value = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Machine);
+            return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>Reads the main probe from both known GET_STATUS response shapes.</summary>
     public static bool TryReadMainTemperature(JsonElement status, out double value)

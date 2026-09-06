@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.217] – 2026-09-06
+
+### Zmenené
+- Prihlasovacie údaje zariadenia POL-EKO sa načítavajú z lokálnych používateľských nastavení Windows namiesto pevného hesla v zdrojovom kóde; heslo zostáva v komunikačnom logu maskované.
+
+### Opravené
+- Ovládacie príkazy POL-EKO môžu použiť skutočné poverenie používateľa zariadenia, takže nie sú odmietnuté stavom `UNAUTHORIZED` iba preto, že účet LabDesk používa iné heslo.
+
 ## [1.76.216] – 2026-09-06
 
 ### Zmenené

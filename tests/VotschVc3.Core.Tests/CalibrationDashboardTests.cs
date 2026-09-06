@@ -500,7 +500,8 @@ public sealed class CalibrationDashboardTests
         Assert.Equal("Waiting", m.ReferenceTimeTone);
         Assert.Contains("35 / 600 s", m.ReferenceTimeLabel);
         Assert.Contains("±0", m.ReferenceToleranceHelp);
-        Assert.Contains("bloku 5 vzoriek", m.ReferenceDriftHelp);
+        Assert.Contains("skutočných časov vzoriek", m.ReferenceDriftHelp);
+        Assert.Contains("posledných 120 sekúnd", m.ReferenceDriftHelp);
         Assert.Contains("dvojnásobok", m.ReferenceTimeHelp);
         Assert.Equal(2, m.WikaStabilityScoreTrace.Count);
         Assert.Equal(0, m.WikaStabilityScoreTrace[0].ScoreSeconds);
