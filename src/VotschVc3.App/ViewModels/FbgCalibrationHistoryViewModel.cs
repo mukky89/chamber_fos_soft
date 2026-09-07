@@ -50,7 +50,7 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
         try
         {
             IReadOnlyList<FbgCalibrationHistoryItem> items = _store.LoadHistory()
-                .Select(run => new FbgCalibrationHistoryItem(run, Path.Combine(_store.RunsDirectory, run.RunId.ToString("N"))))
+                .Select(run => new FbgCalibrationHistoryItem(run, _store.GetRunDirectory(run)))
                 .ToArray();
 
             Calibrations.Clear();

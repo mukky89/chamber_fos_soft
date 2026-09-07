@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.240] – 2026-09-07
+
+### Zmenené
+
+- Nové priečinky FBG kalibrácií začínajú čitateľným ID kalibrácie zobrazeným v aplikácii, napríklad 02-2026-09-06__..., takže ich možno jednoznačne priradiť ku konkrétnemu behu priamo v Prieskumníkovi. Otváranie súborov, história, e-mailové prílohy aj obnovenie behu používajú spoločný resolver a naďalej podporujú staršie priečinky pomenované iba interným GUID.
+
 ## [1.76.239] – 2026-09-07
 
 ### Opravené

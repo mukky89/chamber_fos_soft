@@ -2209,7 +2209,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         IsRunning,
         SelectedProfile?.Name ?? "FBG kalibrácia",
         _activeRun?.DisplayRunId ?? "—",
-        _activeRun is null ? string.Empty : Path.Combine(_calibrationStore.RunsDirectory, _activeRun.RunId.ToString("N")),
+        _activeRun is null ? string.Empty : _calibrationStore.GetRunDirectory(_activeRun),
         RunState,
         PlateauLabel,
         _calibrationProgressPercent,
@@ -2399,7 +2399,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         try
         {
             RefreshEmailSettings();
-            string runDirectory = Path.Combine(_calibrationStore.RunsDirectory, run.RunId.ToString("N"));
+            string runDirectory = _calibrationStore.GetRunDirectory(run);
             CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, runDirectory);
             EmailResult result = await _email.SendAsync(NotificationType.CalibrationCompleted,
                 message.Subject, message.Text, message.Html, message.Attachments);

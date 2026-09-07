@@ -69,7 +69,7 @@ public sealed class CalibrationStore
 
     public CalibrationRunRecord? LoadRun(Guid runId)
     {
-        string path = Path.Combine(RunDirectory(runId), "summary.json");
+        string path = Path.Combine(GetRunDirectory(runId), "summary.json");
         if (!File.Exists(path)) return null;
         try
         {
@@ -84,7 +84,7 @@ public sealed class CalibrationStore
     public void SaveRun(CalibrationRunRecord run)
     {
         ArgumentNullException.ThrowIfNull(run);
-        string dir = RunDirectory(run.RunId);
+        string dir = GetRunDirectory(run);
         Directory.CreateDirectory(dir);
         run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
         File.WriteAllText(Path.Combine(dir, "summary.json"), JsonSerializer.Serialize(run, JsonOptions));
@@ -206,7 +206,27 @@ public sealed class CalibrationStore
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
     }
 
-    internal string RunDirectory(Guid runId) => Path.Combine(RunsDirectory, runId.ToString("N"));
+    public string GetRunDirectory(CalibrationRunRecord run)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        string legacyDirectory = LegacyRunDirectory(run.RunId);
+        if (Directory.Exists(legacyDirectory) || string.IsNullOrWhiteSpace(run.HumanRunId))
+            return legacyDirectory;
+
+        string readableId = string.Concat(run.HumanRunId.Select(character =>
+            Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
+        return Path.Combine(RunsDirectory, readableId + "__" + run.RunId.ToString("N"));
+    }
+
+    public string GetRunDirectory(Guid runId)
+    {
+        string legacyDirectory = LegacyRunDirectory(runId);
+        if (Directory.Exists(legacyDirectory)) return legacyDirectory;
+        return Directory.EnumerateDirectories(RunsDirectory, "*__" + runId.ToString("N"), SearchOption.TopDirectoryOnly).FirstOrDefault()
+            ?? legacyDirectory;
+    }
+
+    private string LegacyRunDirectory(Guid runId) => Path.Combine(RunsDirectory, runId.ToString("N"));
     private string SetupPath(Guid profileId, Guid chamberId) => chamberId == Guid.Empty
         ? Path.Combine(SetupsDirectory, $"{profileId:N}.json")
         : Path.Combine(SetupsDirectory, $"{chamberId:N}-{profileId:N}.json");
@@ -233,7 +253,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
     {
         _store = store;
         _run = run;
-        string dir = store.RunDirectory(run.RunId);
+        string dir = store.GetRunDirectory(run);
         Directory.CreateDirectory(dir);
         string rawPath = Path.Combine(dir, "raw-samples.csv");
         bool rawHasContent = append && File.Exists(rawPath) && new FileInfo(rawPath).Length > 0;

@@ -160,4 +160,32 @@ public sealed class CalibrationRunResumeStorageTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task RunWriter_UsesHumanReadableCalibrationIdInFolderName()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "VotschVc3-readable-run-folder-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord
+            {
+                HumanRunId = "02-2026-09-06",
+                ProfileName = "Readable folder",
+            };
+
+            await using (store.CreateRunWriter(run))
+            {
+            }
+
+            string directory = store.GetRunDirectory(run);
+            Assert.Equal("02-2026-09-06__" + run.RunId.ToString("N"), Path.GetFileName(directory));
+            Assert.True(File.Exists(Path.Combine(directory, "summary.json")));
+            Assert.Equal(run.RunId, store.LoadRun(run.RunId)?.RunId);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 }
