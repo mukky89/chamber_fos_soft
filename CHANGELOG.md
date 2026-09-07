@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.243] – 2026-09-07
+
+### Zmenené
+
+- Tabuľka kalibračných koeficientov v záverečnom e-maile zobrazuje každé výrobné SN presne v jednom riadku. Pre jednotlivé kombinácie kanála, peaku a typu kalibrácie automaticky vytvorí samostatné stĺpce s koeficientmi a výsledkami bez opakovania SN.
+
 ## [1.76.242] – 2026-09-07
 
 ### Odstránené

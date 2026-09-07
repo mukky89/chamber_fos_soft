@@ -36,12 +36,20 @@ public sealed class CalibrationCompletionEmailTests
                         new CalibrationMeasurementResult { SerialNumber = "289594/0001", Channel = "1.3", PeakId = "P1", Status = CalibrationTargetState.Stable, MeanWavelengthNm = 1552.1, SampleCount = 50 },
                         new CalibrationMeasurementResult { SerialNumber = "289594/0002", Channel = "2.3", PeakId = "P1", Status = CalibrationTargetState.TimedOut, Problem = "Nestabilný", MeanWavelengthNm = 1551.2, SampleCount = 20 },
                     ] }],
-                CalibrationResults = [new TemperatureCalibrationResult
-                {
-                    SerialNumber = "289594/0001", Channel = "1.3", PeakId = "P1", CalibrationType = "3rd · ABCD",
-                    LambdaTRefNm = 1550.123456, SensitivityPmPerC = 10.2, CoefficientA = 1.2, CoefficientB = 2.3,
-                    CoefficientC = 3.4, CoefficientD = 4.5, MaxErrorC = 0.12, RSquared = 0.9999, Result = "PASS",
-                }],
+                CalibrationResults = [
+                    new TemperatureCalibrationResult
+                    {
+                        SerialNumber = "289594/0001", Channel = "1.3", PeakId = "P1", CalibrationType = "3rd · ABCD",
+                        LambdaTRefNm = 1550.123456, SensitivityPmPerC = 10.2, CoefficientA = 1.2, CoefficientB = 2.3,
+                        CoefficientC = 3.4, CoefficientD = 4.5, MaxErrorC = 0.12, RSquared = 0.9999, Result = "PASS",
+                    },
+                    new TemperatureCalibrationResult
+                    {
+                        SerialNumber = "289594/0001", Channel = "1.3", PeakId = "P2", CalibrationType = "FBGS · s1/s2",
+                        LambdaTRefNm = 1551.654321, SensitivityPmPerC = 10.4, CoefficientS1 = 0.01, CoefficientS2 = 0.02,
+                        MaxErrorC = 0.08, RSquared = 0.9998, Result = "PASS",
+                    },
+                ],
             };
 
             CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, directory);
@@ -55,8 +63,14 @@ public sealed class CalibrationCompletionEmailTests
             Assert.Contains("Otvoriť lokálny priečinok behu", html);
             Assert.Contains("Kalibračné koeficienty", html);
             Assert.Contains("3rd · ABCD", html);
-            Assert.Contains("A=1.2", html);
-            Assert.Contains("0.9999", html);
+            Assert.Contains("1.3 / P2 · FBGS · s1/s2", html);
+            Assert.Contains("A=1,2", html);
+            Assert.Contains("s1=0,01", html);
+            Assert.Contains("0,9999", html);
+            string coefficientTable = html[(html.IndexOf("Kalibračné koeficienty", StringComparison.Ordinal))..
+                html.IndexOf("Súbory kalibrácie", StringComparison.Ordinal)];
+            Assert.Equal(1, coefficientTable.Split("289594/0001").Length - 1);
+            Assert.Equal(1, coefficientTable.Split("<tbody><tr>").Length - 1);
             Assert.Equal(4, message.Attachments.Count);
             Assert.Equal("calibration-results.csv", message.Attachments[0].FileName);
             Assert.Equal("calibration-coefficients.csv", message.Attachments[1].FileName);

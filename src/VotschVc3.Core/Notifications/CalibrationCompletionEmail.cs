@@ -12,6 +12,8 @@ public sealed record CalibrationCompletionMessage(
 /// <summary>Builds the final FBG calibration report and a portable archive of the run files.</summary>
 public static class CalibrationCompletionEmail
 {
+    private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
+
     public static CalibrationCompletionMessage Create(CalibrationRunRecord run, string runDirectory)
     {
         ArgumentNullException.ThrowIfNull(run);
@@ -61,18 +63,30 @@ public static class CalibrationCompletionEmail
         if (rows.Length == 0)
             rows = "<tr><td colspan=\"10\" style=\"padding:14px;color:#C92A2A\">Nie sú dostupné žiadne výsledky FBG peakov.</td></tr>";
 
-        string coefficientRows = string.Join(string.Empty, calibrationResults.Select(item =>
-        {
-            bool modelPassed = item.Result == "PASS";
-            string color = modelPassed ? "#087F5B" : "#C92A2A";
-            return "<tr>" + Cell(Value(item.SerialNumber)) + Cell(Value(item.Channel)) + Cell(Value(item.PeakId)) +
-                Cell(Value(item.CalibrationType)) + Cell($"{item.LambdaTRefNm:0.000000} nm") +
-                Cell($"{item.SensitivityPmPerC:0.######} pm/°C") + Cell(FormatCoefficients(item)) +
-                Cell($"{item.MaxErrorC:0.######} °C") + Cell(item.RSquared.ToString("0.########", CultureInfo.InvariantCulture)) + Cell(item.StabilityStatus) +
-                $"<td style=\"padding:9px;border-bottom:1px solid #E5EBF2;color:{color};font-weight:700\">{H(item.Result)}</td></tr>";
-        }));
+        TemperatureCalibrationResult[] coefficientModels = calibrationResults
+            .GroupBy(CoefficientColumnKey, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(item => item.Channel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.PeakId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.CalibrationType, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        string coefficientHeaders = string.Concat(coefficientModels.Select(item => HeaderCell(
+            $"{Value(item.Channel)} / {Value(item.PeakId)} · {Value(item.CalibrationType)}")));
+        string coefficientRows = string.Join(string.Empty, calibrationResults
+            .GroupBy(item => Value(item.SerialNumber), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                Dictionary<string, TemperatureCalibrationResult> models = group
+                    .GroupBy(CoefficientColumnKey, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(items => items.Key, items => items.First(), StringComparer.OrdinalIgnoreCase);
+                return "<tr>" + Cell(group.Key) + string.Concat(coefficientModels.Select(column =>
+                    models.TryGetValue(CoefficientColumnKey(column), out TemperatureCalibrationResult? item)
+                        ? CoefficientCell(item)
+                        : Cell("—"))) + "</tr>";
+            }));
         if (coefficientRows.Length == 0)
-            coefficientRows = "<tr><td colspan=\"11\" style=\"padding:14px;color:#C92A2A\">Koeficienty nebolo možné vypočítať – nie sú dostupné aspoň tri platné teplotné body.</td></tr>";
+            coefficientRows = "<tr><td colspan=\"1\" style=\"padding:14px;color:#C92A2A\">Koeficienty nebolo možné vypočítať – nie sú dostupné aspoň tri platné teplotné body.</td></tr>";
 
         string fullDirectory = Path.GetFullPath(runDirectory);
         string folderUri = new Uri(fullDirectory.EndsWith(Path.DirectorySeparatorChar) ? fullDirectory : fullDirectory + Path.DirectorySeparatorChar).AbsoluteUri;
@@ -87,7 +101,7 @@ public static class CalibrationCompletionEmail
 <tr><td class="content-pad" style="padding:0 32px 28px">
 <h2 style="margin:0 0 12px;color:#182A40;font-size:19px">Kalibračné koeficienty</h2>
 <div style="overflow-x:auto"><table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:11px;color:#334155">
-<thead><tr style="background:#EEF3F8"><th style="padding:9px;text-align:left">SN</th><th style="padding:9px;text-align:left">Kanál</th><th style="padding:9px;text-align:left">Peak</th><th style="padding:9px;text-align:left">Kalibrácia</th><th style="padding:9px;text-align:left">λTref</th><th style="padding:9px;text-align:left">Citlivosť</th><th style="padding:9px;text-align:left">Koeficienty</th><th style="padding:9px;text-align:left">Max. chyba</th><th style="padding:9px;text-align:left">R²</th><th style="padding:9px;text-align:left">Stabilizácia</th><th style="padding:9px;text-align:left">Výsledok</th></tr></thead>
+<thead><tr style="background:#EEF3F8"><th style="padding:9px;text-align:left">SN</th>{coefficientHeaders}</tr></thead>
 <tbody>{coefficientRows}</tbody></table></div>
 </td></tr>
 <tr><td class="content-pad" style="padding:0 32px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;border:1px solid #E5EBF2;border-radius:10px"><tr><td style="padding:18px 20px;color:#52647C;font-size:13px;line-height:22px;word-break:break-word">
@@ -160,9 +174,21 @@ public static class CalibrationCompletionEmail
 
         void Add(string name, double? value)
         {
-            if (value is { } number) values.Add($"{name}={number.ToString("G10", CultureInfo.InvariantCulture)}");
+            if (value is { } number) values.Add($"{name}={number.ToString("G10", SlovakCulture)}");
         }
     }
+    private static string CoefficientColumnKey(TemperatureCalibrationResult item) =>
+        $"{item.Channel}|{item.PeakId}|{item.CalibrationType}";
+    private static string CoefficientCell(TemperatureCalibrationResult item)
+    {
+        string color = item.Result == "PASS" ? "#087F5B" : "#C92A2A";
+        string value = $"λTref {item.LambdaTRefNm.ToString("0.000000", SlovakCulture)} nm · citlivosť {item.SensitivityPmPerC.ToString("0.######", SlovakCulture)} pm/°C · " +
+            $"{FormatCoefficients(item)} · max. chyba {item.MaxErrorC.ToString("0.######", SlovakCulture)} °C · R² {item.RSquared.ToString("0.########", SlovakCulture)} · " +
+            $"{Value(item.StabilityStatus)} · {Value(item.Result)}";
+        return $"<td style=\"padding:9px;border-bottom:1px solid #E5EBF2;color:{color};font-weight:600;min-width:220px\">{H(value)}</td>";
+    }
+    private static string HeaderCell(string value) =>
+        $"<th style=\"padding:9px;text-align:left;min-width:220px\">{H(value)}</th>";
     private static string Cell(string value) => $"<td style=\"padding:9px;border-bottom:1px solid #E5EBF2\">{H(value)}</td>";
     private static string H(string value) => WebUtility.HtmlEncode(value);
 }
