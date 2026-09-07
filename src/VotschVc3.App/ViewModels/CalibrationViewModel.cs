@@ -1640,7 +1640,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private bool CanStartCalibration()
     {
-        if (IsRunning || !PeakLoggerConnected || SelectedProfile is null || SelectedChamber is null ||
+        if (IsRunning || (!UseSimulator && !PeakLoggerConnected) || SelectedProfile is null || SelectedChamber is null ||
             !CalibrationPoints.Any(p => p.Selected))
         {
             return false;
@@ -1750,7 +1750,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
 
     private async Task StartCalibrationAsync(bool resumeFromCheckpoint)
     {
-        if (!CanStartCalibration() || SelectedProfile is null || SelectedChamber is null || _peakLogger is null) return;
+        if (!CanStartCalibration() || SelectedProfile is null || SelectedChamber is null) return;
+        if (_peakLogger is null && UseSimulator)
+        {
+            await ConnectPeakLoggerAsync();
+        }
+        if (_peakLogger is null) return;
         CalibrationCheckpoint? resume = resumeFromCheckpoint ? _resumeCheckpoint : null;
         if (resumeFromCheckpoint && resume is null)
             throw new InvalidOperationException("Uložený checkpoint pre vybraný profil a komoru už nie je dostupný.");
