@@ -1,7 +1,7 @@
 <UserControl x:Class="VotschVc3.App.Views.NumericStepper"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Name="Root">
+             x:Name="Root" Height="36">
     <UserControl.Resources>
         <!-- Explicit, self-contained TextBox style so the value text always renders,
              independent of the global implicit TextBox template (which, in some nested
@@ -57,7 +57,7 @@
     </UserControl.Resources>
 
     <Border Background="{StaticResource SurfaceAltBrush}" BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="1" CornerRadius="6" Height="36">
+            BorderThickness="1" CornerRadius="6">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

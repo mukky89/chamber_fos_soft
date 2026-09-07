@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.249] – 2026-09-07
+
+### Zmenené
+
+- Rýchle ovládanie má menšie tlačidlá a číselné vstupy s jednotnou výškou 28 px a menšími medzerami. Ostatné číselné vstupy zachovávajú predvolenú výšku 36 px.
+
 ## [1.76.248] – 2026-09-07
 
 ### Opravené

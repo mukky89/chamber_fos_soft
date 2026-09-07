@@ -698,9 +698,9 @@
 
                                         <!-- Compact manual controls. -->
                                         <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,4,0,0">
-                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="8">
+                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="6">
                                                 <StackPanel>
-                                                <Grid Margin="0,0,0,8">
+                                                <Grid Margin="0,0,0,5">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
@@ -711,7 +711,7 @@
                                                               ToolTip="Vypnuté = manuálne ovládanie beží bez časového limitu. Zapnuté = po zadanom čase sa výkon komory vypne." />
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                                                                 IsEnabled="{Binding ManualTimerEnabled}">
-                                                        <views:NumericStepper Width="80" Value="{Binding ManualDurationMinutes, Mode=TwoWay}"
+                                                        <views:NumericStepper Width="76" Height="28" Value="{Binding ManualDurationMinutes, Mode=TwoWay}"
                                                                               Minimum="1" Maximum="10080" Step="5"
                                                                               ToolTip="Trvanie manuálneho ovládania v minútach" />
                                                         <TextBlock Text="min" VerticalAlignment="Center" Margin="4,0,0,0"
@@ -729,7 +729,7 @@
                                                     </Grid.ColumnDefinitions>
 
                                                     <ItemsControl Grid.Row="0" Grid.ColumnSpan="3" ItemsSource="{Binding QuickPresets}"
-                                                                  Margin="0,0,0,8" VerticalAlignment="Center">
+                                                                  Margin="0,0,0,5" VerticalAlignment="Center">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
                                                                 <UniformGrid Rows="1" Columns="4" />
@@ -737,8 +737,8 @@
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,4,0" Height="36"
-                                                                        MinWidth="0" Padding="6,0" FontSize="12"
+                                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,4,0" Height="28"
+                                                                        MinWidth="0" MinHeight="28" Padding="6,0" FontSize="12"
                                                                         Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
                                                                         ToolTip="Klikni = nastav túto teplotu a zapni komoru"
                                                                         Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -749,7 +749,7 @@
 
                                                     <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                                         <!-- Wide enough for a four-character value ("-100"). -->
-                                                        <views:NumericStepper Width="80" VerticalAlignment="Center"
+                                                        <views:NumericStepper Width="76" Height="28" VerticalAlignment="Center"
                                                                               Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
                                                                               ToolTip="Vlastná teplota v °C – šípkami ▲▼ meníš po 1 °C, potom stlač Nastaviť." />
                                                         <TextBlock Text="°C" VerticalAlignment="Center" Margin="4,0,10,0"
@@ -758,7 +758,7 @@
 
                                                     <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                         <Button Style="{StaticResource AccentButton}" Margin="0,0,8,0"
-                                                                Height="36" Padding="12,0" FontSize="12.5"
+                                                                Height="28" Padding="8,0" FontSize="12"
                                                                 VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
                                                                 ToolTip="Zapíše zadanú vlastnú teplotu do komory a zapne reguláciu.">
                                                             <StackPanel Orientation="Horizontal">
@@ -768,7 +768,7 @@
                                                             </StackPanel>
                                                         </Button>
                                                         <Button Style="{StaticResource DangerButton}" Margin="0"
-                                                                Height="36" Padding="12,0" FontSize="12.5"
+                                                                Height="28" Padding="8,0" FontSize="12"
                                                                 VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
                                                                 ToolTip="Vypnúť komoru (zastaví reguláciu).">
                                                             <StackPanel Orientation="Horizontal">
