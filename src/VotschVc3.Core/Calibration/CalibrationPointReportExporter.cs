@@ -11,6 +11,7 @@ namespace VotschVc3.Core.Calibration;
 /// <summary>Creates operator-friendly, per-plateau reports from the same samples used by calibration.</summary>
 internal static class CalibrationPointReportExporter
 {
+    private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
     private static readonly Color[] SeriesColors =
     [
         Color.FromArgb(0x16, 0xA3, 0xE8), Color.FromArgb(0xF5, 0x9E, 0x0B),
@@ -75,7 +76,7 @@ internal static class CalibrationPointReportExporter
             if (cells.Length < 11 ||
                 !DateTimeOffset.TryParse(cells[1], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset timestamp) ||
                 !int.TryParse(cells[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out int peakIndex) ||
-                !double.TryParse(cells[7], NumberStyles.Float, CultureInfo.InvariantCulture, out double wavelength))
+                !TryParseCsvDouble(cells[7], out double wavelength))
                 continue;
 
             result.Add(new TraceRow(timestamp, cells[2], cells[3], cells[4], cells[5], peakIndex, wavelength,
@@ -272,9 +273,13 @@ internal static class CalibrationPointReportExporter
             sheet.Cell(row, 4).Style.Font.SetBold().Font.SetFontColor(IsPass(result.Status) ? XLColor.FromHtml("#087F5B") : XLColor.FromHtml("#C92A2A"));
             row++;
         }
+        sheet.Cell("D5").Style.NumberFormat.Format = "0.000";
+        sheet.Cell("B6").Style.NumberFormat.Format = "0.000";
+        sheet.Cell("D6").Style.NumberFormat.Format = "0.000";
+        if (row > 12) sheet.Range(12, 6, row - 1, 10).Style.NumberFormat.Format = "0.000000";
         sheet.Cell(row + 1, 1).Value = "Použité limity";
-        sheet.Cell(row + 2, 1).Value = $"WIKA: cieľ ± {settings.ChamberToleranceC:0.###} °C; súvislý stabilný čas {settings.ChamberStableDuration.TotalSeconds:0} s; rozsah ≤ {settings.MaxChamberRangeC:0.###} °C; σ ≤ {settings.MaxChamberStdDevC:0.###} °C; drift ≤ {settings.MaxChamberDriftCPerMinute:0.###} °C/min";
-        sheet.Cell(row + 3, 1).Value = $"FBG: {settings.RequiredStableSamples} stabilizačných + {settings.RequiredMeasurementSamples} finálnych vzoriek; range ≤ {settings.MaxWavelengthRangePm:0.###} pm; σ ≤ {settings.MaxWavelengthStdDevPm:0.###} pm; drift ≤ {settings.MaxWavelengthDriftPmPerMinute:0.###} pm/min";
+        sheet.Cell(row + 2, 1).Value = Localized($"WIKA: cieľ ± {settings.ChamberToleranceC:0.###} °C; súvislý stabilný čas {settings.ChamberStableDuration.TotalSeconds:0} s; rozsah ≤ {settings.MaxChamberRangeC:0.###} °C; σ ≤ {settings.MaxChamberStdDevC:0.###} °C; drift ≤ {settings.MaxChamberDriftCPerMinute:0.###} °C/min");
+        sheet.Cell(row + 3, 1).Value = Localized($"FBG: {settings.RequiredStableSamples} stabilizačných + {settings.RequiredMeasurementSamples} finálnych vzoriek; range ≤ {settings.MaxWavelengthRangePm:0.###} pm; σ ≤ {settings.MaxWavelengthStdDevPm:0.###} pm; drift ≤ {settings.MaxWavelengthDriftPmPerMinute:0.###} pm/min");
         sheet.Range(row + 2, 1, row + 3, 11).Merge();
         FormatSheet(sheet, 11, Math.Max(11, row - 1));
         sheet.Column(11).Width = 42;
@@ -295,6 +300,7 @@ internal static class CalibrationPointReportExporter
             if (!double.IsNaN(item.ChamberTemperatureC)) sheet.Cell(row, 5).Value = item.ChamberTemperatureC;
             row++;
         }
+        if (row > 2) sheet.Range(2, 2, row - 1, 5).Style.NumberFormat.Format = "0.000";
         FormatSheet(sheet, headers.Length, row - 1);
     }
 
@@ -319,6 +325,11 @@ internal static class CalibrationPointReportExporter
                 sheet.Cell(row, 5).Value = index + 1; sheet.Cell(row, 6).Value = (point.Timestamp - origin!.Value).TotalSeconds;
                 sheet.Cell(row, 7).Value = point.Value; row++;
             }
+        }
+        if (row > 2)
+        {
+            sheet.Range(2, 6, row - 1, 6).Style.NumberFormat.Format = "0.000";
+            sheet.Range(2, 7, row - 1, 7).Style.NumberFormat.Format = "0.000000";
         }
         FormatSheet(sheet, headers.Length, row - 1);
     }
@@ -349,7 +360,11 @@ internal static class CalibrationPointReportExporter
         start == default || end == default || (value >= start && value <= end);
     private static bool IsPass(CalibrationTargetState state) => state is CalibrationTargetState.Stable or CalibrationTargetState.Overridden;
     private static string Label(CalibrationMeasurementResult target) => $"{target.SerialNumber} · {target.Channel}/{target.PeakId}";
-    private static double? ParseNullable(string value) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double number) ? number : null;
+    private static double? ParseNullable(string value) => TryParseCsvDouble(value, out double number) ? number : null;
+    private static bool TryParseCsvDouble(string value, out double number) =>
+        double.TryParse(value, NumberStyles.Float, SlovakCulture, out number) ||
+        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out number);
+    private static string Localized(FormattableString value) => value.ToString(SlovakCulture);
     private static string SafeTemperature(double value) => value.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture).Replace('.', '_');
 
     private sealed record TraceRow(DateTimeOffset Timestamp, string SerialNumber, string DeviceSerialNumber,

@@ -38,6 +38,7 @@ public sealed class TemperatureCalibrationResult
 public static class TemperatureCalibrationAnalyzer
 {
     public const double DefaultReferenceTemperatureC = 22.5;
+    private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
 
     public static List<TemperatureCalibrationResult> Analyze(CalibrationRunRecord run)
     {
@@ -194,6 +195,12 @@ public static class TemperatureCalibrationAnalyzer
                 sheet.Cell(row, 23).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#FFF3CD")).Font.SetBold().Font.SetFontColor(XLColor.FromHtml("#9A6700"));
             row++;
         }
+        if (row > 5)
+        {
+            sheet.Range(5, 8, row - 1, 10).Style.NumberFormat.Format = "0.000";
+            sheet.Range(5, 11, row - 1, 11).Style.NumberFormat.Format = "0.000000";
+            sheet.Range(5, 12, row - 1, 21).Style.NumberFormat.Format = "0.000000";
+        }
         sheet.SheetView.FreezeRows(4);
         sheet.RangeUsed()?.SetAutoFilter();
         sheet.Columns().AdjustToContents(8, 26);
@@ -286,7 +293,7 @@ public static class TemperatureCalibrationAnalyzer
         return x.Select((value, index) => (value - xMean) * (y[index] - yMean)).Sum() / x.Sum(value => Square(value - xMean));
     }
     private static double Square(double value) => value * value;
-    private static string F(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
+    private static string F(double value) => value.ToString("G17", SlovakCulture);
     private static string FN(double? value) => value is { } number ? F(number) : string.Empty;
     private static string E(string value) => value.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
     private sealed record AnalysisPoint(double TemperatureC, CalibrationMeasurementResult Target);

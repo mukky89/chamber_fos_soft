@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.238] – 2026-09-07
+
+### Zmenené
+
+- CSV a Excel súbory vytvárané pri FBG kalibrácii používajú slovenské zobrazenie čísel s desatinnou čiarkou. Týka sa to súhrnu, koeficientov, surových vzoriek, priebehu vlnovej dĺžky aj reportov kalibračných bodov; čítanie starších CSV s desatinnou bodkou zostáva podporované.
+
 ## [1.76.237] – 2026-09-07
 
 ### Pridané

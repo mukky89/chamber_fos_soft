@@ -7,6 +7,7 @@ namespace VotschVc3.Core.Calibration;
 
 public sealed class CalibrationStore
 {
+    private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -211,12 +212,13 @@ public sealed class CalibrationStore
         : Path.Combine(SetupsDirectory, $"{chamberId:N}-{profileId:N}.json");
     private string CheckpointPath(Guid chamberId) => Path.Combine(CheckpointsDirectory, $"{chamberId:N}.json");
 
-    private static string F(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
+    private static string F(double value) => value.ToString("G17", SlovakCulture);
     private static string E(string value) => value.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
 }
 
 public sealed class CalibrationRunWriter : IAsyncDisposable
 {
+    private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
     private readonly CalibrationStore _store;
     private readonly CalibrationRunRecord _run;
     private readonly StreamWriter _rawWriter;
@@ -341,7 +343,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
 
     public void SaveSummary() => _store.SaveRun(_run);
 
-    private static string F(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
+    private static string F(double value) => value.ToString("G17", SlovakCulture);
     private static string E(string value) => value.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
 
     public async ValueTask DisposeAsync()
