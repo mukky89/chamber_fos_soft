@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.241] – 2026-09-07
+
+### Opravené
+
+- Po odpojení komory alebo strate komunikácie sa na karte zariadenia už nezobrazujú posledné namerané hodnoty teploty, setpointu, vlhkosti ani referencie. Konfigurácia zariadenia a bezpečnostné limity zostávajú zachované.
+
 ## [1.76.240] – 2026-09-07
 
 ### Zmenené

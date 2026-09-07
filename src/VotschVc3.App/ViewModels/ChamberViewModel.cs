@@ -656,6 +656,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _isConnected, value))
             {
+                if (!value)
+                {
+                    ClearLiveReadoutsAfterDisconnect();
+                }
+
                 OnPropertyChanged(nameof(ConnectionState));
                 RefreshCommands();
             }
@@ -868,6 +873,17 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     private DateTimeOffset? _lastUpdate;
     public DateTimeOffset? LastUpdate { get => _lastUpdate; private set => SetProperty(ref _lastUpdate, value); }
 
+    private void ClearLiveReadoutsAfterDisconnect()
+    {
+        MeasuredTemperature = null;
+        MeasuredTemperatureSetpoint = null;
+        MeasuredHumidity = null;
+        MeasuredHumiditySetpoint = null;
+        LastRaw = string.Empty;
+        LastUpdate = null;
+        RaiseReference();
+    }
+
     public AsyncRelayCommand ReadOnceCommand { get; }
 
     private async Task ReadOnceAsync() => ApplyReading(await _client.ReadAsync());
@@ -1046,7 +1062,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     }
 
     /// <summary>The reference thermometer's current temperature, if any.</summary>
-    public double? ReferenceTemperature => SelectedReferenceThermometer?.Temperature;
+    public double? ReferenceTemperature => IsConnected ? SelectedReferenceThermometer?.Temperature : null;
 
     /// <summary><c>true</c> when a reference thermometer is selected.</summary>
     public bool HasReference => SelectedReferenceThermometer is not null;
