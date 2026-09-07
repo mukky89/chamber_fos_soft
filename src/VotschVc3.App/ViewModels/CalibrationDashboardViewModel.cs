@@ -223,7 +223,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? $"Meria {MeasuringCount} peakov. Ostatné peaky pokračujú v stabilizácii. Namerané vzorky: {SampleSummary}." : $"Stabilizuje sa {TotalTargets} peakov. Aktuálne stabilné: {StableCount} / {TotalTargets}.",
         CalibrationRunState.MovingToPlateau => $"Komore sa nastavuje cieľ {Target}. Profilové rampy a časy sa ignorujú.",
         CalibrationRunState.PlateauCompleted => "Kalibračný bod je dokončený. Pripravuje sa ďalšie vybrané plato.",
-        CalibrationRunState.FinalConditioning => _snapshot?.Message ?? $"Po meraní sa výrobky temperujú pri {_finalConditioningTemperatureC:F1} °C. FBG sa už nemeria.",
+        CalibrationRunState.FinalConditioning => _snapshot?.Message ?? $"Po meraní beží pevný čas temperovania pri nastavenej teplote {_finalConditioningTemperatureC:F1} °C. Po jeho uplynutí aplikácia vypne výkon zariadenia; FBG sa už nemeria.",
         CalibrationRunState.Completed => "Všetky kalibračné body sú dokončené. Výsledky a export nájdete v Histórii.",
         CalibrationRunState.CompletedWithWarnings => "Beh sa skončil s upozorneniami. Pred použitím výsledkov skontrolujte diagnostiku a históriu.",
         CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted => Alert,

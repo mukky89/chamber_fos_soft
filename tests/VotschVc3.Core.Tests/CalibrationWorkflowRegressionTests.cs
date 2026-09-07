@@ -263,6 +263,7 @@ public sealed class CalibrationWorkflowRegressionTests
             var setup = StableSetup(profile.Id);
             setup.CalibrationSegmentIndices.Add(1);
             setup.Settings.FinalConditioningDuration = TimeSpan.FromMilliseconds(25);
+            chamber.FinalConditioningReadOffsetC = 5;
 
             var store = new CalibrationStore(root);
             var run = new CalibrationRunRecord
@@ -290,6 +291,7 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.Equal(25, run.FinalConditioningTemperatureC, 6);
             Assert.NotNull(run.FinalConditioningStartedAt);
             Assert.NotNull(run.FinalConditioningCompletedAt);
+            Assert.Equal(1, chamber.StopCount);
             Assert.Contains(updates, update => update.State == CalibrationRunState.FinalConditioning &&
                                                update.PlateauIndex == -1 &&
                                                Math.Abs(update.TargetTemperatureC - 25) < 0.001 &&
@@ -686,6 +688,8 @@ public sealed class CalibrationWorkflowRegressionTests
 
         public bool IsConnected { get; private set; }
         public List<double> WrittenTemperatures { get; } = new();
+        public double FinalConditioningReadOffsetC { get; set; }
+        public int StopCount { get; private set; }
         public ChamberConnectionSettings Settings { get; private set; } = new();
         public event EventHandler<FrameExchangedEventArgs>? FrameExchanged;
 
@@ -705,7 +709,7 @@ public sealed class CalibrationWorkflowRegressionTests
         public Task<ChamberReading> ReadAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            _temperature = _setpoint;
+            _temperature = _setpoint + (Math.Abs(_setpoint - 25) < 0.001 ? FinalConditioningReadOffsetC : 0);
             return Task.FromResult(new ChamberReading(
                 DateTimeOffset.Now,
                 "fake",
@@ -728,7 +732,12 @@ public sealed class CalibrationWorkflowRegressionTests
             return Task.CompletedTask;
         }
 
-        public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StopAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            StopCount++;
+            return Task.CompletedTask;
+        }
 
         public Task<string> SendRawAsync(string frame, CancellationToken cancellationToken = default) =>
             Task.FromResult(string.Empty);

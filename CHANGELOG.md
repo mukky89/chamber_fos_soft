@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.239] – 2026-09-07
+
+### Opravené
+
+- Po dokončení FBG kalibračných bodov aplikácia nastaví záverečnú teplotu 25 °C a spustí pevný 60-minútový čas temperovania. Čas sa už nevynuluje pri kolísaní teploty ani nečaká na stabilitu; po jeho uplynutí aplikácia odošle zariadeniu STOP a vypne jeho výkon.
+
 ## [1.76.238] – 2026-09-07
 
 ### Zmenené

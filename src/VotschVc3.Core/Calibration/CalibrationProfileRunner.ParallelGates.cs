@@ -498,14 +498,10 @@ public sealed class CalibrationProfileRunner
             ? TimeSpan.FromHours(1)
             : setup.Settings.FinalConditioningDuration;
         if (required == TimeSpan.Zero) return;
-        double tolerance = double.IsFinite(setup.Settings.FinalConditioningToleranceC)
-            ? Math.Max(0.05, Math.Abs(setup.Settings.FinalConditioningToleranceC))
-            : 0.5;
-
         run.State = CalibrationRunState.FinalConditioning;
         run.FinalConditioningTemperatureC = target;
         run.FinalConditioningRequiredDuration = required;
-        run.FinalConditioningStartedAt = DateTimeOffset.Now;
+        run.FinalConditioningStartedAt = null;
         run.FinalConditioningCompletedAt = null;
         SaveCheckpoint(run, setup, Math.Max(0, calibrationPlateauCount - 1), target, Array.Empty<int>());
         writer.SaveSummary();
@@ -521,37 +517,35 @@ public sealed class CalibrationProfileRunner
             CalibrationRunState.FinalConditioning,
             "Záverečný návrat na 25 °C").ConfigureAwait(false);
 
-        DateTimeOffset? inToleranceSince = null;
+        DateTimeOffset startedAt = DateTimeOffset.UtcNow;
+        run.FinalConditioningStartedAt = startedAt;
+        writer.SaveSummary();
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
-            double actual = await ReadTemperatureAsync(cancellationToken).ConfigureAwait(false);
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            bool inTolerance = Math.Abs(actual - target) <= tolerance;
-            if (inTolerance) inToleranceSince ??= now;
-            else inToleranceSince = null;
-            TimeSpan held = inToleranceSince is { } started ? now - started : TimeSpan.Zero;
+            TimeSpan elapsed = DateTimeOffset.UtcNow - startedAt;
 
             Progress?.Invoke(new CalibrationProgressSnapshot(
                 CalibrationRunState.FinalConditioning,
                 -1,
                 calibrationPlateauCount,
                 target,
-                actual,
+                null,
                 null,
                 0,
                 0,
-                held,
+                elapsed,
                 Array.Empty<CalibrationTargetProgress>(),
-                inTolerance
-                    ? $"Záverečné temperovanie výrobkov pri {target:F1} °C · potvrdené {held:hh\\:mm\\:ss} / {required:hh\\:mm\\:ss}. FBG sa nemeria."
-                    : $"Záverečné temperovanie čaká, kým komora dosiahne {target:F1} °C ± {tolerance:F1} °C. Hodina sa začne počítať až v pásme; FBG sa nemeria."));
+                $"Záverečné temperovanie pri nastavených {target:F1} °C · čas {elapsed:hh\\:mm\\:ss} / {required:hh\\:mm\\:ss}. " +
+                "Čas sa nevynuluje pri kolísaní teploty; po jeho uplynutí aplikácia vypne výkon zariadenia. FBG sa nemeria."));
 
-            if (held >= required) break;
-            await Task.Delay(_updateInterval, cancellationToken).ConfigureAwait(false);
+            TimeSpan remaining = required - elapsed;
+            if (remaining <= TimeSpan.Zero) break;
+            await Task.Delay(remaining < _updateInterval ? remaining : _updateInterval, cancellationToken).ConfigureAwait(false);
         }
 
+        await _chamber.StopAsync(cancellationToken).ConfigureAwait(false);
         run.FinalConditioningCompletedAt = DateTimeOffset.Now;
         writer.SaveSummary();
     }

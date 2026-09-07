@@ -117,7 +117,7 @@ public sealed class CalibrationProfileSettings
 
     /// <summary>Mandatory product-conditioning target after all selected calibration plateaus.</summary>
     public double FinalConditioningTemperatureC { get; set; } = 25.0;
-    /// <summary>Continuous time the chamber must remain inside the final conditioning tolerance.</summary>
+    /// <summary>Fixed time at the final setpoint before the chamber output is stopped.</summary>
     public TimeSpan FinalConditioningDuration { get; set; } = TimeSpan.FromHours(1);
     public double FinalConditioningToleranceC { get; set; } = 0.5;
 
