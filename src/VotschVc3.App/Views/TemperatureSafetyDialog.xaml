@@ -1,0 +1,31 @@
+<Window x:Class="VotschVc3.App.Views.TemperatureSafetyDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Teplotná poistka" Width="420" SizeToContent="Height"
+        ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextBrush}">
+    <StackPanel Margin="20">
+        <TextBlock Text="Teplotná poistka" Style="{StaticResource Heading}" />
+        <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Margin="0,0,0,8" />
+        <TextBlock Text="Limity chránia manuálne ovládanie, profily aj FBG kalibráciu. Výber profilu ich nastaví automaticky s rezervou ±5 °C."
+                   Style="{StaticResource Caption}" TextWrapping="Wrap" />
+        <Grid Margin="0,16,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <StackPanel>
+                <Label Target="{Binding ElementName=MinimumBox}" Content="Minimum (°C)" />
+                <TextBox x:Name="MinimumBox" Height="36" AutomationProperties.Name="Minimálna bezpečná teplota" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <Label Target="{Binding ElementName=MaximumBox}" Content="Maximum (°C)" />
+                <TextBox x:Name="MaximumBox" Height="36" AutomationProperties.Name="Maximálna bezpečná teplota" />
+            </StackPanel>
+        </Grid>
+        <TextBlock x:Name="ValidationMessage" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" />
+        <TextBlock Text="Uložením sa poistka znovu aktivuje s oboma zadanými limitmi."
+                   Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Zrušiť" Style="{StaticResource GhostButton}" Height="36" IsCancel="True" Margin="0,0,8,0" />
+            <Button Content="Uložiť limity" Style="{StaticResource AccentButton}" Height="36" IsDefault="True" Click="Save_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>

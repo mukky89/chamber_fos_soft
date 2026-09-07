@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.245] – 2026-09-07
+
+### Zmenené
+
+- Rozsah zariadenia a stav teplotnej poistky sú pri pripojení. Tlačidlo Upraviť otvorí modal s validáciou oboch limitov a možnosťou zrušiť zmeny.
+- Rýchle ovládanie má kompaktnejší časovač, predvoľby v jednom riadku a jednotnú výšku vstupov a tlačidiel.
+
 ## [1.76.244] – 2026-09-07
 
 ### Odstránené

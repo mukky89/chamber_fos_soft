@@ -6,6 +6,14 @@ namespace VotschVc3.App.Views;
 
 public partial class HomeView : UserControl
 {
+    private void EditTemperatureSafety_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: ChamberViewModel chamber } && chamber.CanEditDeviceSettings)
+        {
+            new TemperatureSafetyDialog(chamber) { Owner = System.Windows.Window.GetWindow(this) }.ShowDialog();
+        }
+    }
+
     public HomeView()
     {
         InitializeComponent();

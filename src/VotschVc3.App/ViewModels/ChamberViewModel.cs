@@ -4167,6 +4167,23 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             : $"Teplotná poistka {SafetyTempMin:0.#}…{SafetyTempMax:0.#} °C"
         : "Teplotná poistka · neplatné limity";
 
+    /// <summary>Commit both dialog limits together, without arming an intermediate range.</summary>
+    public bool TryApplyTemperatureSafetyLimits(double minimum, double maximum)
+    {
+        if (!CanEditDeviceSettings || CalibrationStatusViewModel.Instance.GetWorkspace(Id).IsRunning ||
+            !double.IsFinite(minimum) || !double.IsFinite(maximum) || minimum >= maximum)
+            return false;
+
+        _safetyTempMin = minimum;
+        _safetyTempMax = maximum;
+        RefreshTemperatureSafety();
+        OnPropertyChanged(nameof(SafetyTempMin));
+        OnPropertyChanged(nameof(SafetyTempMax));
+        StatusMessage = $"Teplotná poistka uložená: {minimum:0.###}…{maximum:0.###} °C.";
+        ShowActionInfo(StatusMessage);
+        return true;
+    }
+
     private void RefreshTemperatureSafety()
     {
         if (IsTemperatureSafetyValid)

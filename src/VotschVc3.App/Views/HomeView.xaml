@@ -506,6 +506,27 @@
                                           </StackPanel>
                                           <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
                                                      Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" TextWrapping="Wrap">
+                                            <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
+                                            <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                                        </TextBlock>
+                                        <Border Margin="0,7,0,0" Padding="8,5" CornerRadius="7" BorderThickness="1"
+                                                ToolTip="Nadradená poistka pre manuál, profily aj FBG kalibráciu. Pri prekročení fyzicky zastaví výkon komory a zablokuje ďalšie riadenie.">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="{StaticResource OkBrush}" />
+                                                    <Style.Triggers><DataTrigger Binding="{Binding IsTemperatureSafetyTripped}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" /><Setter Property="Background" Value="{StaticResource SurfaceBrush}" /></DataTrigger></Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Content="Upraviť" Style="{StaticResource GhostButton}"
+                                                        MinHeight="28" Padding="6,2" Margin="6,0,0,0" FontSize="11.5"
+                                                        IsEnabled="{Binding CanEditDeviceSettings}" Click="EditTemperatureSafety_Click"
+                                                        ToolTip="Upraviť limity teplotnej poistky" />
+                                                <TextBlock Text="{Binding TemperatureSafetyLabel}" FontFamily="Segoe UI Semibold"
+                                                           FontSize="11.5" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </Border>
                                           <!-- SIKA Remote Control: shown for every SIKA device, green when the bath
                                                accepts remote writes and orange when it does not, so the operator never
                                                has to guess why a set point "did nothing". -->
@@ -628,20 +649,6 @@
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,0" TextWrapping="Wrap">
-                                            <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
-                                            <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
-                                        </TextBlock>
-                                        <Border Margin="0,7,0,0" Padding="8,5" CornerRadius="7" BorderThickness="1"
-                                                ToolTip="Nadradená poistka pre manuál, profily aj FBG kalibráciu. Pri prekročení fyzicky zastaví výkon komory a zablokuje ďalšie riadenie.">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="BorderBrush" Value="{StaticResource OkBrush}" />
-                                                    <Style.Triggers><DataTrigger Binding="{Binding IsTemperatureSafetyTripped}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" /><Setter Property="Background" Value="#33EF5364" /></DataTrigger></Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock Text="{Binding TemperatureSafetyLabel}" FontFamily="Segoe UI Semibold" FontSize="11.5" />
-                                        </Border>
                                     </StackPanel>
                                 </Border>
 
@@ -668,44 +675,6 @@
                                                     Visibility="{Binding IsManageAllowed, Converter={StaticResource BoolToVisibility}}"
                                                     ToolTip="Admin: uprav teploty rýchleho ovládania pre toto zariadenie." />
                                         </DockPanel>
-                                        <Border Margin="0,6,0,0" Padding="8,5" CornerRadius="7"
-                                                Background="{StaticResource SurfaceBrush}"
-                                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                                                ToolTip="Nadradená teplotná ochrana. Profil nastaví limity automaticky s rezervou ±5 °C.">
-                                            <StackPanel>
-                                                <Grid Margin="0,0,0,5">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="Teplotná poistka" Style="{StaticResource Caption}"
-                                                               FontFamily="Segoe UI Semibold" VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="1" Text="Automaticky podľa profilu" Style="{StaticResource Caption}"
-                                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0" />
-                                                </Grid>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="Min" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                    <views:NumericStepper Grid.Column="1" MinWidth="78" HorizontalAlignment="Stretch"
-                                                                          Value="{Binding SafetyTempMin, Mode=TwoWay}" Step="1"
-                                                                          IsEnabled="{Binding CanEditDeviceSettings}" ToolTip="Minimálna bezpečná teplota" />
-                                                    <TextBlock Grid.Column="2" Text="°C" Margin="4,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                                                    <TextBlock Grid.Column="3" Text="Max" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                    <views:NumericStepper Grid.Column="4" MinWidth="78" HorizontalAlignment="Stretch"
-                                                                          Value="{Binding SafetyTempMax, Mode=TwoWay}" Step="1"
-                                                                          IsEnabled="{Binding CanEditDeviceSettings}" ToolTip="Maximálna bezpečná teplota" />
-                                                    <TextBlock Grid.Column="5" Text="°C" Margin="4,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                                                </Grid>
-                                            </StackPanel>
-                                        </Border>
-
                                         <!-- Admin preset editor -->
                                         <StackPanel Margin="0,6,0,0" Visibility="{Binding IsEditingPresets, Converter={StaticResource BoolToVisibility}}">
                                             <TextBox Text="{Binding QuickPresetsText, UpdateSourceTrigger=LostFocus}"
@@ -713,23 +682,17 @@
                                             <TextBlock Text="Teploty oddeľ čiarkou (1–4 hodnoty). Uloží sa po opustení poľa." Style="{StaticResource Caption}" Margin="0,3,0,0" />
                                         </StackPanel>
 
-                                        <!-- The whole quick-control strip on one line. A Grid, not a DockPanel
-                                             with a wrapping panel: the presets used to be the flexible part and
-                                             wrapped to a second row whenever the fixed controls took more than
-                                             their share. Now the row has three deterministic columns – four
-                                             equal preset slots (the card never shows more, see
-                                             ChamberViewModel.MaxQuickPresets), the custom set point, and the two
-                                             actions – so nothing can wrap or clip. -->
-                                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,10,0,0">
-                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="10" Padding="10,8">
+                                        <!-- Compact manual controls. -->
+                                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,4,0,0">
+                                            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="8">
                                                 <StackPanel>
-                                                <Grid Margin="0,0,0,7">
+                                                <Grid Margin="0,0,0,8">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
-                                                    <CheckBox Grid.Column="0" Content="Časovač vypnutia" IsChecked="{Binding ManualTimerEnabled, Mode=TwoWay}"
+                                                    <CheckBox Grid.Column="0" Content="Vypnúť po" IsChecked="{Binding ManualTimerEnabled, Mode=TwoWay}"
                                                               VerticalAlignment="Center" Margin="0,0,8,0"
                                                               ToolTip="Vypnuté = manuálne ovládanie beží bez časového limitu. Zapnuté = po zadanom čase sa výkon komory vypne." />
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
@@ -741,30 +704,27 @@
                                                                    Foreground="{StaticResource MutedBrush}" />
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="2" Text="{Binding ManualTimerStatusText}" Style="{StaticResource Caption}"
-                                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap" />
                                                 </Grid>
                                                 <Grid>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
 
-                                                    <ItemsControl Grid.Column="0" ItemsSource="{Binding QuickPresets}"
-                                                                  Margin="0,0,10,0" VerticalAlignment="Center">
+                                                    <ItemsControl Grid.Row="0" Grid.ColumnSpan="3" ItemsSource="{Binding QuickPresets}"
+                                                                  Margin="0,0,0,8" VerticalAlignment="Center">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
-                                                                <!-- Exactly four equal slots in a 2x2 block. The card is
-                                                                     470 px so three fit side by side; four chips in a
-                                                                     single line would leave no room for the set point and
-                                                                     the actions on the same row. -->
-                                                                <UniformGrid Rows="2" Columns="2" />
+                                                                <UniformGrid Rows="1" Columns="4" />
                                                             </ItemsPanelTemplate>
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,5,4"
-                                                                        MinWidth="0" Padding="6,5" FontSize="12"
+                                                                <Button Style="{StaticResource PresetChip}" Margin="0,0,4,0" Height="36"
+                                                                        MinWidth="0" Padding="6,0" FontSize="12"
                                                                         Content="{Binding}" ContentStringFormat="{}{0:0.#} °C"
                                                                         ToolTip="Klikni = nastav túto teplotu a zapni komoru"
                                                                         Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -773,7 +733,7 @@
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
 
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                                         <!-- Wide enough for a four-character value ("-100"). -->
                                                         <views:NumericStepper Width="80" VerticalAlignment="Center"
                                                                               Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
@@ -782,9 +742,9 @@
                                                                    Foreground="{StaticResource MutedBrush}" />
                                                     </StackPanel>
 
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                         <Button Style="{StaticResource AccentButton}" Margin="0,0,8,0"
-                                                                Height="34" Padding="8,0" FontSize="12.5"
+                                                                Height="36" Padding="12,0" FontSize="12.5"
                                                                 VerticalAlignment="Center" Command="{Binding QuickSetTemperatureCommand}"
                                                                 ToolTip="Zapíše zadanú vlastnú teplotu do komory a zapne reguláciu.">
                                                             <StackPanel Orientation="Horizontal">
@@ -794,7 +754,7 @@
                                                             </StackPanel>
                                                         </Button>
                                                         <Button Style="{StaticResource DangerButton}" Margin="0"
-                                                                Height="34" Padding="8,0" FontSize="12.5"
+                                                                Height="36" Padding="12,0" FontSize="12.5"
                                                                 VerticalAlignment="Center" Command="{Binding StopChamberCommand}"
                                                                 ToolTip="Vypnúť komoru (zastaví reguláciu).">
                                                             <StackPanel Orientation="Horizontal">
