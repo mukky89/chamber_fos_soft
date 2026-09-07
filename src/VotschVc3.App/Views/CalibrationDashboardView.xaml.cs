@@ -79,7 +79,6 @@ public sealed class WikaStabilityScoreSeriesConverter : IValueConverter
 public partial class CalibrationDashboardView : UserControl
 {
     private Popup? _helpPopup;
-    public event Action<bool>? ReferenceControlToggleRequested;
 
     public CalibrationDashboardView()
     {
@@ -133,17 +132,6 @@ public partial class CalibrationDashboardView : UserControl
         _helpPopup = popup;
         popup.IsOpen = true;
         e.Handled = true;
-    }
-
-    public void SetReferenceControlState(bool enabled, bool canChange)
-    {
-        ReferenceControlToggle.IsChecked = enabled;
-        ReferenceControlToggle.IsEnabled = canChange;
-    }
-
-    private void ReferenceControlToggle_Click(object sender, RoutedEventArgs e)
-    {
-        ReferenceControlToggleRequested?.Invoke(ReferenceControlToggle.IsChecked == true);
     }
 
     private void CompactStabilityPeak_Click(object sender, MouseButtonEventArgs e) =>

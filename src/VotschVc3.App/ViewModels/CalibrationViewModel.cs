@@ -33,7 +33,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         $"{RequiredStableSamples} vzoriek · odber každých {SampleAcquisitionIntervalSeconds} s · range ≤ {MaxRangePm:F3} pm · " +
         $"σ ≤ {MaxStdDevPm:F3} pm · drift ≤ {MaxDriftPmPerMinute:F3} pm/min. " +
         "Nulové FBG limity sú vypnuté. Čas hold profilu neurčuje trvanie kalibrácie. " +
-        $"WIKA musí podmienky spĺňať súvisle; porušenie alebo dorovnanie setpointu čas vynuluje. " +
+        $"WIKA musí podmienky spĺňať súvisle; porušenie podmienok čas vynuluje. " +
         $"Rozsah WIKA ≤ {_setup.Settings.MaxChamberRangeC:F3} °C · σ ≤ {_setup.Settings.MaxChamberStdDevC:F3} °C.",
         referenceChamberId: _workspaceChamberId,
         toleranceC: ChamberToleranceC,

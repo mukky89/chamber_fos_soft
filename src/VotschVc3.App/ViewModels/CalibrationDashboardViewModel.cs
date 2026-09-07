@@ -105,25 +105,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ReferenceToleranceHelp =>
         $"WIKA musí byť pri cieľovej teplote {Target} v povolenej odchýlke ±{StabilityToleranceC:F3} °C. " +
         "Ak je odchýlka väčšia, stabilný čas sa nezbiera a FBG stabilizácia sa ešte nespustí. " +
-        "Predvolene vypnutá funkcia „Automaticky jemne dorovnať setpoint komory podľa WIKA“ po ručnom zapnutí zasiahne iba mimo povolenej odchýlky. Nový krok vykoná až po odozve komory a ustálení pohybu WIKA: najviac o 0,30 °C a celkovo najviac o ±3,0 °C. " +
-        "Komora sa pritom stále reguluje vlastným interným regulátorom. Stav funkcie sa počas kalibrácie nedá meniť.";
-    public bool IsReferenceControlAdjusting =>
-        _snapshot?.Message.Contains("WIKA control: dorovnávanie ", StringComparison.Ordinal) == true;
-    public string ReferenceControlAdjustmentLabel
-    {
-        get
-        {
-            const string marker = "WIKA control: dorovnávanie ";
-            string message = _snapshot?.Message ?? string.Empty;
-            int start = message.IndexOf(marker, StringComparison.Ordinal);
-            if (start < 0) return string.Empty;
-
-            start += marker.Length;
-            int end = message.IndexOf('\n', start);
-            string detail = end < 0 ? message[start..] : message[start..end];
-            return $"↕ DOROVNÁVANIE · {detail.Trim()}";
-        }
-    }
+        "Komora sa reguluje vlastným interným regulátorom; WIKA slúži iba ako autoritatívna referencia stability.";
     public string ReferenceToleranceTone => _snapshot?.ReferenceTemperatureC is { } reference &&
         Math.Abs(reference - _snapshot.TargetTemperatureC) <= StabilityToleranceC ? "Done" : "Waiting";
     public string ReferenceDriftLabel => _snapshot?.TemperatureDriftCPerMinute is not { } drift

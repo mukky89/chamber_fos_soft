@@ -250,14 +250,6 @@ public sealed class CalibrationProfileRunner
         Stopwatch plateauClock = Stopwatch.StartNew();
         double? lastReference = null;
 
-        // Optional, conservative outer loop. The chamber still regulates itself from its local
-        // sensor; this only trims its commanded setpoint slowly so the WIKA physical reference
-        // reaches the profile target. The bias is bounded and held once the error is in deadband.
-        CalibrationReferenceControlOptions referenceControl = CalibrationReferenceControlRegistry.Get(setup.ChamberId).Normalize();
-        double referenceBiasC = 0;
-        DateTimeOffset nextReferenceControlUpdate = DateTimeOffset.MinValue;
-        double lastCommandedSetpoint = targetTemperatureC;
-
         run.State = CalibrationRunState.WaitingForChamberStability;
 
         while (true)
@@ -268,30 +260,6 @@ public sealed class CalibrationProfileRunner
             double chamberTemperature = await ReadTemperatureAsync(cancellationToken).ConfigureAwait(false);
             double? referenceTemperature = await readReferenceTemperatureAsync(cancellationToken).ConfigureAwait(false);
             lastReference = referenceTemperature ?? lastReference;
-
-            string controlDetail = string.Empty;
-            if (referenceControl.Enabled && referenceTemperature is { } referenceForControl)
-            {
-                DateTimeOffset now = DateTimeOffset.UtcNow;
-                double errorC = targetTemperatureC - referenceForControl;
-                if (now >= nextReferenceControlUpdate && Math.Abs(errorC) > referenceControl.DeadbandC)
-                {
-                    double requestedStep = Math.Clamp(
-                        errorC * referenceControl.Gain,
-                        -referenceControl.MaxStepC,
-                        referenceControl.MaxStepC);
-                    referenceBiasC = Math.Clamp(
-                        referenceBiasC + requestedStep,
-                        -referenceControl.MaxCorrectionC,
-                        referenceControl.MaxCorrectionC);
-                    lastCommandedSetpoint = targetTemperatureC + referenceBiasC;
-                    await WriteSetpointAsync(lastCommandedSetpoint, targetHumidity, cancellationToken).ConfigureAwait(false);
-                    referenceDetector.Reset();
-                    nextReferenceControlUpdate = now + referenceControl.UpdateInterval;
-                }
-
-                controlDetail = $" · WIKA control: setpoint komory {lastCommandedSetpoint:F2} °C (bias {referenceBiasC:+0.00;-0.00;0.00} °C)";
-            }
 
             StabilityMetrics? referenceMetrics = referenceTemperature is { } reference
                 ? referenceDetector.Add(DateTimeOffset.UtcNow, reference, targetTemperatureC)
@@ -314,8 +282,8 @@ public sealed class CalibrationProfileRunner
                 0,
                 setup.Mappings.Count(m => m.Selected),
                 plateauClock.Elapsed,
-                BuildReferenceWaitingTargets(setup, detail + controlDetail),
-                $"Čaká sa iba na stabilnú referenciu WIKA CTH7000 · {detail}{controlDetail}"));
+                BuildReferenceWaitingTargets(setup, detail),
+                $"Čaká sa iba na stabilnú referenciu WIKA CTH7000 · {detail}"));
 
             if (referenceStable) return;
 

@@ -150,9 +150,6 @@ public sealed class CalibrationProfileRunner
                     "Komora sa reguluje vlastným interným regulátorom. " +
                     "Ďalší krok riadi výhradne stabilita WIKA referencie."));
 
-                Func<double, double?, CancellationToken, Task<string?>>? referenceControl =
-                    CreateReferenceControl(setup, targetHumidity);
-
                 CalibrationPlateauResult plateau;
                 try
                 {
@@ -165,7 +162,6 @@ public sealed class CalibrationProfileRunner
                         TimeSpan.Zero,
                         ReadTemperatureAsync,
                         readReferenceTemperatureAsync,
-                        referenceControl,
                         writer,
                         snapshot => Progress?.Invoke(snapshot),
                         cancellationToken,
@@ -337,73 +333,6 @@ public sealed class CalibrationProfileRunner
     }
 
     private sealed record PlateauWorkItem(int PlateauIndex, bool IsRetry);
-
-    private Func<double, double?, CancellationToken, Task<string?>>? CreateReferenceControl(
-        CalibrationSetup setup,
-        double? targetHumidity)
-    {
-        CalibrationReferenceControlOptions options = CalibrationReferenceControlRegistry.Get(setup.ChamberId).Normalize();
-        if (!options.Enabled) return null;
-
-        double biasC = 0;
-        double correctionThresholdC = Math.Max(options.DeadbandC, Math.Abs(setup.Settings.ChamberToleranceC));
-        double maximumStableDriftCPerMinute = Math.Max(0.01, Math.Abs(setup.Settings.MaxChamberDriftCPerMinute));
-        TimeSpan responseDelay = options.ResponseDelay ?? TimeSpan.FromMinutes(2);
-        TimeSpan observationWindow = options.ObservationWindow ?? TimeSpan.FromSeconds(30);
-        DateTimeOffset? nextCorrectionAt = null;
-        var referenceHistory = new Queue<(DateTimeOffset At, double TemperatureC)>();
-        double lastCommandedSetpoint = double.NaN;
-
-        return async (targetTemperatureC, referenceTemperatureC, cancellationToken) =>
-        {
-            if (referenceTemperatureC is not { } reference)
-                return " · WIKA control: čaká na platnú referenciu";
-
-            if (double.IsNaN(lastCommandedSetpoint)) lastCommandedSetpoint = targetTemperatureC;
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            double errorC = targetTemperatureC - reference;
-            nextCorrectionAt ??= now + responseDelay;
-            referenceHistory.Enqueue((now, reference));
-            // Keep a small sampling-margin beyond the requested window. Polling is not perfectly
-            // periodic; trimming exactly at the boundary could otherwise leave only 29.x seconds
-            // forever and prevent the controller from ever evaluating a 30-second trend.
-            while (referenceHistory.Count > 1 && now - referenceHistory.Peek().At > observationWindow + TimeSpan.FromSeconds(5))
-                referenceHistory.Dequeue();
-
-            if (Math.Abs(errorC) <= correctionThresholdC)
-                return $" · WIKA control: WIKA je v tolerancii, bez ďalšej korekcie · setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
-
-            TimeSpan remaining = nextCorrectionAt.Value - now;
-            if (remaining > TimeSpan.Zero)
-                return $" · WIKA control: dorovnávanie čaká na odozvu komory · ďalšie vyhodnotenie o {Math.Ceiling(remaining.TotalSeconds):F0} s · setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
-
-            (DateTimeOffset At, double TemperatureC) oldest = referenceHistory.Peek();
-            double observedSeconds = (now - oldest.At).TotalSeconds;
-            if (observationWindow > TimeSpan.Zero && observedSeconds + 0.001 < observationWindow.TotalSeconds)
-                return $" · WIKA control: dorovnávanie čaká na trend WIKA · vzorky {observedSeconds:F0}/{observationWindow.TotalSeconds:F0} s · setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
-
-            double driftCPerMinute = observedSeconds > 0
-                ? (reference - oldest.TemperatureC) / observedSeconds * 60d
-                : 0;
-            if (Math.Abs(driftCPerMinute) > maximumStableDriftCPerMinute)
-                return $" · WIKA control: dorovnávanie čaká na spomalenie WIKA · drift {driftCPerMinute:+0.000;-0.000;0.000} °C/min · setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
-
-            double requestedStep = Math.Clamp(errorC * options.Gain, -options.MaxStepC, options.MaxStepC);
-            double correctedBiasC = Math.Clamp(biasC + requestedStep, -options.MaxCorrectionC, options.MaxCorrectionC);
-            double appliedStepC = correctedBiasC - biasC;
-            if (Math.Abs(appliedStepC) < 0.0001)
-                return $" · WIKA control: dorovnávanie dosiahlo bezpečnostný limit · setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
-
-            biasC = correctedBiasC;
-            lastCommandedSetpoint = targetTemperatureC + biasC;
-            await WriteSetpointAsync(lastCommandedSetpoint, targetHumidity, cancellationToken).ConfigureAwait(false);
-            nextCorrectionAt = now + responseDelay;
-            referenceHistory.Clear();
-            referenceHistory.Enqueue((now, reference));
-
-            return $" · WIKA control: dorovnávanie vykonalo krok {appliedStepC:+0.00;-0.00;0.00} °C · setpoint komory {lastCommandedSetpoint:F2} °C (bias {biasC:+0.00;-0.00;0.00} °C)";
-        };
-    }
 
     private static HashSet<int> ResolveCalibrationSegmentIndices(TestProfile profile, CalibrationSetup setup)
     {

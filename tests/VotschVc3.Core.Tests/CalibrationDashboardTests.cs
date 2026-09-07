@@ -156,11 +156,6 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("10 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("30 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("súčasne splnené obe podmienky", m.ReferenceTimeHelp);
-        Assert.Contains("Automaticky jemne dorovnať setpoint komory podľa WIKA", m.ReferenceToleranceHelp);
-        Assert.Contains("0,30 °C", m.ReferenceToleranceHelp);
-        Assert.Contains("po odozve komory", m.ReferenceToleranceHelp);
-        Assert.Contains("±3,0 °C", m.ReferenceToleranceHelp);
-        Assert.Contains("Predvolene vypnutá", m.ReferenceToleranceHelp);
         Assert.Contains("najnovšia úspešne načítaná teplota", m.ReferenceStatusHelp);
         Assert.Contains("Jedna vzorka sama osebe nepotvrdzuje stabilitu", m.ReferenceStatusHelp);
         Assert.Contains("odchýlka aj drift", m.ReferenceStatusHelp);
@@ -172,38 +167,6 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("nevyhovujúci bod sa nikdy automaticky neprijme", m.ReferenceTimeHelp);
         Assert.Contains("pokračuje ďalším platom", m.ReferenceTimeHelp);
         Assert.Contains("automaticky raz vráti", m.ReferenceTimeHelp);
-    }
-    [Fact] public void WikaCardShowsActiveReferenceSetpointCorrection()
-    {
-        var m = Model();
-        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
-        {
-            Message = "KROK 2/5 · Stabilizácia teploty · WIKA control: dorovnávanie vykonalo krok -0,30 °C · setpoint komory 19,70 °C (bias -0,30 °C)\nĎALŠÍ KROK"
-        }, Start);
-
-        Assert.True(m.IsReferenceControlAdjusting);
-        Assert.Contains("DOROVNÁVANIE", m.ReferenceControlAdjustmentLabel);
-        Assert.Contains("vykonalo krok -0,30 °C", m.ReferenceControlAdjustmentLabel);
-        Assert.Contains("setpoint komory 19,70 °C", m.ReferenceControlAdjustmentLabel);
-
-        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
-        {
-            Message = "WIKA control: WIKA je v tolerancii, bez ďalšej korekcie · setpoint komory 19,70 °C"
-        }, Start.AddSeconds(10));
-        Assert.False(m.IsReferenceControlAdjusting);
-        Assert.Equal(string.Empty, m.ReferenceControlAdjustmentLabel);
-    }
-    [Fact] public void WikaCardKeepsCorrectionVisibleWhileWaitingForChamberResponse()
-    {
-        var m = Model();
-        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
-        {
-            Message = "WIKA control: dorovnávanie čaká na odozvu komory · ďalšie vyhodnotenie o 96 s · setpoint komory 19,70 °C (bias -0,30 °C)"
-        }, Start);
-
-        Assert.True(m.IsReferenceControlAdjusting);
-        Assert.Contains("čaká na odozvu komory", m.ReferenceControlAdjustmentLabel);
-        Assert.Contains("96 s", m.ReferenceControlAdjustmentLabel);
     }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {

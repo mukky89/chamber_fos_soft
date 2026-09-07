@@ -88,7 +88,7 @@ public sealed class CalibrationOrchestrator
         return sensors;
     }
 
-    /// <summary>Compatibility overload for callers without a profile minimum hold or reference control.</summary>
+    /// <summary>Compatibility overload for callers without a profile minimum hold.</summary>
     public Task<CalibrationPlateauResult> WaitForPlateauAsync(
         CalibrationRunRecord run,
         CalibrationSetup setup,
@@ -109,7 +109,6 @@ public sealed class CalibrationOrchestrator
             TimeSpan.Zero,
             readChamberTemperatureAsync,
             readReferenceTemperatureAsync,
-            referenceControlAsync: null,
             writer,
             progress,
             cancellationToken);
@@ -123,7 +122,6 @@ public sealed class CalibrationOrchestrator
         TimeSpan minimumPlateauDuration,
         Func<CancellationToken, Task<double>> readChamberTemperatureAsync,
         Func<CancellationToken, Task<double?>>? readReferenceTemperatureAsync,
-        Func<double, double?, CancellationToken, Task<string?>>? referenceControlAsync,
         CalibrationRunWriter writer,
         Action<CalibrationProgressSnapshot>? progress = null,
         CancellationToken cancellationToken = default,
@@ -223,17 +221,6 @@ public sealed class CalibrationOrchestrator
                 });
             }
 
-            string controlDetail = referenceControlAsync is null
-                ? string.Empty
-                : await referenceControlAsync(targetTemperatureC, referenceTemperature, cancellationToken).ConfigureAwait(false) ?? string.Empty;
-
-            if (controlDetail.Contains("vykonalo krok", StringComparison.OrdinalIgnoreCase))
-            {
-                // A changed chamber setpoint starts a new physical settling period. Samples taken
-                // before the correction must never contribute to the authoritative WIKA dwell.
-                referenceDetector.Reset();
-            }
-
             if (_peakLogger is IPeakLoggerSimulationControl simulation)
                 simulation.SimulatedTemperatureC = referenceTemperature ?? actualTemperature;
 
@@ -316,7 +303,7 @@ public sealed class CalibrationOrchestrator
                     selected.Count,
                     plateauClock.Elapsed,
                     trackers.Values.Select(t => t.ToWaitingForTemperatureProgress(settings, temperatureDetail, minimumDetail)).ToArray(),
-                    $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{extensionDetail}{controlDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov.",
+                    $"KROK 2/5 · Stabilizácia teploty · {minimumDetail} · {temperatureDetail}{extensionDetail}\nĎALŠÍ KROK: po stabilnej teplote začne paralelná stabilizácia všetkých FBG peakov.",
                     (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                     (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                     false,
@@ -495,7 +482,7 @@ public sealed class CalibrationOrchestrator
                 selected.Count,
                 plateauClock.Elapsed,
                 trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
-                $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}{controlDetail}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredMeasurementSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky.",
+                $"{phaseMessage}\nTEPLOTA: stabilná ✓ · {temperatureDetailNow}\nĎALŠÍ KROK: každý stabilný peak samostatne zbiera {Math.Max(2, settings.RequiredMeasurementSamples)} meracích samples; plato skončí až keď sú hotové všetky vybrané peaky.",
                 (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                 (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                 true,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.242] – 2026-09-07
+
+### Odstránené
+
+- Z celej aplikácie bolo odstránené automatické jemné dorovnávanie setpointu komory podľa WIKA vrátane ovládania, uložených volieb, stavovej diagnostiky a regulačnej logiky. WIKA zostáva autoritatívnou referenciou na vyhodnotenie stability, ale aplikácia podľa nej setpoint komory neupravuje.
+
 ## [1.76.241] – 2026-09-07
 
 ### Opravené
