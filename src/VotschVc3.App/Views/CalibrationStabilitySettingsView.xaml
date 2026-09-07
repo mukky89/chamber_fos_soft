@@ -152,7 +152,8 @@
                     <StackPanel>
                         <TextBlock Text="Interval odberu FBG [s]" Style="{StaticResource SettingName}" />
                         <TextBlock Text="Každých koľko sekúnd sa odoberie jedna kalibračná λ vzorka. Napríklad 50 vzoriek pri 1 s trvá približne 50 s; pri 30 s približne 25 min." Style="{StaticResource SettingHelp}" />
-                        <TextBox Style="{StaticResource SettingInput}" Text="{Binding SampleAcquisitionIntervalSeconds, UpdateSourceTrigger=LostFocus}" />
+                        <TextBox Style="{StaticResource SettingInput}" IsReadOnly="True" Text="{Binding SampleAcquisitionIntervalSeconds, Mode=OneWay}" />
+                        <TextBlock Text="Nový beh používa uložený interval z Admin zóny. Pri štarte sa načíta znova. Obnovený beh si ponechá pôvodný interval." Style="{StaticResource SettingHelp}" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource SettingCard}" ToolTip="Počet posledných wavelength vzoriek v rolling okne. Všetky ostatné stability kritériá sa počítajú z tohto okna. Počet musí byť dosiahnutý ešte pred prechodom do finálneho merania.">

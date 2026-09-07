@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.250] – 2026-09-07
+
+### Opravené
+
+- Každá nová FBG kalibrácia načíta interval odberu z uložených predvolieb Admin zóny aj pri existujúcom zapojení. Interval sa aktualizuje pri načítaní profilu aj pred štartom; ostatné nastavenia zapojenia zostávajú zachované. Rozbehnuté a obnovené behy si ponechávajú svoj pôvodný interval.
+- Nastavenia FBG vysvetľujú pôvod intervalu a zobrazujú ho len na čítanie. Interval pre nové behy sa upravuje v Admin zóne.
+
 ## [1.76.249] – 2026-09-07
 
 ### Zmenené

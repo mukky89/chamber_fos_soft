@@ -30,7 +30,7 @@
                 <StackPanel>
                     <TextBlock Text="Predvolené nastavenia FBG kalibrácie" Style="{StaticResource Heading}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
-                               Text="Spoločný základ pre všetky budúce nové kalibračné zapojenia. Existujúce uložené zapojenia a rozbehnuté kalibrácie si ponechajú vlastné hodnoty." />
+                               Text="Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG sa použije pri každom novom behu aj pre uložené zapojenie. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
                     <WrapPanel>
                         <StackPanel Style="{StaticResource MiniField}">
                             <TextBlock Text="Rýchlosť setpointu [°C/min]" Style="{StaticResource Label}" />

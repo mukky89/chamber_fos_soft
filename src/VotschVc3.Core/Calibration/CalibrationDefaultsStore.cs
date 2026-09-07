@@ -34,6 +34,14 @@ public sealed class CalibrationDefaultsStore
         }
     }
 
+    /// <summary>New runs always use the current admin sampling cadence; recovery keeps its snapshot.</summary>
+    public void ApplyAcquisitionInterval(CalibrationProfileSettings settings, bool preserveRunSettings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        if (preserveRunSettings) return;
+        settings.SampleAcquisitionIntervalSeconds = Math.Clamp(Load().SampleAcquisitionIntervalSeconds, 1, 30);
+    }
+
     public void Save(CalibrationProfileSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);

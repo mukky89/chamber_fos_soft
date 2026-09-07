@@ -102,6 +102,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _chamberStore = new ChamberConfigStore(Path.Combine(AppPaths.SettingsDir, "chambers.json"));
         _calibrationStore = new CalibrationStore(AppPaths.CalibrationDir);
         _calibrationDefaultsStore = new CalibrationDefaultsStore(Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json"));
+        _setup.Settings = CalibrationCheckpointRecovery.CloneSettings(_calibrationDefaultsStore.Load());
         _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();
         _referenceThermometers = new ThermometersViewModel();
 
@@ -695,13 +696,21 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         set { _setup.Settings.ValidationOverrideReason = value ?? string.Empty; OnPropertyChanged(); }
     }
 
+    public void RefreshAdminAcquisitionInterval()
+    {
+        if (IsRunning || HasResumableCalibration) return;
+        _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: false);
+        OnPropertyChanged(nameof(SampleAcquisitionIntervalSeconds));
+        RefreshDashboardPlan();
+    }
+
     private void LoadProfileSetup()
     {
         Peaks.Clear();
         CalibrationPoints.Clear();
         if (SelectedProfile is null)
         {
-            _setup = new CalibrationSetup();
+            _setup = new CalibrationSetup { Settings = CalibrationCheckpointRecovery.CloneSettings(_calibrationDefaultsStore.Load()) };
             RefreshSettingsBindings();
             RefreshResumeCheckpoint();
             RefreshCommands();
@@ -734,8 +743,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 CalibrationPoints.Add(point);
             }
         }
-        RefreshSettingsBindings();
         RefreshResumeCheckpoint();
+        _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: HasResumableCalibration || IsRunning);
+        RefreshSettingsBindings();
+        RefreshDashboardPlan();
         RefreshCommands();
     }
 
@@ -1743,6 +1754,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         CalibrationCheckpoint? resume = resumeFromCheckpoint ? _resumeCheckpoint : null;
         if (resumeFromCheckpoint && resume is null)
             throw new InvalidOperationException("Uložený checkpoint pre vybraný profil a komoru už nie je dostupný.");
+        _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: resumeFromCheckpoint);
+        RefreshSettingsBindings();
+        RefreshDashboardPlan();
         await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is not null) EnsureF100Reservation();
         SaveSetup();

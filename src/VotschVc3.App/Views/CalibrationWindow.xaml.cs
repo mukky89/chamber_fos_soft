@@ -574,6 +574,7 @@ public partial class CalibrationWindow : Window
 
             existing.Activate();
         }
+        existing._viewModel.RefreshAdminAcquisitionInterval();
     }
 
     /// <summary>Closes the workspace if one is open (called when the app shuts down).</summary>
