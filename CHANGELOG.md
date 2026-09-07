@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.247] – 2026-09-07
+
+### Zmenené
+
+- Teplotná poistka je malý nenápadný údaj vedľa rozsahu, bez rámčeka. Kliknutie na údaj s ceruzkou otvorí úpravu limitov; aktivovaná poistka zostáva zvýraznená červenou.
+
 ## [1.76.246] – 2026-09-07
 
 ### Opravené

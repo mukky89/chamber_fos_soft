@@ -506,27 +506,41 @@
                                           </StackPanel>
                                           <TextBlock Text="{Binding ActivityLabel}" Style="{StaticResource Caption}"
                                                      Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" TextWrapping="Wrap">
-                                            <Run Text="Rozsah: " Foreground="{StaticResource MutedBrush}" />
-                                            <Run Text="{Binding RangeLabel, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
-                                        </TextBlock>
-                                        <Border Margin="0,7,0,0" Padding="8,5" CornerRadius="7" BorderThickness="1"
-                                                ToolTip="Nadradená poistka pre manuál, profily aj FBG kalibráciu. Pri prekročení fyzicky zastaví výkon komory a zablokuje ďalšie riadenie.">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="BorderBrush" Value="{StaticResource OkBrush}" />
-                                                    <Style.Triggers><DataTrigger Binding="{Binding IsTemperatureSafetyTripped}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" /><Setter Property="Background" Value="{StaticResource SurfaceBrush}" /></DataTrigger></Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <DockPanel>
-                                                <Button DockPanel.Dock="Right" Content="Upraviť" Style="{StaticResource GhostButton}"
-                                                        MinHeight="28" Padding="6,2" Margin="6,0,0,0" FontSize="11.5"
-                                                        IsEnabled="{Binding CanEditDeviceSettings}" Click="EditTemperatureSafety_Click"
-                                                        ToolTip="Upraviť limity teplotnej poistky" />
-                                                <TextBlock Text="{Binding TemperatureSafetyLabel}" FontFamily="Segoe UI Semibold"
-                                                           FontSize="11.5" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                            </DockPanel>
-                                        </Border>
+                                          <WrapPanel Margin="0,2,0,0" VerticalAlignment="Center">
+                                              <TextBlock Style="{StaticResource Caption}" FontSize="10.5" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                  <Run Text="Rozsah: " /><Run Text="{Binding RangeLabel, Mode=OneWay}" />
+                                              </TextBlock>
+                                              <Button Style="{StaticResource GhostButton}" Background="Transparent" BorderThickness="0"
+                                                      MinHeight="28" Padding="2,0" Margin="0" FontSize="10.5"
+                                                      IsEnabled="{Binding CanEditDeviceSettings}" Click="EditTemperatureSafety_Click"
+                                                      AutomationProperties.Name="Upraviť teplotnú poistku"
+                                                      ToolTip="{Binding TemperatureSafetyLabel}">
+                                                  <StackPanel Orientation="Horizontal">
+                                                      <TextBlock VerticalAlignment="Center">
+                                                          <TextBlock.Style>
+                                                              <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                                                  <Setter Property="FontSize" Value="10.5" />
+                                                                  <Setter Property="Text">
+                                                                      <Setter.Value>
+                                                                          <MultiBinding StringFormat="Poistka: {0:0.#}…{1:0.#} °C">
+                                                                              <Binding Path="SafetyTempMin" /><Binding Path="SafetyTempMax" />
+                                                                          </MultiBinding>
+                                                                      </Setter.Value>
+                                                                  </Setter>
+                                                                  <Style.Triggers>
+                                                                      <DataTrigger Binding="{Binding IsTemperatureSafetyTripped}" Value="True">
+                                                                          <Setter Property="Text" Value="{Binding TemperatureSafetyLabel}" />
+                                                                          <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                                                      </DataTrigger>
+                                                                  </Style.Triggers>
+                                                              </Style>
+                                                          </TextBlock.Style>
+                                                      </TextBlock>
+                                                      <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Edit}"
+                                                            Width="10" Height="10" Margin="4,0,0,0" Stroke="{StaticResource MutedBrush}" />
+                                                  </StackPanel>
+                                              </Button>
+                                          </WrapPanel>
                                           <!-- SIKA Remote Control: shown for every SIKA device, green when the bath
                                                accepts remote writes and orange when it does not, so the operator never
                                                has to guess why a set point "did nothing". -->
