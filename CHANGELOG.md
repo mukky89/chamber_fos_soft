@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.251] – 2026-09-07
+
+### Zmenené
+
+- Vo FBG live prehľade pribudla otázka „?“ pri karte „Aktuálny limit plata“.
+  Vysvetľuje, čo znamená základný limit, priebeh automatických predĺžení a prečo
+  sa rozlišuje „uplynulo“ a „zostáva“ počas čakania na stabilitu WIKA.
+
 ## [1.76.250] – 2026-09-07
 
 ### Opravené
