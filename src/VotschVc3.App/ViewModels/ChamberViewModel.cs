@@ -859,7 +859,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 
     private double? _measuredTemperatureSetpoint;
     public double? MeasuredTemperatureSetpoint { get => _measuredTemperatureSetpoint; private set => SetProperty(ref _measuredTemperatureSetpoint, value); }
-    private bool _setpointClearedByStop;
+    // A controller target is historical until a running state or our own start confirms it.
+    private bool _setpointClearedByStop = true;
 
     private double? _measuredHumidity;
     public double? MeasuredHumidity { get => _measuredHumidity; private set => SetProperty(ref _measuredHumidity, value); }
@@ -954,6 +955,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         bool? reportedRunning = hasDigital ? reading.DigitalChannels.Start : null;
         if (reportedRunning == true || IsProfileRunning || _manualStarted)
             _setpointClearedByStop = false;
+        else if (reportedRunning == false)
+            _setpointClearedByStop = true;
 
         MeasuredTemperature = reading.Temperature;
         MeasuredTemperatureSetpoint = _setpointClearedByStop ? null : reading.TemperatureSetpoint;

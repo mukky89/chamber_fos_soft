@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.248] – 2026-09-07
+
+### Opravené
+
+- Neaktívna komora po pripojení nezobrazuje historický setpoint regulátora. Teplotný aj vlhkostný setpoint sa zobrazia až po potvrdenom behu alebo spustení z aplikácie; bez aktívneho nastavenia zostáva pomlčka.
+
 ## [1.76.247] – 2026-09-07
 
 ### Zmenené
