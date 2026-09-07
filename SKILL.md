@@ -205,6 +205,7 @@ The following settings were validated on the real production reference thermomet
 - When the application is hidden/minimized to tray, do not open a floating top-most WPF popup over another program. `DesktopNotifier` owns Windows tray balloon/sound/taskbar behavior in that state.
 - Existing `DesktopNotifier.Notify(...)` events should mirror to the central in-app popup while a desktop window is visible, while preserving tray/background behavior.
 - Overall Sylex FOS API health may use a central popup; **per-symbol/SN metadata lookups remain quiet** and must not produce one popup per scanned/typed sensor.
+- Sylex FOS API health checks must tolerate a transient request failure with bounded retries and the system heartbeat fallback. A successful production-metadata response is authoritative proof of availability and must clear/replace any earlier unavailable state.
 
 ### FBG calibration layout
 

@@ -114,6 +114,36 @@ public sealed class SylexFosApiClientTests
         Assert.Equal("healthy", health.Status);
     }
 
+    [Fact]
+    public async Task Health_check_falls_back_to_heartbeat_after_transient_health_timeout()
+    {
+        int requestCount = 0;
+        var handler = new StubHandler(request =>
+        {
+            requestCount++;
+            if (request.RequestUri?.AbsolutePath == "/health")
+                throw new TaskCanceledException("transient timeout");
+
+            Assert.Equal("/api/v1/system/heartbeat", request.RequestUri?.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"status\":\"healthy\"}", Encoding.UTF8, "application/json"),
+            };
+        });
+
+        using var http = new HttpClient(handler);
+        using var client = new SylexFosApiClient(new SylexFosApiSettings
+        {
+            BaseUrl = "http://localhost:5080",
+        }, http);
+
+        SylexFosApiHealth health = await client.CheckHealthAsync();
+
+        Assert.True(health.IsReachable);
+        Assert.Equal("healthy", health.Status);
+        Assert.Equal(2, requestCount);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>

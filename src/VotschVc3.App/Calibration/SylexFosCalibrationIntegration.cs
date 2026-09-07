@@ -22,6 +22,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private readonly HashSet<CalibrationPeakRowViewModel> _attachedRows = new();
     private bool _disposed;
     private bool _configurationWarningLogged;
+    private int _apiAvailable;
 
     public event EventHandler<SylexFosLookupStatus>? LookupStatusChanged;
     public event EventHandler<CalibrationPeakRowViewModel>? MetadataApplied;
@@ -175,6 +176,8 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
             AppLog.Info(
                 "Sylex FOS API",
                 $"FBG SN {serialNumber}: doplnený Sylex SN, Typ FBG, zakázka, popis výrobku, názov snímača a zákazník.");
+            if (Interlocked.Exchange(ref _apiAvailable, 1) != 1)
+                Report(SylexFosLookupState.ApiAvailable, "FOS API · dostupné");
         }
         catch (OperationCanceledException) { }
         catch (InvalidOperationException ex)
@@ -206,11 +209,13 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         SylexFosApiHealth health = await _apiClient.CheckHealthAsync().ConfigureAwait(false);
         if (health.IsReachable)
         {
+            Interlocked.Exchange(ref _apiAvailable, 1);
             Report(SylexFosLookupState.ApiAvailable, "FOS API · dostupné");
             AppLog.Info("Sylex FOS API", $"Centrálne API je dostupné na {ApiClientBaseUrl()}.");
         }
         else
         {
+            Interlocked.Exchange(ref _apiAvailable, 0);
             Report(SylexFosLookupState.ApiUnavailable, $"FOS API · nedostupné ({health.Status})");
             AppLog.Warn("Sylex FOS API", $"Centrálne API nie je dostupné ({health.Status}). Kalibrácia môže pokračovať bez automatického doplnenia metadata.");
         }

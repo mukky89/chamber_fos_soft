@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.236] – 2026-09-07
+
+### Opravené
+
+- Kontrola dostupnosti Sylex FOS API po prechodnom timeoute opakuje požiadavku a používa systémový heartbeat ako záložný endpoint. Prvé úspešné načítanie výrobných metadata navyše okamžite nahradí starý stav `nedostupné` stavom `dostupné`, takže aplikácia už nezobrazuje nepravdivé upozornenie pri funkčnom API.
+
 ## [1.76.235] – 2026-09-06
 
 ### Opravené

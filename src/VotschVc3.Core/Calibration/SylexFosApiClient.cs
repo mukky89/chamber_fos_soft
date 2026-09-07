@@ -64,20 +64,45 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
 
     public async Task<SylexFosApiHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
-        try
+        string status = "unreachable";
+        string? detail = null;
+        string[] paths = ["/health", "/api/v1/system/heartbeat"];
+
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            using HttpResponseMessage response = await _httpClient.GetAsync("/health", cancellationToken).ConfigureAwait(false);
-            string status = response.IsSuccessStatusCode ? "healthy" : $"http_{(int)response.StatusCode}";
-            return new(response.IsSuccessStatusCode, status, DateTimeOffset.UtcNow, response.IsSuccessStatusCode ? null : response.ReasonPhrase);
+            foreach (string path in paths)
+            {
+                using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                TimeSpan timeout = _settings.RequestTimeout > TimeSpan.Zero
+                    ? TimeSpan.FromSeconds(Math.Min(_settings.RequestTimeout.TotalSeconds, 3))
+                    : TimeSpan.FromSeconds(3);
+                requestTimeout.CancelAfter(timeout);
+
+                try
+                {
+                    using HttpResponseMessage response = await _httpClient.GetAsync(path, requestTimeout.Token).ConfigureAwait(false);
+                    status = response.IsSuccessStatusCode ? "healthy" : $"http_{(int)response.StatusCode}";
+                    detail = response.IsSuccessStatusCode ? null : response.ReasonPhrase;
+                    if (response.IsSuccessStatusCode)
+                        return new(true, status, DateTimeOffset.UtcNow);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    status = "timeout";
+                    detail = $"Sylex FOS API request {path} timed out.";
+                }
+                catch (HttpRequestException ex)
+                {
+                    status = "unreachable";
+                    detail = ex.Message;
+                }
+            }
+
+            if (attempt < 2)
+                await Task.Delay(TimeSpan.FromMilliseconds(250 * (attempt + 1)), cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return new(false, "timeout", DateTimeOffset.UtcNow, "Sylex FOS API request timed out.");
-        }
-        catch (HttpRequestException ex)
-        {
-            return new(false, "unreachable", DateTimeOffset.UtcNow, ex.Message);
-        }
+
+        return new(false, status, DateTimeOffset.UtcNow, detail);
     }
 
     public async Task<SylexFbgCalibrationContext?> GetFbgCalibrationContextAsync(string serialNumber, CancellationToken cancellationToken = default)
