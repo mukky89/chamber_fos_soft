@@ -13,11 +13,11 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
             <StackPanel>
                 <Label Target="{Binding ElementName=MinimumBox}" Content="Minimum (°C)" />
-                <TextBox x:Name="MinimumBox" Height="36" AutomationProperties.Name="Minimálna bezpečná teplota" />
+                <TextBox x:Name="MinimumBox" Height="36" Padding="8,0" VerticalContentAlignment="Center" AutomationProperties.Name="Minimálna bezpečná teplota" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <Label Target="{Binding ElementName=MaximumBox}" Content="Maximum (°C)" />
-                <TextBox x:Name="MaximumBox" Height="36" AutomationProperties.Name="Maximálna bezpečná teplota" />
+                <TextBox x:Name="MaximumBox" Height="36" Padding="8,0" VerticalContentAlignment="Center" AutomationProperties.Name="Maximálna bezpečná teplota" />
             </StackPanel>
         </Grid>
         <TextBlock x:Name="ValidationMessage" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" />

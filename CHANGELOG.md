@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.246] – 2026-09-07
+
+### Opravené
+
+- Číselné polia modalu teplotnej poistky majú zvislo vycentrovaný text bez orezania pri kompaktnej výške.
+
 ## [1.76.245] – 2026-09-07
 
 ### Zmenené
