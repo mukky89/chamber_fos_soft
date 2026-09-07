@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.237] – 2026-09-07
+
+### Pridané
+
+- V hlavnom menu pribudla samostatná záložka `FBG kalibrácie`. Zobrazuje všetky uložené kalibračné behy, ich profil, komoru, stav a počet snímačov; pri vybranej kalibrácii sprístupní jej priečinok a podrobnú tabuľku výsledkov jednotlivých snímačov vrátane citlivosti, chyby, R², výsledku a stavu stability.
+
 ## [1.76.236] – 2026-09-07
 
 ### Opravené

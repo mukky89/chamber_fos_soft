@@ -89,6 +89,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         _login = new LoginViewModel(_userStore, OnLoggedIn);
 
         Thermometers = new ThermometersViewModel();
+        FbgCalibrations = new FbgCalibrationHistoryViewModel();
         Admin = new AdminViewModel(this);
         QuickProfile = new QuickProfileViewModel(_store);
         Chambers = new ObservableCollection<ChamberViewModel>();
@@ -96,6 +97,11 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         // Commands must exist before chambers are built (AddChamberInternal uses them).
         OpenChamberCommand = new RelayCommand<ChamberViewModel>(OpenChamber, c => c is not null);
         OpenThermometersCommand = new RelayCommand(() => CurrentView = Thermometers);
+        OpenFbgCalibrationsCommand = new RelayCommand(() =>
+        {
+            FbgCalibrations.Refresh();
+            CurrentView = FbgCalibrations;
+        });
         OpenRecordingViewerCommand = new RelayCommand(() =>
         {
             // Always show logs from profiles that finished since the viewer was last opened.
@@ -456,6 +462,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>ASL F100 thermometers manager (USB).</summary>
     public ThermometersViewModel Thermometers { get; }
+    public FbgCalibrationHistoryViewModel FbgCalibrations { get; }
 
     /// <summary>Viewer for saved CSV recordings (analysis).</summary>
     public RecordingViewerViewModel RecordingViewer { get; } = new();
@@ -507,6 +514,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     public RelayCommand<ChamberViewModel> OpenChamberCommand { get; }
     public RelayCommand OpenThermometersCommand { get; }
+    public RelayCommand OpenFbgCalibrationsCommand { get; }
     public RelayCommand OpenRecordingViewerCommand { get; }
     public RelayCommand OpenProfileLibraryCommand { get; }
     public RelayCommand OpenQuickProfileCommand { get; }

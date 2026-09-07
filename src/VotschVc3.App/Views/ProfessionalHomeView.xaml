@@ -78,6 +78,7 @@
                     <Button Style="{StaticResource ProNavButton}" Command="{Binding OpenProfileLibraryCommand}" Content="Zoznam profilov" />
                     <Button Style="{StaticResource ProNavButton}" Command="{Binding OpenQuickProfileCommand}" Content="Rýchly profil" />
                     <Button Style="{StaticResource ProNavButton}" Command="{Binding OpenThermometersCommand}" Content="Teplomery WIKA CTH7000" />
+                    <Button Style="{StaticResource ProNavButton}" Command="{Binding OpenFbgCalibrationsCommand}" Content="FBG kalibrácie" />
                     <Button Style="{StaticResource ProNavButton}" Command="{Binding OpenRecordingViewerCommand}" Content="Prehliadač záznamov" />
                     <Button Style="{StaticResource ProNavButton}" Command="{Binding OpenAuditCommand}" Content="Audit trail" />
                     <Button Style="{StaticResource ProNavButton}" Command="{Binding OpenAppLogCommand}" Content="App log" />
