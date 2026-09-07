@@ -406,8 +406,7 @@ public sealed record CalibrationProgressSnapshot(
     TimeSpan? TemperatureSettlingElapsed = null,
     TimeSpan? TemperatureSettlingBaseLimit = null,
     TimeSpan? AutomaticTemperatureExtensionUsed = null,
-    TimeSpan? MaximumAutomaticTemperatureExtension = null,
-    TimeSpan? ManualTemperatureExtensionUsed = null);
+    TimeSpan? MaximumAutomaticTemperatureExtension = null);
 
 public sealed class CalibrationOperatorActionRequiredException : Exception
 {

@@ -132,7 +132,6 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         ApplyCurrentDefaultsToResumeCommand = new RelayCommand(ApplyCurrentDefaultsToResume, () => HasResumableCalibration && !IsRunning);
         PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null);
         ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending);
-        ExtendStabilityTimeCommand = new RelayCommand(ExtendStabilityTime, () => IsRunning && _runner is not null && Dashboard.CanExtendStabilityTime);
         StopCalibrationCommand = new RelayCommand(StopCalibration, CanStopOrFinalizeCalibration);
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
@@ -243,7 +242,6 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand ApplyCurrentDefaultsToResumeCommand { get; }
     public RelayCommand PauseResumeCommand { get; }
     public RelayCommand ForceNextStepCommand { get; }
-    public RelayCommand ExtendStabilityTimeCommand { get; }
     public RelayCommand StopCalibrationCommand { get; }
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ExportSelectedRunCommand { get; }
@@ -1848,15 +1846,14 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {warning.Code} · {warning.Message}");
                 _ = Application.Current.Dispatcher.InvokeAsync(() => WarningText = warning.Message);
                 bool automaticExtension = warning.Code == "REFERENCE_STABILITY_TIMEOUT_EXTENDED";
-                bool operatorExtension = warning.Code == "OPERATOR_STABILITY_TIMEOUT_EXTENDED";
                 bool automaticDeferral = warning.Code == "REFERENCE_STABILITY_DEFERRED";
                 DesktopNotifier.Notify(
-                    automaticExtension || operatorExtension
+                    automaticExtension
                         ? "Čakanie na stabilitu WIKA bolo predĺžené"
                         : automaticDeferral ? "Plato sa odložilo na neskôr" : "FBG kalibrácia – upozornenie",
                     warning.Message,
-                    automaticExtension || operatorExtension || automaticDeferral ? DesktopNotificationKind.Warning : DesktopNotificationKind.Alarm);
-                if (!automaticExtension && !operatorExtension && !automaticDeferral)
+                    automaticExtension || automaticDeferral ? DesktopNotificationKind.Warning : DesktopNotificationKind.Alarm);
+                if (!automaticExtension && !automaticDeferral)
                     _ = SendWarningEmailAsync(_activeRun, warning);
             };
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
@@ -1979,7 +1976,6 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             _temperatureGateOverridePending = false;
         PublishCalibrationStatus();
         ForceNextStepCommand.RaiseCanExecuteChanged();
-        ExtendStabilityTimeCommand.RaiseCanExecuteChanged();
 
         Dictionary<string, CalibrationTargetProgressViewModel> existing = TargetProgress.ToDictionary(x => x.Identity, StringComparer.OrdinalIgnoreCase);
         foreach (CalibrationTargetProgress target in snapshot.Targets)
@@ -2063,16 +2059,6 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_FORCE_NEXT_STEP", StatusMessage);
         AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {StatusMessage}");
         ForceNextStepCommand.RaiseCanExecuteChanged();
-    }
-
-    private void ExtendStabilityTime()
-    {
-        if (_runner is null || !Dashboard.CanExtendStabilityTime) return;
-        TimeSpan extension = TimeSpan.FromMinutes(30);
-        _runner.RequestTemperatureStabilityExtension(extension);
-        StatusMessage = "Operátor pridal +30 minút na ustálenie aktuálneho plata. Stabilné skóre sa nevynulovalo.";
-        _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_STABILITY_TIMEOUT_EXTENSION_REQUESTED", StatusMessage);
-        AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {StatusMessage}");
     }
 
     private void StopCalibration()
@@ -2518,7 +2504,6 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StopCalibrationCommand.RaiseCanExecuteChanged();
         PauseResumeCommand.RaiseCanExecuteChanged();
         ForceNextStepCommand.RaiseCanExecuteChanged();
-        ExtendStabilityTimeCommand.RaiseCanExecuteChanged();
         SaveSetupCommand.RaiseCanExecuteChanged();
         SelectSuggestedPeaksCommand.RaiseCanExecuteChanged();
         MarkAllPlateausCommand.RaiseCanExecuteChanged();

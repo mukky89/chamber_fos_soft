@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.244] – 2026-09-07
+
+### Odstránené
+
+- Z kalibračného prehľadu bolo odstránené tlačidlo `+30 min na ustálenie` aj celý mechanizmus ručného predlžovania časového limitu stability. Automatické predĺženie stability zostáva bez zmeny.
+
 ## [1.76.243] – 2026-09-07
 
 ### Zmenené

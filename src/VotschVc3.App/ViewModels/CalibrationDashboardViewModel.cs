@@ -92,7 +92,6 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public bool CanForceTemperatureGate => _running &&
         _state == CalibrationRunState.WaitingForChamberStability &&
         (!HasReference || _snapshot?.ReferenceTemperatureC is not null);
-    public bool CanExtendStabilityTime => _running && _state == CalibrationRunState.WaitingForChamberStability;
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
     public string ReferenceStatusHelp =>
         "Posledná vzorka WIKA je najnovšia úspešne načítaná teplota z referenčného teplomera WIKA CTH7000; veľká hodnota nad týmto textom je jej aktuálna hodnota. " +
@@ -133,17 +132,16 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private TimeSpan TemperatureSettlingBaseLimit => _snapshot?.TemperatureSettlingBaseLimit ?? _stabilityTimeout;
     private TimeSpan AutomaticTemperatureExtensionUsed => _snapshot?.AutomaticTemperatureExtensionUsed ?? TimeSpan.Zero;
     private TimeSpan MaximumAutomaticTemperatureExtension => _snapshot?.MaximumAutomaticTemperatureExtension ?? _maxAutomaticStabilityExtension;
-    private TimeSpan ManualTemperatureExtensionUsed => _snapshot?.ManualTemperatureExtensionUsed ?? TimeSpan.Zero;
     private TimeSpan TemperatureSettlingElapsed => _snapshot?.TemperatureSettlingElapsed ?? TimeSpan.Zero;
-    private TimeSpan CurrentTemperatureSettlingLimit => TemperatureSettlingBaseLimit + AutomaticTemperatureExtensionUsed + ManualTemperatureExtensionUsed;
+    private TimeSpan CurrentTemperatureSettlingLimit => TemperatureSettlingBaseLimit + AutomaticTemperatureExtensionUsed;
     public string ReferenceSettlingLimitLabel =>
         $"Aktuálny limit plata: {Duration(CurrentTemperatureSettlingLimit)} · uplynulo {Duration(TemperatureSettlingElapsed)} · zostáva {Duration(RemainingTemperatureSettlingTime)}";
     public string ReferenceSettlingLimitBreakdown =>
-        $"Základ {Duration(TemperatureSettlingBaseLimit)} · auto +{Duration(AutomaticTemperatureExtensionUsed)} / {Duration(MaximumAutomaticTemperatureExtension)} · ručne +{Duration(ManualTemperatureExtensionUsed)}";
+        $"Základ {Duration(TemperatureSettlingBaseLimit)} · automaticky +{Duration(AutomaticTemperatureExtensionUsed)} / {Duration(MaximumAutomaticTemperatureExtension)}";
     public string ReferenceSettlingLimitHelp =>
         "Limit platí pre čakanie na ustálenie aktuálneho plata po skončení minimálneho času profilu. " +
         $"Začína na {Duration(TemperatureSettlingBaseLimit)}. Aplikácia môže pri platných dátach automaticky pridať po {Duration(_stabilityExtensionStep)}, " +
-        $"najviac spolu {Duration(MaximumAutomaticTemperatureExtension)}; tlačidlom možno samostatne pridávať po 30 minút. " +
+        $"najviac spolu {Duration(MaximumAutomaticTemperatureExtension)}. " +
         "Stabilné skóre je samostatná podmienka a predĺžením sa nevynuluje.";
     private TimeSpan RemainingTemperatureSettlingTime => CurrentTemperatureSettlingLimit > TemperatureSettlingElapsed
         ? CurrentTemperatureSettlingLimit - TemperatureSettlingElapsed
