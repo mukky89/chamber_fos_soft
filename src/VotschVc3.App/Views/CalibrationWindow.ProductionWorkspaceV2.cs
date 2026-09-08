@@ -309,7 +309,7 @@ public partial class CalibrationWindow
     {
         foreach (Control control in FindProductionDescendants<Control>(this))
         {
-            if (control is TextBox or ComboBox or CheckBox)
+            if (control is TextBox or ComboBox or CheckBox && control.Name != "OperatorDecisionReasonInput")
                 _productionInputEnabled.TryAdd(control, control.IsEnabled);
         }
         foreach (DataGrid grid in FindProductionDescendants<DataGrid>(this))
@@ -320,7 +320,7 @@ public partial class CalibrationWindow
     {
         foreach ((Control control, bool original) in _productionInputEnabled.ToArray())
         {
-            if (!control.IsLoaded) continue;
+            if (!control.IsLoaded || control.Name == "OperatorDecisionReasonInput") continue;
             control.IsEnabled = running ? false : original;
         }
         foreach ((DataGrid grid, bool original) in _productionGridReadOnly.ToArray())

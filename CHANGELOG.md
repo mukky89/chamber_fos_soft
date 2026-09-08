@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.283] – 2026-09-08
+
+### Opravené
+
+- Pole Dôvod rozhodnutia už neblokuje všeobecný zámok vstupov bežiacej kalibrácie. Počas rozhodovania zostáva editovateľné; jeho povinnosť a odomknutie akcií sú jasne vysvetlené.
+
 ## [1.76.282] – 2026-09-08
 
 ### Zmenené

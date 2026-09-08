@@ -60,9 +60,10 @@
                             </ScrollViewer>
                             <TextBlock Text="{Binding OperatorDecisionCountdown}" Foreground="#FFD27D" FontWeight="Bold" Margin="0,6" TextWrapping="Wrap" />
                             <DockPanel>
-                                <TextBlock Text="Dôvod rozhodnutia:" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <TextBox Text="{Binding OperatorDecisionReason, UpdateSourceTrigger=PropertyChanged}" MinWidth="200" />
+                                <TextBlock Text="Dôvod rozhodnutia (povinný):" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <TextBox x:Name="OperatorDecisionReasonInput" Text="{Binding OperatorDecisionReason, UpdateSourceTrigger=PropertyChanged}" MinWidth="200" IsEnabled="{Binding HasOperatorDecision}" IsReadOnly="False" ToolTip="Povinný dôvod pre predĺženie, nový pokus alebo preskočenie. Napríklad: Predlžujem čas na dokončenie stability WIKA." />
                             </DockPanel>
+                            <TextBlock Text="Vyplňte dôvod vyššie — sprístupní predĺženie, nový pokus a preskočenie. STOP je dostupný aj bez dôvodu." TextWrapping="Wrap" Foreground="#FFD27D" Margin="0,5,0,0" />
                             <WrapPanel Margin="0,8,0,0">
                                 <Button Content="Predĺžiť o 15 min" Command="{Binding ExtendOperator15Command}" Margin="0,0,8,0" />
                                 <Button Content="Predĺžiť o 30 min" Command="{Binding ExtendOperator30Command}" Margin="0,0,8,0" />
