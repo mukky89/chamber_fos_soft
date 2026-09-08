@@ -231,30 +231,50 @@ public static class AppNotificationService
             };
         }
 
+        private static UIElement CreateIcon(string data, Brush color, double size)
+        {
+            var canvas = new Canvas { Width = 24, Height = 24 };
+            canvas.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse(data), Stroke = color, StrokeThickness = 2,
+                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+                StrokeLineJoin = PenLineJoin.Round,
+            });
+            return new Viewbox
+            {
+                Width = size, Height = size, Child = canvas,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+        }
         private UIElement BuildContent(AppNotification notification)
         {
-            (Color background, Color border, string glyph) = notification.Kind switch
+            (Color background, Color border, string symbol) = notification.Kind switch
             {
-                AppNotificationKind.Success => (Color.FromRgb(29, 103, 73), Color.FromRgb(70, 196, 134), "✓"),
-                AppNotificationKind.Warning => (Color.FromRgb(126, 82, 17), Color.FromRgb(239, 177, 67), "!"),
-                AppNotificationKind.Error => (Color.FromRgb(126, 34, 43), Color.FromRgb(241, 91, 104), "×"),
-                _ => (Color.FromRgb(42, 74, 126), Color.FromRgb(92, 150, 244), "i"),
+                AppNotificationKind.Success => (Color.FromRgb(22, 48, 40), Color.FromRgb(76, 217, 151), "M5,12 L10,17 L19,7"),
+                AppNotificationKind.Warning => (Color.FromRgb(53, 43, 26), Color.FromRgb(255, 195, 77), "M12,3 L22,21 L2,21 Z M12,9 L12,14 M12,17 L12,17.2"),
+                AppNotificationKind.Error => (Color.FromRgb(57, 30, 37), Color.FromRgb(255, 112, 129), "M8,2 L16,2 L22,8 L22,16 L16,22 L8,22 L2,16 L2,8 Z M12,7 L12,13 M12,17 L12,17.2"),
+                _ => (Color.FromRgb(26, 40, 61), Color.FromRgb(109, 176, 255), "M12,2 A10,10 0 1 1 11.99,2 M12,11 L12,17 M12,7 L12,7.2"),
             };
 
-            var glyphText = new TextBlock
+            var glyphText = new Border
             {
-                Text = glyph,
-                FontFamily = new FontFamily("Segoe UI Semibold"),
-                FontSize = 19,
-                Foreground = Brushes.White,
-                Width = 26,
+                Width = 40, Height = 40, CornerRadius = new CornerRadius(12),
+                Background = new SolidColorBrush(Color.FromArgb(35, border.R, border.G, border.B)),
+                Margin = new Thickness(0, 0, 12, 0),
                 VerticalAlignment = VerticalAlignment.Top,
-                HorizontalAlignment = HorizontalAlignment.Center,
+                Child = CreateIcon(symbol, new SolidColorBrush(border), 24),
             };
-
+            System.Windows.Automation.AutomationProperties.SetName(glyphText, notification.Kind switch
+            {
+                AppNotificationKind.Error => "Alarm",
+                AppNotificationKind.Warning => "Varovanie",
+                AppNotificationKind.Success => "Úspech",
+                _ => "Informácia",
+            });
             var title = new TextBlock
             {
-                Text = notification.Title,
+                Text = notification.Title.TrimStart('⚠', '✓', '✔', 'ℹ', '!', '×', ' ', '\uFE0F'),
                 FontFamily = new FontFamily("Segoe UI Semibold"),
                 FontSize = 13.5,
                 Foreground = Brushes.White,
@@ -275,7 +295,7 @@ public static class AppNotificationService
 
             var close = new Button
             {
-                Content = "×",
+                Content = CreateIcon("M6,6 L18,18 M18,6 L6,18", Brushes.White, 14),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 Foreground = Brushes.White,
@@ -288,15 +308,17 @@ public static class AppNotificationService
                 Cursor = System.Windows.Input.Cursors.Hand,
                 ToolTip = "Zavrieť upozornenie",
             };
+            System.Windows.Automation.AutomationProperties.SetName(close, "Zavrieť upozornenie");
             close.Click += (_, _) => BeginClose();
 
             var copy = new Button
             {
-                Content = "⧉", Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Content = CreateIcon("M8,8 L20,8 L20,21 L8,21 Z M16,8 L16,3 L3,3 L3,16 L8,16", Brushes.White, 16), Background = Brushes.Transparent, BorderThickness = new Thickness(0),
                 Foreground = Brushes.White, FontSize = 15, Width = 28, Height = 28, Padding = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Top, Cursor = System.Windows.Input.Cursors.Hand,
                 ToolTip = "Kopírovať upozornenie",
             };
+            System.Windows.Automation.AutomationProperties.SetName(copy, "Kopírovať upozornenie");
             copy.Click += (_, _) => Clipboard.SetText($"{notification.Title}\r\n{notification.Message}".Trim());
 
             _countdown.Foreground = new SolidColorBrush(Color.FromRgb(235, 239, 248));

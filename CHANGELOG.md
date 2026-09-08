@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.266] – 2026-09-08
+
+### Zmenené
+
+- Upozornenia aplikácie používajú farebné vektorové ikony: červený alarm, žltý výstražný trojuholník, zelené potvrdenie a modrú informáciu v zaoblenom farebnom poli.
+- Pokojnejšie tmavé pozadie zvýrazňuje symbol a text. Kopírovanie a zatvorenie majú jednotné vektorové ikony s prístupnými názvami; duplicitné úvodné textové symboly sa nezobrazujú v nadpise.
+- Zachované časovanie, kopírovanie celého upozornenia, zvuky, filtrovanie a potláčanie duplicít.
+
 ## [1.76.265] – 2026-09-08
 
 ### Zmenené
