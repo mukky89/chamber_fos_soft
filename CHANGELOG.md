@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.276] – 2026-09-08
+
+### Pridané
+
+- Každý nový FBG beh uloží samostatný zapojenie.xlsx s jedným prehľadným hárkom, filtrami, sériovými číslami, kanálmi a výberom peakov. Súbor sa replikuje spolu s behom; obnovenie zachová pôvodné zapojenie.
+
 ## [1.76.275] – 2026-09-08
 
 ### Zmenené

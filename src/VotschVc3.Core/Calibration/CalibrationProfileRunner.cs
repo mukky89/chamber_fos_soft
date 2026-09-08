@@ -77,6 +77,9 @@ public sealed class CalibrationProfileRunner
             throw new InvalidOperationException("Kalibračný profil nemá označené žiadne kalibračné plato.");
         }
 
+        CalibrationWiringExporter.Export(_store.GetRunDirectory(run), run, setup);
+        _store.RequestReplication(run);
+
         run.State = CalibrationRunState.Preflight;
         await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
         run.State = CalibrationRunState.Preparing;
