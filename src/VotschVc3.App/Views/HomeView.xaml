@@ -965,25 +965,30 @@
                                                 </DockPanel>
 
                                                 <ItemsControl ItemsSource="{Binding ProfileChain}" Margin="0,8,0,0"
+                                                              HorizontalContentAlignment="Stretch"
                                                               Visibility="{Binding HasChainedProfiles, Converter={StaticResource BoolToVisibility}}">
-                                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="7" Padding="10,5" Margin="0,0,7,7">
-                                                                <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock VerticalAlignment="Center" TextTrimming="None">
-                                                                        <Run Text="▸ " Foreground="{StaticResource OkBrush}" FontFamily="Segoe UI Semibold" /><Run Text="{Binding Name, Mode=OneWay}" />
-                                                                    </TextBlock>
-                                                                    <Button Content="✕" Style="{StaticResource GhostButton}" Padding="7,0" Margin="7,0,0,0"
-                                                                            Foreground="{StaticResource DangerBrush}"
+                                                            <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="7" Padding="8,4" Margin="0,0,0,6">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                                    <TextBlock VerticalAlignment="Center" Text="{Binding Name}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Name}" Margin="0,0,8,0"/>
+                                                                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Width="30" Height="28" Padding="5"
                                                                             Command="{Binding DataContext.RemoveFromChainCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                            CommandParameter="{Binding}"
-                                                                            ToolTip="Odobrať z radu" />
-                                                                </StackPanel>
+                                                                            CommandParameter="{Binding}" ToolTip="Odobrať tento profil z radu"
+                                                                            AutomationProperties.Name="Odobrať profil z radu">
+                                                                        <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Delete}" Width="15" Height="15"/>
+                                                                    </Button>
+                                                                </Grid>
                                                             </Border>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
+                                                <Button Content="Vyprázdniť rad" Style="{StaticResource GhostButton}" HorizontalAlignment="Right"
+                                                        Command="{Binding ClearChainCommand}" Padding="8,4"
+                                                        Visibility="{Binding HasChainedProfiles, Converter={StaticResource BoolToVisibility}}"
+                                                        ToolTip="Odoberie všetky položky z radu. Uložené profily zostanú v knižnici." />
 
                                                 <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
                                                            Text="{Binding ChainDurationText}"

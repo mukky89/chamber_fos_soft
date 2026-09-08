@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.296] – 2026-09-08
+
+### Opravené
+- Dlhé názvy profilov v rade už nevytláčajú odstránenie mimo karty. Každý riadok má viditeľnú ikonu koša; celý názov je dostupný v tooltipe.
+- Pridané tlačidlo Vyprázdniť rad, ktoré odstráni položky z radu bez vymazania uložených profilov.
+
 ## [1.76.295] – 2026-09-08
 
 ### Pridané
