@@ -828,6 +828,11 @@ public sealed class DashboardNode : INotifyPropertyChanged
         State = success ? "Done" : "Warning";
     }
     public string Badge => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge : State switch { "Done" => "✓ DONE", "Active" => "● RUNNING", "Waiting" => "Ⅱ WAITING", "Error" => "! ERROR", "Warning" => "! UPOZORNENIE", "Skipped" => "— N/A", _ => "○ PENDING" };
+    public string ChipLabel => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge[2..] : State switch
+    {
+        "Done" => "DOKONČENÉ", "Active" => "PREBIEHA", "Waiting" => "ČAKÁ NA STABILITU",
+        "Error" => "CHYBA", "Warning" => "UPOZORNENIE", "Skipped" => "PRESKOČENÉ", _ => "ČAKÁ"
+    };
     public TimeSpan? Duration { get; set; }
 }
 

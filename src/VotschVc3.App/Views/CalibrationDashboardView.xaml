@@ -119,6 +119,36 @@
     </StackPanel>
    </Border>
   </DataTemplate>
+  <DataTemplate x:Key="RoadmapChip">
+   <Border CornerRadius="8" Padding="7,5" HorizontalAlignment="Left" BorderThickness="1">
+    <Border.Style><Style TargetType="Border">
+     <Setter Property="Background" Value="#243247"/><Setter Property="BorderBrush" Value="#607894"/>
+     <Style.Triggers>
+      <DataTrigger Binding="{Binding State}" Value="Active"><Setter Property="Background" Value="#193C60"/><Setter Property="BorderBrush" Value="#66B6FF"/></DataTrigger>
+      <DataTrigger Binding="{Binding State}" Value="Done"><Setter Property="Background" Value="#163C30"/><Setter Property="BorderBrush" Value="#55D6A0"/></DataTrigger>
+      <DataTrigger Binding="{Binding State}" Value="Waiting"><Setter Property="Background" Value="#40321B"/><Setter Property="BorderBrush" Value="#FFCA6B"/></DataTrigger>
+      <DataTrigger Binding="{Binding State}" Value="Warning"><Setter Property="Background" Value="#40321B"/><Setter Property="BorderBrush" Value="#FFCA6B"/></DataTrigger>
+      <DataTrigger Binding="{Binding State}" Value="Error"><Setter Property="Background" Value="#482731"/><Setter Property="BorderBrush" Value="#FF8894"/></DataTrigger>
+     </Style.Triggers>
+    </Style></Border.Style>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <Path Width="13" Height="13" Stretch="Uniform" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center">
+      <Path.Style><Style TargetType="Path">
+       <Setter Property="Data" Value="{StaticResource Icon.ProgressClock}"/><Setter Property="Stroke" Value="#ABC3DC"/>
+       <Style.Triggers>
+        <DataTrigger Binding="{Binding State}" Value="Active"><Setter Property="Data" Value="{StaticResource Icon.Play}"/><Setter Property="Stroke" Value="#66B6FF"/><Setter Property="Fill" Value="#66B6FF"/></DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Done"><Setter Property="Data" Value="M12,3 A9,9 0 1 1 11.99,3 M7,12 L10,15 L17,8"/><Setter Property="Stroke" Value="#55D6A0"/></DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Waiting"><Setter Property="Stroke" Value="#FFCA6B"/></DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Warning"><Setter Property="Data" Value="M12,3 L22,21 L2,21 Z M12,8 L12,14 M12,17 L12,18"/><Setter Property="Stroke" Value="#FFCA6B"/></DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Error"><Setter Property="Data" Value="M12,3 A9,9 0 1 1 11.99,3 M8,8 L16,16 M16,8 L8,16"/><Setter Property="Stroke" Value="#FF8894"/></DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Skipped"><Setter Property="Data" Value="{StaticResource Icon.SkipNext}"/></DataTrigger>
+       </Style.Triggers>
+      </Style></Path.Style>
+     </Path>
+     <TextBlock Grid.Column="1" Text="{Binding ChipLabel}" FontSize="10" FontWeight="SemiBold" Foreground="#ECF4FF" Margin="5,0,0,0" TextWrapping="Wrap" VerticalAlignment="Center"/>
+    </Grid>
+   </Border>
+  </DataTemplate>
   <DataTemplate x:Key="StepTemplate"><Border Style="{StaticResource WorkflowNode}"><StackPanel><Grid><TextBlock Text="{Binding Number}" Style="{StaticResource Muted}"/><Button HorizontalAlignment="Right" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding Detail}" Click="HelpButton_Click"/></Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,7" MinHeight="36"/><TextBlock Text="{Binding Badge}" FontSize="10"/></StackPanel></Border></DataTemplate>
  </UserControl.Resources>
  <ScrollViewer x:Name="DashboardScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -343,7 +373,7 @@
 
    <TextBlock Text="Kalibračný plán / roadmap" Style="{StaticResource Title}"/>
    <ItemsControl ItemsSource="{Binding Points}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
-    <Border Style="{StaticResource Node}" Width="174"><StackPanel><TextBlock Text="{Binding Number, StringFormat=PLATO {0}}" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Title}" Style="{StaticResource Metric}"/><TextBlock Text="{Binding Badge}" FontSize="11" TextWrapping="Wrap"/><TextBlock Text="{Binding Detail}" Style="{StaticResource Muted}" Margin="0,7,0,0"/></StackPanel></Border>
+    <Border Style="{StaticResource Node}" Width="174"><StackPanel><TextBlock Text="{Binding Number, StringFormat=PLATO {0}}" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Title}" Style="{StaticResource Metric}"/><ContentControl Content="{Binding}" ContentTemplate="{StaticResource RoadmapChip}" HorizontalContentAlignment="Left"/><TextBlock Text="{Binding Detail}" Style="{StaticResource Muted}" Margin="0,7,0,0"/></StackPanel></Border>
    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
    <Border Style="{StaticResource Panel}" Margin="0,12,0,0"><StackPanel>
     <TextBlock Text="Udalosti kalibrácie" Style="{StaticResource Title}"/>

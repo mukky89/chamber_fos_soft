@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.290] – 2026-09-08
+
+### Zmenené
+- Kalibračný plán používa farebné stavové štítky s vektorovými ikonami a slovenskými názvami. Výsledky naďalej rozlišujú úspešné, neúspešné a nepotvrdené body.
+
 ## [1.76.289] – 2026-09-08
 
 ### Zmenené
