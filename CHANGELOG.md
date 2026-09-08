@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.267] – 2026-09-08
+
+### Opravené
+
+- Tabuľka zapojenia FBG používa jemné súvislé modré zvýraznenie výberu bez hrubých rámčekov okolo každej bunky. Aktívnu bunku označuje tenká modrá spodná čiara namiesto červeného rámu.
+- Tenké zvislé deliace čiary jasne oddeľujú stĺpce. Zachované editovanie, validácia, ukladanie, virtualizácia a zmrazené stĺpce.
+
 ## [1.76.266] – 2026-09-08
 
 ### Zmenené

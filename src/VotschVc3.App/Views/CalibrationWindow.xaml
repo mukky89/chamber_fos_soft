@@ -498,7 +498,7 @@
                               IsReadOnly="False" HeadersVisibility="Column" EnableRowVirtualization="True"
                               AlternationCount="2" RowHeight="31" ColumnHeaderHeight="36" FontSize="12"
                               MaxHeight="548"
-                              FrozenColumnCount="6" GridLinesVisibility="Horizontal"
+                              FrozenColumnCount="6" GridLinesVisibility="All" VerticalGridLinesBrush="#414C60"
                               ScrollViewer.HorizontalScrollBarVisibility="Auto"
                               VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                         <DataGrid.ColumnHeaderStyle>

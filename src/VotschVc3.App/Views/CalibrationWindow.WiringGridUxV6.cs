@@ -65,7 +65,7 @@ public partial class CalibrationWindow
         _wiringGrid.MinRowHeight = 31;
         _wiringGrid.HeadersVisibility = DataGridHeadersVisibility.Column;
         _wiringGrid.RowHeaderWidth = 0;
-        _wiringGrid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
+        _wiringGrid.GridLinesVisibility = DataGridGridLinesVisibility.All;
         _wiringGrid.SelectionUnit = DataGridSelectionUnit.FullRow;
         _wiringGrid.SelectionMode = DataGridSelectionMode.Single;
         _wiringGrid.CanUserResizeColumns = true;
@@ -76,7 +76,7 @@ public partial class CalibrationWindow
 
         Brush border = TryFindResource("BorderBrush") as Brush ?? Brushes.DimGray;
         _wiringGrid.HorizontalGridLinesBrush = border;
-        _wiringGrid.VerticalGridLinesBrush = Brushes.Transparent;
+        _wiringGrid.VerticalGridLinesBrush = new SolidColorBrush(Color.FromRgb(65, 76, 96));
 
         Style readOnlyCellStyle = BuildWiringCellStyleV6(editable: false);
         Style editableCellStyle = BuildWiringCellStyleV6(editable: true);

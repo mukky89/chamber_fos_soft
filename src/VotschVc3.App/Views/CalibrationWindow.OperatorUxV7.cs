@@ -174,19 +174,19 @@ public partial class CalibrationWindow
         Style? baseStyle = TryFindResource(typeof(DataGridCell)) as Style;
         var style = new Style(typeof(DataGridCell), baseStyle);
         style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 0, 6, 0)));
-        style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
+        style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
         style.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.Transparent));
 
         var selected = new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true };
-        selected.Setters.Add(new Setter(Control.BorderBrushProperty, TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue));
-        selected.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(2)));
-        selected.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x55, 0x35, 0x58, 0x88))));
+        selected.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.Transparent));
+        selected.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
+        selected.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(40, 61, 89))));
         selected.Setters.Add(new Setter(Control.ForegroundProperty, TryFindResource("TextBrush") as Brush ?? Brushes.White));
         style.Triggers.Add(selected);
 
         var focused = new Trigger { Property = DataGridCell.IsKeyboardFocusWithinProperty, Value = true };
-        focused.Setters.Add(new Setter(Control.BorderBrushProperty, TryFindResource("DangerBrush") as Brush ?? Brushes.Red));
-        focused.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(2.5)));
+        focused.Setters.Add(new Setter(Control.BorderBrushProperty, TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue));
+        focused.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
         focused.Setters.Add(new Setter(Panel.ZIndexProperty, 1));
         style.Triggers.Add(focused);
         grid.CellStyle = style;
