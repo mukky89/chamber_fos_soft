@@ -1141,7 +1141,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         {
             if (!ManualTimerEnabled)
             {
-                return "∞ bez limitu";
+                return "Bez časového limitu";
             }
 
             if (_manualRunEndsAt is not { } endsAt)

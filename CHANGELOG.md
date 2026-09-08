@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.265] – 2026-09-08
+
+### Zmenené
+
+- Vzdušnejšie rýchle ovládanie komory: kompaktné teplotné predvoľby zvýraznia potvrdený setpoint, väčšie pole vlastnej teploty a tlačidlo Nastaviť dopĺňa oddelený červený Stop.
+- Automatické vypnutie má samostatný spodný riadok s časom dostupným po zapnutí a stavom Bez časového limitu. Úprava predvolieb je dostupná cez ceruzku s vysvetlením.
+- Zachované existujúce príkazy, oprávnenia, blokovanie počas profilu a FBG kalibrácie aj spätná väzba operácií.
+
 ## [1.76.264] – 2026-09-08
 
 ### Zmenené
