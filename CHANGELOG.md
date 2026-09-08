@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.269] – 2026-09-08
+
+### Opravené
+
+- Stav FBG kalibrácie a operátorského dohľadu má v karte samostatný riadok pod hlavičkou LIVE. Dlhý text sa zalamuje podľa šírky karty a neprekrýva názov ani ďalšie údaje.
+
 ## [1.76.268] – 2026-09-08
 
 ### Opravené

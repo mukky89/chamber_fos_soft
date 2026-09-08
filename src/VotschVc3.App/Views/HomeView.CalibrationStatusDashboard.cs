@@ -146,16 +146,18 @@ public partial class HomeView
         var state = new TextBlock
         {
             Tag = "state",
+            TextWrapping = TextWrapping.Wrap,
             Text = string.Empty,
             FontFamily = new FontFamily("Segoe UI Semibold"),
             FontSize = 10.5,
             Foreground = Brushes.MediumSeaGreen,
         };
         var statePill = new Border { Background = new SolidColorBrush(Color.FromRgb(21, 53, 46)), BorderBrush = Brushes.MediumSeaGreen, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 4, 8, 4), Child = state };
-        var header = new DockPanel();
-        DockPanel.SetDock(statePill, Dock.Right);
-        header.Children.Add(statePill);
+        // A dedicated full-width row keeps long operator-supervision states readable.
+        var header = new StackPanel();
         header.Children.Add(liveTitle);
+        statePill.Margin = new Thickness(0, 7, 0, 0);
+        header.Children.Add(statePill);
 
         var profile = new TextBlock { Tag = "profile", FontSize = 16, FontFamily = new FontFamily("Segoe UI Semibold"), Margin = new Thickness(0, 10, 0, 2), TextTrimming = TextTrimming.CharacterEllipsis };
         var runId = new TextBlock
