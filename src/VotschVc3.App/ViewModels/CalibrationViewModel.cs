@@ -100,7 +100,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         AppPaths.Initialize();
         _profileStore = new ProfileStore(AppPaths.ProfilesDir);
         _chamberStore = new ChamberConfigStore(Path.Combine(AppPaths.SettingsDir, "chambers.json"));
-        _calibrationStore = new CalibrationStore(AppPaths.CalibrationDir);
+        _calibrationStore = new CalibrationStore(AppPaths.CalibrationDir, AppPaths.CalibrationRunsDir);
         _calibrationDefaultsStore = new CalibrationDefaultsStore(Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json"));
         _setup.Settings = CalibrationCheckpointRecovery.CloneSettings(_calibrationDefaultsStore.Load());
         _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();
@@ -2270,6 +2270,15 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         if (_reservedF100Key is not { } key) return;
         CalibrationResourceRegistry.Release(key, _workspaceChamberId);
         _reservedF100Key = null;
+    }
+
+    public string? CurrentRunDirectory
+    {
+        get
+        {
+            CalibrationRunRecord? run = _activeRun ?? History.FirstOrDefault();
+            return run is null ? null : _calibrationStore.GetRunDirectory(run);
+        }
     }
 
     private void RefreshHistory()

@@ -250,11 +250,11 @@ public partial class CalibrationWindow
 
     private TabItem BuildDataTab()
     {
-        _dataRootText = new TextBlock { Text = AppPaths.CalibrationDir, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas") };
+        _dataRootText = new TextBlock { Text = AppPaths.CalibrationRunsDir, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas") };
         _currentRunPathText = new TextBlock { Text = "—", TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas") };
 
         var rootButton = new Button { Content = "Otvoriť koreň kalibrácií", Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 8, 8, 0) };
-        rootButton.Click += (_, _) => OpenFolder(AppPaths.CalibrationDir);
+        rootButton.Click += (_, _) => OpenFolder(AppPaths.CalibrationRunsDir);
         var runButton = new Button { Content = "Otvoriť aktuálnu / poslednú kalibráciu", Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 8, 0, 0) };
         runButton.Click += (_, _) =>
         {
@@ -270,7 +270,7 @@ public partial class CalibrationWindow
         stack.Children.Add(new TextBlock { Text = "Ukladanie kalibrácie", FontSize = 17, FontWeight = FontWeights.SemiBold });
         stack.Children.Add(new TextBlock
         {
-            Text = "Každý run má vlastné RunId, čas začiatku a operátora v summary.json. Raw samples, wavelength trace, CSV aj summary sú v jednom run adresári.",
+            Text = "Behy sa ukladajú podľa dátumu spustenia: rok → mesiac (napr. 2026 / 09_September) → run. Raw samples, wavelength trace, CSV, summary a reporty zostávajú spolu aj pri prechode do ďalšieho mesiaca. Staršie lokálne behy zostávajú v histórii.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 5, 0, 12),
         });
@@ -633,7 +633,7 @@ public partial class CalibrationWindow
 
     private void RefreshDataPathPanel()
     {
-        if (_dataRootText is not null) _dataRootText.Text = AppPaths.CalibrationDir;
+        if (_dataRootText is not null) _dataRootText.Text = AppPaths.CalibrationRunsDir;
         if (_currentRunPathText is null) return;
         string? run = FindLatestRunDirectory();
         if (run is null)
@@ -660,14 +660,7 @@ public partial class CalibrationWindow
         return directory;
     }
 
-    private static string? FindLatestRunDirectory()
-    {
-        string runs = Path.Combine(AppPaths.CalibrationDir, "Runs");
-        if (!Directory.Exists(runs)) return null;
-        return Directory.GetDirectories(runs)
-            .OrderByDescending(Directory.GetLastWriteTimeUtc)
-            .FirstOrDefault();
-    }
+    private string? FindLatestRunDirectory() => _viewModel.CurrentRunDirectory;
 
     private static void OpenFolder(string path)
     {

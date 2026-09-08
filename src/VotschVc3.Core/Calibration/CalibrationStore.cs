@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -14,21 +15,29 @@ public sealed class CalibrationStore
         Converters = { new JsonStringEnumConverter() },
     };
 
-    public CalibrationStore(string rootDirectory)
+    private readonly ConcurrentDictionary<Guid, string> _runDirectories = new();
+    private readonly bool _partitionRunsByMonth;
+    private static readonly string[] MonthFolders = { "01_Januar", "02_Februar", "03_Marec", "04_April", "05_Maj", "06_Jun", "07_Jul", "08_August", "09_September", "10_Oktober", "11_November", "12_December" };
+
+    public CalibrationStore(string rootDirectory, string? runsDirectory = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         RootDirectory = Path.GetFullPath(rootDirectory);
         SetupsDirectory = Path.Combine(RootDirectory, "Setups");
-        RunsDirectory = Path.Combine(RootDirectory, "Runs");
+        LegacyRunsDirectory = Path.Combine(RootDirectory, "Runs");
+        RunsDirectory = runsDirectory is null ? LegacyRunsDirectory : Path.GetFullPath(runsDirectory);
+        _partitionRunsByMonth = runsDirectory is not null;
         CheckpointsDirectory = Path.Combine(RootDirectory, "Checkpoints");
         Directory.CreateDirectory(SetupsDirectory);
-        Directory.CreateDirectory(RunsDirectory);
+        Directory.CreateDirectory(LegacyRunsDirectory);
         Directory.CreateDirectory(CheckpointsDirectory);
     }
 
     public string RootDirectory { get; }
     public string SetupsDirectory { get; }
     public string RunsDirectory { get; }
+    public string LegacyRunsDirectory { get; }
+    private IEnumerable<string> HistoryRoots => new[] { RunsDirectory, LegacyRunsDirectory }.Distinct(StringComparer.OrdinalIgnoreCase);
     public string CheckpointsDirectory { get; }
 
     public void SaveSetup(CalibrationSetup setup)
@@ -65,7 +74,15 @@ public sealed class CalibrationStore
         }
     }
 
-    public CalibrationRunWriter CreateRunWriter(CalibrationRunRecord run, bool append = false) => new(this, run, append);
+    public CalibrationRunWriter CreateRunWriter(CalibrationRunRecord run, bool append = false)
+    {
+        try { return new(this, run, append); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException($"Nie je možné zapisovať kalibračný beh do '{GetRunDirectory(run)}'. " +
+                "Skontrolujte dostupnosť disku a oprávnenie na zápis. Kalibrácia sa nespustí bez uloženia dát.", ex);
+        }
+    }
 
     public CalibrationRunRecord? LoadRun(Guid runId)
     {
@@ -111,17 +128,20 @@ public sealed class CalibrationStore
 
     public List<CalibrationRunRecord> LoadHistory()
     {
-        if (!Directory.Exists(RunsDirectory)) return new();
+
         var result = new List<CalibrationRunRecord>();
-        foreach (string file in Directory.EnumerateFiles(RunsDirectory, "summary.json", SearchOption.AllDirectories))
+        var seen = new HashSet<Guid>();
+        foreach (string file in HistoryRoots.Where(Directory.Exists)
+            .SelectMany(root => Directory.EnumerateFiles(root, "summary.json", SearchOption.AllDirectories)))
         {
             try
             {
                 CalibrationRunRecord? run = JsonSerializer.Deserialize<CalibrationRunRecord>(File.ReadAllText(file), JsonOptions);
-                if (run is not null)
+                if (run is not null && seen.Add(run.RunId))
                 {
                     run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
                     string directory = Path.GetDirectoryName(file)!;
+                    _runDirectories[run.RunId] = directory;
                     string coefficientsCsv = Path.Combine(directory, "calibration-coefficients.csv");
                     bool currentFormat = File.Exists(coefficientsCsv) && File.ReadLines(coefficientsCsv).FirstOrDefault()?.Contains("CalibrationType", StringComparison.Ordinal) == true;
                     if ((run.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings) &&
@@ -209,24 +229,32 @@ public sealed class CalibrationStore
     public string GetRunDirectory(CalibrationRunRecord run)
     {
         ArgumentNullException.ThrowIfNull(run);
-        string legacyDirectory = LegacyRunDirectory(run.RunId);
-        if (Directory.Exists(legacyDirectory) || string.IsNullOrWhiteSpace(run.HumanRunId))
-            return legacyDirectory;
-
-        string readableId = string.Concat(run.HumanRunId.Select(character =>
+        if (_runDirectories.TryGetValue(run.RunId, out string? known)) return known;
+        string readableId = string.Concat((run.HumanRunId ?? string.Empty).Select(character =>
             Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
-        return Path.Combine(RunsDirectory, readableId + "__" + run.RunId.ToString("N"));
+        string folder = string.IsNullOrWhiteSpace(readableId) ? run.RunId.ToString("N") : readableId + "__" + run.RunId.ToString("N");
+        string preferred = _partitionRunsByMonth
+            ? Path.Combine(RunsDirectory, run.StartedAt.Year.ToString("D4", CultureInfo.InvariantCulture), MonthFolders[run.StartedAt.Month - 1], folder)
+            : Path.Combine(RunsDirectory, folder);
+        // Keep an existing run in its original directory when resuming after an upgrade.
+        string? existing = new[] { preferred, Path.Combine(LegacyRunsDirectory, run.RunId.ToString("N")),
+            Path.Combine(LegacyRunsDirectory, folder), Path.Combine(RunsDirectory, run.RunId.ToString("N")),
+            Path.Combine(RunsDirectory, folder) }.FirstOrDefault(Directory.Exists);
+        return _runDirectories.GetOrAdd(run.RunId, existing ?? preferred);
     }
 
     public string GetRunDirectory(Guid runId)
     {
-        string legacyDirectory = LegacyRunDirectory(runId);
-        if (Directory.Exists(legacyDirectory)) return legacyDirectory;
-        return Directory.EnumerateDirectories(RunsDirectory, "*__" + runId.ToString("N"), SearchOption.TopDirectoryOnly).FirstOrDefault()
-            ?? legacyDirectory;
+        if (_runDirectories.TryGetValue(runId, out string? known)) return known;
+        string id = runId.ToString("N");
+        foreach (string root in HistoryRoots.Where(Directory.Exists))
+        {
+            string? directory = Directory.EnumerateDirectories(root, "*" + id, SearchOption.AllDirectories)
+                .FirstOrDefault(path => Path.GetFileName(path) == id || Path.GetFileName(path).EndsWith("__" + id, StringComparison.OrdinalIgnoreCase));
+            if (directory is not null) return _runDirectories.GetOrAdd(runId, directory);
+        }
+        return Path.Combine(RunsDirectory, id);
     }
-
-    private string LegacyRunDirectory(Guid runId) => Path.Combine(RunsDirectory, runId.ToString("N"));
     private string SetupPath(Guid profileId, Guid chamberId) => chamberId == Guid.Empty
         ? Path.Combine(SetupsDirectory, $"{profileId:N}.json")
         : Path.Combine(SetupsDirectory, $"{chamberId:N}-{profileId:N}.json");

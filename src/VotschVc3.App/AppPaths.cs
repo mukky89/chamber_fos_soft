@@ -4,7 +4,7 @@ using System.IO;
 namespace VotschVc3.App;
 
 /// <summary>
-/// Central filesystem layout for the application, all under the user's Documents
+/// Central filesystem layout for the application, with local settings under the user's Documents
 /// folder in <c>Documents\Lab Control</c>.
 /// </summary>
 public static class AppPaths
@@ -32,6 +32,10 @@ public static class AppPaths
 
     /// <summary>PeakLogger-backed FBG calibration setups, runs, raw samples and checkpoints.</summary>
     public static string CalibrationDir { get; } = Path.Combine(Root, "Calibration");
+
+    /// <summary>Production calibration runs, grouped by start year and month.</summary>
+    public static string CalibrationRunsDir { get; } =
+        @"G:\Projekty\FOS\1_Production\C_Calibration_data\10_Calibration_automatic\01_Temperature";
 
     /// <summary>Settings folder (chambers, users, e-mail, audit, UI, seed markers).</summary>
     public static string SettingsDir => Root;

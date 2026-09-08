@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.76.261] – 2026-09-08
+
+### Zmenené
+
+- Nové FBG kalibračné behy sa ukladajú do G:\Projekty\FOS\1_Production\C_Calibration_data\10_Calibration_automatic\01_Temperature, priamo pod rok a slovenský názov mesiaca (napr. 2026\09_September\ID_behu).
+- Zaradenie určuje dátum spustenia; beh zostáva v rovnakom priečinku aj po prechode do ďalšieho mesiaca alebo roka. Trace log, raw samples, výsledky aj reporty sú spolu.
+- História, obnova behov a otváranie priečinkov rozumejú mesačnej štruktúre a naďalej nájdu pôvodné lokálne behy. Zapojenia a checkpointy zostávajú lokálne.
+- Nedostupný alebo nezapisovateľný cieľ zobrazí chybu s cestou a nepovolí spustenie nového behu bez uloženia dát.
+
 ## [1.76.260] – 2026-09-08
 
 ### Zmenené
