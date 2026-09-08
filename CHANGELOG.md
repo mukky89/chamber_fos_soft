@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.277] – 2026-09-08
+
+### Pridané
+
+- Záverečné overenie pri 25 °C zobrazuje pre každý SN, peak a model skutočnú teplotu vypočítanú z kontrolnej λ pomocou koeficientov. Hodnoty sú v CSV, XLSX, histórii a záverečnom e-maile spolu s WIKA, odchýlkou a výsledkom overenia.
+
 ## [1.76.276] – 2026-09-08
 
 ### Pridané

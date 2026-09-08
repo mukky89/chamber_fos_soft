@@ -109,6 +109,24 @@ public static class CalibrationCompletionEmail
 </td></tr></table></td></tr>
 """;
 
+        string FinalValue(double? value) => value is double v && double.IsFinite(v) ? v.ToString("0.000", SlovakCulture) : "N/A";
+        string verificationRows = string.Concat(calibrationResults.Select(item =>
+            "<tr>" + Cell(item.SerialNumber) + Cell(item.Channel + " / " + item.PeakId + " / " + item.PeakIndex) +
+            Cell(item.CalibrationType) + Cell(FinalValue(item.FinalCalculatedTemperatureC)) +
+            Cell(FinalValue(item.FinalReferenceTemperatureC)) + Cell(FinalValue(item.FinalTemperatureErrorC)) +
+            Cell(item.FinalCheckStatus) + Cell(item.FinalCheckProblem ?? "") + "</tr>"));
+        text += "\r\n\r\nZáverečné overenie pri cieli 25 °C – teplota po aplikovaní koeficientov. Porovnanie so skutočnou WIKA; hodnoty sa neupravujú na 25 °C.\r\n";
+        foreach (var item in calibrationResults)
+            text += $"SN {item.SerialNumber} · {item.Channel}/{item.PeakId}/{item.PeakIndex} · {item.CalibrationType}: " +
+                $"teplota z koeficientov {FinalValue(item.FinalCalculatedTemperatureC)} °C; WIKA {FinalValue(item.FinalReferenceTemperatureC)} °C; " +
+                $"odchýlka {FinalValue(item.FinalTemperatureErrorC)} °C; {item.FinalCheckStatus}; {item.FinalCheckProblem}\r\n";
+        if (calibrationResults.Count == 0)
+            verificationRows = "<tr><td colspan=\"8\">N/A – nie sú dostupné kalibračné výsledky.</td></tr>";
+        details += "<tr><td style=\"padding:20px 32px\"><h2>Záverečné overenie pri 25 °C</h2>" +
+            "<p>Teplota každého peaku vypočítaná zo skutočnej kontrolnej λ pomocou uvedeného modelu. Odchýlka = teplota z koeficientov − WIKA. Cieľ komory je 25 °C.</p>" +
+            "<table cellspacing=\"0\" style=\"width:100%;font-size:12px\"><thead><tr>" +
+            string.Concat(new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "Overenie", "Problém" }.Select(HeaderCell)) +
+            "</tr></thead><tbody>" + verificationRows + "</tbody></table></td></tr>";
         var attachments = BuildAttachments(fullDirectory, run.DisplayRunId);
         string html = LabControlEmailTemplate.Create(subject, text,
             passed ? LabControlEmailTemplate.EmailTone.Success : LabControlEmailTemplate.EmailTone.Error, details);

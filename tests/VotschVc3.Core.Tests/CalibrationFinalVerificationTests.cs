@@ -64,6 +64,7 @@ public sealed class CalibrationFinalVerificationTests
         Assert.Equal(before.LambdaTRefNm, after.LambdaTRefNm);
         Assert.Equal("FAIL", after.FinalCheckStatus);
         Assert.NotNull(after.FinalExpectedLambdaNm);
+        Assert.Equal(after.FinalReferenceTemperatureC!.Value + after.FinalTemperatureErrorC!.Value, after.FinalCalculatedTemperatureC!.Value, 8);
         Assert.True(Math.Abs(after.FinalLambdaErrorPm!.Value) > 500);
         string export = Path.GetTempFileName();
         try
@@ -71,11 +72,33 @@ public sealed class CalibrationFinalVerificationTests
             TemperatureCalibrationAnalyzer.ExportCsv([after], export);
             string csv = File.ReadAllText(export);
             Assert.Contains("FinalExpectedLambdaNm", csv);
+            Assert.Contains("FinalCalculatedTemperatureC", csv);
             Assert.Contains("FinalErrorPm", csv);
             Assert.Contains("Prekročený drift", csv);
             Assert.Contains(";FAIL;", csv);
         }
         finally { File.Delete(export); }
+    }
+
+    [Fact]
+    public void CompletionEmailShowsRealCalibratedTemperaturePerPeak()
+    {
+        var item = new TemperatureCalibrationResult
+        {
+            SerialNumber = "SN-25", Channel = "1", PeakId = "P1",
+            LambdaTRefNm = 1550, ReferenceTemperatureC = 25,
+            CoefficientA = 0, CoefficientB = 155000, CoefficientC = 25,
+            FinalMeasuredLambdaNm = 1550.01, FinalReferenceTemperatureC = 25,
+            FinalTemperatureErrorC = 1, FinalCheckStatus = "FAIL"
+        };
+        Assert.Equal(26, item.FinalCalculatedTemperatureC!.Value, 7);
+        var run = new CalibrationRunRecord { CalibrationResults = [item] };
+        var message = VotschVc3.Core.Notifications.CalibrationCompletionEmail.Create(run,
+            Path.Combine(Path.GetTempPath(), "missing-verification-" + Guid.NewGuid().ToString("N")));
+        Assert.Contains("26,000", message.Text);
+        Assert.Contains("26,000", message.Html);
+        Assert.Contains("SN-25", message.Html);
+        Assert.Contains("FAIL", message.Text);
     }
 
     [Fact]

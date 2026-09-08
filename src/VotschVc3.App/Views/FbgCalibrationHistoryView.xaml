@@ -82,6 +82,7 @@
                                 <DataGridTextColumn Header="Výsledok" Binding="{Binding Result}" Width="80" />
                                 <DataGridTextColumn Header="Stabilita" Binding="{Binding StabilityStatus}" Width="85" />
                                 <DataGridTextColumn Header="Problém stability" Binding="{Binding StabilityProblem}" MinWidth="220" />
+                                    <DataGridTextColumn Header="Teplota z koef. [°C]" Binding="{Binding FinalCalculatedTemperatureC, StringFormat=F3, TargetNullValue=N/A}" Width="160" />
                                     <DataGridTextColumn Header="Kontrola 25 °C" Binding="{Binding FinalCheckStatus}" Width="120" />
                                     <DataGridTextColumn Header="WIKA kontroly [°C]" Binding="{Binding FinalReferenceTemperatureC, StringFormat=F3}" Width="130" />
                                     <DataGridTextColumn Header="λ meraná [nm]" Binding="{Binding FinalMeasuredLambdaNm, StringFormat=F6}" Width="125" />

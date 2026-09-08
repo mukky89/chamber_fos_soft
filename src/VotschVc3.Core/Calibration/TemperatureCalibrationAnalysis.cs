@@ -38,6 +38,7 @@ public sealed class TemperatureCalibrationResult
     public double? FinalExpectedLambdaNm { get; set; }
     public double? FinalLambdaErrorPm { get; set; }
     public double? FinalTemperatureErrorC { get; set; }
+    public double? FinalCalculatedTemperatureC => FinalMeasuredLambdaNm is double wavelength ? TemperatureCalibrationAnalyzer.TemperatureFromLambda(this, wavelength) : null;
     public int FinalSampleCount { get; set; }
 
     public string Identity => $"{SerialNumber}|{Channel}|{PeakId}";
@@ -205,14 +206,14 @@ public static partial class TemperatureCalibrationAnalyzer
 
     public static void ExportCsv(IEnumerable<TemperatureCalibrationResult> results, string path)
     {
-        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;CalibrationType;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefS1;CoefS2;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result;StabilityStatus;StabilityProblem;FinalCheck;FinalReferenceC;FinalMeasuredLambdaNm;FinalExpectedLambdaNm;FinalErrorPm;FinalErrorC;FinalSamples;FinalProblem\r\n");
+        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;CalibrationType;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefS1;CoefS2;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result;StabilityStatus;StabilityProblem;FinalCheck;FinalReferenceC;FinalMeasuredLambdaNm;FinalExpectedLambdaNm;FinalErrorPm;FinalErrorC;FinalSamples;FinalProblem;FinalCalculatedTemperatureC\r\n");
         foreach (TemperatureCalibrationResult item in results)
             text.AppendJoin(';', E(item.SerialNumber), E(item.PeakLoggerDeviceSerialNumber), E(item.Channel), E(item.PeakId), item.PeakIndex,
                 E(item.CalibrationType),
                 item.PointCount, F(item.MinimumTemperatureC), F(item.MaximumTemperatureC), F(item.ReferenceTemperatureC), F(item.LambdaTRefNm),
                 F(item.SensitivityPmPerC), FN(item.CoefficientS1), FN(item.CoefficientS2), FN(item.CoefficientA), FN(item.CoefficientB), FN(item.CoefficientC),
                 FN(item.CoefficientD), F(item.MaxErrorC), F(item.ErrorToleranceC), F(item.RSquared), item.Result,
-                E(item.StabilityStatus), E(item.StabilityProblem ?? string.Empty), E(item.FinalCheckStatus), FN(item.FinalReferenceTemperatureC), FN(item.FinalMeasuredLambdaNm), FN(item.FinalExpectedLambdaNm), FN(item.FinalLambdaErrorPm), FN(item.FinalTemperatureErrorC), item.FinalSampleCount, E(item.FinalCheckProblem ?? string.Empty)).Append("\r\n");
+                E(item.StabilityStatus), E(item.StabilityProblem ?? string.Empty), E(item.FinalCheckStatus), FN(item.FinalReferenceTemperatureC), FN(item.FinalMeasuredLambdaNm), FN(item.FinalExpectedLambdaNm), FN(item.FinalLambdaErrorPm), FN(item.FinalTemperatureErrorC), item.FinalSampleCount, E(item.FinalCheckProblem ?? string.Empty), FN(item.FinalCalculatedTemperatureC)).Append("\r\n");
         File.WriteAllText(path, text.ToString(), Encoding.UTF8);
     }
 
@@ -224,7 +225,7 @@ public static partial class TemperatureCalibrationAnalyzer
         sheet.Range("A1:X1").Merge().Style.Fill.SetBackgroundColor(XLColor.FromHtml("#182A40"));
         sheet.Cell("A1").Style.Font.SetBold().Font.SetFontSize(18).Font.SetFontColor(XLColor.White);
         sheet.Cell("A2").Value = $"{run.DisplayRunId} · {run.DisplayProfileId} · {run.ChamberName}";
-        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Kalibrácia", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "s1", "s2", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok", "Stabilizácia", "Problém stabilizácie", "Kontrola 25 °C", "WIKA kontrola [°C]", "λ meraná [nm]", "λ vypočítaná [nm]", "Rozdiel [pm]", "Chyba [°C]", "Vzorky kontroly", "Problém kontroly"];
+        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Kalibrácia", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "s1", "s2", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok", "Stabilizácia", "Problém stabilizácie", "Kontrola 25 °C", "WIKA kontrola [°C]", "λ meraná [nm]", "λ vypočítaná [nm]", "Rozdiel [pm]", "Chyba [°C]", "Vzorky kontroly", "Problém kontroly", "Teplota z koeficientov [°C]"];
         for (int i = 0; i < headers.Length; i++) sheet.Cell(4, i + 1).Value = headers[i];
         sheet.Range(4, 1, 4, headers.Length).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#2C4770")).Font.SetBold().Font.SetFontColor(XLColor.White);
         int row = 5;
@@ -233,7 +234,7 @@ public static partial class TemperatureCalibrationAnalyzer
             object?[] values = [item.SerialNumber, item.PeakLoggerDeviceSerialNumber, item.Channel, item.PeakId, item.PeakIndex, item.CalibrationType, item.PointCount,
                 item.MinimumTemperatureC, item.MaximumTemperatureC, item.ReferenceTemperatureC, item.LambdaTRefNm, item.SensitivityPmPerC,
                 item.CoefficientS1, item.CoefficientS2, item.CoefficientA, item.CoefficientB, item.CoefficientC, item.CoefficientD,
-                item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result, item.StabilityStatus, item.StabilityProblem, item.FinalCheckStatus, item.FinalReferenceTemperatureC, item.FinalMeasuredLambdaNm, item.FinalExpectedLambdaNm, item.FinalLambdaErrorPm, item.FinalTemperatureErrorC, item.FinalSampleCount, item.FinalCheckProblem];
+                item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result, item.StabilityStatus, item.StabilityProblem, item.FinalCheckStatus, item.FinalReferenceTemperatureC, item.FinalMeasuredLambdaNm, item.FinalExpectedLambdaNm, item.FinalLambdaErrorPm, item.FinalTemperatureErrorC, item.FinalSampleCount, item.FinalCheckProblem, item.FinalCalculatedTemperatureC];
             for (int col = 0; col < values.Length; col++)
                 if (values[col] is not null) sheet.Cell(row, col + 1).Value = XLCellValue.FromObject(values[col]);
             sheet.Cell(row, 22).Style.Font.SetBold().Font.SetFontColor(item.Result == "PASS" ? XLColor.FromHtml("#087F5B") : XLColor.FromHtml("#C92A2A"));
