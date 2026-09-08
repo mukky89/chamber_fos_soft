@@ -8,8 +8,11 @@ namespace VotschVc3.Core.Tests;
 
 public sealed class CalibrationWorkflowRegressionTests
 {
-    [Fact]
-    public async Task ContinueAndFlagSamplesCompleteFinalWindowAfterStabilityTimeout()
+    [Theory]
+    [InlineData(false, 91, 1000)]
+    [InlineData(false, 61, 50)]
+    [InlineData(true, 91, 1000)]
+    public async Task ContinueAndFlagStopsAtDeadlineWithoutFallbackSampling(bool loseReference, int elapsedMinutes, int stableSamples)
     {
         string root = TempDirectory();
         try
@@ -17,29 +20,40 @@ public sealed class CalibrationWorkflowRegressionTests
             await using var peakLogger = new FakePeakLoggerClient();
             await peakLogger.ConnectAsync(new PeakLoggerSettings());
             CalibrationSetup setup = StableSetup(Guid.NewGuid());
-            setup.Settings.RequiredStableSamples = 1000;
+            setup.Settings.RequiredStableSamples = stableSamples;
             setup.Settings.RequiredMeasurementSamples = 2;
             setup.Settings.DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(1);
             setup.Settings.SensorTimeoutPolicy = CalibrationFailurePolicy.ContinueAndFlag;
+            bool referenceLost = false;
+            var clock = new ManualSensorClock();
             var run = new CalibrationRunRecord { ProfileId = setup.ProfileId, ProfileName = "Flagged sampling" };
             var store = new CalibrationStore(root);
             await using CalibrationRunWriter writer = store.CreateRunWriter(run);
-            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            var orchestrator = new CalibrationOrchestrator(peakLogger, clock);
 
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
             CalibrationPlateauResult plateau = await orchestrator.WaitForPlateauAsync(
                 run, setup, 0, 1, 20,
                 _ => Task.FromResult(20d),
-                null,
+                _ => Task.FromResult<double?>(referenceLost ? 30 : 20),
                 writer,
+                progress: snapshot =>
+                {
+                    if (snapshot.TemperatureGateOpen == true)
+                    {
+                        referenceLost = loseReference;
+                        clock.Advance(TimeSpan.FromMinutes(loseReference ? 1 : elapsedMinutes));
+                    }
+                    else if (referenceLost) clock.Advance(TimeSpan.FromMinutes(91));
+                },
                 cancellationToken: timeout.Token);
 
             CalibrationMeasurementResult target = Assert.Single(plateau.Targets);
-            Assert.Equal(CalibrationTargetState.CompletedWithStabilityWarning, target.Status);
-            Assert.Equal(2, target.SampleCount);
-            Assert.Equal(2, target.StableSamples.Count);
-            Assert.Contains("nedokončil stabilizáciu/meranie", target.Problem);
-            Assert.Contains("priemerovaním po 3 surových odberoch", target.Problem);
+            Assert.Equal(CalibrationTargetState.TimedOut, target.Status);
+            Assert.Equal(0, target.SampleCount);
+            Assert.Empty(target.StableSamples);
+            Assert.Contains("stabilita nepotvrdená", target.Problem);
+            Assert.Contains("bez náhradného merania", target.Problem);
             Assert.Contains(run.Warnings, warning => warning.Code == "SENSOR_STABILITY_TIMEOUT");
         }
         finally
@@ -48,6 +62,38 @@ public sealed class CalibrationWorkflowRegressionTests
         }
     }
 
+    [Fact]
+    public async Task ValidFinalSamplesEarnOneAuditedExtensionAndFinishNormally()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            CalibrationSetup setup = StableSetup(Guid.NewGuid());
+            setup.Settings.RequiredMeasurementSamples = 3;
+            var clock = new ManualSensorClock();
+            var run = new CalibrationRunRecord { ProfileId = setup.ProfileId };
+            await using CalibrationRunWriter writer = new CalibrationStore(root).CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger, clock);
+            bool advanced = false;
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var result = await orchestrator.WaitForPlateauAsync(run, setup, 0, 1, 20,
+                _ => Task.FromResult(20d), null, writer,
+                progress: snapshot =>
+                {
+                    if (!advanced && snapshot.Targets.Any(t => t.MeasurementSamples == 1))
+                    {
+                        advanced = true;
+                        clock.Advance(TimeSpan.FromSeconds(10));
+                    }
+                }, cancellationToken: cancellation.Token);
+            Assert.Equal(CalibrationTargetState.Stable, Assert.Single(result.Targets).Status);
+            Assert.Single(run.Warnings, warning => warning.Code == "SENSOR_STABILITY_TIMEOUT_EXTENDED");
+            Assert.DoesNotContain(run.Warnings, warning => warning.Code == "SENSOR_STABILITY_TIMEOUT");
+        }
+        finally { DeleteTempDirectory(root); }
+    }
     [Fact]
     public async Task Running_plateau_applies_changed_stability_limits_and_audits_reset()
     {
@@ -535,6 +581,13 @@ public sealed class CalibrationWorkflowRegressionTests
         }
     }
 
+    private sealed class ManualSensorClock : TimeProvider
+    {
+        private long _timestamp;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => _timestamp;
+        public void Advance(TimeSpan duration) => _timestamp += duration.Ticks;
+    }
     private static CalibrationSetup StableSetup(Guid profileId) => new()
     {
         ProfileId = profileId,

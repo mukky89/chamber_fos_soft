@@ -35,13 +35,34 @@ public sealed class CalibrationTests
     }
 
     [Fact]
-    public void SensorTimeoutBudget_UsesObservedCadenceForACompleteRetry()
+    public void SensorTimeoutBudget_UsesObservedCadenceAndTwentyPercentReserve()
     {
         TimeSpan allowance = SensorTimeoutBudget.CompleteAttempt(50, 50, TimeSpan.FromSeconds(3.4));
 
-        Assert.Equal(TimeSpan.FromSeconds(455), allowance);
+        Assert.Equal(TimeSpan.FromSeconds(408), allowance);
     }
 
+    [Fact]
+    public void SensorDeadline_CoversSlowAcquisitionDespiteLegacyTenMinuteTimeout()
+    {
+        Assert.Equal(TimeSpan.FromMinutes(60), SensorTimeoutBudget.BaseLimit(50, 50,
+            TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(10)));
+        Assert.Equal(TimeSpan.FromMinutes(64), SensorTimeoutBudget.BaseLimit(50, 50,
+            TimeSpan.FromSeconds(32), TimeSpan.FromMinutes(10)));
+        Assert.Equal(SensorTimeoutBudget.HardLimit, SensorTimeoutBudget.BaseLimit(1000, 1000,
+            TimeSpan.FromSeconds(30), TimeSpan.FromHours(3)));
+    }
+
+    [Fact]
+    public void SensorDeadline_ExtendsOnlyWithProgressAndNeverPastHardCap()
+    {
+        var limit = TimeSpan.FromMinutes(60);
+        Assert.Equal(limit, SensorTimeoutBudget.Extend(limit, limit, false));
+        Assert.Equal(limit, SensorTimeoutBudget.Extend(limit, TimeSpan.FromMinutes(59), true));
+        Assert.Equal(TimeSpan.FromMinutes(70), SensorTimeoutBudget.Extend(limit, limit, true));
+        Assert.Equal(TimeSpan.FromMinutes(90), SensorTimeoutBudget.Extend(TimeSpan.FromMinutes(85), TimeSpan.FromMinutes(85), true));
+        Assert.Equal(limit, SensorTimeoutBudget.Extend(limit, TimeSpan.FromMinutes(90), true));
+    }
     [Fact]
     public void CalibrationDefaultsStore_RoundTripsTemplateAndReturnsIndependentCopy()
     {

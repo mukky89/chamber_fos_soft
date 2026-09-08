@@ -184,10 +184,10 @@
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding MaxDriftPmPerMinute, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource SettingCard}" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}" ToolTip="Maximálny čas aktívnej FBG fázy pre jeden peak. Riadok v Zapojení môže mať vlastný override. Po prekročení sa použije nakonfigurovaná failure policy.">
+                <Border Style="{StaticResource SettingCard}" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}" ToolTip="Dynamický čas = stabilizačné + finálne vzorky × interval + 20 % rezerva, najmenej tento základ. Vlastný limit peaku má rovnaký význam. Pevný strop je vždy 90 min.">
                     <StackPanel>
-                        <TextBlock Text="Default FBG peak timeout [min]" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Bezpečnostný limit, aby jeden nestabilný peak neblokoval kalibráciu donekonečna. Začína sa počítať až po stabilizácii teploty." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Minimálny základ FBG limitu [min]" Style="{StaticResource SettingName}" />
+                        <TextBlock Text="Automatický základ podľa počtu vzoriek a reálneho odberu. Predĺženie po 10 min iba pri pokroku; pevný strop 90 min od začiatku FBG fázy vrátane resetov a straty stability WIKA. Po limite bez náhradného merania." Style="{StaticResource SettingHelp}" />
                         <TextBox Style="{StaticResource SettingInput}" Text="{Binding SensorTimeoutMinutes, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                 </Border>

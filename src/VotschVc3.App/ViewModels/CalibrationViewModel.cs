@@ -1864,11 +1864,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
                 AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {warning.Code} · {warning.Message}");
                 _ = Application.Current.Dispatcher.InvokeAsync(() => WarningText = warning.Message);
-                bool automaticExtension = warning.Code == "REFERENCE_STABILITY_TIMEOUT_EXTENDED";
+                bool sensorExtension = warning.Code == "SENSOR_STABILITY_TIMEOUT_EXTENDED";
+                bool automaticExtension = warning.Code == "REFERENCE_STABILITY_TIMEOUT_EXTENDED" || sensorExtension;
                 bool automaticDeferral = warning.Code == "REFERENCE_STABILITY_DEFERRED";
                 DesktopNotifier.Notify(
                     automaticExtension
-                        ? "Čakanie na stabilitu WIKA bolo predĺžené"
+                        ? sensorExtension ? "FBG dostal čas navyše na základe pokroku" : "Čakanie na stabilitu WIKA bolo predĺžené"
                         : automaticDeferral ? "Plato sa odložilo na neskôr" : "FBG kalibrácia – upozornenie",
                     warning.Message,
                     automaticExtension || automaticDeferral ? DesktopNotificationKind.Warning : DesktopNotificationKind.Alarm);

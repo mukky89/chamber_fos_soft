@@ -154,6 +154,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int MeasuringCount => _snapshot?.Targets.Count(t => t.Phase is "Measuring" or "MeasuringWithStabilityWarning") ?? 0;
     public int WarningMeasuringCount => _snapshot?.Targets.Count(t => t.Phase == "MeasuringWithStabilityWarning") ?? 0;
     public string PeakSummary => $"{StableCount} / {TotalTargets} prešlo stabilitou";
+    public string SensorDeadlineHelp =>
+        $"Dynamický základ je ({_requiredStableSamples} + {_requiredMeasurementSamples}) × interval odberu + 20 % rezerva, " +
+        $"najmenej uložený limit {Duration(_sensorTimeout)}, najviac 90 min. " +
+        $"Pri aktuálnom/nastavenom cykle vychádza {Duration(SensorTimeoutBudget.BaseLimit(_requiredStableSamples, _requiredMeasurementSamples, TimeSpan.FromSeconds(Math.Max(_sampleAcquisitionIntervalSeconds, _observedCycleSeconds ?? 0)), _sensorTimeout))}. " +
+        "Reálny interval sa vyhodnocuje pre každý peak samostatne; jeho vlastný uložený limit môže byť odlišný. " +
+        "Po vyčerpaní základu sa pridá najviac 10 min iba pri platných finálnych vzorkách z posledných 10 min alebo pri zlepšení najhoršieho pomeru range/σ/drift k limitu aspoň o 10 % medzi úplnými oknami v posledných 10 min. " +
+        "Pevný strop je 90 min od prvého otvorenia FBG fázy na plate. Reset, zmena nastavení ani strata stability WIKA čas nevynuluje. " +
+        "Bez pokroku alebo po strope: stabilita nepotvrdená / meranie nedokončené. ContinueAndFlag označí peak ako neúspešný a pokračuje; ostatné politiky vyžadujú zásah alebo ukončia beh. Náhradné meranie po limite sa nespúšťa.";
     public string PeakDetail => $"{MeasuringCount} vo finálnom meraní{(WarningMeasuringCount > 0 ? $" · {WarningMeasuringCount} po timeout-e" : string.Empty)} · {DoneCount} úplne dokončených";
     public string PeakStabilityCriteria =>
         $"{_requiredStableSamples} vzoriek · range ≤ {_maxRangePm:F3} pm · σ ≤ {_maxStdDevPm:F3} pm · drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min";
@@ -708,9 +716,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             "4. Úspešný blok pripočíta reálne uplynuté sekundy ku skóre.\n" +
             "5. Neúspešný blok odpočíta dvojnásobok času bloku (najviac po nulu) a nastaví novú základňu.\n" +
             $"Brána sa otvorí po potvrdenom skóre {Duration(_stableDuration)}. Medzi uzavretými blokmi sa čas zobrazuje priebežne, ale potvrdí ho až celý blok. Timeout: {Duration(_stabilityTimeout)}.",
-            $"Každý vybraný peak má vlastný detektor. Potrebuje {_requiredStableSamples} vzoriek vyhodnotených po sebe, range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm a drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Ak celé stabilizačné okno nevyhovie, zahodí sa a nový čistý pokus začne od 0. Peaky sa kontrolujú paralelne; {Estimate(_requiredStableSamples)}. Základný timeout peaku: {Duration(_sensorTimeout)}. Po prvom zrušení rozpracovaného finálneho merania sa k nemu pripočíta čas na jeden celý nový pokus vypočítaný zo skutočného cyklu dát. Ak pri politike ContinueAndFlag vyprší aj celý limit, peak nazbiera nové finálne vzorky bez ďalšej brány; každá výsledná vzorka je priemer 3 po sebe idúcich surových odberov a výsledok zostane označený problémom so stabilizáciou. {cycle}.",
-            $"Po potvrdení stability sa stabilizačné vzorky nepoužijú ako výsledok. Každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek paralelne; {Estimate(_requiredMeasurementSamples)}. Ak peak prestane spĺňať limity, rozpracované vzorky sa zahodia, zobrazí sa ich počet a konkrétne prekročené kritérium a peak dostane jeden kompletný nový pokus. {cycle}.",
-            "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
+            $"Každý peak samostatne potrebuje {_requiredStableSamples} vzoriek na stabilizáciu: range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm, drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Nevyhovujúce celé okno sa resetuje. {Estimate(_requiredStableSamples)}. {cycle}. " + SensorDeadlineHelp,
+            $"Po stabilizácii každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek; {Estimate(_requiredMeasurementSamples)}. Pri strate stability sa nehotové meranie zahodí. Hotové peaky sa nemenia. {cycle}. " + SensorDeadlineHelp,            "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
             "Po dokončení všetkých vybraných peakov uloží checkpoint a nastaví cieľ nasledujúceho vybraného plata. Ak žiadne nezostáva, prejde na záverečné temperovanie.",
             $"Po poslednom kalibračnom bode nastaví komoru na {_finalConditioningTemperatureC:F1} °C. Až po vstupe internej teploty komory do povoleného pásma začne počítať súvislé temperovanie {Duration(_finalConditioningDuration)}; pri opustení pásma sa čas počíta odznova. WIKA ani FBG sa v tomto kroku nevyhodnocujú a nevzniká kalibračný bod.",
             "Uzavrie beh, uloží súhrn, históriu a exporty. Výsledný stav môže byť dokončené alebo dokončené s upozorneniami."

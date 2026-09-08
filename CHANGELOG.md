@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.252] – 2026-09-08
+
+### Opravené
+
+- FBG časový limit sa počíta z počtu stabilizačných a finálnych vzoriek a skutočného intervalu odberu s 20 % rezervou. Uložený timeout je minimálny základ, pevný strop zostáva 90 min od prvého začiatku FBG fázy.
+- Predĺženie po 10 min je možné iba pri pokroku merania alebo zlepšení celých stabilizačných okien. Reset, zmena nastavení a strata stability WIKA nevynulujú časový strop.
+- Po vyčerpaní limitu sa už nespúšťa dlhé náhradné meranie. Neúspešný peak sa označí a použije sa nastavená politika pokračovania alebo zastavenia. Upozornenia, zostávajúci čas, nastavenia a pomoc pod otáznikmi vysvetľujú aktuálne pravidlá.
+
 ## [1.76.251] – 2026-09-07
 
 ### Zmenené

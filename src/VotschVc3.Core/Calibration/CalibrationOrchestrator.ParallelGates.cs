@@ -21,11 +21,13 @@ namespace VotschVc3.Core.Calibration;
 public sealed class CalibrationOrchestrator
 {
     private readonly IPeakLoggerClient _peakLogger;
+    private readonly TimeProvider _timeProvider;
     private int _temperatureGateOverrideRequested;
 
-    public CalibrationOrchestrator(IPeakLoggerClient peakLogger)
+    public CalibrationOrchestrator(IPeakLoggerClient peakLogger, TimeProvider? timeProvider = null)
     {
         _peakLogger = peakLogger ?? throw new ArgumentNullException(nameof(peakLogger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public event Action<CalibrationWarning>? WarningRaised;
@@ -147,7 +149,7 @@ public sealed class CalibrationOrchestrator
             settings.MaxChamberStdDevC);
         var trackers = selected.ToDictionary(
             m => m.Identity,
-            m => new TargetTracker(m, settings),
+            m => new TargetTracker(m, settings, _timeProvider),
             StringComparer.OrdinalIgnoreCase);
         StabilityConfiguration activeStabilityConfiguration = StabilityConfiguration.From(settings);
 
@@ -158,15 +160,12 @@ public sealed class CalibrationOrchestrator
         bool temperatureGateForced = false;
         bool temperatureGateEverOpened = false;
         DateTimeOffset? temperatureRecoveryStartedAt = null;
-        DateTimeOffset previousLoopAt = DateTimeOffset.UtcNow;
         TimeSpan automaticTemperatureExtensionUsed = TimeSpan.Zero;
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
             DateTimeOffset loopAt = DateTimeOffset.UtcNow;
-            TimeSpan loopDelta = loopAt - previousLoopAt;
-            previousLoopAt = loopAt;
 
             StabilityConfiguration requestedStabilityConfiguration = StabilityConfiguration.From(settings);
             if (requestedStabilityConfiguration != activeStabilityConfiguration)
@@ -191,6 +190,52 @@ public sealed class CalibrationOrchestrator
                 writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
             }
 
+            // Wall time continues through reference loss, missing peaks and window resets.
+            foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
+            {
+                tracker.UpdateDeadline();
+                if (!tracker.HasStarted || tracker.ActiveElapsed < tracker.EffectiveTimeout) continue;
+                if (tracker.TryExtendDeadline(out string reason))
+                {
+                    CalibrationWarning extension = RaiseWarning(run, new CalibrationWarning
+                    {
+                        Code = "SENSOR_STABILITY_TIMEOUT_EXTENDED",
+                        PlateauIndex = plateauIndex,
+                        SerialNumber = tracker.Mapping.SerialNumber,
+                        PeakId = tracker.Mapping.PeakId,
+                        Message = $"FBG SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId}: {reason} " +
+                                  $"Limit sa predĺžil o najviac 10 min na {FormatTime(tracker.EffectiveTimeout)}; pevný strop 90 min od začiatku FBG fázy.",
+                    });
+                    writer.WriteDiagnostic("WARNING", extension.Code, extension.Message);
+                    continue;
+                }
+                CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
+                {
+                    Code = "SENSOR_STABILITY_TIMEOUT",
+                    PlateauIndex = plateauIndex,
+                    SerialNumber = tracker.Mapping.SerialNumber,
+                    PeakId = tracker.Mapping.PeakId,
+                    Message = $"FBG SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId}: stabilita nepotvrdená / meranie nedokončené. " +
+                              $"Uplynulo {FormatTime(tracker.ActiveElapsed)}, limit {FormatTime(tracker.EffectiveTimeout)}, pevný strop 90 min. " +
+                              $"{tracker.DeadlineProgress}. " +
+                              (tracker.ActiveElapsed >= SensorTimeoutBudget.HardLimit ? "Dosiahnutý pevný strop. " : "Bez dostatočného aktuálneho pokroku na predĺženie. ") +
+                              (settings.SensorTimeoutPolicy == CalibrationFailurePolicy.ContinueAndFlag
+                                  ? "Senzor je označený ako neúspešný; pokračujeme bez náhradného merania."
+                                  : "Automatický postup sa zastaví podľa nastavenej politiky; skontrolujte dáta a nastavenia."),
+                });
+                writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
+                tracker.Fail(CalibrationTargetState.TimedOut, warning.Message);
+                ApplyFailurePolicy(settings.SensorTimeoutPolicy, warning);
+            }
+            if (trackers.Values.All(t => t.IsTerminal))
+            {
+                progress?.Invoke(new CalibrationProgressSnapshot(CalibrationRunState.StabilizingSensors,
+                    plateauIndex, plateauCount, targetTemperatureC, actualTemperature, referenceTemperature,
+                    trackers.Values.Count(t => t.IsCompletedStable), selected.Count, plateauClock.Elapsed,
+                    trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
+                    "FBG fáza ukončená · neúspešné peaky sú označené · ukladám plato."));
+                break;
+            }
             actualTemperature = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
             referenceTemperature = hasExternalReference
                 ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false)
@@ -355,11 +400,11 @@ public sealed class CalibrationOrchestrator
                 throw;
             }
 
+            if (trackers.Values.Any(t => !t.IsTerminal && t.HasStarted && t.ActiveElapsed >= t.EffectiveTimeout)) continue;
+
             var rawToWrite = new List<CalibrationRawSample>();
             foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
             {
-                tracker.AddActiveElapsed(loopDelta);
-
                 PeakLoggerMeasurement? measurement = FindMeasurement(batch, tracker.Mapping);
                 if (measurement is null)
                 {
@@ -403,24 +448,6 @@ public sealed class CalibrationOrchestrator
                 string? resetMessage = tracker.ProcessStableTemperatureSample(raw, settings);
                 if (resetMessage is not null)
                     writer.WriteDiagnostic("WARNING", "FBG_MEASUREMENT_RESET", resetMessage);
-
-                if (!tracker.IsTerminal && !tracker.IsSamplingAfterStabilityTimeout && tracker.ActiveElapsed >= tracker.EffectiveTimeout)
-                {
-                    CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
-                    {
-                        Code = "SENSOR_STABILITY_TIMEOUT",
-                        Message = $"FBG SN {tracker.Mapping.SerialNumber}, peak {tracker.Mapping.PeakId} nedokončil stabilizáciu/meranie do " +
-                                  $"{FormatTime(tracker.EffectiveTimeout)} počas stabilnej teploty " +
-                                  $"(základ {FormatTime(tracker.Timeout)}, opakovaný pokus +{FormatTime(tracker.RetryAllowance)}).",
-                        PlateauIndex = plateauIndex,
-                        SerialNumber = tracker.Mapping.SerialNumber,
-                        PeakId = tracker.Mapping.PeakId,
-                    });
-                    if (settings.SensorTimeoutPolicy == CalibrationFailurePolicy.ContinueAndFlag)
-                        tracker.BeginMeasurementAfterStabilityTimeout(warning.Message);
-                    else
-                        ApplyFailurePolicy(settings.SensorTimeoutPolicy, warning);
-                }
             }
 
             if (rawToWrite.Count > 0)
@@ -750,18 +777,23 @@ public sealed class CalibrationOrchestrator
         private readonly int _averagingSamples;
         private readonly Queue<PeakLoggerMeasurement> _averagingWindow = new();
         private readonly List<CalibrationRawSample> _measurementSamples = new();
-        private readonly Queue<CalibrationRawSample> _fallbackAveragingWindow = new();
         private readonly Queue<double> _observedCadenceSeconds = new();
         private DateTimeOffset? _missingSince;
         private DateTimeOffset? _previousMeasurementAt;
         private RollingStabilityDetector _stabilityDetector;
         private bool _sensorPhaseStarted;
-        private bool _completeRetryGranted;
+        private readonly TimeProvider _clock;
+        private long? _startedAt;
+        private TimeSpan _deadline;
+        private TimeSpan? _finishedElapsed;
+        private TimeSpan _lastProgressAt;
+        private double? _previousWindowScore;
+        private bool _improving;
         private string? _lastResetMessage;
-        private string? _stabilityWarning;
 
-        public TargetTracker(CalibrationSensorMapping mapping, CalibrationProfileSettings settings)
+        public TargetTracker(CalibrationSensorMapping mapping, CalibrationProfileSettings settings, TimeProvider clock)
         {
+            _clock = clock;
             Mapping = mapping;
             _settings = settings;
             _averagingSamples = settings.EnableWavelengthAveraging
@@ -774,16 +806,15 @@ public sealed class CalibrationOrchestrator
 
         public CalibrationSensorMapping Mapping { get; }
         public TimeSpan Timeout { get; }
-        public TimeSpan RetryAllowance { get; private set; }
-        public TimeSpan EffectiveTimeout => Timeout + RetryAllowance;
-        public TimeSpan ActiveElapsed { get; private set; }
+        public TimeSpan EffectiveTimeout => _deadline;
+        public TimeSpan ActiveElapsed => _finishedElapsed ?? (_startedAt is { } start ? _clock.GetElapsedTime(start) : TimeSpan.Zero);
+        public bool HasStarted => _startedAt.HasValue;
         public CalibrationTargetState State { get; private set; }
         public StabilityMetrics? LastMetrics { get; private set; }
         public PeakLoggerMeasurement? LastMeasurement { get; private set; }
         public CalibrationMeasurementResult? Result { get; private set; }
         public TimeSpan MissingFor => _missingSince is { } since ? DateTimeOffset.UtcNow - since : TimeSpan.Zero;
         public bool IsMeasuring { get; private set; }
-        public bool IsSamplingAfterStabilityTimeout => _stabilityWarning is not null && !IsTerminal;
         public bool IsTerminal => Result is not null;
         public bool IsCompletedStable => Result?.Status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden;
 
@@ -791,16 +822,47 @@ public sealed class CalibrationOrchestrator
         {
             if (IsTerminal) return;
             _sensorPhaseStarted = true;
+            _startedAt ??= _clock.GetTimestamp();
+            UpdateDeadline();
             if (State == CalibrationTargetState.WaitingForTemperature)
                 State = CalibrationTargetState.Stabilizing;
         }
 
-        public void AddActiveElapsed(TimeSpan delta)
+        public void UpdateDeadline()
         {
-            if (_sensorPhaseStarted && !IsTerminal && delta > TimeSpan.Zero)
-                ActiveElapsed += delta;
+            // Re-evaluate cadence while inside the base budget, never move the hard deadline.
+            if (_deadline > TimeSpan.Zero && ActiveElapsed >= _deadline) return;
+            TimeSpan basis = SensorTimeoutBudget.BaseLimit(_settings.RequiredStableSamples,
+                _settings.RequiredMeasurementSamples, ObservedCadence(), Timeout);
+            if (basis > _deadline) _deadline = basis;
         }
 
+        public string DeadlineProgress =>
+            $"Stabilizácia {LastMetrics?.Count ?? 0}/{Math.Max(2, _settings.RequiredStableSamples)}, meranie {_measurementSamples.Count}/{Math.Max(2, _settings.RequiredMeasurementSamples)}";
+
+        public bool TryExtendDeadline(out string reason)
+        {
+            bool fresh = _sensorPhaseStarted && LastMeasurement is not null &&
+                ActiveElapsed - _lastProgressAt <= SensorTimeoutBudget.ExtensionStep;
+            bool progressing = fresh && ((IsMeasuring && _measurementSamples.Count > 0) || _improving);
+            TimeSpan next = SensorTimeoutBudget.Extend(_deadline, ActiveElapsed, progressing);
+            reason = IsMeasuring ? "Pribúdajú platné finálne vzorky." : "Odchýlky stability sa zlepšili aspoň o 10 % medzi úplnými oknami.";
+            _improving = false;
+            if (next <= _deadline || next <= ActiveElapsed) return false;
+            _deadline = next;
+            return true;
+        }
+
+        private void ObserveFullWindow(StabilityMetrics metrics, CalibrationProfileSettings settings)
+        {
+            static double Ratio(double value, double limit) => limit > 0 ? Math.Abs(value) / limit : 0;
+            double score = Math.Max(Ratio(metrics.Range, settings.MaxWavelengthRangePm),
+                Math.Max(Ratio(metrics.StandardDeviation, settings.MaxWavelengthStdDevPm),
+                    Ratio(metrics.SlopePerMinute, settings.MaxWavelengthDriftPmPerMinute)));
+            _improving = _previousWindowScore is { } previous && score <= previous * 0.9;
+            if (_improving) _lastProgressAt = ActiveElapsed;
+            _previousWindowScore = score;
+        }
         public PeakLoggerMeasurement ApplyAveraging(PeakLoggerMeasurement measurement)
         {
             if (_averagingSamples <= 1) return measurement;
@@ -821,7 +883,7 @@ public sealed class CalibrationOrchestrator
             if (_previousMeasurementAt is { } previous)
             {
                 double seconds = (measurement.Timestamp - previous).TotalSeconds;
-                if (seconds is >= 0.1 and <= 60.0)
+                if (seconds is >= 0.1 and <= 300.0)
                 {
                     _observedCadenceSeconds.Enqueue(seconds);
                     while (_observedCadenceSeconds.Count > 30)
@@ -845,18 +907,6 @@ public sealed class CalibrationOrchestrator
             if (IsTerminal) return null;
             LastMetrics = _stabilityDetector.Add(raw.Timestamp, raw.WavelengthNm);
 
-            if (_stabilityWarning is not null)
-            {
-                State = CalibrationTargetState.Live;
-                _fallbackAveragingWindow.Enqueue(raw);
-                if (_fallbackAveragingWindow.Count < 3) return null;
-                _measurementSamples.Add(AverageFallbackWindow(_fallbackAveragingWindow));
-                _fallbackAveragingWindow.Clear();
-                if (_measurementSamples.Count >= Math.Max(2, settings.RequiredMeasurementSamples))
-                    CompleteMeasurementWithStabilityWarning();
-                return null;
-            }
-
             if (!IsMeasuring)
             {
                 State = CalibrationTargetState.Stabilizing;
@@ -868,6 +918,7 @@ public sealed class CalibrationOrchestrator
                 }
                 else if (LastMetrics.Count >= Math.Max(2, settings.RequiredStableSamples))
                 {
+                    ObserveFullWindow(LastMetrics, settings);
                     string message = $"Stabilizácia FBG SN {Mapping.SerialNumber}, peak {Mapping.PeakId} bola resetovaná pri " +
                                      $"{LastMetrics.Count}/{Math.Max(2, settings.RequiredStableSamples)} vzorkách: " +
                                      $"{FailedCriteria(LastMetrics, settings)}. Začína sa nový čistý stabilizačný pokus od 0.";
@@ -886,12 +937,13 @@ public sealed class CalibrationOrchestrator
                 int discarded = _measurementSamples.Count;
                 string message = $"Finálne meranie FBG SN {Mapping.SerialNumber}, peak {Mapping.PeakId} bolo zrušené pri " +
                                  $"{discarded}/{Math.Max(2, settings.RequiredMeasurementSamples)} vzorkách: {FailedCriteria(LastMetrics, settings)}.";
-                ResetToStabilizing(message, grantCompleteRetry: discarded > 0);
+                ResetToStabilizing(message);
                 return _lastResetMessage;
             }
 
             State = CalibrationTargetState.Live;
             _measurementSamples.Add(raw);
+            _lastProgressAt = ActiveElapsed;
             int requiredMeasurementSamples = Math.Max(2, settings.RequiredMeasurementSamples);
             if (_measurementSamples.Count >= requiredMeasurementSamples)
                 CompleteStableFromMeasurementWindow();
@@ -902,10 +954,11 @@ public sealed class CalibrationOrchestrator
         {
             if (IsTerminal) return;
             _sensorPhaseStarted = false;
+            _improving = false;
+            _previousWindowScore = null;
             State = CalibrationTargetState.WaitingForTemperature;
             IsMeasuring = false;
             _measurementSamples.Clear();
-            _fallbackAveragingWindow.Clear();
             _averagingWindow.Clear();
             _stabilityDetector = NewStabilityDetector();
             LastMetrics = null;
@@ -916,19 +969,20 @@ public sealed class CalibrationOrchestrator
         {
             if (IsTerminal) return;
             _sensorPhaseStarted = false;
+            _improving = false;
+            _previousWindowScore = null;
             State = CalibrationTargetState.WaitingForTemperature;
             IsMeasuring = false;
             _measurementSamples.Clear();
-            _fallbackAveragingWindow.Clear();
             _averagingWindow.Clear();
             _stabilityDetector = NewStabilityDetector();
             LastMetrics = null;
-            _stabilityWarning = null;
             _lastResetMessage = "Nastavenia stability boli zmenené operátorom; začína sa nové čisté okno.";
         }
 
         public void Fail(CalibrationTargetState state, string problem)
         {
+            _finishedElapsed ??= ActiveElapsed;
             State = state;
             IsMeasuring = false;
             Result = CreateResultFromCurrentWindow(state, problem);
@@ -945,19 +999,6 @@ public sealed class CalibrationOrchestrator
             State = CalibrationTargetState.TimedOut;
             IsMeasuring = false;
             Result = CreateResultFromCurrentWindow(State, problem);
-        }
-
-        public void BeginMeasurementAfterStabilityTimeout(string problem)
-        {
-            if (IsTerminal || _stabilityWarning is not null) return;
-            _stabilityWarning = problem + " Finálne výsledné vzorky boli vytvorené priemerovaním po 3 surových odberoch.";
-            _lastResetMessage = problem;
-            _measurementSamples.Clear();
-            _fallbackAveragingWindow.Clear();
-            _stabilityDetector = NewStabilityDetector();
-            LastMetrics = null;
-            IsMeasuring = true;
-            State = CalibrationTargetState.Live;
         }
 
         public CalibrationMeasurementResult CreateFallbackResult() =>
@@ -998,13 +1039,6 @@ public sealed class CalibrationOrchestrator
 
             if (IsMeasuring)
             {
-                if (_stabilityWarning is not null)
-                {
-                    string warningMeasurement =
-                        $"MERANIE PO TIMEOUTE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} priemerovaných samples · " +
-                        $"trojica {_fallbackAveragingWindow.Count}/3 surových odberov · výsledok bude označený problémom so stabilizáciou";
-                    return BuildProgress(CalibrationTargetState.Live, _measurementSamples.Count, Math.Max(2, settings.RequiredMeasurementSamples), warningMeasurement);
-                }
                 string measuring =
                     $"MERANIE · {_measurementSamples.Count}/{Math.Max(2, settings.RequiredMeasurementSamples)} samples · " +
                     $"stabilita stále OK: range {metrics.Range:F3}/{settings.MaxWavelengthRangePm:F3} pm {(rangeOk ? "✓" : "×")} · " +
@@ -1043,7 +1077,7 @@ public sealed class CalibrationOrchestrator
                 ActiveElapsed,
                 EffectiveTimeout,
                 state,
-                detail,
+                detail + (HasStarted && !IsTerminal ? $" · zostáva {FormatTime(EffectiveTimeout > ActiveElapsed ? EffectiveTimeout - ActiveElapsed : TimeSpan.Zero)} · do pevného stropu {FormatTime(SensorTimeoutBudget.HardLimit > ActiveElapsed ? SensorTimeoutBudget.HardLimit - ActiveElapsed : TimeSpan.Zero)}" : string.Empty),
                 StabilitySamples: metrics.Count,
                 RequiredStabilitySamples: Math.Max(2, _settings.RequiredStableSamples),
                 MeasurementSamples: _measurementSamples.Count,
@@ -1052,26 +1086,14 @@ public sealed class CalibrationOrchestrator
                 RangeLimitPm: _settings.MaxWavelengthRangePm,
                 StdDevLimitPm: _settings.MaxWavelengthStdDevPm,
                 DriftLimitPmPerMinute: _settings.MaxWavelengthDriftPmPerMinute,
-                Phase: IsTerminal ? "Done" : state == CalibrationTargetState.WaitingForTemperature ? "Temperature" : IsSamplingAfterStabilityTimeout ? "MeasuringWithStabilityWarning" : IsMeasuring ? "Measuring" : "Stabilizing",
+                Phase: IsTerminal ? "Done" : state == CalibrationTargetState.WaitingForTemperature ? "Temperature" : IsMeasuring ? "Measuring" : "Stabilizing",
                 BlockingReason: Result?.Problem ?? (state == CalibrationTargetState.WaitingForTemperature ? detail : string.Empty));
         }
 
-        private void ResetToStabilizing(string message, bool grantCompleteRetry)
+        private void ResetToStabilizing(string message)
         {
-            if (grantCompleteRetry && !_completeRetryGranted)
-            {
-                _completeRetryGranted = true;
-                RetryAllowance = SensorTimeoutBudget.CompleteAttempt(
-                    _settings.RequiredStableSamples,
-                    _settings.RequiredMeasurementSamples,
-                    ObservedCadence());
-                message += $" Povolený je jeden nový kompletný pokus; limit bol predĺžený o {FormatTime(RetryAllowance)} podľa reálnej rýchlosti vzoriek.";
-            }
-            else if (grantCompleteRetry)
-            {
-                message += " Kompletný opakovaný pokus už bol využitý; ďalšie restarty limit nepredlžujú.";
-            }
-
+            message += " Časový limit ani pevný strop sa resetom neposúva.";
+            _improving = false;
             _lastResetMessage = message;
             IsMeasuring = false;
             State = CalibrationTargetState.Stabilizing;
@@ -1083,7 +1105,7 @@ public sealed class CalibrationOrchestrator
         private TimeSpan ObservedCadence()
         {
             if (_observedCadenceSeconds.Count == 0)
-                return TimeSpan.FromSeconds(1);
+                return TimeSpan.FromSeconds(Math.Clamp(_settings.SampleAcquisitionIntervalSeconds, 1, 30));
             double[] ordered = _observedCadenceSeconds.OrderBy(value => value).ToArray();
             double median = ordered.Length % 2 == 1
                 ? ordered[ordered.Length / 2]
@@ -1111,16 +1133,10 @@ public sealed class CalibrationOrchestrator
 
         private void CompleteStableFromMeasurementWindow()
         {
+            _finishedElapsed ??= ActiveElapsed;
             State = CalibrationTargetState.Stable;
             IsMeasuring = false;
             Result = CreateResultFromMeasurementSamples(CalibrationTargetState.Stable, null);
-        }
-
-        private void CompleteMeasurementWithStabilityWarning()
-        {
-            State = CalibrationTargetState.CompletedWithStabilityWarning;
-            IsMeasuring = false;
-            Result = CreateResultFromMeasurementSamples(State, _stabilityWarning);
         }
 
         private CalibrationMeasurementResult CreateResultFromMeasurementSamples(
@@ -1191,33 +1207,5 @@ public sealed class CalibrationOrchestrator
             return metrics;
         }
 
-        private static CalibrationRawSample AverageFallbackWindow(IEnumerable<CalibrationRawSample> window)
-        {
-            CalibrationRawSample[] samples = window.ToArray();
-            CalibrationRawSample last = samples[^1];
-            double? intensity = samples.Any(sample => sample.Intensity.HasValue)
-                ? samples.Where(sample => sample.Intensity.HasValue).Average(sample => sample.Intensity!.Value)
-                : null;
-            double? reference = samples.Any(sample => sample.ReferenceTemperatureC.HasValue)
-                ? samples.Where(sample => sample.ReferenceTemperatureC.HasValue).Average(sample => sample.ReferenceTemperatureC!.Value)
-                : null;
-            return new CalibrationRawSample
-            {
-                RunId = last.RunId,
-                ProfileId = last.ProfileId,
-                PlateauIndex = last.PlateauIndex,
-                TargetTemperatureC = last.TargetTemperatureC,
-                ActualTemperatureC = samples.Average(sample => sample.ActualTemperatureC),
-                ReferenceTemperatureC = reference,
-                Timestamp = last.Timestamp,
-                SerialNumber = last.SerialNumber,
-                PeakLoggerDeviceSerialNumber = last.PeakLoggerDeviceSerialNumber,
-                Channel = last.Channel,
-                PeakId = last.PeakId,
-                PeakIndex = last.PeakIndex,
-                WavelengthNm = samples.Average(sample => sample.WavelengthNm),
-                Intensity = intensity,
-            };
-        }
     }
 }

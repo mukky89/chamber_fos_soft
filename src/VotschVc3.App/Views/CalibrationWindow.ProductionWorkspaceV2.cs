@@ -291,7 +291,8 @@ public partial class CalibrationWindow
                 text.Text = "Stabilita referencie WIKA";
             else if (string.Equals(text.Text, "Default sensor timeout [min]", StringComparison.Ordinal))
             {
-                text.Text = "Default FBG peak timeout [min]";
+                text.Text = "Minimálny základ FBG limitu [min]";
+                text.ToolTip = "Automatický čas podľa vzoriek a intervalu + 20 % rezerva. Predĺženie len pri pokroku; pevný strop 90 min od začiatku FBG fázy.";
                 text.ToolTip = "Globálny maximálny čas čakania na stabilitu každého peaku; riadok môže mať vlastný override.";
             }
         }
