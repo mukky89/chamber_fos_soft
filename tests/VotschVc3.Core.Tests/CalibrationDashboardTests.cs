@@ -48,7 +48,7 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(0, m.OverallProgress); Assert.Equal("Po prvom bode", m.Eta);
         m.Apply(Snapshot(CalibrationRunState.PlateauCompleted), Start.AddMinutes(10));
         Assert.Equal(100d / 3, m.OverallProgress, 5); Assert.StartsWith("≈", m.Eta);
-        Assert.Equal("Done", m.Points[0].State); Assert.Equal("Pending", m.Points[1].State);
+        Assert.Equal("Warning", m.Points[0].State); Assert.Contains("NEPOTVRDENÉ", m.Points[0].Badge); Assert.Equal("Pending", m.Points[1].State);
     }
     [Fact] public void EtaBecomesUnknownInsteadOfPublishingFalseFinish_WhenCurrentPointExceedsEvidence()
     {
@@ -362,6 +362,34 @@ public sealed class CalibrationDashboardTests
         m.Warn("Peak P1: stratený signál", Start.AddSeconds(6));
         m.ResolveWarning("CHYBA TEPLOTY:", "Teploty sú opäť v zhode.", Start.AddSeconds(7));
         Assert.Contains("stratený signál", m.Alert);
+    }
+    [Theory]
+    [InlineData(CalibrationTargetState.Stable, "ÚSPEŠNÉ")]
+    [InlineData(CalibrationTargetState.CompletedWithStabilityWarning, "NEPOTVRDENÉ")]
+    [InlineData(CalibrationTargetState.TimedOut, "NEÚSPEŠNÉ")]
+    [InlineData(CalibrationTargetState.Overridden, "NEPOTVRDENÉ")]
+    public void RoadmapDistinguishesOutcomeInLiveAndRestoredResults(CalibrationTargetState status, string label)
+    {
+        var live = Model();
+        live.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0, Target("Done", 5, status)), Start);
+        Assert.Contains(label, live.Points[0].Badge);
+        Assert.DoesNotContain("DONE", live.Points[0].Badge);
+        Assert.Contains("Stabilita", live.Points[0].Detail);
+        Assert.Equal(1, live.CompletedPoints);
+        if (status != CalibrationTargetState.Stable)
+        {
+            Assert.DoesNotContain("DONE", live.PeakCardState);
+            Assert.DoesNotContain("DONE", live.MeasurementCardState);
+        }
+        var restored = Model();
+        restored.RestoreCompletedPoints(new[] { new CalibrationPlateauResult
+        {
+            PlateauIndex = 0, StartedAt = Start, CompletedAt = Start.AddHours(2),
+            Targets = new() { new CalibrationMeasurementResult { Status = status } },
+        } });
+        Assert.Equal(live.Points[0].Badge, restored.Points[0].Badge);
+        Assert.Contains("Stabilita", restored.Points[0].Detail);
+        Assert.Equal(1, restored.CompletedPoints);
     }
     [Fact] public void FailedTargetIsNotShownAsSuccessfulPlateau()
     {

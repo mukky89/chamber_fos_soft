@@ -73,7 +73,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _state == CalibrationRunState.WaitingForChamberStability ? "Waiting" : _running ? "Active" : "Pending";
     public int CompletedPoints => Points.Count(p => p.State is "Done" or "Warning");
     public double OverallProgress => Points.Count == 0 ? 0 : 100d * CompletedPoints / Points.Count;
-    public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov dokončených";
+    public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov ukončených";
     public string Plateau => _state == CalibrationRunState.FinalConditioning
         ? $"Záverečné temperovanie {_finalConditioningTemperatureC:F1} °C"
         : _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";
@@ -179,10 +179,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ChamberCardTone => _started is null ? "Pending" : _running ? "Active" : RunStoppedWithError ? "Error" : "Done";
     public string ReferenceCardState => RunStoppedWithError ? "! STOPPED" : !HasReference ? "— N/A" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ DONE" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ WAITING" : "○ PENDING";
     public string ReferenceCardTone => RunStoppedWithError ? "Error" : !HasReference ? "Pending" : ReferenceCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : ReferenceCardState.Contains("WAITING", StringComparison.Ordinal) ? "Waiting" : "Pending";
-    public string PeakCardState => RunStoppedWithError ? "! STOPPED" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ DONE" : _state == CalibrationRunState.StabilizingSensors ? "● RUNNING" : PointFinished ? "✓ DONE" : "○ PENDING";
-    public string PeakCardTone => RunStoppedWithError ? "Error" : PeakCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : PeakCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
-    public string MeasurementCardState => RunStoppedWithError ? "! STOPPED" : PointFinished ? "✓ DONE" : MeasuringCount > 0 || Samples > 0 ? "● RUNNING" : "○ PENDING";
-    public string MeasurementCardTone => RunStoppedWithError ? "Error" : MeasurementCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : MeasurementCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
+    private bool UnconfirmedPoint => PointFinished && (TotalTargets == 0 || _snapshot!.Targets.Any(t => t.State != CalibrationTargetState.Stable));
+    public string PeakCardState => RunStoppedWithError ? "! STOPPED" : UnconfirmedPoint ? "! STABILITA NEPOTVRDENÁ" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ DONE" : _state == CalibrationRunState.StabilizingSensors ? "● RUNNING" : PointFinished ? "✓ DONE" : "○ PENDING";
+    public string PeakCardTone => RunStoppedWithError ? "Error" : UnconfirmedPoint ? "Waiting" : PeakCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : PeakCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
+    public string MeasurementCardState => RunStoppedWithError ? "! STOPPED" : UnconfirmedPoint ? "! VÝSLEDOK NEPOTVRDENÝ" : PointFinished ? "✓ DONE" : MeasuringCount > 0 || Samples > 0 ? "● RUNNING" : "○ PENDING";
+    public string MeasurementCardTone => RunStoppedWithError ? "Error" : UnconfirmedPoint ? "Waiting" : MeasurementCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : MeasurementCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
     public string ActivePeakKey => _snapshot?.Targets.FirstOrDefault(t => t.Phase is "Measuring" or "MeasuringWithStabilityWarning") is { } m ? $"{m.SerialNumber}|{m.Channel}|{m.PeakId}" :
         _snapshot?.Targets.FirstOrDefault(t => t.State != CalibrationTargetState.Stable) is { } s ? $"{s.SerialNumber}|{s.Channel}|{s.PeakId}" : "";
     public string ActivePeak => ActivePeakKey.Length == 0 ? "—" : ActivePeakKey.Replace("|", " · ");
@@ -349,11 +350,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             TimeSpan duration = plateau.CompletedAt >= plateau.StartedAt
                 ? plateau.CompletedAt - plateau.StartedAt
                 : TimeSpan.Zero;
-            bool warning = plateau.Targets.Any(target => target.Status != CalibrationTargetState.Stable);
+            bool warning = plateau.Targets.Count == 0 || plateau.Targets.Any(target => target.Status != CalibrationTargetState.Stable);
             string completedAt = plateau.CompletedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss");
-            point.State = warning ? "Warning" : "Done";
+            point.SetCalibrationOutcome(plateau.Targets.Select(t => t.Status), plateau.Targets.Count);
             point.Duration = duration;
-            point.Detail = $"{(warning ? "!" : "✓")} {completedAt} · {Duration(duration)}";
+            point.Detail = $"Stabilita {plateau.Targets.Count(t => t.Status == CalibrationTargetState.Stable)}/{plateau.Targets.Count} · {Duration(duration)} · {completedAt}";
             AddEvent(plateau.CompletedAt, warning ? "WARNING" : "SUCCESS",
                 $"Obnovený bod {plateau.PlateauIndex + 1} bol dokončený {completedAt}; trvanie {Duration(duration)}.",
                 plateau.PlateauIndex, Points.Count, plateau.TargetTemperatureC,
@@ -443,11 +444,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             var point = Points[snapshot.PlateauIndex];
             if (snapshot.State == CalibrationRunState.PlateauCompleted)
             {
-                bool warning = snapshot.StableTargets < snapshot.TotalTargets;
+                bool warning = snapshot.TotalTargets == 0 || snapshot.Targets.Count != snapshot.TotalTargets || snapshot.Targets.Any(t => t.State != CalibrationTargetState.Stable);
                 if (point.Duration is null) AddEvent(now, warning ? "WARNING" : "SUCCESS", $"Bod {snapshot.PlateauIndex + 1} dokončený{(warning ? " s upozornením" : "")}.");
-                point.State = warning ? "Warning" : "Done";
+                point.SetCalibrationOutcome(snapshot.Targets.Select(t => t.State), snapshot.TotalTargets);
                 point.Duration = snapshot.PlateauElapsed;
-                point.Detail = $"{(warning ? "!" : "✓")} {Duration(snapshot.PlateauElapsed)}";
+                point.Detail = $"Stabilita {snapshot.Targets.Count(t => t.State == CalibrationTargetState.Stable)}/{snapshot.TotalTargets} · {Duration(snapshot.PlateauElapsed)}";
             }
             else { point.State = "Active"; point.Detail = Phase; }
         }
@@ -792,7 +793,16 @@ public sealed class DashboardNode : INotifyPropertyChanged
     private string _state = "Pending", _detail;
     public string State { get => _state; set { _state = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null)); } }
     public string Detail { get => _detail; set { _detail = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Detail))); } }
-    public string Badge => State switch { "Done" => "✓ DONE", "Active" => "● RUNNING", "Waiting" => "Ⅱ WAITING", "Error" => "! ERROR", "Warning" => "! DONE", "Skipped" => "— N/A", _ => "○ PENDING" };
+    private string? _calibrationBadge;
+    public void SetCalibrationOutcome(IEnumerable<CalibrationTargetState> states, int expected)
+    {
+        var results = states.ToArray();
+        bool success = expected > 0 && results.Length == expected && results.All(s => s == CalibrationTargetState.Stable);
+        bool failed = results.Any(s => s is CalibrationTargetState.Failed or CalibrationTargetState.TimedOut or CalibrationTargetState.PeakLost or CalibrationTargetState.Disconnected);
+        _calibrationBadge = success ? "✓ ÚSPEŠNÉ" : failed ? "! NEÚSPEŠNÉ" : "! NEPOTVRDENÉ";
+        State = success ? "Done" : "Warning";
+    }
+    public string Badge => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge : State switch { "Done" => "✓ DONE", "Active" => "● RUNNING", "Waiting" => "Ⅱ WAITING", "Error" => "! ERROR", "Warning" => "! UPOZORNENIE", "Skipped" => "— N/A", _ => "○ PENDING" };
     public TimeSpan? Duration { get; set; }
 }
 

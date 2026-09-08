@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.253] – 2026-09-08
+
+### Opravené
+
+- Kalibračný plán rozlišuje úspešné, nepotvrdené a neúspešné body namiesto mätúceho DONE. Zobrazuje počet senzorov s potvrdenou stabilitou aj pri obnovení starších výsledkov. Súhrnné karty neoznačujú nepotvrdenú stabilitu za úspech; percentá vyjadrujú ukončené body.
+
 ## [1.76.252] – 2026-09-08
 
 ### Opravené
