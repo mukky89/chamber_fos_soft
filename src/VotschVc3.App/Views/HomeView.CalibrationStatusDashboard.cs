@@ -216,7 +216,7 @@ public partial class HomeView
             Maximum = 100,
             Value = 0,
         };
-        var progressText = new TextBlock { Tag = "progressText", FontSize = 10.5, Foreground = muted, Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+        var progressText = new TextBlock { Tag = "progressText", TextWrapping = TextWrapping.Wrap, FontSize = 10.5, Foreground = muted, Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
 
         var stack = new StackPanel();
         stack.Children.Add(header);

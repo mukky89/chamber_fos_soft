@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.255] – 2026-09-08
+
+### Zmenené
+
+- Karta prebiehajúcej FBG kalibrácie a jej detail zobrazujú samostatne úspešné, nepotvrdené/neúspešné a zostávajúce body. Aktuálne rozpracovaný bod patrí medzi zostávajúce; ukončenie bez stability sa nepočíta ako úspech.
+
 ## [1.76.254] – 2026-09-08
 
 ### Opravené

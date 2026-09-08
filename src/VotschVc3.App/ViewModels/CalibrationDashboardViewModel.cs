@@ -72,8 +72,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _state == CalibrationRunState.Failed ? "Error" : _state == CalibrationRunState.Completed ? "Done" :
         _state == CalibrationRunState.WaitingForChamberStability ? "Waiting" : _running ? "Active" : "Pending";
     public int CompletedPoints => Points.Count(p => p.State is "Done" or "Warning");
+    public int SuccessfulPoints => Points.Count(p => p.State == "Done");
+    public int UnconfirmedPoints => Points.Count(p => p.State == "Warning");
+    public int RemainingPoints => Math.Max(0, Points.Count - CompletedPoints);
     public double OverallProgress => Points.Count == 0 ? 0 : 100d * CompletedPoints / Points.Count;
-    public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov ukončených";
+    public string ProgressLabel => $"{OverallProgress:F0} % · {CompletedPoints} / {Points.Count} bodov ukončených\nÚspešné {SuccessfulPoints} · nepotvrdené/neúspešné {UnconfirmedPoints} · zostáva {RemainingPoints}";
     public string Plateau => _state == CalibrationRunState.FinalConditioning
         ? $"Záverečné temperovanie {_finalConditioningTemperatureC:F1} °C"
         : _snapshot?.PlateauIndex < 0 ? "Príprava kalibračných bodov" : _snapshot is null ? $"Plán · {Points.Count} bodov" : $"Plato {_snapshot.PlateauIndex + 1} / {_snapshot.PlateauCount}";

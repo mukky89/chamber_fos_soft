@@ -391,6 +391,19 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("Stabilita", restored.Points[0].Detail);
         Assert.Equal(1, restored.CompletedPoints);
     }
+    [Fact] public void ProgressSeparatesSuccessfulUnconfirmedAndUnfinishedPoints()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0, Target("Done", 5, CalibrationTargetState.CompletedWithStabilityWarning)), Start);
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 1, Target("Done", 5, CalibrationTargetState.Stable)), Start.AddMinutes(10));
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 2, Target("Stabilizing", 0, CalibrationTargetState.Stabilizing)), Start.AddMinutes(11));
+        Assert.Equal(1, m.SuccessfulPoints);
+        Assert.Equal(1, m.UnconfirmedPoints);
+        Assert.Equal(1, m.RemainingPoints);
+        Assert.Equal(2, m.CompletedPoints);
+        Assert.Contains("Úspešné 1", m.ProgressLabel);
+        Assert.Contains("zostáva 1", m.ProgressLabel);
+    }
     [Fact] public void FailedTargetIsNotShownAsSuccessfulPlateau()
     {
         var m = Model(); m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0, Target("Done", 0, CalibrationTargetState.Failed)), Start);
