@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.285] – 2026-09-08
+
+### Opravené
+
+- Štítky peakov rozlišujú čakanie na teplotu, prebiehajúcu stabilizáciu FBG a čakanie finálneho odberu na stabilitu FBG. Ukončené nepotvrdené peaky sa už nezobrazujú ako stále čakajúce alebo stabilizujúce. Dlhšie štítky sa zalamujú.
+
 ## [1.76.284] – 2026-09-08
 
 ### Zmenené

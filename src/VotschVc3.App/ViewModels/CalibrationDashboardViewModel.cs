@@ -839,7 +839,11 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
         "MeasuringWithStabilityWarning" => "MERANIE · UPOZORNENIE",
         _ when _progress?.State == CalibrationTargetState.Stable => "HOTOVO",
         _ when _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning => "UPOZORNENIE",
-        _ => "STABILIZÁCIA",
+        "Done" => "NEPOTVRDENÉ",
+        "Temperature" => "ČAKÁ NA TEPLOTU",
+        _ when _progress?.State == CalibrationTargetState.WaitingForTemperature => "ČAKÁ NA TEPLOTU",
+        "Stabilizing" => "STABILIZÁCIA",
+        _ => "ČAKÁ",
     };
     public string StateBrush => _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning || _progress?.Phase == "MeasuringWithStabilityWarning" ? "#E5AA54" : _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
         ? (_progress?.Phase == "Measuring" ? "#58A6FF" : "#45C99A")
@@ -854,7 +858,8 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
         "MeasuringWithStabilityWarning" => "MERANIE · UPOZORNENIE",
         "Done" when _progress.State == CalibrationTargetState.Stable => "HOTOVO",
         "Done" when _progress.State == CalibrationTargetState.CompletedWithStabilityWarning => "UPOZORNENIE",
-        _ => "ČAKÁ",
+        "Done" => "NEPOTVRDENÉ",
+        _ => "ČAKÁ NA STABILITU FBG",
     };
     public string MeasurementStateBrush => _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning || _progress?.Phase == "MeasuringWithStabilityWarning" ? "#E5AA54" : _progress?.Phase == "Measuring" ||
         _progress is { Phase: "Done", State: CalibrationTargetState.Stable }

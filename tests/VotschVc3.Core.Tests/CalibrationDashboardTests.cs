@@ -204,6 +204,23 @@ public sealed class CalibrationDashboardTests
         Assert.Equal("1 / 2 prešlo stabilitou", m.PeakSummary);
         Assert.Equal("1 vo finálnom meraní · 0 úplne dokončených", m.PeakDetail);
     }
+    [Fact] public void PeakLabelsFollowTemperatureStabilityMeasurementAndFailure()
+    {
+        var item = new FbgStabilityChartItem("SN1|CH1|P1");
+        item.Update(Target("Temperature", 0, CalibrationTargetState.WaitingForTemperature), Start);
+        Assert.Equal("ČAKÁ NA TEPLOTU", item.State);
+        Assert.Equal("ČAKÁ NA STABILITU FBG", item.MeasurementState);
+        item.Update(Target("Stabilizing", 0, CalibrationTargetState.Stabilizing), Start.AddSeconds(1));
+        Assert.Equal("STABILIZÁCIA", item.State);
+        Assert.Equal("ČAKÁ NA STABILITU FBG", item.MeasurementState);
+        item.Update(Target("Measuring", 1), Start.AddSeconds(2));
+        Assert.Equal("MERANIE", item.State);
+        Assert.Equal("MERANIE", item.MeasurementState);
+        item.Update(Target("Done", 0, CalibrationTargetState.TimedOut), Start.AddSeconds(3));
+        Assert.Equal("NEPOTVRDENÉ", item.State);
+        Assert.Equal("NEPOTVRDENÉ", item.MeasurementState);
+    }
+
     [Fact] public void CompactPeakStatesUseDistinctColorsForMeasuringAndCompleted()
     {
         var item = new FbgStabilityChartItem("SN1|CH1|P1");

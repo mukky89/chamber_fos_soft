@@ -88,7 +88,7 @@
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <TextBlock Text="{Binding Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="11.5" FontWeight="SemiBold" Margin="0,0,8,0"/>
       <Border Grid.Column="1" Style="{StaticResource CompactPeakStateChip}" BorderBrush="{Binding StateBrush}">
-       <TextBlock Text="{Binding State}" Foreground="{Binding StateBrush}" FontSize="9.5" FontWeight="SemiBold" TextWrapping="NoWrap" HorizontalAlignment="Center"/>
+       <TextBlock Text="{Binding State}" Foreground="{Binding StateBrush}" FontSize="9.5" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="150" TextAlignment="Center" HorizontalAlignment="Center"/>
       </Border>
      </Grid>
      <Grid Margin="0,4,0,0">
@@ -108,7 +108,7 @@
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <TextBlock Text="{Binding Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="11.5" FontWeight="SemiBold" Margin="0,0,8,0"/>
       <Border Grid.Column="1" Style="{StaticResource CompactPeakStateChip}" BorderBrush="{Binding MeasurementStateBrush}">
-       <TextBlock Text="{Binding MeasurementState}" Foreground="{Binding MeasurementStateBrush}" FontSize="9.5" FontWeight="SemiBold" TextWrapping="NoWrap" HorizontalAlignment="Center"/>
+       <TextBlock Text="{Binding MeasurementState}" Foreground="{Binding MeasurementStateBrush}" FontSize="9.5" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="150" TextAlignment="Center" HorizontalAlignment="Center"/>
       </Border>
      </Grid>
      <Grid Margin="0,4,0,0">
