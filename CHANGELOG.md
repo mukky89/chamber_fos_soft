@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.288] – 2026-09-08
+
+### Opravené
+- Logo Sylex je pribalené ako WPF resource a spoľahlivo sa načíta v bočnom paneli aj pri prihlásení.
+- Logo nad názvom aplikácie je väčšie a zachováva pôvodný pomer strán.
+
 ## [1.76.287] – 2026-09-08
 
 ### Opravené

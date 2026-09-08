@@ -22,7 +22,7 @@
       - VersionFallbackRevision below is used only for source archives/build environments without Git metadata.
     -->
     <VersionPrefix>1.76</VersionPrefix>
-    <VersionFallbackRevision>287</VersionFallbackRevision>
+    <VersionFallbackRevision>288</VersionFallbackRevision>
     <Version>$(VersionPrefix).$(VersionFallbackRevision)</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
@@ -97,6 +97,7 @@
   </Target>
 
   <ItemGroup>
+    <Resource Include="..\..\assets\sylex-logo-red.png" Link="Assets\sylex-logo-red.png" />
     <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
     <EmbeddedResource Include="seed-profiles.zip" LogicalName="seed-profiles.zip" />
     <EmbeddedResource Include="seed-profiles-manifest.json" LogicalName="seed-profiles-manifest.json" />

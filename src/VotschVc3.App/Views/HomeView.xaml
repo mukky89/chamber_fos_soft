@@ -155,8 +155,8 @@
             <DockPanel>
                 <!-- Brand -->
                 <StackPanel DockPanel.Dock="Top">
-                    <Image Source="/Assets/sylex-logo-red.png" Height="30" HorizontalAlignment="Left"
-                           Margin="0,0,0,10" />
+                    <Image Source="pack://application:,,,/VotschVc3.App;component/Assets/sylex-logo-red.png" Height="52" Stretch="Uniform" HorizontalAlignment="Left"
+                           AutomationProperties.Name="Sylex" Margin="0,0,0,12" />
                     <TextBlock Text="Riadenie laboratórnych zariadení" FontFamily="Segoe UI Semibold"
                                FontSize="16" TextWrapping="Wrap" TextTrimming="None" />
                     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="8,3"

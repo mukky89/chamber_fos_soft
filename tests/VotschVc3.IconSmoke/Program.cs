@@ -12,6 +12,9 @@ class Program
   var app = new Application();
   foreach (string file in new[] { "Styles", "Icons", "CrispButtonStyles" })
    app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/VotschVc3.App;component/Themes/"+file+".xaml", UriKind.Relative) });
+  var logo = new BitmapImage(new Uri("pack://application:,,,/VotschVc3.App;component/Assets/sylex-logo-red.png"));
+  if (logo.PixelWidth <= 0 || logo.PixelHeight <= 0) throw new Exception("Sylex logo resource failed to decode");
+  Console.WriteLine($"PASS: packaged Sylex logo {logo.PixelWidth} x {logo.PixelHeight}");
   StatusCheckIcons.Initialize();
   var source = new TextBox { Text = "✓ Splnené   ⚠ Upozornenie   ❌ Chyba   ℹ Informácia" };
   var text = new TextBlock { FontSize = 18, Foreground = Brushes.White, Margin = new Thickness(12) };
