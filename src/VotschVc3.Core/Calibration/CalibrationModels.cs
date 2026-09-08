@@ -77,7 +77,7 @@ public sealed class CalibrationProfileSettings
     public bool EnableSetpointRamp { get; set; } = true;
 
     /// <summary>Maximum commanded setpoint change in °C/min while moving between plateaus.</summary>
-    public double SetpointRampCPerMinute { get; set; } = 1.0;
+    public double SetpointRampCPerMinute { get; set; } = 2.0;
 
     public bool EnableWavelengthAveraging { get; set; }
     public int WavelengthAveragingSamples { get; set; } = 1;
@@ -85,7 +85,7 @@ public sealed class CalibrationProfileSettings
     public int WavelengthTraceIntervalSeconds { get; set; } = 1;
 
     /// <summary>Delay between FBG calibration samples. Operator-configurable from 1 to 30 seconds.</summary>
-    public int SampleAcquisitionIntervalSeconds { get; set; } = 10;
+    public int SampleAcquisitionIntervalSeconds { get; set; } = 30;
 
     /// <summary>Rolling sample window used only to prove wavelength stability.</summary>
     public int RequiredStableSamples { get; set; } = 50;
@@ -106,7 +106,7 @@ public sealed class CalibrationProfileSettings
     public double MaxWavelengthDriftPmPerMinute { get; set; } = 1.0;
 
     public double ChamberToleranceC { get; set; } = 1.0;
-    public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(5);
+    public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(10);
     public double MaxChamberDriftCPerMinute { get; set; } = 0.03;
     public double MaxChamberRangeC { get; set; } = 0.03;
     public double MaxChamberStdDevC { get; set; } = 0.01;

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.264] – 2026-09-08
+
+### Zmenené
+
+- Vstavané predvoľby FBG kalibrácie zodpovedajú schváleným nastaveniam: zapnutá rampa 2 °C/min, stabilný čas WIKA 10 minút a interval odberu FBG 30 s.
+- Zachované predvoľby: tolerancia 1 °C; WIKA drift 0,03 °C/min, rozsah 0,03 °C a StdDev 0,01 °C; timeout teploty aj peaku 60 minút; trace log 1 s; 50 stabilizačných a 50 finálnych vzoriek; FBG rozsah 5 pm, StdDev 1,5 pm a drift 1 pm/min.
+- Uložené administrátorské nastavenia a nastavenia existujúcich či obnovených behov sa automaticky neprepisujú.
+
 ## [1.76.263] – 2026-09-08
 
 ### Pridané

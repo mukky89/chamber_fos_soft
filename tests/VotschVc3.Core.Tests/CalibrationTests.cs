@@ -31,11 +31,13 @@ public sealed class CalibrationTests
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
     [Fact]
-    public void Calibration_profile_defaults_to_ten_second_sample_interval()
+    public void Calibration_profile_defaults_to_requested_ramp_stable_time_and_sample_interval()
     {
         var settings = new CalibrationProfileSettings();
 
-        Assert.Equal(10, settings.SampleAcquisitionIntervalSeconds);
+        Assert.Equal(30, settings.SampleAcquisitionIntervalSeconds);
+        Assert.Equal(2.0, settings.SetpointRampCPerMinute);
+        Assert.Equal(TimeSpan.FromMinutes(10), settings.ChamberStableDuration);
     }
 
     [Fact]
