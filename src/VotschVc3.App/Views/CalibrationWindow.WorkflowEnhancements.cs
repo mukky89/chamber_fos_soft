@@ -96,7 +96,7 @@ public partial class CalibrationWindow
             _viewModel.ShowF100Chart = false;
 
             TestProfile? profile = _viewModel.Profiles.FirstOrDefault(x => x.Id == saved.ProfileId);
-            if (profile is not null && _viewModel.SelectedProfile?.Id != profile.Id)
+            if (!_viewModel.HasResumableCalibration && profile is not null && _viewModel.SelectedProfile?.Id != profile.Id)
             {
                 _viewModel.SelectedProfile = profile;
             }

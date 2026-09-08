@@ -67,6 +67,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     private IChamberDevice? _chamber;
     private CalibrationProfileRunner? _runner;
     private CancellationTokenSource? _runCts;
+    private Task? _runSessionTask;
     private CancellationTokenSource? _peakMonitorCts;
     private CancellationTokenSource? _setupAutosaveCts;
     private CalibrationRunRecord? _activeRun;
@@ -326,7 +327,10 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             Profiles.Add(profile);
         }
 
-        SelectedProfile = (previous is { } id ? Profiles.FirstOrDefault(p => p.Id == id) : null)
+        Guid? recoveryProfile = SelectedChamber is { } selected
+            ? _calibrationStore.LoadCheckpoint(selected.Config.Id)?.ProfileId : null;
+        SelectedProfile = (recoveryProfile is { } recoveryId ? Profiles.FirstOrDefault(p => p.Id == recoveryId) : null)
+            ?? (previous is { } id ? Profiles.FirstOrDefault(p => p.Id == id) : null)
             ?? Profiles.FirstOrDefault();
     }
 
@@ -505,7 +509,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         : $"Pokračovať od plata č. {_resumeCheckpoint.CompletedPlateaus.Count + 1}";
     public string ResumeCalibrationDetail => _resumeCheckpoint is null
         ? string.Empty
-        : $"Obnoví beh s {_resumeCheckpoint.CompletedPlateaus.Count} dokončenými platami. Rozpracované plato sa stabilizuje a zmeria nanovo. {ResumeHardwareStatus}";
+        : $"Checkpoint uložený {_resumeCheckpoint.SavedAt.ToLocalTime():dd.MM.yyyy HH:mm:ss}. Obnoví beh s {_resumeCheckpoint.CompletedPlateaus.Count} dokončenými platami. Rozpracované plato sa stabilizuje a zmeria nanovo. {ResumeHardwareStatus}";
     public bool ResumeHardwareReady => _resumeCheckpoint is not null &&
         PeakLoggerConnected && Peaks.Count > 0 &&
         (!_resumeRequiresReference || ResumeReferenceIsReady());
@@ -1801,6 +1805,14 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private async Task StartCalibrationAsync(bool resumeFromCheckpoint)
     {
+        Task session = RunCalibrationSessionAsync(resumeFromCheckpoint);
+        _runSessionTask = session;
+        try { await session; }
+        finally { if (ReferenceEquals(_runSessionTask, session)) _runSessionTask = null; }
+    }
+
+    private async Task RunCalibrationSessionAsync(bool resumeFromCheckpoint)
+    {
         if (!CanStartCalibration() || SelectedProfile is null || SelectedChamber is null) return;
         if (_peakLogger is null && UseSimulator)
         {
@@ -2713,13 +2725,19 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             PersistSetup(showStatus: false);
         }
         StopPeakMonitor();
-        if (IsRunning)
+        if (IsRunning && _activeRun?.State is not (CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings))
         {
             TrySaveResumeCheckpoint("APPLICATION_SHUTDOWN");
         }
         _activeWriter = null;
         _stopRequested = IsRunning;
         _runCts?.Cancel();
+        if (_runSessionTask is { } session)
+        {
+            try { await session; }
+            catch (Exception ex) { AppLog.Warn("FBG kalibrácia", $"Ukončenie behu pred zatvorením: {ex.Message}"); }
+        }
+        _activeWriter = null;
         await StopReferenceTraceAsync();
         if (_chamber is not null)
         {

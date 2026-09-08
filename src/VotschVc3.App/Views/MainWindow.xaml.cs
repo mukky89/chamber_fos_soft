@@ -11,6 +11,8 @@ public partial class MainWindow : Window
 
     /// <summary>Set only once the user confirms the exit; lets the real close proceed.</summary>
     private bool _exitConfirmed;
+    private bool _exitInProgress;
+    private bool _recoveryShown;
 
     public MainWindow()
     {
@@ -21,12 +23,31 @@ public partial class MainWindow : Window
         DesktopNotifier.ExitRequested = () => Dispatcher.Invoke(RequestExit);
 
         Closing += OnClosing;
-        Closed += async (_, _) =>
+        Loaded += (_, _) => RestoreInterruptedCalibrations();
+        _shell.PropertyChanged += (_, e) =>
         {
-            CalibrationWindow.CloseIfOpen();
-            await _shell.DisposeAsync();
-            Application.Current.Shutdown();
+            if (e.PropertyName == nameof(ShellViewModel.IsLoggedIn) && _shell.IsLoggedIn)
+                _ = Dispatcher.InvokeAsync(RestoreInterruptedCalibrations, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         };
+    }
+
+    private void RestoreInterruptedCalibrations()
+    {
+        if (!_shell.IsLoggedIn || _recoveryShown || _exitInProgress) return;
+        _recoveryShown = true;
+        var store = CalibrationStorage.CreateStore();
+        foreach (var chamber in _shell.Chambers)
+        {
+            try
+            {
+                if (store.LoadCheckpoint(chamber.Id) is not null)
+                    CalibrationWindow.OpenFor(this, chamber.Id);
+            }
+            catch (Exception ex)
+            {
+                VotschVc3.Core.Diagnostics.AppLog.Warn("FBG kalibrácia", $"Otvorenie obnovy pre {chamber.Id}: {ex.Message}");
+            }
+        }
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
@@ -51,8 +72,9 @@ public partial class MainWindow : Window
         Topmost = false;
     });
 
-    public void RequestExit()
+    public async void RequestExit()
     {
+        if (_exitInProgress) return;
         if (!IsVisible)
         {
             RestoreFromTray();
@@ -64,8 +86,21 @@ public partial class MainWindow : Window
         switch (dialog.Choice)
         {
             case ExitChoice.Exit:
-                _exitConfirmed = true;
-                Close();
+                _exitInProgress = true;
+                try
+                {
+                    // OnMainWindowClose terminates WPF: all asynchronous saves must finish first.
+                    await CalibrationWindow.CloseIfOpenAsync();
+                    await _shell.DisposeAsync();
+                    _exitConfirmed = true;
+                    Close();
+                }
+                catch (Exception ex)
+                {
+                    _exitInProgress = false;
+                    MessageBox.Show(this, "Ukončenie sa nepodarilo dokončiť: " + ex.Message,
+                        "Ukončenie aplikácie", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
                 break;
             case ExitChoice.MinimizeToTray:
                 Hide();

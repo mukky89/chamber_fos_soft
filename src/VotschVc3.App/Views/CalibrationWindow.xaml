@@ -155,9 +155,9 @@
                         ToolTip="Po potvrdení nahradí pôvodný snapshot aktuálnymi administrátorskými predvoľbami. Dokončené plata a zapojenie zostanú zachované.">
                     <TextBlock Text="Použiť aktuálne predvoľby" Style="{StaticResource IconLabel}" />
                 </Button>
-                <TextBlock Text="PODMIENKY OBNOVENIA" Foreground="#7DBDFF" FontSize="10" FontWeight="SemiBold"
+                <TextBlock Text="OBNOVA KALIBRÁCIE" Foreground="#7DBDFF" FontSize="10" FontWeight="SemiBold"
                            Margin="0,0,12,0" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding ResumeHardwareStatus}" TextWrapping="Wrap" Foreground="#D8E9FC"
+                <TextBlock Text="{Binding ResumeCalibrationDetail}" TextWrapping="Wrap" Foreground="#D8E9FC"
                            VerticalAlignment="Center" />
             </DockPanel>
         </Border>

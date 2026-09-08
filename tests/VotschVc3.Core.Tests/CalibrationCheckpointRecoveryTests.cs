@@ -6,6 +6,45 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationCheckpointRecoveryTests
 {
     [Fact]
+    public void CorruptedCheckpointFallsBackAndDeliberateDeleteRemovesBothCopies()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new CalibrationStore(root);
+            var checkpoint = new CalibrationCheckpoint { ChamberId = Guid.NewGuid(), RunId = Guid.NewGuid(), CurrentPlateauIndex = 1 };
+            store.SaveCheckpoint(checkpoint);
+            checkpoint.CurrentPlateauIndex = 2;
+            store.SaveCheckpoint(checkpoint);
+            string path = Path.Combine(store.CheckpointsDirectory, checkpoint.ChamberId.ToString("N") + ".json");
+            Assert.Equal(2, new CalibrationStore(root).LoadCheckpoint(checkpoint.ChamberId)!.CurrentPlateauIndex);
+            File.WriteAllText(path, "{interrupted");
+            Assert.Equal(1, new CalibrationStore(root).LoadCheckpoint(checkpoint.ChamberId)!.CurrentPlateauIndex);
+            store.DeleteCheckpoint(checkpoint.ChamberId);
+            Assert.Null(new CalibrationStore(root).LoadCheckpoint(checkpoint.ChamberId));
+            Assert.False(File.Exists(path + ".bak"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void CorruptedSummaryFallsBackToDurablePreviousSummary()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ProfileName = "Recovery" };
+            store.SaveRun(run);
+            run.ProfileName = "Updated";
+            store.SaveRun(run);
+            File.WriteAllText(Path.Combine(store.GetRunDirectory(run), "summary.json"), "{interrupted");
+            Assert.Equal("Recovery", new CalibrationStore(root).LoadRun(run.RunId)!.ProfileName);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public void EmptyDiscoveredRows_AreReplacedByCheckpointSerialNumberMappings()
     {
         var setup = new CalibrationSetup

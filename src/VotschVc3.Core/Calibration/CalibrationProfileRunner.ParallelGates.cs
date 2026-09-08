@@ -94,6 +94,10 @@ public sealed class CalibrationProfileRunner
             Array.Empty<CalibrationTargetProgress>(),
             "Kontrola PeakLoggera a zapojenia. Z profilu sa použijú iba vybrané teploty kalibračných plat; rampy a časy profilu sa ignorujú."));
 
+        // Persist identity/configuration even if the first plateau never completes.
+        writer.SaveSummary();
+        SaveCheckpoint(run, setup, progressPlateau, calibrationSteps[progressPlateau].Segment.TargetTemperature,
+            workItems.Where(item => item.IsRetry).Select(item => item.PlateauIndex));
         await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
         run.State = CalibrationRunState.Preparing;
 
@@ -105,6 +109,20 @@ public sealed class CalibrationProfileRunner
         double previousCommandedTemperature = startTemperature;
         CalibrationPlateauResult? validationBaseline = run.Plateaus.FirstOrDefault();
         bool responseValidated = false;
+        var recoveryClock = System.Diagnostics.Stopwatch.StartNew();
+        int savedPlateau = -1;
+        CalibrationRunState? savedState = null;
+        void PersistRecovery(CalibrationProgressSnapshot snapshot)
+        {
+            if (snapshot.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings) return;
+            if (recoveryClock.Elapsed < TimeSpan.FromSeconds(15) && savedPlateau == snapshot.PlateauIndex && savedState == snapshot.State) return;
+            SaveCheckpoint(run, setup, Math.Max(0, snapshot.PlateauIndex), snapshot.TargetTemperatureC,
+                workItems.Where(item => item.IsRetry && !run.Plateaus.Any(p => p.PlateauIndex == item.PlateauIndex)).Select(item => item.PlateauIndex));
+            savedPlateau = snapshot.PlateauIndex;
+            savedState = snapshot.State;
+            recoveryClock.Restart();
+        }
+        Progress += PersistRecovery;
 
         try
         {
@@ -326,6 +344,10 @@ public sealed class CalibrationProfileRunner
             run.State = CalibrationRunState.Failed;
             writer.SaveSummary();
             throw;
+        }
+        finally
+        {
+            Progress -= PersistRecovery;
         }
     }
 

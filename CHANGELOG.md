@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.291] – 2026-09-08
+
+### Opravené
+- FBG checkpoint vzniká už pred prvým pohybom komory, obnovuje sa pri zmene fázy a priebežne podľa živých aktualizácií s intervalom zápisu 15 sekúnd. Hotové plata, zapojenie a parametre zostávajú zachované; rozpracované plato sa po obnove stabilizuje a meria nanovo.
+- Checkpoint aj súhrn behu sa zapisujú cez dočasný súbor s flush na disk a atomickou výmenou. Poškodený hlavný súbor sa načíta z predchádzajúcej záložnej kópie.
+- Ukončenie aplikácie počká na uloženie, ukončenie FBG behu a zatvorenie zariadení pred zavretím hlavného okna.
+- Po štarte a prihlásení sa otvoria pracoviská s checkpointom a vyberie sa príslušný profil. Pokračovanie vyžaduje kontrolu hardvéru a tlačidlo Pokračovať; výpadok neznamená automatický príkaz komore.
+
 ## [1.76.290] – 2026-09-08
 
 ### Zmenené

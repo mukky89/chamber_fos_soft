@@ -149,16 +149,7 @@ public sealed class CalibrationStore
     public string ReplicationStatus(Guid? runId = null) => _replicationQueue?.Status(runId) ?? "Lokálne ukladanie.";
     public CalibrationRunRecord? LoadRun(Guid runId)
     {
-        string path = Path.Combine(GetRunDirectory(runId), "summary.json");
-        if (!File.Exists(path)) return null;
-        try
-        {
-            return JsonSerializer.Deserialize<CalibrationRunRecord>(File.ReadAllText(path), JsonOptions);
-        }
-        catch (Exception ex) when (ex is IOException or JsonException)
-        {
-            return null;
-        }
+        return ReadRecoveryFile<CalibrationRunRecord>(Path.Combine(GetRunDirectory(runId), "summary.json"));
     }
 
     public void SaveRun(CalibrationRunRecord run)
@@ -167,7 +158,7 @@ public sealed class CalibrationStore
         string dir = GetRunDirectory(run);
         Directory.CreateDirectory(dir);
         run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
-        File.WriteAllText(Path.Combine(dir, "summary.json"), JsonSerializer.Serialize(run, JsonOptions));
+        WriteRecoveryFile(Path.Combine(dir, "summary.json"), JsonSerializer.Serialize(run, JsonOptions));
         ExportSummaryCsv(run, Path.Combine(dir, "summary.csv"));
         try
         {
@@ -200,7 +191,7 @@ public sealed class CalibrationStore
         {
             try
             {
-                CalibrationRunRecord? run = JsonSerializer.Deserialize<CalibrationRunRecord>(File.ReadAllText(file), JsonOptions);
+                CalibrationRunRecord? run = ReadRecoveryFile<CalibrationRunRecord>(file);
                 if (run is not null && seen.Add(run.RunId))
                 {
                     run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
@@ -227,27 +218,62 @@ public sealed class CalibrationStore
     {
         ArgumentNullException.ThrowIfNull(checkpoint);
         checkpoint.SavedAt = DateTimeOffset.Now;
-        File.WriteAllText(CheckpointPath(checkpoint.ChamberId), JsonSerializer.Serialize(checkpoint, JsonOptions));
+        WriteRecoveryFile(CheckpointPath(checkpoint.ChamberId), JsonSerializer.Serialize(checkpoint, JsonOptions));
     }
 
     public CalibrationCheckpoint? LoadCheckpoint(Guid chamberId)
     {
-        string path = CheckpointPath(chamberId);
-        if (!File.Exists(path)) return null;
-        try
-        {
-            return JsonSerializer.Deserialize<CalibrationCheckpoint>(File.ReadAllText(path), JsonOptions);
-        }
-        catch (Exception ex) when (ex is IOException or JsonException)
-        {
-            return null;
-        }
+        var checkpoint = ReadRecoveryFile<CalibrationCheckpoint>(CheckpointPath(chamberId));
+        return checkpoint?.ChamberId == chamberId ? checkpoint : null;
     }
 
     public void DeleteCheckpoint(Guid chamberId)
     {
-        string path = CheckpointPath(chamberId);
-        if (File.Exists(path)) File.Delete(path);
+        lock (RecoveryFileSync)
+        {
+            string path = CheckpointPath(chamberId);
+            // Remove the backup first so deliberate deletion cannot revive an old run.
+            if (File.Exists(path + ".bak")) File.Delete(path + ".bak");
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    private static readonly object RecoveryFileSync = new();
+    private static void WriteRecoveryFile(string path, string json)
+    {
+        lock (RecoveryFileSync)
+        {
+            string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                {
+                    byte[] bytes = Encoding.UTF8.GetBytes(json);
+                    stream.Write(bytes);
+                    stream.Flush(flushToDisk: true);
+                }
+                if (File.Exists(path)) File.Replace(temporary, path, path + ".bak");
+                else File.Move(temporary, path);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
+    }
+
+    private static T? ReadRecoveryFile<T>(string path) where T : class
+    {
+        lock (RecoveryFileSync)
+        {
+            foreach (string candidate in new[] { path, path + ".bak" })
+            {
+                try
+                {
+                    if (File.Exists(candidate) && JsonSerializer.Deserialize<T>(File.ReadAllText(candidate), JsonOptions) is { } value)
+                        return value;
+                }
+                catch (Exception ex) when (ex is IOException or JsonException) { }
+            }
+            return null;
+        }
     }
 
     public static void ExportSummaryCsv(CalibrationRunRecord run, string path)

@@ -9,6 +9,60 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Fact]
+    public async Task FirstPlateauHasCheckpointBeforeMovementAndRefreshesWhileWaiting()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "Power recovery", ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments = { new ProfileSegment { TargetTemperature = 20, IsCalibrationPoint = true, IsRamp = false } }
+            };
+            var setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.Add(0);
+            setup.Settings.ChamberStableDuration = TimeSpan.FromMinutes(10);
+            setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMinutes(30);
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ChamberId = Guid.NewGuid() };
+            await using var writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+            DateTimeOffset? firstWaitingSave = null;
+            bool refreshed = false;
+            bool beforeMovement = false;
+            chamber.BeforeWrite = () =>
+            {
+                var checkpoint = new CalibrationStore(root).LoadCheckpoint(run.ChamberId);
+                beforeMovement = checkpoint?.RunId == run.RunId && checkpoint.Mappings.Count > 0;
+            };
+            runner.Progress += snapshot =>
+            {
+                // Fresh store emulates reopening the app; inspect disk, never in-memory state.
+                var checkpoint = new CalibrationStore(root).LoadCheckpoint(run.ChamberId);
+                if (snapshot.State != CalibrationRunState.WaitingForChamberStability || checkpoint is null) return;
+                firstWaitingSave ??= checkpoint.SavedAt;
+                if (checkpoint.SavedAt - firstWaitingSave >= TimeSpan.FromSeconds(14))
+                {
+                    refreshed = true;
+                    cancellation.Cancel();
+                }
+            };
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                runner.RunAsync(profile, setup, run, writer, 20, null, _ => Task.FromResult<double?>(35), cancellation.Token));
+            Assert.True(beforeMovement);
+            Assert.True(refreshed);
+            Assert.Empty(store.LoadCheckpoint(run.ChamberId)!.CompletedPlateaus);
+            Assert.NotNull(new CalibrationStore(root).LoadRun(run.RunId));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public async Task ChamberPrerequisiteKeepsWikaWindowEmptyWhileStillReadingReference()
     {
         string root = TempDirectory();
@@ -873,6 +927,7 @@ public sealed class CalibrationWorkflowRegressionTests
 
         public bool IsConnected { get; private set; }
         public List<double> WrittenTemperatures { get; } = new();
+        public Action? BeforeWrite { get; set; }
         public double FinalConditioningReadOffsetC { get; set; }
         public int StopCount { get; private set; }
         public ChamberConnectionSettings Settings { get; private set; } = new();
@@ -910,6 +965,7 @@ public sealed class CalibrationWorkflowRegressionTests
             cancellationToken.ThrowIfCancellationRequested();
             if (setpoints.Count > 0)
             {
+                BeforeWrite?.Invoke();
                 _setpoint = setpoints[0];
                 _temperature = _setpoint;
                 WrittenTemperatures.Add(_setpoint);
