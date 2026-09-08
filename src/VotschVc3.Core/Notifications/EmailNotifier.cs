@@ -108,7 +108,7 @@ public sealed class EmailNotifier
                 ? LabControlEmailTemplate.Create(subject, body)
                 : htmlBody;
 
-            await sender.SendAsync(new EmailMessage(to, subject, body, effectiveHtml, attachments), cancellationToken).ConfigureAwait(false);
+            await sender.SendAsync(new EmailMessage(to, LabControlEmailTemplate.DecorateSubject(subject, body), body, effectiveHtml, attachments), cancellationToken).ConfigureAwait(false);
             return EmailResult.Ok();
         }
         catch (Exception ex)

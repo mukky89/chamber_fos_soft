@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.260] – 2026-09-08
+
+### Zmenené
+
+- Spoločná e-mailová šablóna používa výrazné farebné ikony: sirénu pri alarme, výstražný trojuholník pri upozornení, zelené potvrdenie pri dokončení a modrú informáciu. Ikony majú vlastnú väčšiu plochu a písma pre farebné emoji; textový názov závažnosti zostáva čitateľný.
+- E-maily operátorského dohľadu a zastavenej kalibrácie dostávajú výstražnú alebo alarmovú ikonu namiesto informačného označenia. Farebné symboly sa pridávajú aj do predmetu správ bez zdvojenia pôvodnej ikony. Rovnaký vzhľad používajú náhľady v administrácii.
+
 ## [1.76.259] – 2026-09-08
 
 ### Pridané

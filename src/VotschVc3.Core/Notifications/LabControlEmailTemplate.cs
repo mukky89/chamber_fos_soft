@@ -19,10 +19,10 @@ public static class LabControlEmailTemplate
         body ??= string.Empty;
         (string accent, string soft, string badge, string symbol) = tone switch
         {
-            EmailTone.Error => ("#B42335", "#FFF1F2", "CHYBA / ALARM", "!"),
-            EmailTone.Warning => ("#925C0D", "#FFF7E8", "UPOZORNENIE", "!"),
-            EmailTone.Success => ("#167451", "#EDF8F2", "DOKONČENÉ", "✓"),
-            _ => ("#285DB5", "#EEF4FF", "INFORMÁCIA", "i"),
+            EmailTone.Error => ("#B42335", "#FFF1F2", "CHYBA / ALARM", "🚨"),
+            EmailTone.Warning => ("#925C0D", "#FFF7E8", "UPOZORNENIE", "⚠️"),
+            EmailTone.Success => ("#167451", "#EDF8F2", "DOKONČENÉ", "✅"),
+            _ => ("#285DB5", "#EEF4FF", "INFORMÁCIA", "ℹ️"),
         };
         ParseBody(body, out var details, out string message);
         string preheader = string.IsNullOrWhiteSpace(message) ? subject : message.Split('\n')[0];
@@ -74,7 +74,10 @@ table,td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
 <tr><td height="5" bgcolor="{accent}" style="height:5px;background:{accent};font-size:1px;line-height:5px">&nbsp;</td></tr>
 <tr><td class="content-pad" bgcolor="#122237" style="padding:28px 32px 30px;background:#122237">
 <p style="margin:0 0 26px;font-size:12px;line-height:18px;font-weight:700;letter-spacing:2px;color:#A9BED8">SYLEX · LAB CONTROL</p>
-<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="{soft}" style="padding:6px 11px;background:{soft};border-radius:5px;color:{accent};font-size:11px;line-height:16px;letter-spacing:1px;font-weight:700">{symbol}&nbsp; {badge}</td></tr></table>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+<td width="56" height="56" align="center" valign="middle" bgcolor="{soft}" style="width:56px;height:56px;background:{soft};border-radius:12px;text-align:center;vertical-align:middle;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;font-size:34px;line-height:44px"><span aria-hidden="true">{symbol}</span></td>
+<td style="padding-left:14px"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="{soft}" style="padding:7px 12px;background:{soft};border-radius:5px;color:{accent};font-size:11px;line-height:16px;letter-spacing:1px;font-weight:700">{badge}</td></tr></table></td>
+</tr></table>
 <h1 class="email-title" style="margin:16px 0 0;color:#FFFFFF;font-size:29px;line-height:38px;font-weight:600;word-break:break-word;overflow-wrap:anywhere">{H(subject)}</h1>
 <p style="margin:12px 0 0;color:#A9BED8;font-size:13px;line-height:20px">Riadenie komôr a FBG kalibrácia</p>
 </td></tr>
@@ -92,6 +95,24 @@ table,td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
 """;
     }
 
+    internal static string DecorateSubject(string subject, string body)
+    {
+        string symbol = DetectTone(subject, body) switch
+        {
+            EmailTone.Error => "🚨",
+            EmailTone.Warning => "⚠️",
+            EmailTone.Success => "✅",
+            _ => "ℹ️",
+        };
+        string title = subject.Trim();
+        foreach (string previousIcon in new[] { "🚨", "⚠️", "⚠", "✅", "ℹ️", "ℹ", "✓", "✔" })
+        {
+            if (!title.StartsWith(previousIcon, StringComparison.Ordinal)) continue;
+            title = title[previousIcon.Length..].TrimStart();
+            break;
+        }
+        return $"{symbol} {title}";
+    }
     private static void ParseBody(string body, out List<(string Key, string Value)> details, out string message)
     {
         details = new();
@@ -127,11 +148,11 @@ table,td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
     private static EmailTone DetectTone(string subject, string body)
     {
         // Subject wins: metadata such as "Upozornenia: 0" must not override completion.
-        if (ContainsAny(subject, "chyba", "error", "failed", "zlyhan", "alarm")) return EmailTone.Error;
-        if (ContainsAny(subject, "warning", "upozornen", "pozor", "timeout", "neustál", "nestabil")) return EmailTone.Warning;
+        if (ContainsAny(subject, "chyba", "error", "failed", "zlyhan", "alarm", "kalibrácia zastavená")) return EmailTone.Error;
+        if (ContainsAny(subject, "warning", "upozornen", "pozor", "timeout", "neustál", "nestabil", "čaká na rozhodnutie", "operátorský dohľad")) return EmailTone.Warning;
         if (ContainsAny(subject, "completed", "dokončen", "úspešne", "success")) return EmailTone.Success;
-        if (ContainsAny(body, "chyba", "error", "failed", "zlyhan", "alarm")) return EmailTone.Error;
-        if (ContainsAny(body, "warning", "upozornen", "pozor", "timeout", "neustál", "nestabil")) return EmailTone.Warning;
+        if (ContainsAny(body, "chyba", "error", "failed", "zlyhan", "alarm", "kalibrácia zastavená")) return EmailTone.Error;
+        if (ContainsAny(body, "warning", "upozornen", "pozor", "timeout", "neustál", "nestabil", "čaká na rozhodnutie", "operátorský dohľad")) return EmailTone.Warning;
         if (ContainsAny(body, "completed", "dokončen", "úspešne", "success")) return EmailTone.Success;
         return EmailTone.Info;
     }
