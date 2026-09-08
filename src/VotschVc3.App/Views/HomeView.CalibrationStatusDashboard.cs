@@ -178,7 +178,7 @@ public partial class HomeView
             Padding = new Thickness(8, 4, 8, 4),
             Margin = new Thickness(8, 4, 0, 4),
             HorizontalAlignment = HorizontalAlignment.Right,
-            ToolTip = "Otvorí priečinok so summary, výsledkami, raw samples, wavelength trace a diagnostickým logom tejto kalibrácie.",
+            ToolTip = "Otvorí sieťový priečinok tohto behu na G: podľa nastaveného ukladania (rok / mesiac / beh).",
         };
         openRunFolder.Click += OpenCalibrationRunFolder_Click;
         var runMeta = new DockPanel { LastChildFill = true };
@@ -317,7 +317,8 @@ public partial class HomeView
             if (openRunFolder is not null)
             {
                 openRunFolder.CommandParameter = snapshot.RunDirectory;
-                openRunFolder.IsEnabled = !string.IsNullOrWhiteSpace(snapshot.RunDirectory);
+                openRunFolder.IsEnabled = snapshot.RunId is not "" and not "—";
+                openRunFolder.ToolTip = string.IsNullOrWhiteSpace(snapshot.RunDirectory) ? "Tento beh nemá nastavený sieťový priečinok." : "Otvoriť sieťový priečinok: " + snapshot.RunDirectory;
             }
             if (plateau is not null) plateau.Text = $"{snapshot.Plateau} · čas fázy {snapshot.PhaseElapsed}";
             if (eta is not null)
@@ -343,10 +344,17 @@ public partial class HomeView
 
     private static void OpenCalibrationRunFolder_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { CommandParameter: string path } || string.IsNullOrWhiteSpace(path)) return;
+        if (sender is not Button button) return;
+        string? path = button.CommandParameter as string;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            Notifications.AppNotificationService.Warning("Súbory kalibrácie", "Tento beh nemá nastavený sieťový priečinok. Skontrolujte sieťové ukladanie v administrácii.", "calibration-folder:not-configured");
+            return;
+        }
         try
         {
-            Directory.CreateDirectory(path);
+            if (!Directory.Exists(path))
+                throw new IOException("Sieťový priečinok nie je dostupný alebo ešte nebol zosynchronizovaný: " + path);
             Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
         }
         catch (Exception ex)

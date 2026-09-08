@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.282] – 2026-09-08
+
+### Zmenené
+
+- Otvoriť súbory na FBG karte otvára sieťovú repliku konkrétneho behu (G: / rok / mesiac / beh). Chýbajúca konfigurácia alebo nedostupná sieť sa vysvetlí upozornením; tlačidlo nevytvára prázdne priečinky.
+
 ## [1.76.281] – 2026-09-08
 
 ### Zmenené

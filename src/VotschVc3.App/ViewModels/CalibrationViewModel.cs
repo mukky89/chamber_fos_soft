@@ -2343,7 +2343,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         IsRunning,
         SelectedProfile?.Name ?? "FBG kalibrácia",
         _activeRun?.DisplayRunId ?? "—",
-        _activeRun is null ? string.Empty : _calibrationStore.GetRunDirectory(_activeRun),
+        _activeRun?.ReplicaRunDirectory ?? string.Empty,
         RunState,
         PlateauLabel,
         _calibrationProgressPercent,
