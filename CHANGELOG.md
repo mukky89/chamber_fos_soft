@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.289] – 2026-09-08
+
+### Zmenené
+- Odpočítavací pruh vo všetkých upozorneniach je hrubší (8 namiesto 3 pixelov), aby bol lepšie viditeľný.
+
 ## [1.76.288] – 2026-09-08
 
 ### Opravené

@@ -350,7 +350,7 @@ public static class AppNotificationService
             _countdown.FontSize = 10.5;
             _countdown.HorizontalAlignment = HorizontalAlignment.Right;
             _countdown.Margin = new Thickness(0, 5, 2, 2);
-            _progress.Height = 3;
+            _progress.Height = 8;
             _progress.Minimum = 0;
             _progress.Maximum = notification.Duration.TotalSeconds;
             _progress.Value = notification.Duration.TotalSeconds;
