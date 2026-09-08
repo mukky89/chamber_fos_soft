@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.272] – 2026-09-08
+
+### Zmenené
+
+- Operátorský dohľad má výraznú zlatú vektorovú ikonu štítu s výkričníkom v zaoblenom poli. Nahrádza textové výstražné znaky; stav zostáva čitateľný a zalamuje sa podľa šírky.
+
 ## [1.76.271] – 2026-09-08
 
 ### Pridané

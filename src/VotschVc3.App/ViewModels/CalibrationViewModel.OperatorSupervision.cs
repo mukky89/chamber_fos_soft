@@ -22,8 +22,8 @@ public sealed partial class CalibrationViewModel
         }
     }
     public bool HasOperatorDecision => _operatorRequest is not null;
-    public string OperatorSupervisionLabel => HasOperatorDecision ? "‼ ČAKÁ NA ROZHODNUTIE OPERÁTORA" :
-        OperatorSupervisionEnabled ? "⚠ OPERÁTORSKÝ DOHĽAD ZAPNUTÝ" : "Automatický režim";
+    public string OperatorSupervisionLabel => HasOperatorDecision ? "ČAKÁ NA ROZHODNUTIE OPERÁTORA" :
+        OperatorSupervisionEnabled ? "OPERÁTORSKÝ DOHĽAD ZAPNUTÝ" : "Automatický režim";
     public string OperatorDecisionMessage => _operatorRequest is { } request ? $"Plato {request.PlateauIndex + 1} · {request.Message}" : string.Empty;
     public string OperatorDecisionCountdown => _operatorRequest is { } request
         ? $"Rozhodnite do {request.Deadline:HH:mm:ss} · zostáva {Math.Max(0, (request.Deadline - DateTimeOffset.Now).TotalMinutes):F1} min. Bez reakcie sa beh uloží a odošle STOP komore."
