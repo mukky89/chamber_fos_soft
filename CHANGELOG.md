@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.278] – 2026-09-08
+
+### Zmenené
+
+- Hlásenie stabilizácie pomenúva vypršaný časový limit, pravidlo operátorského dohľadu a nesplnený stabilný čas.
+- Textové fajky v zobrazovanom texte aplikácie nahrádzajú jednotné zelené vektorové ikony so zachovaním živých dátových väzieb.
+
 ## [1.76.277] – 2026-09-08
 
 ### Pridané

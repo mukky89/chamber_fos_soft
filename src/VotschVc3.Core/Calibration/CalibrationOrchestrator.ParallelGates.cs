@@ -386,7 +386,7 @@ public sealed partial class CalibrationOrchestrator
                         if (settings.OperatorSupervisionEnabled)
                         {
                             await HandleOperatorIssue(CalibrationOperatorIssue.Temperature,
-                                $"WIKA nedokončila stabilizáciu pri cieli {targetTemperatureC:F1} °C. {temperatureDetail}", trackers.Values);
+                                $"Uplynul časový limit stabilizácie pri cieli {targetTemperatureC:F1} °C. Operátorský dohľad vyžaduje rozhodnutie pred predĺžením. {temperatureDetail}", trackers.Values);
                             continue;
                         }
                         if (TryExtendTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
@@ -750,7 +750,7 @@ public sealed partial class CalibrationOrchestrator
         bool rangeOk = settings.MaxChamberRangeC <= 0 || metrics.Range <= settings.MaxChamberRangeC;
         bool stdDevOk = settings.MaxChamberStdDevC <= 0 || metrics.StandardDeviation <= settings.MaxChamberStdDevC;
         return $"{source} {measured:F3} °C · Δ {error:+0.000;-0.000;0.000} / ±{settings.ChamberToleranceC:F3} {(toleranceOk ? "✓" : "×")} · " +
-               $"stable čas {FormatTime(metrics.WindowDuration)}/{FormatTime(settings.ChamberStableDuration)} {(durationOk ? "✓" : "…")} · " +
+               $"stabilný čas {FormatTime(metrics.WindowDuration)}/{FormatTime(settings.ChamberStableDuration)} {(durationOk ? "✓" : "(NESPLNENÉ – treba dlhšie súvislé stabilné meranie)")} · " +
                $"rozsah {metrics.Range:F3}/{settings.MaxChamberRangeC:F3} °C {(rangeOk ? "✓" : "×")} · " +
                $"σ {metrics.StandardDeviation:F3}/{settings.MaxChamberStdDevC:F3} °C {(stdDevOk ? "✓" : "×")} · " +
                $"drift {Math.Abs(metrics.SlopePerMinute):F3}/{settings.MaxChamberDriftCPerMinute:F3} °C/min {(driftOk ? "✓" : "×")}";

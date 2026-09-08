@@ -15,6 +15,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        Views.StatusCheckIcons.Initialize();
 
         // Create the Documents\Lab Control layout (and migrate the old VotschVc3
         // folder once) before anything reads or writes app data.
