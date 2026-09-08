@@ -701,6 +701,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         if (IsRunning || HasResumableCalibration) return;
         _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: false);
         OnPropertyChanged(nameof(SampleAcquisitionIntervalSeconds));
+        OnPropertyChanged(nameof(WavelengthTraceIntervalSeconds));
         RefreshDashboardPlan();
     }
 

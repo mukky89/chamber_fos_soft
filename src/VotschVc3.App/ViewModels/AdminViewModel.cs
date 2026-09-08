@@ -41,6 +41,6 @@ public sealed class AdminViewModel : ObservableObject
     private void SaveCalibrationDefaults()
     {
         _defaultsStore.Save(_calibrationDefaults);
-        CalibrationDefaultsStatus = $"Uložené {DateTime.Now:HH:mm}. Interval odberu sa použije pri každom novom behu; ostatné predvoľby pri novom zapojení.";
+        CalibrationDefaultsStatus = $"Uložené {DateTime.Now:HH:mm}. Interval odberu aj trace logu sa použijú pri každom novom behu; ostatné predvoľby pri novom zapojení.";
     }
 }

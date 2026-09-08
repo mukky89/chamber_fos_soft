@@ -81,7 +81,7 @@ public sealed class CalibrationProfileSettings
     public bool EnableWavelengthAveraging { get; set; }
     public int WavelengthAveragingSamples { get; set; } = 1;
     public bool EnableWavelengthTraceLogging { get; set; } = true;
-    public int WavelengthTraceIntervalSeconds { get; set; } = 30;
+    public int WavelengthTraceIntervalSeconds { get; set; } = 1;
 
     /// <summary>Delay between FBG calibration samples. Operator-configurable from 1 to 30 seconds.</summary>
     public int SampleAcquisitionIntervalSeconds { get; set; } = 10;

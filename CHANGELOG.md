@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.257] – 2026-09-08
+
+### Zmenené
+
+- Predvolený interval priebežného wavelength trace logu je 1 s. Administrácia umožňuje nastaviť jeho interval samostatne od odberu pre stabilitu. Každý nový beh preberá uložený interval z administrácie aj pre existujúce zapojenie; obnovené a aktívne behy si zachovajú svoje nastavenia.
+
 ## [1.76.256] – 2026-09-08
 
 ### Opravené

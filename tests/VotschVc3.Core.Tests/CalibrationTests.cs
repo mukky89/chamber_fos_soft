@@ -10,6 +10,27 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationTests
 {
     [Fact]
+    public void TraceIntervalDefaultsToOneSecondAndNewRunsUseSavedAdminValue()
+    {
+        Assert.Equal(1, new CalibrationProfileSettings().WavelengthTraceIntervalSeconds);
+        string root = Path.Combine(Path.GetTempPath(), "trace-defaults-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new CalibrationDefaultsStore(Path.Combine(root, "defaults.json"));
+            store.Save(new CalibrationProfileSettings { WavelengthTraceIntervalSeconds = 7 });
+            var settings = new CalibrationProfileSettings { WavelengthTraceIntervalSeconds = 30, RequiredStableSamples = 80 };
+            store.ApplyAcquisitionInterval(settings, preserveRunSettings: true);
+            Assert.Equal(30, settings.WavelengthTraceIntervalSeconds);
+            store.ApplyAcquisitionInterval(settings, preserveRunSettings: false);
+            Assert.Equal(7, settings.WavelengthTraceIntervalSeconds);
+            Assert.Equal(80, settings.RequiredStableSamples);
+            store.Save(new CalibrationProfileSettings { WavelengthTraceIntervalSeconds = 0 });
+            store.ApplyAcquisitionInterval(settings, preserveRunSettings: false);
+            Assert.Equal(1, settings.WavelengthTraceIntervalSeconds);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+    [Fact]
     public void Calibration_profile_defaults_to_ten_second_sample_interval()
     {
         var settings = new CalibrationProfileSettings();

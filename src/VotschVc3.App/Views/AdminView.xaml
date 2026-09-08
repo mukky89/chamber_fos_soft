@@ -30,7 +30,7 @@
                 <StackPanel>
                     <TextBlock Text="Predvolené nastavenia FBG kalibrácie" Style="{StaticResource Heading}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
-                               Text="Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG sa použije pri každom novom behu aj pre uložené zapojenie. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
+                               Text="Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG aj interval trace logu sa použijú pri každom novom behu aj pre uložené zapojenie. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
                     <WrapPanel>
                         <StackPanel Style="{StaticResource MiniField}">
                             <TextBlock Text="Rýchlosť setpointu [°C/min]" Style="{StaticResource Label}" />
@@ -63,6 +63,10 @@
                         <StackPanel Style="{StaticResource MiniField}">
                             <TextBlock Text="Interval odberu FBG [s]" Style="{StaticResource Label}" />
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.SampleAcquisitionIntervalSeconds, Mode=TwoWay}" Step="1" Minimum="1" Maximum="30" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource MiniField}" ToolTip="Interval priebežného zápisu wavelength, SN a posledných teplôt do wavelength-trace.csv. Nezávisí od stability. Použije sa pri každom novom behu; predvolene 1 s.">
+                            <TextBlock Text="Interval trace logu [s]" Style="{StaticResource Label}" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.WavelengthTraceIntervalSeconds, Mode=TwoWay}" Step="1" Minimum="1" Maximum="86400" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
                             <TextBlock Text="Vzorky pre stabilitu" Style="{StaticResource Label}" />

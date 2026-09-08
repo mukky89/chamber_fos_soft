@@ -39,7 +39,9 @@ public sealed class CalibrationDefaultsStore
     {
         ArgumentNullException.ThrowIfNull(settings);
         if (preserveRunSettings) return;
-        settings.SampleAcquisitionIntervalSeconds = Math.Clamp(Load().SampleAcquisitionIntervalSeconds, 1, 30);
+        CalibrationProfileSettings defaults = Load();
+        settings.SampleAcquisitionIntervalSeconds = Math.Clamp(defaults.SampleAcquisitionIntervalSeconds, 1, 30);
+        settings.WavelengthTraceIntervalSeconds = Math.Clamp(defaults.WavelengthTraceIntervalSeconds, 1, 86400);
     }
 
     public void Save(CalibrationProfileSettings settings)

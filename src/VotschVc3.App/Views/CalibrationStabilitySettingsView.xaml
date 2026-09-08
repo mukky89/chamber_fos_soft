@@ -218,7 +218,7 @@
                 <Border Style="{StaticResource SettingCard}" ToolTip="Samostatný časový trace wavelength umožňuje spätne vidieť celý nábeh, stabilizáciu aj meranie. Interval určuje frekvenciu zápisu do trace súboru, nie frekvenciu stability detektora.">
                     <StackPanel>
                         <TextBlock Text="Wavelength trace log" Style="{StaticResource SettingName}" />
-                        <TextBlock Text="Ukladá priebežný λ záznam pre audit a grafy. Odporúčané nechať zapnuté pri debugovaní kalibrácie." Style="{StaticResource SettingHelp}" />
+                        <TextBlock Text="Ukladá priebežný λ záznam nezávisle od stability. Predvolený interval 1 s nastavíte v Administrácia → Predvolené nastavenia FBG kalibrácie → Interval trace logu [s]. Nový beh prevezme interval z administrácie." Style="{StaticResource SettingHelp}" />
                         <CheckBox Content="Zapisovať samostatný wavelength log" IsChecked="{Binding EnableWavelengthTraceLogging}" Margin="0,2,0,8" />
                         <DockPanel LastChildFill="False">
                             <TextBlock Text="Interval [s]" Style="{StaticResource Label}" Margin="0,0,8,0" />
