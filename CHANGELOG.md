@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.286] – 2026-09-08
+
+### Opravené
+
+- Zoom ovládanie grafu má vlastný riadok mimo vykresľovanej plochy. Zvislá čiara Teraz je plná, výrazne modrá; kurzor sa v pásme 10 px prichytí k čiare a zobrazí skutočnú teplotu komory aj setpoint.
+
 ## [1.76.285] – 2026-09-08
 
 ### Opravené

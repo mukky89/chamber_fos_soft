@@ -16,12 +16,13 @@
 
     <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="6">
         <Grid>
-            <Canvas x:Name="PlotCanvas" ClipToBounds="True" Background="Transparent" />
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Canvas Grid.Row="1" x:Name="PlotCanvas" ClipToBounds="True" Background="Transparent" />
 
             <!-- Zoom controls, so priblíženie does not depend on a scroll gesture. Top-right,
                  the same place as in the profile preview – along the bottom they sat on top
                  of the time-axis label. -->
-            <Border x:Name="ZoomControls" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,5,0"
+            <Border x:Name="ZoomControls" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,0,6"
                     Background="#E6121B2A" BorderBrush="#425B78" BorderThickness="1"
                     CornerRadius="7" Padding="4" Opacity="0.97">
                 <StackPanel Orientation="Horizontal">

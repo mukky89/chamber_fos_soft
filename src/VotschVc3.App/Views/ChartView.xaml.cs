@@ -942,6 +942,34 @@ public partial class ChartView : UserControl
 
         double left = _plotLeft;
         double mx = Math.Clamp(e.GetPosition(PlotCanvas).X, left, left + _plotW);
+        Point pointer = e.GetPosition(PlotCanvas);
+        var nowSeries = Series?.FirstOrDefault(s => s.Name == "Teraz" && s.Points.Count >= 2);
+        if (nowSeries is not null && pointer.Y >= PadTop && pointer.Y <= PadTop + _plotH)
+        {
+            double nowX = left + (nowSeries.Points[0].X - _minX) / (_maxX - _minX) * _plotW;
+            if (nowX >= left && nowX <= left + _plotW && Math.Abs(pointer.X - nowX) <= 10)
+            {
+                ClearOverlay();
+                AddOverlay(new Line { X1 = nowX, X2 = nowX, Y1 = PadTop, Y2 = PadTop + _plotH,
+                    Stroke = nowSeries.Stroke, StrokeThickness = 4, IsHitTestVisible = false });
+                var live = Series?.FirstOrDefault(s => s.Name == "Aktuálna teplota komory" && s.Points.Count == 1);
+                if (live is not null)
+                {
+                    double y = Math.Clamp(PadTop + (1 - (live.Points[0].Y - _minY) / (_maxY - _minY)) * _plotH, PadTop, PadTop + _plotH);
+                    var point = new Ellipse { Width = 10, Height = 10, Fill = nowSeries.Stroke, Stroke = Brushes.White, StrokeThickness = 2, IsHitTestVisible = false };
+                    Canvas.SetLeft(point, nowX - 5); Canvas.SetTop(point, y - 5); AddOverlay(point);
+                }
+                var readout = new Border { Background = new SolidColorBrush(Color.FromRgb(12, 53, 76)),
+                    BorderBrush = nowSeries.Stroke, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5),
+                    Padding = new Thickness(7), MaxWidth = Math.Max(80, _plotW - 8), IsHitTestVisible = false,
+                    Child = new TextBlock { Text = nowSeries.PointLabel ?? "Teraz", Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, FontSize = 12 } };
+                readout.Measure(new Size(Math.Max(80, _plotW - 8), double.PositiveInfinity));
+                Canvas.SetLeft(readout, Math.Clamp(nowX + 10, left, Math.Max(left, left + _plotW - readout.DesiredSize.Width)));
+                Canvas.SetTop(readout, PadTop + 6);
+                AddOverlay(readout);
+                return;
+            }
+        }
         double dataX = _minX + (mx - left) / _plotW * (_maxX - _minX);
         if (InterpolateY(_hoverSeries.Points, dataX) is not { } yv)
         {

@@ -4583,11 +4583,13 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             double maxY = pts.Max(p => p.Y);
             series.Add(new ChartSeries(
                 "Teraz",
-                TempSpBrush,
+                Brushes.DeepSkyBlue,
                 new List<Point> { new(nowX, minY), new(nowX, maxY) },
-                dashed: true,
-                strokeThickness: 3.5));
-            if (!double.IsNaN(_profileCurrentSetpoint))
+                dashed: false,
+                pointLabel: $"Teraz · Komora {(MeasuredTemperature is { } measured ? measured.ToString("F3") + " °C" : "N/A")} · Setpoint {_profileCurrentSetpoint:F3} °C",
+                strokeThickness: 3));
+            if (MeasuredTemperature is { } live && double.IsFinite(live))
+                series.Add(new ChartSeries("Aktuálna teplota komory", Brushes.DeepSkyBlue, new List<Point> { new(nowX, live) }));            if (!double.IsNaN(_profileCurrentSetpoint))
             {
                 series.Add(new ChartSeries(
                     "Aktuálny setpoint",
