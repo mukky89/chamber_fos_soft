@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.295] – 2026-09-08
+
+### Pridané
+- Počas celého behu aplikácie, aj v oznamovacej oblasti, sa vyžaduje zapnutý systém a displej. Aktivita sa obnovuje každých 10 sekúnd nulovým pohybom myši bez kliknutia.
+- Pri ukončení sa požiadavka uvoľní; nastavenia Windows sa trvalo nemenia. Ručné zamknutie, vynútené systémové pravidlá, výpadok napájania a siete zostávajú mimo kontroly aplikácie. Odmietnutie požiadavky Windows sa zapíše do logu.
+
 ## [1.76.294] – 2026-09-08
 
 ### Opravené

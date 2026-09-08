@@ -11,6 +11,7 @@ namespace VotschVc3.App;
 public partial class App : Application
 {
     private bool _unexpectedErrorDialogOpen;
+    private WindowsKeepAwake? _keepAwake;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -22,6 +23,7 @@ public partial class App : Application
         AppPaths.Initialize();
         CalibrationStorage.Start();
         AppLog.Configure(AppPaths.AppLogDir);
+        _keepAwake = new WindowsKeepAwake(message => AppLog.Warn("PC bez uspania", message));
 
         // Dashboard Bridge is deliberately manual-only. Older builds registered a
         // scheduled task and also tried to launch the bridge from ShellViewModel.
@@ -43,6 +45,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _keepAwake?.Dispose();
         Notifications.DesktopNotifier.Shutdown();
         AppLog.Info("App", "Aplikácia ukončená.");
         base.OnExit(e);

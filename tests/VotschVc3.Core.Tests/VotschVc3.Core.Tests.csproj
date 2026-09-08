@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\VotschVc3.App\WindowsKeepAwake.cs" Link="WindowsKeepAwake.cs" />
     <ProjectReference Include="..\..\src\VotschVc3.Core\VotschVc3.Core.csproj" />
     <Compile Include="..\..\src\VotschVc3.App\ViewModels\CalibrationDashboardViewModel.cs" Link="CalibrationDashboardViewModel.cs" />
   </ItemGroup>
