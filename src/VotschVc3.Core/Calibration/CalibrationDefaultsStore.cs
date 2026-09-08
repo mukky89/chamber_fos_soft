@@ -45,6 +45,23 @@ public sealed class CalibrationDefaultsStore
         ArgumentNullException.ThrowIfNull(settings);
         if (preserveRunSettings) return;
         CalibrationProfileSettings defaults = Load();
+        // Refresh the chamber prerequisite when admin defaults change, while retaining local
+        // adjustments made after that import. Legacy setups have no imported signature.
+        string chamberSignature = JsonSerializer.Serialize(new
+        {
+            defaults.ChamberEntryEnabled, defaults.ChamberEntryToleranceC,
+            defaults.ChamberEntryStableSeconds, defaults.ChamberEntryRangeC,
+            defaults.ChamberEntryDriftCPerMinute
+        });
+        if (settings.AppliedChamberEntryDefaults != chamberSignature)
+        {
+            settings.ChamberEntryEnabled = defaults.ChamberEntryEnabled;
+            settings.ChamberEntryToleranceC = defaults.ChamberEntryToleranceC;
+            settings.ChamberEntryStableSeconds = defaults.ChamberEntryStableSeconds;
+            settings.ChamberEntryRangeC = defaults.ChamberEntryRangeC;
+            settings.ChamberEntryDriftCPerMinute = defaults.ChamberEntryDriftCPerMinute;
+            settings.AppliedChamberEntryDefaults = chamberSignature;
+        }
         settings.SampleAcquisitionIntervalSeconds = Math.Clamp(defaults.SampleAcquisitionIntervalSeconds, 1, 30);
         settings.WavelengthTraceIntervalSeconds = Math.Clamp(defaults.WavelengthTraceIntervalSeconds, 1, 86400);
     }

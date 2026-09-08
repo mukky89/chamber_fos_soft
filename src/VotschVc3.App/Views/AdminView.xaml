@@ -87,7 +87,7 @@
                 <StackPanel>
                     <TextBlock Text="Predvolené nastavenia FBG kalibrácie" Style="{StaticResource Heading}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
-                               Text="Prejdite myšou na informačnú ikonu pri parametri pre vysvetlenie. Zmeny potvrďte tlačidlom Uložiť predvolené nastavenia. Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG aj interval trace logu sa použijú pri každom novom behu aj pre uložené zapojenie. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
+                               Text="Prejdite myšou na informačnú ikonu pri parametri pre vysvetlenie. Zmeny potvrďte tlačidlom Uložiť predvolené nastavenia. Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG aj interval trace logu sa použijú pri každom novom behu aj pre uložené zapojenie. Zmenené predvoľby ustálenia komory sa prenesú aj do existujúcich zapojení pri otvorení alebo pred novým behom. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
                     <Border Background="#172333" BorderBrush="#35465D" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,10">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

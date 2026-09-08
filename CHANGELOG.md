@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.294] – 2026-09-08
+
+### Opravené
+- Nastavenia vstupnej stability komory sa prenesú z administrácie aj do starších uložených zapojení pri načítaní, opätovnom otvorení a pred novým behom.
+- Prenáša sa zapnutie, tolerancia, časové okno, rozsah a drift. Vlastné úpravy zapojenia sa zachovajú, kým sa tieto administrátorské predvoľby nezmenia. Rozbehnuté a obnovované behy sa automaticky nemenia.
+
 ## [1.76.293] – 2026-09-08
 
 ### Zmenené

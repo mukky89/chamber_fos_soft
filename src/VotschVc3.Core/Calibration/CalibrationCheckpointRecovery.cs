@@ -108,6 +108,7 @@ public static class CalibrationCheckpointRecovery
             MaxWavelengthRangePm = settings.MaxWavelengthRangePm,
             MaxWavelengthStdDevPm = settings.MaxWavelengthStdDevPm,
             MaxWavelengthDriftPmPerMinute = settings.MaxWavelengthDriftPmPerMinute,
+            AppliedChamberEntryDefaults = settings.AppliedChamberEntryDefaults,
             ChamberEntryEnabled = settings.ChamberEntryEnabled,
             ChamberEntryToleranceC = settings.ChamberEntryToleranceC,
             ChamberEntryStableSeconds = settings.ChamberEntryStableSeconds,

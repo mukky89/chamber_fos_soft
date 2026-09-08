@@ -106,6 +106,7 @@ public sealed class CalibrationProfileSettings
     public double MaxWavelengthDriftPmPerMinute { get; set; } = 1.0;
 
     // Missing in historical setup/checkpoint JSON means disabled; admin defaults enable it for new setups.
+    public string? AppliedChamberEntryDefaults { get; set; }
     public bool ChamberEntryEnabled { get; set; }
     public double ChamberEntryToleranceC { get; set; } = 0.5;
     public double ChamberEntryStableSeconds { get; set; } = 120;

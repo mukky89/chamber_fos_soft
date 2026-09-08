@@ -42,6 +42,6 @@ public sealed partial class AdminViewModel : ObservableObject
     private void SaveCalibrationDefaults()
     {
         _defaultsStore.Save(_calibrationDefaults);
-        CalibrationDefaultsStatus = $"Uložené {DateTime.Now:HH:mm}. Interval odberu aj trace logu sa použijú pri každom novom behu; ostatné predvoľby pri novom zapojení.";
+        CalibrationDefaultsStatus = $"Uložené {DateTime.Now:HH:mm}. Intervaly platia pre nové behy. Zmenené predvoľby komory sa prenesú pri otvorení FBG alebo pred novým behom; rozbehnuté a obnovované behy sa zachovajú.";
     }
 }

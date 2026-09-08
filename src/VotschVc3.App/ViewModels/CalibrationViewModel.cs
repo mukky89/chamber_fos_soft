@@ -713,6 +713,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     {
         if (IsRunning || HasResumableCalibration) return;
         _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: false);
+        RefreshSettingsBindings();
         OnPropertyChanged(nameof(OperatorSupervisionEnabled));
         OnPropertyChanged(nameof(OperatorSupervisionLabel));
         OnPropertyChanged(nameof(SampleAcquisitionIntervalSeconds));
