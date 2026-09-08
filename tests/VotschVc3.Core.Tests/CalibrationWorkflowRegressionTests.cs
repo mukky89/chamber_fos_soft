@@ -331,6 +331,15 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.Contains(updates, s => s.PlateauIndex == 0 && s.Message.Contains("nábeh", StringComparison.OrdinalIgnoreCase));
             CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
             Assert.Equal(40, plateau.TargetTemperatureC, 6);
+            CalibrationProgressSnapshot completed = Assert.Single(updates, u => u.State == CalibrationRunState.PlateauCompleted);
+            Assert.Equal(plateau.Targets.Count, completed.Targets.Count);
+            Assert.Equal(plateau.Targets[0].Status, completed.Targets[0].State);
+            Assert.Equal(plateau.Targets[0].SampleCount, completed.Targets[0].MeasurementSamples);
+            var dashboard = new VotschVc3.App.ViewModels.CalibrationDashboardViewModel();
+            dashboard.Configure("Test", "Komora", new[] { 40d }, true, "");
+            dashboard.Apply(completed, DateTimeOffset.Now);
+            Assert.Equal("✓ ÚSPEŠNÉ", dashboard.Points[0].Badge);
+            Assert.Contains("Stabilita 1/1", dashboard.Points[0].Detail);
             Assert.Single(plateau.Targets);
             Assert.DoesNotContain(run.Plateaus, item => Math.Abs(item.TargetTemperatureC - 25) < 0.001);
             Assert.Equal(25, chamber.WrittenTemperatures[^1], 6);

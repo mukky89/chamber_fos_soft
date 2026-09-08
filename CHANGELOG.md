@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.256] – 2026-09-08
+
+### Opravené
+
+- Správa o dokončení kalibračného bodu odovzdáva dashboardu skutočné výsledky všetkých senzorov. Úspešné body sa počas živého behu už nesprávne neoznačia ako nepotvrdené so stabilitou 0/N len kvôli prázdnemu zoznamu v stavovej správe. Uložené namerané výsledky sa nemenia.
+
 ## [1.76.255] – 2026-09-08
 
 ### Zmenené

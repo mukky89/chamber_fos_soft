@@ -214,7 +214,20 @@ public sealed class CalibrationProfileRunner
                     plateau.Targets.Count(t => t.Status == CalibrationTargetState.Stable),
                     plateau.Targets.Count,
                     plateau.CompletedAt - plateau.StartedAt,
-                    Array.Empty<CalibrationTargetProgress>(),
+                    plateau.Targets.Select(target => new CalibrationTargetProgress(
+                        target.SerialNumber, target.Channel, target.PeakId, target.PeakIndex,
+                        target.MeanWavelengthNm, target.SampleCount, setup.Settings.RequiredMeasurementSamples,
+                        target.StandardDeviationPm, target.DriftPmPerMinute, target.StabilizationTime,
+                        TimeSpan.Zero, target.Status, target.Problem,
+                        StabilitySamples: target.Status == CalibrationTargetState.Stable ? setup.Settings.RequiredStableSamples : 0,
+                        RequiredStabilitySamples: setup.Settings.RequiredStableSamples,
+                        MeasurementSamples: target.SampleCount,
+                        RequiredMeasurementSamples: setup.Settings.RequiredMeasurementSamples,
+                        RangePm: target.RangePm,
+                        RangeLimitPm: setup.Settings.MaxWavelengthRangePm,
+                        StdDevLimitPm: setup.Settings.MaxWavelengthStdDevPm,
+                        DriftLimitPmPerMinute: setup.Settings.MaxWavelengthDriftPmPerMinute,
+                        Phase: "Done", BlockingReason: target.Problem ?? string.Empty)).ToArray(),
                     $"Kalibračný bod {currentPlateau + 1} / {calibrationSteps.Count} je dokončený."));
             }
 
