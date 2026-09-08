@@ -8,6 +8,38 @@ namespace VotschVc3.Core.Tests;
 
 public sealed class CalibrationWorkflowRegressionTests
 {
+    [Fact]
+    public async Task ChamberPrerequisiteKeepsWikaWindowEmptyWhileStillReadingReference()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            setup.Settings.ChamberEntryEnabled = true;
+            var run = new CalibrationRunRecord { ProfileId = setup.ProfileId };
+            var store = new CalibrationStore(root);
+            await using var writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            CalibrationProgressSnapshot? observed = null;
+            int referenceReads = 0;
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => orchestrator.WaitForPlateauAsync(
+                run, setup, 0, 1, 20,
+                _ => Task.FromResult(18d),
+                _ => { referenceReads++; return Task.FromResult<double?>(20); },
+                writer,
+                progress: snapshot => { observed = snapshot; cancellation.Cancel(); },
+                cancellationToken: cancellation.Token));
+            Assert.True(referenceReads > 0);
+            Assert.NotNull(observed);
+            Assert.Contains("KOMORA ČAKÁ", observed!.Message);
+            Assert.Equal(0, observed.TemperatureStableScoreSeconds);
+            Assert.False(observed.TemperatureGateOpen);
+        }
+        finally { Directory.Delete(root, true); }
+    }
     [Theory]
     [InlineData(false, 91, 1000)]
     [InlineData(false, 61, 50)]

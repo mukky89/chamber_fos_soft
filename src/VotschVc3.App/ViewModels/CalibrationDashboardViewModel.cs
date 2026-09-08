@@ -92,7 +92,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Trend { get; private set; } = "—";
     public string TrendTone { get; private set; } = "Steady";
     public bool HasReference { get; private set; }
-    public bool CanForceTemperatureGate => _running &&
+    public bool CanForceTemperatureGate => _running && _snapshot?.Message.Contains("KOMORA ČAKÁ") != true &&
         _state == CalibrationRunState.WaitingForChamberStability &&
         (!HasReference || _snapshot?.ReferenceTemperatureC is not null);
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
@@ -178,9 +178,10 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public double SampleProgress => RequiredSamples == 0 ? 0 : Math.Clamp(100d * Samples / RequiredSamples, 0, 100);
     private bool RunStoppedWithError => _state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted;
     private bool PointFinished => AllTargetsFinished || _state is CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings;
-    public string ChamberCardState => _started is null ? "○ PENDING" : _running ? "● MONITORING" : RunStoppedWithError ? "! STOPPED" : "✓ DONE";
-    public string ChamberCardTone => _started is null ? "Pending" : _running ? "Active" : RunStoppedWithError ? "Error" : "Done";
-    public string ReferenceCardState => RunStoppedWithError ? "! STOPPED" : !HasReference ? "— N/A" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ DONE" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ WAITING" : "○ PENDING";
+    public string ChamberEntryDetail => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? _snapshot.Message : "Ak je zapnutá vstupná podmienka: najprv ustálenie komory, potom WIKA.";
+    public string ChamberCardState => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? "Ⅱ WAITING" : _started is null ? "○ PENDING" : _running ? "● MONITORING" : RunStoppedWithError ? "! STOPPED" : "✓ DONE";
+    public string ChamberCardTone => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? "Waiting" : _started is null ? "Pending" : _running ? "Active" : RunStoppedWithError ? "Error" : "Done";
+    public string ReferenceCardState => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? "○ ČAKÁ NA KOMORU" : RunStoppedWithError ? "! STOPPED" : !HasReference ? "— N/A" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ DONE" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ WAITING" : "○ PENDING";
     public string ReferenceCardTone => RunStoppedWithError ? "Error" : !HasReference ? "Pending" : ReferenceCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : ReferenceCardState.Contains("WAITING", StringComparison.Ordinal) ? "Waiting" : "Pending";
     private bool UnconfirmedPoint => PointFinished && (TotalTargets == 0 || _snapshot!.Targets.Any(t => t.State != CalibrationTargetState.Stable));
     public string PeakCardState => RunStoppedWithError ? "! STOPPED" : UnconfirmedPoint ? "! STABILITA NEPOTVRDENÁ" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ DONE" : _state == CalibrationRunState.StabilizingSensors ? "● RUNNING" : PointFinished ? "✓ DONE" : "○ PENDING";
@@ -712,7 +713,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             _enableSetpointRamp
                 ? $"Aplikácia posúva setpoint plynulo najviac {_setpointRampCPerMinute:F2} °C/min. Komora sa naďalej reguluje vlastným interným snímačom; WIKA iba overí stabilitu po dosiahnutí cieľa. Profilové hold časy neurčujú dĺžku FBG kalibrácie."
                 : "Plynulý nábeh je vypnutý a aplikácia nastaví cieľ plata priamo. Komora sa reguluje vlastným interným snímačom; WIKA iba overuje stabilitu.",
-            "Interná sonda komory sa zobrazuje a loguje, ale neotvára ani neblokuje FBG bránu. Slúži na kontrolu správania regulátora a porovnanie s WIKA.",
+            "Pri zapnutej vstupnej podmienke musí komora najprv splniť vlastné okno, toleranciu, rozsah a drift. Až potom začne okno WIKA; čítanie a logovanie bežia počas oboch fáz.",
             $"Stabilné skóre WIKA sa zbiera po blokoch 5 vzoriek:\n" +
             $"1. Prvá vzorka nastaví porovnávaciu základňu.\n" +
             $"2. Posledná vzorka bloku musí byť pri cieli v tolerancii ±{StabilityToleranceC:F3} °C.\n" +

@@ -91,7 +91,7 @@ The following settings were validated on the real production reference thermomet
 - `CalibrationSetup.CalibrationSegmentIndices` is the source of truth for which non-ramp profile segments are calibration plateaus. `ProfileSegment.IsCalibrationPoint` is only a backward-compatible fallback when an older setup has no explicit saved indices.
 - Never silently calibrate a plateau the operator did not select in the FBG workspace.
 - **WIKA CTH7000 is the authoritative calibration temperature.** When a WIKA reference is assigned, FBG wavelength stability evaluation may begin only after the **WIKA reference itself** satisfies the configured target tolerance, stable duration, and maximum drift.
-- **Chamber temperature is informational for FBG stability and must not block a calibration plateau.** It may still be displayed, logged and compared to WIKA for diagnostics/alerts, but the chamber controller reading is not the stable-temperature gate.
+- **An optional chamber-entry gate precedes WIKA stability.** When enabled, require the configured chamber rolling window, tolerance, range and drift before starting a fresh WIKA stability window. Continue reading/logging both probes. After entry, WIKA remains the authoritative ongoing stability gate. Preserve legacy checkpoint settings; the existing bounded temperature timeout covers both phases.
 - A missing, invalid, or unstable WIKA reference must not be treated as a stable calibration temperature. After the configured stability timeout, require operator action rather than recording a nominally valid plateau.
 - When WIKA continues to return a valid temperature but has not yet completed the stability gate, extend the base stability timeout in 15-minute increments, with an absolute maximum of one additional hour per plateau. Record and notify every extension. After the first extension budget is exhausted, defer that plateau, continue with the other selected plateaus, then retry the deferred plateau once. Persist the deferred queue in the checkpoint. If the retry also exhausts its budget, stop automatic progression, require operator action, show explicit next steps and send the configured operator e-mail; never accept the unstable plateau automatically and never loop retries indefinitely.
 - While the current plateau is actively waiting for temperature stability, allow the operator to add an audited 30-minute manual settling extension. Manual extension must not reset the accumulated stable score or samples and must be displayed separately from the bounded automatic extension.
@@ -293,7 +293,7 @@ The following settings were validated on the real production reference thermomet
 ### Core calibration path
 
 - `src/VotschVc3.Core/Calibration/CalibrationProfileRunner.cs`
-  - Executes only explicitly selected calibration plateaus and owns the **WIKA reference stability gate**; chamber temperature is informational for FBG stability.
+  - Executes only explicitly selected calibration plateaus and owns the **WIKA reference stability gate**, optionally preceded by the configured chamber-entry prerequisite.
 - `src/VotschVc3.Core/Calibration/CalibrationOrchestrator.cs`
   - Owns per-peak independent wavelength stability tracking, raw samples, failure policies, and plateau results.
 - `src/VotschVc3.Core/Calibration/StabilityDetectors.cs`

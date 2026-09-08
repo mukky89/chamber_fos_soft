@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.280] – 2026-09-08
+
+### Pridané
+
+- Editovateľná vstupná stabilita komory pred WIKA v administrácii a FBG: ±0,5 °C, okno 120 s, rozsah 0,5 °C, drift 0,1 °C/min. Odporúčanie vychádza zo 4 behov a 92 plat.
+- WIKA sa číta a loguje, ale jej stabilné okno začne až po splnení komory. Čakanie používa existujúci ohraničený teplotný timeout. Historické checkpointy a zapojenia sa nemenia automaticky.
+
 ## [1.76.279] – 2026-09-08
 
 ### Zmenené

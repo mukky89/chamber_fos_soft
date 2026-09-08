@@ -639,6 +639,12 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         set { _setup.Settings.ChamberToleranceC = Math.Abs(value); OnRuntimeStabilitySettingChanged(); }
     }
 
+    public bool ChamberEntryEnabled { get => _setup.Settings.ChamberEntryEnabled; set { _setup.Settings.ChamberEntryEnabled = value; OnRuntimeStabilitySettingChanged(); } }
+    public double ChamberEntryToleranceC { get => _setup.Settings.ChamberEntryToleranceC; set { _setup.Settings.ChamberEntryToleranceC = Math.Clamp(value, 0.01, 20); OnRuntimeStabilitySettingChanged(); } }
+    public double ChamberEntryStableSeconds { get => _setup.Settings.ChamberEntryStableSeconds; set { _setup.Settings.ChamberEntryStableSeconds = Math.Clamp(value, 1, 3600); OnRuntimeStabilitySettingChanged(); } }
+    public double ChamberEntryRangeC { get => _setup.Settings.ChamberEntryRangeC; set { _setup.Settings.ChamberEntryRangeC = Math.Clamp(value, 0.01, 20); OnRuntimeStabilitySettingChanged(); } }
+    public double ChamberEntryDriftCPerMinute { get => _setup.Settings.ChamberEntryDriftCPerMinute; set { _setup.Settings.ChamberEntryDriftCPerMinute = Math.Clamp(value, 0.001, 10); OnRuntimeStabilitySettingChanged(); } }
+
     public double ChamberStableMinutes
     {
         get => _setup.Settings.ChamberStableDuration.TotalMinutes;
@@ -2654,6 +2660,11 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         OnPropertyChanged(nameof(MaxStdDevPm));
         OnPropertyChanged(nameof(MaxDriftPmPerMinute));
         OnPropertyChanged(nameof(ChamberToleranceC));
+        OnPropertyChanged(nameof(ChamberEntryEnabled));
+        OnPropertyChanged(nameof(ChamberEntryToleranceC));
+        OnPropertyChanged(nameof(ChamberEntryStableSeconds));
+        OnPropertyChanged(nameof(ChamberEntryRangeC));
+        OnPropertyChanged(nameof(ChamberEntryDriftCPerMinute));
         OnPropertyChanged(nameof(ChamberStableMinutes));
         OnPropertyChanged(nameof(MaxChamberRangeC));
         OnPropertyChanged(nameof(MaxChamberStdDevC));

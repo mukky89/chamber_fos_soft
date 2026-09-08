@@ -22,15 +22,20 @@ public sealed class CalibrationDefaultsStore
 
     public CalibrationProfileSettings Load()
     {
-        if (!File.Exists(Path)) return new CalibrationProfileSettings();
+        if (!File.Exists(Path)) return new CalibrationProfileSettings { ChamberEntryEnabled = true };
         try
         {
-            return JsonSerializer.Deserialize<CalibrationProfileSettings>(File.ReadAllText(Path), JsonOptions)
-                ?? new CalibrationProfileSettings();
+            string json = File.ReadAllText(Path);
+            var settings = JsonSerializer.Deserialize<CalibrationProfileSettings>(json, JsonOptions)
+                ?? new CalibrationProfileSettings { ChamberEntryEnabled = true };
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty(nameof(settings.ChamberEntryEnabled), out _))
+                settings.ChamberEntryEnabled = true;
+            return settings;
         }
         catch (Exception ex) when (ex is IOException or JsonException)
         {
-            return new CalibrationProfileSettings();
+            return new CalibrationProfileSettings { ChamberEntryEnabled = true };
         }
     }
 

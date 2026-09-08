@@ -105,6 +105,13 @@ public sealed class CalibrationProfileSettings
     /// <summary>0 disables the criterion. Unit: pm/min.</summary>
     public double MaxWavelengthDriftPmPerMinute { get; set; } = 1.0;
 
+    // Missing in historical setup/checkpoint JSON means disabled; admin defaults enable it for new setups.
+    public bool ChamberEntryEnabled { get; set; }
+    public double ChamberEntryToleranceC { get; set; } = 0.5;
+    public double ChamberEntryStableSeconds { get; set; } = 120;
+    public double ChamberEntryRangeC { get; set; } = 0.5;
+    public double ChamberEntryDriftCPerMinute { get; set; } = 0.1;
+
     public double ChamberToleranceC { get; set; } = 1.0;
     public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(10);
     public double MaxChamberDriftCPerMinute { get; set; } = 0.03;

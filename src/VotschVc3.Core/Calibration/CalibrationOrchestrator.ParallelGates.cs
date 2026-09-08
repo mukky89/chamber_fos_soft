@@ -135,6 +135,7 @@ public sealed partial class CalibrationOrchestrator
         DateTimeOffset plateauStarted = DateTimeOffset.Now;
         Stopwatch plateauClock = Stopwatch.StartNew();
         bool hasExternalReference = readReferenceTemperatureAsync is not null;
+        var chamberEntry = new ChamberEntryGate();
         var referenceDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
@@ -294,14 +295,16 @@ public sealed partial class CalibrationOrchestrator
 
             // If WIKA is configured, a missing WIKA reading is NOT silently replaced by the chamber
             // probe. The chamber probe is used only when no external reference is configured.
-            temperatureMetrics = hasExternalReference
+            bool chamberEntryReady = !hasExternalReference || chamberEntry.Add(loopAt, actualTemperature, targetTemperatureC, settings);
+            if (!chamberEntryReady) referenceDetector.Reset();
+            temperatureMetrics = !chamberEntryReady ? null : hasExternalReference
                 ? (referenceTemperature is { } reference
                     ? referenceDetector.Add(loopAt, reference, targetTemperatureC)
                     : null)
                 : chamberDetector.Add(loopAt, actualTemperature, targetTemperatureC);
 
             bool temperatureGateOverrideRequested = Interlocked.Exchange(ref _temperatureGateOverrideRequested, 0) == 1;
-            if (!temperatureGateForced && temperatureGateOverrideRequested)
+            if (chamberEntryReady && !temperatureGateForced && temperatureGateOverrideRequested)
             {
                 bool hasAuthoritativeTemperature = hasExternalReference
                     ? referenceTemperature is not null
@@ -320,7 +323,7 @@ public sealed partial class CalibrationOrchestrator
             }
 
             bool minimumElapsed = plateauClock.Elapsed >= minimumPlateauDuration;
-            bool temperatureStable = temperatureMetrics?.IsStable == true || temperatureGateForced;
+            bool temperatureStable = chamberEntryReady && (temperatureMetrics?.IsStable == true || temperatureGateForced);
             bool shouldOpenTemperatureGate = minimumElapsed && temperatureStable;
 
             if (!shouldOpenTemperatureGate)
@@ -346,6 +349,7 @@ public sealed partial class CalibrationOrchestrator
                 string minimumDetail = minimumPlateauDuration <= TimeSpan.Zero
                     ? "minimum hold: bez minima"
                     : $"minimum hold {FormatTime(plateauClock.Elapsed < minimumPlateauDuration ? plateauClock.Elapsed : minimumPlateauDuration)}/{FormatTime(minimumPlateauDuration)} {(minimumElapsed ? "✓" : "…")}";
+                if (!chamberEntryReady) temperatureDetail = "KOMORA ČAKÁ · " + chamberEntry.Detail;
                 string extensionDetail = automaticTemperatureExtensionUsed > TimeSpan.Zero
                     ? $" · automatické predĺženie {FormatTime(automaticTemperatureExtensionUsed)}/{FormatTime(settings.MaxAutomaticChamberStabilityExtension)}"
                     : string.Empty;
