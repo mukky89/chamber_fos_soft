@@ -27,6 +27,27 @@ class Program
   if (help.ToolTip is not TextBlock { Text: "Test vysvetlenia", TextWrapping: TextWrapping.Wrap })
       throw new Exception("Hover explanation missing");
   Console.WriteLine("PASS: admin vector information icon and wrapped tooltip.");
+  IEnumerable<DependencyObject> LogicalDescendants(DependencyObject root)
+  {
+      yield return root;
+      foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+          foreach (var descendant in LogicalDescendants(child)) yield return descendant;
+  }
+  var settingsHeading = LogicalDescendants(admin).OfType<TextBlock>().Single(t => t.Text == "Predvolené nastavenia FBG kalibrácie");
+  var settingsPanel = (StackPanel)LogicalTreeHelper.GetParent(settingsHeading);
+  var settingsCard = (Border)LogicalTreeHelper.GetParent(settingsPanel);
+  settingsCard.Child = null;
+  var preview = new Border { Child = settingsPanel, Width = 1200, Padding = new Thickness(16), Background = new SolidColorBrush(Color.FromRgb(33,35,57)) };
+  preview.Measure(new Size(1200, double.PositiveInfinity));
+  preview.Arrange(new Rect(0, 0, 1200, preview.DesiredSize.Height));
+  preview.UpdateLayout();
+  var settingsBitmap = new RenderTargetBitmap(1200, (int)Math.Ceiling(preview.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+  settingsBitmap.Render(preview);
+  var settingsPng = new PngBitmapEncoder();
+  settingsPng.Frames.Add(BitmapFrame.Create(settingsBitmap));
+  using (var stream = System.IO.File.Create(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "fbg293-settings.png"))) settingsPng.Save(stream);
+  Console.WriteLine("PASS: grouped settings layout at 1200 px.");
+
   StatusCheckIcons.Initialize();
   var source = new TextBox { Text = "✓ Splnené   ⚠ Upozornenie   ❌ Chyba   ℹ Informácia" };
   var text = new TextBlock { FontSize = 18, Foreground = Brushes.White, Margin = new Thickness(12) };

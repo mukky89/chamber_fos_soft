@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.293] – 2026-09-08
+
+### Zmenené
+- Administrátorské predvoľby FBG sú rozdelené do piatich farebne odlíšených kategórií: nábeh teploty, ustálenie komory, referencia WIKA, stabilita FBG a odber/záznam dát.
+- Každá kategória má stručné vysvetlenie a zalamovanie polí podľa šírky okna. Spoločný timeout je označený ako Limit komora + WIKA; nastavené hodnoty, tooltipy a spoločné uloženie zostávajú zachované.
+
 ## [1.76.292] – 2026-09-08
 
 ### Zmenené
