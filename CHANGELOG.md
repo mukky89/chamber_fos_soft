@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.274] – 2026-09-08
+
+### Pridané
+
+- Tlačidlo Ukončiť a začať odznova zastaví kalibráciu a po potvrdenom STOP komory zruší checkpoint. Nasledujúce spustenie začne od prvého bodu s novým ID.
+- Zapojenie a nastavenia zostanú pripravené; pôvodný beh a merania zostanú v histórii označené ako ukončené operátorom. Pri chybe STOP alebo uloženia sa pokračovanie nemaže. Akcia vyžaduje potvrdenie v aplikácii.
+
 ## [1.76.273] – 2026-09-08
 
 ### Zmenené

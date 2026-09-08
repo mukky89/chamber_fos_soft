@@ -80,7 +80,7 @@
                 <TextBlock Text="Live prehľad kalibračného procesu"
                            Style="{StaticResource Caption}" />
             </StackPanel>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button Style="{StaticResource GhostButton}" Command="{Binding SaveSetupCommand}" Margin="0,0,14,0"
                         ToolTip="Uloží zapojenie (vybrané peaky, SN, poznámky) pre ďalší beh.">
                     <StackPanel Orientation="Horizontal">
@@ -129,6 +129,7 @@
                         </Button>
                     </StackPanel>
                 </Border>
+                <Button Content="Ukončiť a začať odznova" Command="{Binding ResetCalibrationCommand}" Style="{StaticResource AccentOutlineButton}" Margin="10,0,0,0" Padding="12,8" ToolTip="Zastaví komoru a zruší pokračovanie rozpracovaného behu. Merania zostanú v histórii; nový beh začne od prvého bodu." />
                 <Button Style="{StaticResource GhostButton}" Margin="10,0,0,0" Padding="12,8"
                         Click="CloseButton_Click" ToolTip="Skryje okno. Prebiehajúca kalibrácia a pripojené zariadenia zostanú aktívne.">
                     <StackPanel Orientation="Horizontal">
@@ -136,7 +137,7 @@
                         <TextBlock Text="Zavrieť" Style="{StaticResource IconLabel}" Margin="8,0,0,0" />
                     </StackPanel>
                 </Button>
-            </StackPanel>
+            </WrapPanel>
         </DockPanel>
 
         </StackPanel>

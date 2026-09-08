@@ -134,6 +134,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null && !HasOperatorDecision);
         ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending && !HasOperatorDecision && !OperatorSupervisionEnabled);
         StopCalibrationCommand = new RelayCommand(StopCalibration, CanStopOrFinalizeCalibration);
+        ResetCalibrationCommand = new RelayCommand(RequestFreshCalibration, () => !_freshStartPending && CanStopOrFinalizeCalibration());
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
         ExportCalibrationCoefficientsCommand = new RelayCommand(ExportCalibrationCoefficients, () => SelectedHistoryRun?.CalibrationResults.Count > 0);
@@ -244,6 +245,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     public RelayCommand PauseResumeCommand { get; }
     public RelayCommand ForceNextStepCommand { get; }
     public RelayCommand StopCalibrationCommand { get; }
+    public RelayCommand ResetCalibrationCommand { get; }
+    private bool _freshStartPending;
     public RelayCommand RefreshHistoryCommand { get; }
     public RelayCommand ExportSelectedRunCommand { get; }
     public RelayCommand ExportCalibrationCoefficientsCommand { get; }
@@ -790,6 +793,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         ApplyCurrentDefaultsToResumeCommand.RaiseCanExecuteChanged();
         ResumeCalibrationCommand.RaiseCanExecuteChanged();
         StopCalibrationCommand.RaiseCanExecuteChanged();
+        ResetCalibrationCommand.RaiseCanExecuteChanged();
     }
 
     private void ApplyRecoveredMappingsToVisiblePeaks(IEnumerable<CalibrationSensorMapping> mappings)
@@ -1644,7 +1648,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private bool CanStartCalibration()
     {
-        if (IsRunning || (!UseSimulator && SelectedF100?.IsManuallyDisconnected == true) || (!UseSimulator && !PeakLoggerConnected) || SelectedProfile is null || SelectedChamber is null ||
+        if (IsRunning || _freshStartPending || (!UseSimulator && SelectedF100?.IsManuallyDisconnected == true) || (!UseSimulator && !PeakLoggerConnected) || SelectedProfile is null || SelectedChamber is null ||
             !CalibrationPoints.Any(p => p.Selected))
         {
             return false;
@@ -1970,21 +1974,35 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             Dashboard.End(Enum.TryParse<CalibrationRunState>(RunState, out var finalState) ? finalState : CalibrationRunState.Failed,
                 StatusMessage, DateTimeOffset.Now);
             _activeWriter = null;
-            IsRunning = false;
-            OnPropertyChanged(nameof(OperatorSupervisionEnabled));
-            OnPropertyChanged(nameof(OperatorSupervisionLabel));
             _runner = null;
+            if (_freshStartPending && _chamber is null)
+            {
+                _freshStartPending = false;
+                StatusMessage = "STOP komory sa nedá potvrdiť bez pripojenia. Rozpracovaný beh zostal uložený.";
+            }
             if (_chamber is not null)
             {
                 if (_stopRequested)
                 {
-                    try { await _chamber.StopAsync(); } catch { }
+                    try { await _chamber.StopAsync(); }
+                    catch (Exception stopError)
+                    {
+                        if (_freshStartPending)
+                        {
+                            _freshStartPending = false;
+                            StatusMessage = "STOP komory sa nepodarilo potvrdiť. Rozpracovaný beh zostal uložený: " + stopError.Message;
+                        }
+                    }
                 }
                 try { await _chamber.DisconnectAsync(); } catch { }
                 await _chamber.DisposeAsync();
                 _chamber = null;
             }
+            IsRunning = false;
+            OnPropertyChanged(nameof(OperatorSupervisionEnabled));
+            OnPropertyChanged(nameof(OperatorSupervisionLabel));
             _stopRequested = false;
+            if (_freshStartPending) CompleteFreshCalibrationReset();
             RefreshResumeCheckpoint();
             _runCts?.Dispose();
             _runCts = null;
@@ -2095,6 +2113,59 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         ForceNextStepCommand.RaiseCanExecuteChanged();
     }
 
+    private void RequestFreshCalibration()
+    {
+        if (!Views.ConfirmDialog.Ask(
+            "Ukončiť tento beh a začať úplne od prvého bodu?\n\nKomora sa zastaví a možnosť pokračovať v tomto behu sa zruší. " +
+            "Doterajšie merania zostanú v histórii. Zapojenie a nastavenia zostanú pripravené. " +
+            "Nový beh s novým ID spustíte tlačidlom Spustiť kalibráciu.",
+            "Ukončiť a začať odznova", confirmText: "Ukončiť a zrušiť pokračovanie", danger: true, cancelText: "Ponechať beh")) return;
+        if (IsRunning)
+        {
+            _freshStartPending = true;
+            TrySaveResumeCheckpoint("OPERATOR_REQUEST_FRESH_RUN");
+            _stopRequested = true;
+            _runCts?.Cancel();
+            StatusMessage = "Zastavujem komoru. Po potvrdení STOP zruším rozpracovaný stav pre nový beh.";
+            RefreshCommands();
+        }
+        else CompleteFreshCalibrationReset();
+    }
+
+    private void CompleteFreshCalibrationReset()
+    {
+        _freshStartPending = false;
+        try
+        {
+            var checkpoint = _resumeCheckpoint;
+            var run = _activeRun ?? (checkpoint is null ? null : _calibrationStore.LoadRun(checkpoint.RunId));
+            if (run is null) throw new InvalidOperationException("Rozpracovaný beh sa nenašiel.");
+            run.State = CalibrationRunState.Aborted;
+            run.CompletedAt = DateTimeOffset.Now;
+            run.Warnings.Add(new CalibrationWarning
+            {
+                Code = "OPERATOR_RESET_FOR_NEW_RUN",
+                Message = "Operátor ukončil beh a zrušil pokračovanie, aby začal od prvého bodu s novým ID. Merania zostali v histórii.",
+            });
+            _calibrationStore.SaveRun(run);
+            _calibrationStore.DeleteCheckpoint(run.ChamberId);
+            _activeRun = null;
+            _resumeCheckpoint = null;
+            TargetProgress.Clear();
+            RunState = CalibrationRunState.Idle.ToString();
+            WarningText = string.Empty;
+            StatusMessage = "Pripravené na nový beh od prvého bodu. Spustite kalibráciu; pôvodné merania sú v histórii.";
+            Dashboard.End(CalibrationRunState.Aborted, StatusMessage, DateTimeOffset.Now);
+            Dashboard.ResetPlan();
+            Dashboard.SetRunId("—");
+            RefreshDashboardPlan();
+            RefreshResumeCheckpoint();
+            RefreshHistory();
+            PublishCalibrationStatus();
+        }
+        catch (Exception ex) { ReportError(ex); }
+        RefreshCommands();
+    }
     private void StopCalibration()
     {
         if (!IsRunning)
@@ -2571,6 +2642,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         ResumeCalibrationCommand.RaiseCanExecuteChanged();
         ApplyCurrentDefaultsToResumeCommand.RaiseCanExecuteChanged();
         StopCalibrationCommand.RaiseCanExecuteChanged();
+        ResetCalibrationCommand.RaiseCanExecuteChanged();
         PauseResumeCommand.RaiseCanExecuteChanged();
         ForceNextStepCommand.RaiseCanExecuteChanged();
         SaveSetupCommand.RaiseCanExecuteChanged();
