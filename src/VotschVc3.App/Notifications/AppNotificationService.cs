@@ -146,15 +146,39 @@ public static class AppNotificationService
     {
         AppNotificationWindow[] windows;
         lock (Gate) windows = Active.Where(window => ReferenceEquals(window.Owner, owner) && window.IsVisible).ToArray();
-        double top = owner.Top + 18;
+        Rect area = GetNotificationArea(owner);
+        double top = area.Top;
         for (int index = windows.Length - 1; index >= 0; index--)
         {
             AppNotificationWindow window = windows[index];
+            if (top >= area.Bottom - 48) { window.Dismiss(); continue; }
             window.Position(owner, top);
             top += window.ActualHeight + 10;
         }
     }
 
+    // Window.Left/Top can describe the restored window while maximized. Use the actual
+    // client origin and the current monitor work area, converting pixels to WPF units.
+    private static Rect GetNotificationArea(Window owner)
+    {
+        var handle = new System.Windows.Interop.WindowInteropHelper(owner).Handle;
+        var screen = System.Windows.Forms.Screen.FromHandle(handle);
+        var transform = PresentationSource.FromVisual(owner)?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
+        var work = screen.WorkingArea;
+        Point screenStart = transform.Transform(new Point(work.Left, work.Top));
+        Point screenEnd = transform.Transform(new Point(work.Right, work.Bottom));
+        var area = new Rect(screenStart, screenEnd);
+        if (owner.IsVisible && PresentationSource.FromVisual(owner) is not null)
+        {
+            Point origin = transform.Transform(owner.PointToScreen(new Point(0, 0)));
+            var visibleOwner = new Rect(origin, new Size(Math.Max(1, owner.ActualWidth), Math.Max(1, owner.ActualHeight)));
+            visibleOwner.Intersect(area);
+            if (!visibleOwner.IsEmpty && visibleOwner.Width >= 160 && visibleOwner.Height >= 100)
+                area = visibleOwner;
+        }
+        area.Inflate(-12, -12);
+        return area;
+    }
     private static TimeSpan DefaultDuration(AppNotificationKind kind) => kind switch
     {
         AppNotificationKind.Success => TimeSpan.FromSeconds(3.5),
@@ -213,9 +237,10 @@ public static class AppNotificationService
             ShowActivated = false;
             Focusable = false;
             Opacity = 0;
-            Content = BuildContent(notification);
+            Content = new ScrollViewer { Content = BuildContent(notification), VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
 
             Loaded += OnLoaded;
+            SizeChanged += (_, _) => { if (IsLoaded) PositionActive(Owner); };
             owner.LocationChanged += OwnerMoved;
             owner.SizeChanged += OwnerMoved;
             _closeTimer = new DispatcherTimer { Interval = notification.Duration };
@@ -377,11 +402,12 @@ public static class AppNotificationService
 
         public void Position(Window owner, double top)
         {
-            double width = ActualWidth > 0 ? ActualWidth : Width;
-            Left = owner.Left + Math.Max(12, owner.ActualWidth - width - 18);
-            Top = top;
+            Rect area = GetNotificationArea(owner);
+            Width = Math.Min(410, area.Width);
+            MaxHeight = Math.Max(1, area.Bottom - Math.Max(area.Top, top));
+            Left = area.Right - Width;
+            Top = Math.Clamp(top, area.Top, Math.Max(area.Top, area.Bottom - Math.Min(ActualHeight, MaxHeight)));
         }
-
         public void Dismiss() => BeginClose();
 
         private void OwnerMoved(object? sender, EventArgs e) => PositionActive(Owner);

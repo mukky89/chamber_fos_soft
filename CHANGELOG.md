@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.270] – 2026-09-08
+
+### Opravené
+
+- Upozornenia sa umiestňujú podľa skutočnej viditeľnej polohy okna a pracovnej plochy jeho monitora s prepočtom DPI. Maximalizované alebo čiastočne odsunuté okno už neposúva popup mimo obrazovky.
+- Šírka a výška upozornenia sa prispôsobia dostupnému priestoru; dlhý obsah sa dá posúvať. Staršie upozornenia bez miesta sa zatvoria namiesto umiestnenia mimo obrazovky.
+
 ## [1.76.269] – 2026-09-08
 
 ### Opravené
