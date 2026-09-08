@@ -7,6 +7,17 @@
             <Setter Property="Width" Value="150" />
             <Setter Property="Margin" Value="0,0,12,8" />
         </Style>
+        <Style x:Key="CalibrationHelpButton" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="5,0,0,0" />
+            <Setter Property="Foreground" Value="#91BEFF" />
+            <Setter Property="BorderBrush" Value="#648CC8" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="ToolTip" Value="Kliknutím zobrazíte vysvetlenie nastavenia." />
+            <EventSetter Event="Click" Handler="CalibrationHelp_Click" />
+        </Style>
     </UserControl.Resources>
 
     <!-- All content binds against the shell, which owns the actual settings and commands. -->
@@ -55,70 +66,70 @@
                 <StackPanel>
                     <TextBlock Text="Predvolené nastavenia FBG kalibrácie" Style="{StaticResource Heading}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
-                               Text="Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG aj interval trace logu sa použijú pri každom novom behu aj pre uložené zapojenie. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
+                               Text="Kliknite na ? pri parametri pre vysvetlenie. Zmeny potvrďte tlačidlom Uložiť predvolené nastavenia. Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG aj interval trace logu sa použijú pri každom novom behu aj pre uložené zapojenie. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
                     <WrapPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Rýchlosť setpointu [°C/min]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Ako rýchlo aplikácia posúva požadovanú teplotu pri zapnutej rampe. Napríklad zmena o 10 °C pri 2 °C/min trvá 5 minút. Skutočné dosiahnutie teploty a ustálenie WIKA môže trvať dlhšie. Komora reguluje podľa vlastného snímača." AutomationProperties.Name="Vysvetlenie: Rýchlosť setpointu [°C/min]" /><TextBlock Text="Rýchlosť setpointu [°C/min]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.SetpointRampCPerMinute, Mode=TwoWay}" Step="0.1" Minimum="0.1" Maximum="50" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Teplotná tolerancia [°C]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Povolená odchýlka referencie od cieľa na obe strany. Pri cieli 20 °C a tolerancii 1 °C musí byť WIKA medzi 19 a 21 °C. Samotné splnenie tolerancie nestačí: musia prejsť aj podmienky stability." AutomationProperties.Name="Vysvetlenie: Teplotná tolerancia [°C]" /><TextBlock Text="Teplotná tolerancia [°C]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.ChamberToleranceC, Mode=TwoWay}" Step="0.1" Minimum="0.01" Maximum="20" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Stabilný čas [min]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Ako dlho musí referencia spĺňať podmienky teplotnej stability pred vyhodnocovaním FBG. Nestabilita obnoví čakanie na stabilitu. Dlhší čas zvyšuje nároky na ustálenie a predlžuje meranie." AutomationProperties.Name="Vysvetlenie: Stabilný čas [min]" /><TextBlock Text="Stabilný čas [min]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.ChamberStableMinutes, Mode=TwoWay}" Step="1" Minimum="0" Maximum="1440" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Max. drift teploty [°C/min]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Najväčšia prípustná rýchlosť zmeny referenčnej teploty. Hodnotí sa trend v čase vrátane krátkodobého driftu. Nižší limit je prísnejší a môže predĺžiť čakanie. Hodnota 0 vypína toto kritérium." AutomationProperties.Name="Vysvetlenie: Max. drift teploty [°C/min]" /><TextBlock Text="Max. drift teploty [°C/min]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxChamberDriftCPerMinute, Mode=TwoWay}" Step="0.01" Minimum="0" Maximum="10" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Max. rozsah WIKA [°C]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Najväčší rozdiel medzi najvyššou a najnižšou teplotou v hodnotenom okne WIKA. Menší limit vyžaduje pokojnejšiu teplotu. Hodnota 0 vypína toto kritérium." AutomationProperties.Name="Vysvetlenie: Max. rozsah WIKA [°C]" /><TextBlock Text="Max. rozsah WIKA [°C]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxChamberRangeC, Mode=TwoWay}" Step="0.01" Minimum="0" Maximum="10" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Max. StdDev WIKA [°C]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Maximálna smerodajná odchýlka teploty WIKA: vyjadruje rozptyl vzoriek okolo priemeru. Menšie číslo vyžaduje menšie kolísanie. Hodnota 0 vypína toto kritérium." AutomationProperties.Name="Vysvetlenie: Max. StdDev WIKA [°C]" /><TextBlock Text="Max. StdDev WIKA [°C]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxChamberStdDevC, Mode=TwoWay}" Step="0.01" Minimum="0" Maximum="10" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Timeout komory [min]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Základný limit čakania na stabilitu teploty. Pri priradenej WIKA rozhoduje referencia, teplota komory je informatívna. Nie je to pevná dĺžka plata. Automatické predĺženia sú obmedzené; pri vyčerpaní sa bod odloží na jeden opakovaný pokus alebo sa vyžiada zásah podľa režimu dohľadu. Nestabilný bod sa nepovažuje za úspešný." AutomationProperties.Name="Vysvetlenie: Timeout komory [min]" /><TextBlock Text="Timeout komory [min]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.ChamberStabilityTimeoutMinutes, Mode=TwoWay}" Step="5" Minimum="1" Maximum="1440" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Interval odberu FBG [s]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Odstup odberov používaných na stabilitu a finálne meranie FBG. Menší interval skráti čas potrebný na rovnaký počet vzoriek; pomalá komunikácia ho môže predĺžiť. Senzory sa vyhodnocujú súbežne. Tento interval sa použije pri každom novom behu aj pre uložené zapojenie." AutomationProperties.Name="Vysvetlenie: Interval odberu FBG [s]" /><TextBlock Text="Interval odberu FBG [s]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.SampleAcquisitionIntervalSeconds, Mode=TwoWay}" Step="1" Minimum="1" Maximum="30" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}" ToolTip="Interval priebežného zápisu wavelength, SN a posledných teplôt do wavelength-trace.csv. Nezávisí od stability. Použije sa pri každom novom behu; predvolene 1 s.">
-                            <TextBlock Text="Interval trace logu [s]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Odstup priebežného zápisu vlnových dĺžok, SN a posledných dostupných teplôt do wavelength-trace.csv od spustenia až po koniec behu, nezávisle od stabilizácie. Predvolene 1 s. Nezrýchľuje odber pre stabilitu a nezaručuje novú teplotnú vzorku každú sekundu. Platí pri každom novom behu; menší interval vytvára viac dát." AutomationProperties.Name="Vysvetlenie: Interval trace logu [s]" /><TextBlock Text="Interval trace logu [s]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.WavelengthTraceIntervalSeconds, Mode=TwoWay}" Step="1" Minimum="1" Maximum="86400" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Vzorky pre stabilitu" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Počet vzoriek, na ktorých musí každý peak samostatne splniť limity rozsahu, smerodajnej odchýlky a driftu. Nevyhovujúce plné okno sa začne zbierať znova. Po úspechu nasledujú finálne vzorky." AutomationProperties.Name="Vysvetlenie: Vzorky pre stabilitu" /><TextBlock Text="Vzorky pre stabilitu" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.RequiredStableSamples, Mode=TwoWay}" Step="1" Minimum="2" Maximum="10000" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Finálne vzorky" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Počet vzoriek výsledného merania po potvrdení stability peaku. Pri strate stability sa nedokončené meranie opakuje. Viac vzoriek predĺži odber; automatický časový limit zostáva obmedzený." AutomationProperties.Name="Vysvetlenie: Finálne vzorky" /><TextBlock Text="Finálne vzorky" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.RequiredMeasurementSamples, Mode=TwoWay}" Step="1" Minimum="1" Maximum="10000" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Max. range [pm]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Maximálny rozdiel medzi najvyššou a najnižšou vlnovou dĺžkou v okne jedného peaku. 1 pm = 0,001 nm; 5 pm = 0,005 nm. Nižší limit je prísnejší. Hodnota 0 vypína toto kritérium." AutomationProperties.Name="Vysvetlenie: Max. range [pm]" /><TextBlock Text="Max. range [pm]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxWavelengthRangePm, Mode=TwoWay}" Step="0.1" Minimum="0" Maximum="10000" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Max. StdDev [pm]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Maximálna smerodajná odchýlka vlnovej dĺžky jedného peaku. Vyjadruje kolísanie vzoriek okolo priemeru. Nižší limit vyžaduje pokojnejší signál. Hodnota 0 vypína toto kritérium. 1 pm = 0,001 nm." AutomationProperties.Name="Vysvetlenie: Max. StdDev [pm]" /><TextBlock Text="Max. StdDev [pm]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxWavelengthStdDevPm, Mode=TwoWay}" Step="0.1" Minimum="0" Maximum="10000" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Max. drift FBG [pm/min]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Maximálna rýchlosť posunu vlnovej dĺžky jedného peaku za minútu. Aj málo rozptýlené vzorky môžu byť nestabilné, ak sa sústavne posúvajú. Nižší limit je prísnejší. Hodnota 0 vypína toto kritérium." AutomationProperties.Name="Vysvetlenie: Max. drift FBG [pm/min]" /><TextBlock Text="Max. drift FBG [pm/min]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.MaxWavelengthDriftPmPerMinute, Mode=TwoWay}" Step="0.1" Minimum="0" Maximum="10000" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource MiniField}">
-                            <TextBlock Text="Timeout peaku [min]" Style="{StaticResource Label}" />
+                            <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Content="?" Style="{StaticResource CalibrationHelpButton}" Tag="Základ pre časový limit FBG fázy. Automatika zohľadní stabilizačné aj finálne vzorky a skutočný interval s 20 % rezervou. Pri pokroku môže pridávať po 10 minútach, najviac do 90 minút automatického čakania. Reset okien tento čas nevynuluje. Po vyčerpaní je peak nepotvrdený alebo čaká na rozhodnutie operátora podľa režimu." AutomationProperties.Name="Vysvetlenie: Timeout peaku [min]" /><TextBlock Text="Timeout peaku [min]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
                             <views:NumericStepper Value="{Binding Admin.SensorStabilityTimeoutMinutes, Mode=TwoWay}" Step="5" Minimum="1" Maximum="1440" />
                         </StackPanel>
                     </WrapPanel>
-                    <CheckBox Content="Plynulo posúvať setpoint" IsChecked="{Binding Admin.CalibrationDefaults.EnableSetpointRamp, Mode=TwoWay}" Margin="0,2,0,10" />
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,10"><CheckBox Content="Plynulo posúvať setpoint" IsChecked="{Binding Admin.CalibrationDefaults.EnableSetpointRamp, Mode=TwoWay}" VerticalAlignment="Center" /><Button Content="?" Style="{StaticResource CalibrationHelpButton}" AutomationProperties.Name="Vysvetlenie: Plynulo posúvať setpoint" Tag="Zapnuté: aplikácia mení požadovanú teplotu postupne podľa rýchlosti setpointu. Vypnuté: odošle cieľ priamo. V oboch prípadoch sa čaká na stabilitu referencie a FBG; vypnutie rampy neznamená okamžité ustálenie." /></StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Uložiť predvolené nastavenia" Style="{StaticResource AccentButton}" Command="{Binding Admin.SaveCalibrationDefaultsCommand}" />
                         <TextBlock Text="{Binding Admin.CalibrationDefaultsStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" />

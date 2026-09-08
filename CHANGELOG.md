@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.263] – 2026-09-08
+
+### Pridané
+
+- Administrácia obsahuje viditeľné otázniky pri všetkých 15 predvolených parametroch FBG kalibrácie aj pri plynulej rampe. Kliknutie otvorí vysvetlenie významu, jednotiek, stability, timeoutov a platnosti predvolieb.
+- Pomocník odberu, počtov vzoriek a timeoutu peaku vypočíta orientačný čas z práve nastavených hodnôt. Odlišuje priebežný trace log od vzoriek kalibrácie a upozorňuje na dodatočný čas ustálenia a opakovaní.
+
 ## [1.76.262] – 2026-09-08
 
 ### Pridané

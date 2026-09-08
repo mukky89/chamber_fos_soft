@@ -22,6 +22,28 @@ public partial class AdminView : UserControl
         Loaded += OnLoaded;
     }
 
+    private void CalibrationHelp_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string explanation } button)
+            return;
+
+        string title = System.Windows.Automation.AutomationProperties.GetName(button);
+        if (button.DataContext is ShellViewModel shell &&
+            (title.Contains("Interval odberu") || title.Contains("Vzorky pre stabilitu") ||
+             title.Contains("Finálne vzorky") || title.Contains("Timeout peaku")))
+        {
+            var settings = shell.Admin.CalibrationDefaults;
+            double interval = settings.SampleAcquisitionIntervalSeconds;
+            double stable = settings.RequiredStableSamples * interval / 60d;
+            double final = settings.RequiredMeasurementSamples * interval / 60d;
+            explanation += $"\n\nPráve nastavené: {settings.RequiredStableSamples} stabilizačných + " +
+                $"{settings.RequiredMeasurementSamples} finálnych vzoriek pri {interval:0.##} s.\n" +
+                $"Orientačný čas odberu: {stable:0.#} + {final:0.#} = {stable + final:0.#} min na plato. " +
+                "Navyše treba pripočítať zmenu teploty, ustálenie referencie, komunikáciu a prípadné opakovania. " +
+                "Ide o predvoľby, nie o odhad rozbehnutej kalibrácie.";
+        }
+        MessageBox.Show(Window.GetWindow(this), explanation, title, MessageBoxButton.OK, MessageBoxImage.Information);
+    }
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (_bridgeUiPrepared)
