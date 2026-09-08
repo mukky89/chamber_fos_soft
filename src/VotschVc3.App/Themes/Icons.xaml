@@ -25,18 +25,7 @@
     <!-- Base icon glyph: 16×16, scaled uniformly, coloured from the parent Button.
          Fill stays transparent – these are outlines; round caps and joins are what
          gives them the soft, drawn look instead of a technical wireframe. -->
-    <Style x:Key="IconPath" TargetType="Path">
-        <Setter Property="Width" Value="17" />
-        <Setter Property="Height" Value="17" />
-        <Setter Property="Stretch" Value="Uniform" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="Fill" Value="Transparent" />
-        <Setter Property="StrokeThickness" Value="1.5" />
-        <Setter Property="StrokeLineJoin" Value="Round" />
-        <Setter Property="StrokeStartLineCap" Value="Round" />
-        <Setter Property="StrokeEndLineCap" Value="Round" />
-        <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-    </Style>
+
 
     <!-- Transport glyphs (play / pause / stop / skip) on a device card stay solid:
          a run control has to read as a single filled shape from a step back, which is
@@ -96,4 +85,16 @@
     <Geometry x:Key="Icon.SkipNext">M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z</Geometry>
 
     <Geometry x:Key="Icon.ProgressClock">M12,3 A9,9 0 1 1 11.99,3 M12,7 L12,12 L16,14</Geometry>
+    <Style x:Key="IconPath" TargetType="Path">
+        <Setter Property="Width" Value="17" />
+        <Setter Property="Height" Value="17" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Fill" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeLineJoin" Value="Round" />
+        <Setter Property="StrokeStartLineCap" Value="Round" />
+        <Setter Property="StrokeEndLineCap" Value="Round" />
+        <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+    <Style.Triggers><Trigger Property="Data" Value="{StaticResource Icon.Save}"><Setter Property="Stroke" Value="#55D6A0"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Edit}"><Setter Property="Stroke" Value="#74B9FF"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Gear}"><Setter Property="Stroke" Value="#B79AF5"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Delete}"><Setter Property="Stroke" Value="#FF8894"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Refresh}"><Setter Property="Stroke" Value="#7CDCCC"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Add}"><Setter Property="Stroke" Value="#55D6A0"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Import}"><Setter Property="Stroke" Value="#74B9FF"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Export}"><Setter Property="Stroke" Value="#B79AF5"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Calibration}"><Setter Property="Stroke" Value="#7CDCCC"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Lock}"><Setter Property="Stroke" Value="#FFCA6B"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Unlock}"><Setter Property="Stroke" Value="#55D6A0"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Home}"><Setter Property="Stroke" Value="#74B9FF"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Bolt}"><Setter Property="Stroke" Value="#FFCA6B"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Thermometer}"><Setter Property="Stroke" Value="#FFAD79"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Chart}"><Setter Property="Stroke" Value="#7CDCCC"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.List}"><Setter Property="Stroke" Value="#74B9FF"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Document}"><Setter Property="Stroke" Value="#B79AF5"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Folder}"><Setter Property="Stroke" Value="#FFCA6B"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Book}"><Setter Property="Stroke" Value="#B79AF5"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Logout}"><Setter Property="Stroke" Value="#FF8894"/></Trigger><Trigger Property="Data" Value="{StaticResource Icon.Signal}"><Setter Property="Stroke" Value="#7CDCCC"/></Trigger></Style.Triggers></Style>
 </ResourceDictionary>

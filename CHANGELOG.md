@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.284] – 2026-09-08
+
+### Zmenené
+
+- Opravená aktivácia náhrady ikon v reálnych oknách a popupoch; doplnený opakovateľný WPF smoke test tém, väzieb a vykreslenia.
+- Zjednotené farebné vektorové ikony stavov: zelené splnenie/štart, oranžové upozornenie/čakanie, červená chyba/stop a modré informácie/úpravy.
+- Operátorské hlásenia používajú priame vykresľovanie ikon; spoločné zaškrtávacie políčka sú zelené a knižnica ikon tlačidiel používa farby podľa významu.
+
 ## [1.76.283] – 2026-09-08
 
 ### Opravené
