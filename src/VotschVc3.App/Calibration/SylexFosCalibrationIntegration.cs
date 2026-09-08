@@ -216,7 +216,9 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         else
         {
             Interlocked.Exchange(ref _apiAvailable, 0);
-            Report(SylexFosLookupState.ApiUnavailable, $"FOS API · nedostupné ({health.Status})");
+            Report(SylexFosLookupState.ApiUnavailable,
+                $"Sylex FOS API nie je dostupné. Kontrola /health a /api/v1/system/heartbeat na {ApiClientBaseUrl()} zlyhala ({health.Status}). " +
+                "Údaje podľa SN sa preto nemôžu automaticky doplniť do tabuľky. Skontrolujte sieť a službu Sylex FOS API na serveri; potom znovu otvorte FBG kalibráciu.");
             AppLog.Warn("Sylex FOS API", $"Centrálne API nie je dostupné ({health.Status}). Kalibrácia môže pokračovať bez automatického doplnenia metadata.");
         }
     }

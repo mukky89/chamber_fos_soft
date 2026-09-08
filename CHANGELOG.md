@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.258] – 2026-09-08
+
+### Opravené
+
+- Pri každom otvorení alebo opätovnom zobrazení FBG kalibrácie sa zopakuje health kontrola Sylex FOS API. Súbežné otvorenia nespúšťajú duplicitné kontroly.
+- Nedostupné API zobrazí červenú chybu s adresou, dôvodom a vysvetlením, že automatické dopĺňanie tabuľky nefunguje. Kontrola beží na pozadí bez blokovania okna a bez e-mailov za jednotlivé SN.
+
 ## [1.76.257] – 2026-09-08
 
 ### Zmenené

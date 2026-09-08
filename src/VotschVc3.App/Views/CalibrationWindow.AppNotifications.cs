@@ -70,8 +70,8 @@ public partial class CalibrationWindow
                     break;
 
                 case SylexFosLookupState.ApiUnavailable:
-                    AppNotificationService.Warning(
-                        "Sylex FOS API",
+                    AppNotificationService.Error(
+                        "Sylex FOS API nie je dostupné",
                         status.Message.Replace("FOS API · ", string.Empty, StringComparison.OrdinalIgnoreCase),
                         "sylex-fos-api:unavailable");
                     break;

@@ -186,8 +186,11 @@ public partial class CalibrationWindow : Window
         }
     }
 
+    private bool _fosApiHealthCheckRunning;
     private async Task InitializeFosApiDeferredAsync()
     {
+        if (_fosApiHealthCheckRunning || _disposing) return;
+        _fosApiHealthCheckRunning = true;
         try
         {
             await Task.Delay(250).ConfigureAwait(true);
@@ -197,7 +200,11 @@ public partial class CalibrationWindow : Window
         catch (Exception ex)
         {
             AppLog.Warn("Sylex FOS API", $"Odložená kontrola API pri otvorení kalibrácie: {ex.Message}");
+            if (!_disposing) Notifications.AppNotificationService.Error("Sylex FOS API – kontrola zlyhala",
+                $"Nepodarilo sa overiť health API: {ex.Message}. Automatické dopĺňanie údajov nie je overené. Skontrolujte nastavenie API v administrácii.",
+                "sylex-fos-api:health-error");
         }
+        finally { _fosApiHealthCheckRunning = false; }
     }
 
     private static DataGridColumn? FindColumn(DataGrid grid, string header) =>
@@ -573,6 +580,7 @@ public partial class CalibrationWindow : Window
             }
 
             existing.Activate();
+            _ = existing.InitializeFosApiDeferredAsync();
         }
         existing._viewModel.RefreshAdminAcquisitionInterval();
     }
