@@ -15,6 +15,18 @@ class Program
   var logo = new BitmapImage(new Uri("pack://application:,,,/VotschVc3.App;component/Assets/sylex-logo-red.png"));
   if (logo.PixelWidth <= 0 || logo.PixelHeight <= 0) throw new Exception("Sylex logo resource failed to decode");
   Console.WriteLine($"PASS: packaged Sylex logo {logo.PixelWidth} x {logo.PixelHeight}");
+  app.Resources["EnumToBoolean"] = new VotschVc3.App.Converters.EnumToBooleanConverter();
+  app.Resources["BoolToVisibility"] = new VotschVc3.App.Converters.BoolToVisibilityConverter();
+  app.Resources["InverseBoolean"] = new VotschVc3.App.Converters.InverseBooleanConverter();
+  var admin = new AdminView();
+  var help = new Button { Style = (Style)admin.Resources["CalibrationHelpButton"], Tag = "Test vysvetlenia" };
+  help.ApplyTemplate();
+  if (help.Template.FindName("InfoBadge", help) is not Border) throw new Exception("Missing information icon");
+  typeof(AdminView).GetMethod("CalibrationHelp_Opening", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+      .Invoke(admin, new object[] { help, null });
+  if (help.ToolTip is not TextBlock { Text: "Test vysvetlenia", TextWrapping: TextWrapping.Wrap })
+      throw new Exception("Hover explanation missing");
+  Console.WriteLine("PASS: admin vector information icon and wrapped tooltip.");
   StatusCheckIcons.Initialize();
   var source = new TextBox { Text = "✓ Splnené   ⚠ Upozornenie   ❌ Chyba   ℹ Informácia" };
   var text = new TextBlock { FontSize = 18, Foreground = Brushes.White, Margin = new Thickness(12) };

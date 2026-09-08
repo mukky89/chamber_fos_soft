@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.292] – 2026-09-08
+
+### Zmenené
+- Otázniky pri administrátorských predvoľbách FBG nahradili modré vektorové informačné ikony. Vysvetlenie sa zobrazí po prejdení myšou bez dialógu; zachovaný je aktuálny výpočet času odberu podľa nastavených hodnôt.
+
 ## [1.76.291] – 2026-09-08
 
 ### Opravené

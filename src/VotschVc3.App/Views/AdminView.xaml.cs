@@ -22,7 +22,7 @@ public partial class AdminView : UserControl
         Loaded += OnLoaded;
     }
 
-    private void CalibrationHelp_Click(object sender, RoutedEventArgs e)
+    private void CalibrationHelp_Opening(object sender, ToolTipEventArgs e)
     {
         if (sender is not Button { Tag: string explanation } button)
             return;
@@ -42,7 +42,11 @@ public partial class AdminView : UserControl
                 "Navyše treba pripočítať zmenu teploty, ustálenie referencie, komunikáciu a prípadné opakovania. " +
                 "Ide o predvoľby, nie o odhad rozbehnutej kalibrácie.";
         }
-        MessageBox.Show(Window.GetWindow(this), explanation, title, MessageBoxButton.OK, MessageBoxImage.Information);
+        button.ToolTip = new TextBlock
+        {
+            Text = explanation, TextWrapping = TextWrapping.Wrap, MaxWidth = 400,
+            FontSize = 13, Padding = new Thickness(4)
+        };
     }
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
