@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.268] – 2026-09-08
+
+### Opravené
+
+- Vyhľadávanie v zapojení FBG má krátky, celý viditeľný pomocný text „Hľadať v zapojení…“ a vyhradené miesto pre tlačidlo vymazania. Úplný zoznam prehľadávaných údajov zostáva v popise po prejdení myšou.
+
 ## [1.76.267] – 2026-09-08
 
 ### Opravené

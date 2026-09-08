@@ -451,7 +451,7 @@
                                              ToolTip="Hľadať podľa kanála, peaku, indexu, SN, zákazky alebo poznámky" />
                                     <TextBlock Text="⌕" FontSize="18" Margin="9,0,0,1" VerticalAlignment="Center"
                                                Foreground="{StaticResource MutedBrush}" IsHitTestVisible="False" />
-                                    <TextBlock Text="Hľadať podľa kanála, peaku, indexu, SN..." Margin="30,0,0,0"
+                                    <TextBlock Text="Hľadať v zapojení…" Margin="30,0,32,0"
                                                VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" IsHitTestVisible="False">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
