@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.275] – 2026-09-08
+
+### Zmenené
+
+- Hlavička FBG kalibrácie zobrazuje stav automatického ukladania zapojenia: Ukladá sa…, Uložené o HH:mm:ss alebo Chyba uloženia. Farebný indikátor a vysvetlenie zobrazia aj príčinu chyby.
+- Ručné uloženie zostáva dostupné cez malú ikonu. Chyby automatického ukladania sa zachytia a zostanú viditeľné; oneskorené zrušené požiadavky sa neukladajú.
+
 ## [1.76.274] – 2026-09-08
 
 ### Pridané

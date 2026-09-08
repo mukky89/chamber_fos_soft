@@ -124,7 +124,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         ConnectPeakLoggerCommand = new AsyncRelayCommand(ConnectPeakLoggerAsync, () => !IsRunning, ReportError);
         DiscoverPeakLoggerApisCommand = new AsyncRelayCommand(DiscoverPeakLoggerApisAsync, () => !IsRunning && !UseSimulator, ReportError);
         RefreshSensorsCommand = new AsyncRelayCommand(DiscoverSensorsAsync, () => PeakLoggerConnected && !IsRunning, ReportError);
-        SaveSetupCommand = new RelayCommand(SaveSetup, () => SelectedProfile is not null && !IsRunning);
+        SaveSetupCommand = new RelayCommand(() => { try { SaveSetup(); } catch (Exception ex) { ReportError(ex); } }, () => SelectedProfile is not null && !IsRunning);
         SelectSuggestedPeaksCommand = new RelayCommand(SelectSuggestedPeaks, () => Peaks.Count > 0 && !IsRunning);
         ClearPeakSearchCommand = new RelayCommand(() => PeakSearchText = string.Empty);
         MarkAllPlateausCommand = new RelayCommand(MarkAllPlateaus, () => CalibrationPoints.Count > 0 && !IsRunning);
@@ -712,6 +712,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private void LoadProfileSetup()
     {
+        SetupSaveStatus = "Automatické ukladanie";
+        SetupSaveColor = "#AAB7CE";
+        SetupSaveDetail = "Zmeny zapojenia sa ukladajú automaticky po 350 ms. Ikona uloží zapojenie okamžite.";
         Peaks.Clear();
         CalibrationPoints.Clear();
         if (SelectedProfile is null)
@@ -1113,6 +1116,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         if (SelectedProfile is null || IsRunning) return;
         _setupAutosaveCts?.Cancel();
         _setupAutosaveCts?.Dispose();
+        SetupSaveStatus = "Ukladá sa…";
+        SetupSaveColor = "#FFD27D";
         _setupAutosaveCts = new CancellationTokenSource();
         CancellationToken token = _setupAutosaveCts.Token;
         _ = AutosaveSetupAsync(token);
@@ -1123,11 +1128,15 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         try
         {
             await Task.Delay(350, token);
-            await Application.Current.Dispatcher.InvokeAsync(() => PersistSetup(showStatus: false));
+            await Application.Current.Dispatcher.InvokeAsync(() => { if (!token.IsCancellationRequested) PersistSetup(showStatus: false); });
         }
         catch (OperationCanceledException)
         {
             // A newer keystroke restarts the short debounce window.
+        }
+        catch (Exception)
+        {
+            // The save status exposes the failure; observe background exceptions.
         }
     }
 
@@ -1608,9 +1617,37 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
     }
 
+    private string _setupSaveStatus = "Automatické ukladanie";
+    public string SetupSaveStatus { get => _setupSaveStatus; private set => SetProperty(ref _setupSaveStatus, value); }
+    private string _setupSaveDetail = "Zmeny zapojenia sa ukladajú automaticky po 350 ms. Ikona uloží zapojenie okamžite.";
+    public string SetupSaveDetail { get => _setupSaveDetail; private set => SetProperty(ref _setupSaveDetail, value); }
+    private string _setupSaveColor = "#AAB7CE";
+    public string SetupSaveColor { get => _setupSaveColor; private set => SetProperty(ref _setupSaveColor, value); }
+
     private void SaveSetup() => PersistSetup(showStatus: true);
 
     private void PersistSetup(bool showStatus)
+    {
+        if (SelectedProfile is null) return;
+        SetupSaveStatus = "Ukladá sa…";
+        SetupSaveColor = "#FFD27D";
+        try
+        {
+            PersistSetupCore(showStatus);
+            SetupSaveStatus = $"Uložené o {DateTime.Now:HH:mm:ss}";
+            SetupSaveColor = "#55D6A0";
+            SetupSaveDetail = "Zapojenie bolo uložené. Ďalšie zmeny sa uložia automaticky; ikona vynúti okamžité uloženie.";
+        }
+        catch (Exception ex)
+        {
+            SetupSaveStatus = "Chyba uloženia";
+            SetupSaveColor = "#FF7885";
+            SetupSaveDetail = $"Zapojenie sa nepodarilo uložiť: {ex.Message}. Uloženie zopakujte ikonou.";
+            throw;
+        }
+    }
+
+    private void PersistSetupCore(bool showStatus)
     {
         if (SelectedProfile is null) return;
         _setup.ProfileId = SelectedProfile.Id;

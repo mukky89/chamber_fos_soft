@@ -81,13 +81,17 @@
                            Style="{StaticResource Caption}" />
             </StackPanel>
             <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Style="{StaticResource GhostButton}" Command="{Binding SaveSetupCommand}" Margin="0,0,14,0"
-                        ToolTip="Uloží zapojenie (vybrané peaky, SN, poznámky) pre ďalší beh.">
-                    <StackPanel Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                    <Ellipse Width="7" Height="7" Fill="{Binding SetupSaveColor}" Margin="0,0,7,0" />
+                    <TextBlock Text="{Binding SetupSaveStatus}" Foreground="{Binding SetupSaveColor}"
+                               VerticalAlignment="Center" FontSize="12" ToolTip="{Binding SetupSaveDetail}"
+                               AutomationProperties.LiveSetting="Polite" />
+                    <Button Style="{StaticResource GhostButton}" Command="{Binding SaveSetupCommand}"
+                            Margin="5,0,0,0" Padding="7" ToolTip="{Binding SetupSaveDetail}"
+                            AutomationProperties.Name="Uložiť zapojenie okamžite">
                         <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Save}" />
-                        <TextBlock Text="Uložiť zapojenie" Style="{StaticResource IconLabel}" />
-                    </StackPanel>
-                </Button>
+                    </Button>
+                </StackPanel>
 
                 <!-- Run controls, visually one block. -->
                 <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
