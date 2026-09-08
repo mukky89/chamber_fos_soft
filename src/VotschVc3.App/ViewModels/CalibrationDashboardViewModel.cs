@@ -92,7 +92,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Trend { get; private set; } = "—";
     public string TrendTone { get; private set; } = "Steady";
     public bool HasReference { get; private set; }
-    public bool CanForceTemperatureGate => _running && _snapshot?.Message.Contains("KOMORA ČAKÁ") != true &&
+    public bool CanForceTemperatureGate => _running && !WaitingForChamber && _snapshot?.Message.Contains("KOMORA ČAKÁ") != true &&
         _state == CalibrationRunState.WaitingForChamberStability &&
         (!HasReference || _snapshot?.ReferenceTemperatureC is not null);
     public string ReferenceStatus => !HasReference ? "Bez externej referencie" : _snapshot?.ReferenceTemperatureC is null ? "Čaká na vzorku WIKA" : "Posledná vzorka WIKA";
@@ -178,10 +178,31 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public double SampleProgress => RequiredSamples == 0 ? 0 : Math.Clamp(100d * Samples / RequiredSamples, 0, 100);
     private bool RunStoppedWithError => _state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted;
     private bool PointFinished => AllTargetsFinished || _state is CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings;
-    public string ChamberEntryDetail => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? _snapshot.Message : "Ak je zapnutá vstupná podmienka: najprv ustálenie komory, potom WIKA.";
-    public string ChamberCardState => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? "Ⅱ WAITING" : _started is null ? "○ PENDING" : _running ? "● MONITORING" : RunStoppedWithError ? "! STOPPED" : "✓ DONE";
-    public string ChamberCardTone => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? "Waiting" : _started is null ? "Pending" : _running ? "Active" : RunStoppedWithError ? "Error" : "Done";
-    public string ReferenceCardState => _snapshot?.Message.Contains("KOMORA ČAKÁ") == true ? "○ ČAKÁ NA KOMORU" : RunStoppedWithError ? "! STOPPED" : !HasReference ? "— N/A" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ DONE" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ WAITING" : "○ PENDING";
+    private ChamberEntryStatus? ChamberEntry => _snapshot?.ChamberEntry;
+    private bool WaitingForChamber => ChamberEntry is { Enabled: true, IsOpen: false };
+    public string ChamberEntryDetail => ChamberEntry is null ? "Čaká na údaje vstupnej kontroly komory."
+        : !ChamberEntry.Enabled ? "Vstupná kontrola vypnutá · komora sa iba monitoruje."
+        : ChamberEntry.IsOpen ? $"Vstupná kontrola splnená. Hodnoty pri potvrdení {ChamberEntry.EvaluatedAt.ToLocalTime():HH:mm:ss}; ďalej rozhoduje WIKA."
+        : "Vstupná kontrola zapnutá · čaká na ustálenie komory pred WIKA.";
+    public string ChamberCardState => RunStoppedWithError ? "! STOPPED" : ChamberEntry is null ? "○ PENDING" : !ChamberEntry.Enabled ? "● MONITORING" : ChamberEntry.IsOpen ? "✓ SPLNENÉ" : "Ⅱ WAITING";
+    public string ChamberCardTone => RunStoppedWithError ? "Error" : ChamberEntry is null ? "Pending" : !ChamberEntry.Enabled ? "Active" : ChamberEntry.IsOpen ? "Done" : "Waiting";
+    private string ChamberCriterion(double? value, double? limit, string name, string unit) =>
+        ChamberEntry is null ? $"{name} · čaká na údaje" : !ChamberEntry.Enabled ? $"{name} · vypnuté"
+        : $"{name} {(value is { } v ? v.ToString("F3") : "—")} / ≤ {limit:F3} {unit}";
+    private string ChamberTone(double? value, double? limit) => ChamberEntry is not { Enabled: true } ? "Pending" : value is null ? "Waiting" : value <= limit ? "Done" : "Waiting";
+    public string ChamberToleranceLabel => ChamberCriterion(ChamberEntry?.DeviationC, ChamberEntry?.ToleranceC, "Odchýlka |Δ|", "°C");
+    public string ChamberRangeLabel => ChamberCriterion(ChamberEntry?.RangeC, ChamberEntry?.RangeLimitC, "Rozsah", "°C");
+    public string ChamberDriftLabel => ChamberCriterion(ChamberEntry?.DriftCPerMinute, ChamberEntry?.DriftLimitCPerMinute, "Drift", "°C/min");
+    public string ChamberTimeLabel => ChamberEntry is null ? "Časové okno · čaká na údaje" : !ChamberEntry.Enabled ? "Časové okno · vypnuté" : $"Časové okno {ChamberEntry.WindowSeconds:F0} / {ChamberEntry.RequiredSeconds:F0} s";
+    public string ChamberToleranceTone => ChamberTone(ChamberEntry?.DeviationC, ChamberEntry?.ToleranceC);
+    public string ChamberRangeTone => ChamberTone(ChamberEntry?.RangeC, ChamberEntry?.RangeLimitC);
+    public string ChamberDriftTone => ChamberTone(ChamberEntry?.DriftCPerMinute, ChamberEntry?.DriftLimitCPerMinute);
+    public string ChamberTimeTone => ChamberEntry is not { Enabled: true } ? "Pending" : ChamberEntry.WindowSeconds >= ChamberEntry.RequiredSeconds ? "Done" : "Waiting";
+    public string ChamberToleranceHelp => "Absolútna odchýlka internej teploty komory od cieľa. Prekročenie tolerancie vymaže zbierané okno. Ide iba o podmienku merania, nie zásah do regulácie.";
+    public string ChamberRangeHelp => "Rozdiel maxima a minima v aktuálnom časovom okne komory. Na výpočet treba aspoň dve vzorky. Všetky štyri podmienky musia vyhovieť súčasne.";
+    public string ChamberDriftHelp => "Absolútna rýchlosť zmeny teploty vypočítaná lineárnou regresiou zo vzoriek v okne, v °C/min. Jedna vzorka nestačí.";
+    public string ChamberTimeHelp => "Dĺžka zozbieraného okna v tolerancii. Výpadok vzoriek okno resetuje. Po splnení času, rozsahu a driftu sa vstupná kontrola pre toto plato potvrdí a začne nové okno WIKA. Zobrazené hodnoty sa potom uchovajú ako doklad potvrdenia.";
+    public string ReferenceCardState => WaitingForChamber ? "○ ČAKÁ NA KOMORU" : RunStoppedWithError ? "! STOPPED" : !HasReference ? "— N/A" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ DONE" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ WAITING" : "○ PENDING";
     public string ReferenceCardTone => RunStoppedWithError ? "Error" : !HasReference ? "Pending" : ReferenceCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : ReferenceCardState.Contains("WAITING", StringComparison.Ordinal) ? "Waiting" : "Pending";
     private bool UnconfirmedPoint => PointFinished && (TotalTargets == 0 || _snapshot!.Targets.Any(t => t.State != CalibrationTargetState.Stable));
     public string PeakCardState => RunStoppedWithError ? "! STOPPED" : UnconfirmedPoint ? "! STABILITA NEPOTVRDENÁ" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ DONE" : _state == CalibrationRunState.StabilizingSensors ? "● RUNNING" : PointFinished ? "✓ DONE" : "○ PENDING";

@@ -5,6 +5,33 @@ namespace VotschVc3.Core.Tests;
 public sealed class ChamberEntryGateTests
 {
     [Fact]
+    public void StatusReportsMissingMetricsAndRetainsConfirmedEvidence()
+    {
+        var settings = new CalibrationProfileSettings { ChamberEntryEnabled = true };
+        var gate = new ChamberEntryGate();
+        var start = DateTimeOffset.UtcNow;
+        gate.Add(start, -42, -40, settings);
+        Assert.Equal(2, gate.Status!.DeviationC);
+        Assert.Null(gate.Status.RangeC);
+        gate.Add(start.AddSeconds(30), -40, -40, settings);
+        Assert.Null(gate.Status!.DriftCPerMinute);
+        for (int i = 2; i <= 5; i++) gate.Add(start.AddSeconds(30 * i), -40, -40, settings);
+        var confirmed = gate.Status;
+        Assert.True(confirmed!.IsOpen);
+        Assert.Equal(120, confirmed.WindowSeconds);
+        Assert.Equal(0, confirmed.RangeC);
+        gate.Add(start.AddSeconds(180), -42, -40, settings);
+        Assert.Equal(confirmed, gate.Status);
+    }
+    [Fact]
+    public void DisabledGateReportsDisabledWithoutPretendingToPass()
+    {
+        var gate = new ChamberEntryGate();
+        Assert.True(gate.Add(DateTimeOffset.UtcNow, 25, 25, new()));
+        Assert.False(gate.Status!.Enabled);
+        Assert.False(gate.Status.IsOpen);
+    }
+    [Fact]
     public void RequiresFullWindowAndRejectsOvershoot()
     {
         var settings = new CalibrationProfileSettings { ChamberEntryEnabled = true };

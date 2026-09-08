@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.287] – 2026-09-08
+
+### Opravené
+- Karta komory zobrazuje skutočnú odchýlku, rozsah, drift a dĺžku okna vstupnej stability s limitmi, farebným vyhodnotením a vysvetleniami.
+- Rozlišuje vypnutú kontrolu, chýbajúce údaje, čakanie a splnenie. Po potvrdení uvádza čas a uchované hodnoty vstupnej kontroly; regulácia komory sa nemení.
+
 ## [1.76.286] – 2026-09-08
 
 ### Opravené

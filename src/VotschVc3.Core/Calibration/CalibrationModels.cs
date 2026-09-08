@@ -421,7 +421,10 @@ public sealed record CalibrationProgressSnapshot(
     TimeSpan? TemperatureSettlingElapsed = null,
     TimeSpan? TemperatureSettlingBaseLimit = null,
     TimeSpan? AutomaticTemperatureExtensionUsed = null,
-    TimeSpan? MaximumAutomaticTemperatureExtension = null);
+    TimeSpan? MaximumAutomaticTemperatureExtension = null)
+{
+    public ChamberEntryStatus? ChamberEntry { get; init; }
+}
 
 public sealed class CalibrationOperatorActionRequiredException : Exception
 {

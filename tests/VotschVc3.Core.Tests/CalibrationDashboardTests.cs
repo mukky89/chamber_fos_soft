@@ -5,6 +5,24 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void ChamberCriteriaDistinguishWaitingConfirmedAndDisabled()
+    {
+        var m = Model();
+        var entry = new ChamberEntryStatus(true, false, 0.1, 0.2, 0.01, 60, 120, 0.5, 0.5, 0.1, Start);
+        var snapshot = Snapshot(CalibrationRunState.WaitingForChamberStability) with { ChamberEntry = entry };
+        m.Apply(snapshot, Start);
+        Assert.Equal("Done", m.ChamberToleranceTone);
+        Assert.Equal("Waiting", m.ChamberTimeTone);
+        Assert.Contains("ČAKÁ NA KOMORU", m.ReferenceCardState);
+        m.Apply(snapshot with { ChamberEntry = entry with { IsOpen = true, WindowSeconds = 120 } }, Start);
+        Assert.Equal("Done", m.ChamberCardTone);
+        Assert.Contains("Hodnoty pri potvrdení", m.ChamberEntryDetail);
+        m.Apply(snapshot with { ChamberEntry = entry with { Enabled = false } }, Start);
+        Assert.Equal("Pending", m.ChamberRangeTone);
+        Assert.Contains("vypnuté", m.ChamberRangeLabel);
+        m.Apply(snapshot with { ChamberEntry = null }, Start);
+        Assert.Contains("čaká na údaje", m.ChamberRangeLabel);
+    }
     [Fact] public void ConfigureKeepsExplicitReferenceChamberIdentity()
     {
         var dashboard = new CalibrationDashboardViewModel();
@@ -171,7 +189,7 @@ public sealed class CalibrationDashboardTests
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
         var m = Model();
-        Assert.Contains("MONITORING", m.ChamberCardState);
+        Assert.Contains("PENDING", m.ChamberCardState);
         Assert.Contains("PENDING", m.ReferenceCardState);
 
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);

@@ -37,6 +37,9 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.Contains("KOMORA ČAKÁ", observed!.Message);
             Assert.Equal(0, observed.TemperatureStableScoreSeconds);
             Assert.False(observed.TemperatureGateOpen);
+            Assert.True(observed.ChamberEntry!.Enabled);
+            Assert.False(observed.ChamberEntry.IsOpen);
+            Assert.Equal(2, observed.ChamberEntry.DeviationC);
         }
         finally { Directory.Delete(root, true); }
     }

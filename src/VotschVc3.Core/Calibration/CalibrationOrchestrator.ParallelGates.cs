@@ -136,6 +136,8 @@ public sealed partial class CalibrationOrchestrator
         Stopwatch plateauClock = Stopwatch.StartNew();
         bool hasExternalReference = readReferenceTemperatureAsync is not null;
         var chamberEntry = new ChamberEntryGate();
+        var publishProgress = progress;
+        progress = snapshot => publishProgress?.Invoke(snapshot with { ChamberEntry = chamberEntry.Status });
         var referenceDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
