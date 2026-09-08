@@ -720,14 +720,14 @@
                                         </StackPanel>
 
                                         <!-- Manual commands remain protected by profile/FBG interlocks. -->
-                                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,10,0,0">
-                                            <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,0,0,14">
+                                        <StackPanel IsEnabled="{Binding IsManualControlEnabled}" Margin="0,4,0,0">
+                                            <ItemsControl ItemsSource="{Binding QuickPresets}" Margin="0,0,0,8">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate><UniformGrid Rows="1" Columns="4" /></ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Button Margin="0,0,5,0" Height="34" Padding="6,0"
+                                                        <Button Margin="0,0,5,0" Height="30" Padding="6,0"
                                                                 Content="{Binding}" ContentStringFormat="{}{0:0.#}°"
                                                                 ToolTip="Nastaviť túto teplotu a zapnúť komoru. Modrá označuje aktuálny setpoint."
                                                                 Command="{Binding DataContext.QuickSetTemperatureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -753,8 +753,7 @@
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
-                                            <TextBlock Text="Vlastná teplota" Style="{StaticResource Caption}" Margin="0,0,0,6" />
-                                            <Grid Margin="0,0,0,16">
+                                            <Grid Margin="0,0,0,8">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
@@ -762,13 +761,13 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Grid Margin="0,0,12,0">
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                    <views:NumericStepper Height="38" FontSize="17" Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
+                                                    <views:NumericStepper Height="34" FontSize="15" Value="{Binding QuickTemperature, Mode=TwoWay}" Step="1"
                                                                           ToolTip="Vlastná teplota – zadajte hodnotu a stlačte Nastaviť." />
                                                     <TextBlock Grid.Column="1" Text="°C" FontSize="15" VerticalAlignment="Center" Margin="7,0,0,0" />
                                                 </Grid>
-                                                <Button Grid.Column="1" Content="Nastaviť" Style="{StaticResource AccentButton}" Height="38" Padding="14,0" Margin="0"
+                                                <Button Grid.Column="1" Content="Nastaviť" Style="{StaticResource AccentButton}" Height="34" Padding="14,0" Margin="0"
                                                         Command="{Binding QuickSetTemperatureCommand}" ToolTip="Nastaviť vlastnú teplotu a zapnúť reguláciu." />
-                                                <Button Grid.Column="2" Style="{StaticResource DangerButton}" Height="38" Padding="12,0" Margin="16,0,0,0"
+                                                <Button Grid.Column="2" Style="{StaticResource DangerButton}" Height="34" Padding="12,0" Margin="16,0,0,0"
                                                         Command="{Binding StopChamberCommand}" ToolTip="Vypnúť komoru a zastaviť reguláciu.">
                                                     <StackPanel Orientation="Horizontal">
                                                         <Path Style="{StaticResource IconPath}" Width="13" Height="13" Data="{StaticResource Icon.Power}" />
@@ -776,24 +775,21 @@
                                                     </StackPanel>
                                                 </Button>
                                             </Grid>
-                                            <Border BorderBrush="{StaticResource MutedBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                        <CheckBox Style="{StaticResource ManualTimerSwitch}" Content="Automatické vypnutie" IsChecked="{Binding ManualTimerEnabled, Mode=TwoWay}" VerticalAlignment="Center"
+                                            <Border BorderBrush="{StaticResource MutedBrush}" BorderThickness="0,1,0,0" Padding="0,7,0,0">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                                        <CheckBox Style="{StaticResource ManualTimerSwitch}" Content="Automatické vypnutie"
+                                                                  IsChecked="{Binding ManualTimerEnabled, Mode=TwoWay}"
                                                                   ToolTip="Po nastavenom čase sa výkon komory vypne. Vypnutý časovač znamená beh bez časového limitu." />
-                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" IsEnabled="{Binding ManualTimerEnabled}">
-                                                            <views:NumericStepper Width="80" Height="32" Value="{Binding ManualDurationMinutes, Mode=TwoWay}" Minimum="1" Maximum="10080" Step="5" />
-                                                            <TextBlock Text="min" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="{StaticResource MutedBrush}" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0">
-                                                        <TextBlock.Text>
-                                                            <Binding Path="ManualTimerStatusText" />
-                                                        </TextBlock.Text>
-                                                    </TextBlock>
-                                                </StackPanel>
-                                            </Border>
+                                                        <TextBlock Text="{Binding ManualTimerStatusText}" Style="{StaticResource Caption}"
+                                                                   FontSize="10" TextWrapping="Wrap" Margin="39,2,0,0" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" IsEnabled="{Binding ManualTimerEnabled}">
+                                                        <views:NumericStepper Width="74" Height="30" Value="{Binding ManualDurationMinutes, Mode=TwoWay}" Minimum="1" Maximum="10080" Step="5" />
+                                                        <TextBlock Text="min" VerticalAlignment="Center" Margin="5,0,0,0" Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                </Grid>                                            </Border>
                                         </StackPanel>
                                         <!-- Action feedback banner: pops up after an action so the operator
                                              always sees what happened / what was switched on. Auto-clears. -->

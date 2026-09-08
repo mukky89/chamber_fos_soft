@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.279] – 2026-09-08
+
+### Zmenené
+
+- Kompaktnejší panel Rýchle ovládanie: menšie medzery a predvoľby, odstránený samostatný nadpis vlastnej teploty a časovač so stavom v spoločnom riadku.
+
 ## [1.76.278] – 2026-09-08
 
 ### Zmenené
