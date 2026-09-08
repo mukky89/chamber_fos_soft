@@ -18,7 +18,7 @@ namespace VotschVc3.Core.Calibration;
 /// lost, unfinished FBGs are reset. If an FBG loses wavelength stability while its measurement window
 /// is running, that FBG's measurement samples are discarded and it returns to stabilization.
 /// </summary>
-public sealed class CalibrationOrchestrator
+public sealed partial class CalibrationOrchestrator
 {
     private readonly IPeakLoggerClient _peakLogger;
     private readonly TimeProvider _timeProvider;
@@ -161,6 +161,43 @@ public sealed class CalibrationOrchestrator
         bool temperatureGateEverOpened = false;
         DateTimeOffset? temperatureRecoveryStartedAt = null;
         TimeSpan automaticTemperatureExtensionUsed = TimeSpan.Zero;
+        TimeSpan? manualTemperatureDeadline = null;
+        async Task HandleOperatorIssue(CalibrationOperatorIssue issue, string message, IEnumerable<TargetTracker> affected)
+        {
+            TargetTracker[] targets = affected.Where(t => !t.IsTerminal).ToArray();
+            var decisionClock = Stopwatch.StartNew();
+            CalibrationOperatorAnswer answer = await AskOperatorAsync(run, writer, plateauIndex, issue, message, cancellationToken).ConfigureAwait(false);
+            foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal)) tracker.AddOperatorPause(decisionClock.Elapsed);
+            // Re-establish reference stability from fresh readings after human deliberation.
+            referenceDetector = NewTemperatureDetector(settings);
+            chamberDetector = NewTemperatureDetector(settings);
+            temperatureGateOpen = false;
+            temperatureGateForced = false;
+            temperatureRecoveryStartedAt = temperatureRecoveryStartedAt?.Add(decisionClock.Elapsed) ?? DateTimeOffset.UtcNow;
+            foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal)) tracker.ResetForTemperatureLoss();
+            if (answer.Decision == CalibrationOperatorDecision.Skip)
+            {
+                foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
+                    tracker.Fail(CalibrationTargetState.TimedOut, $"Bod preskočený operátorom bez potvrdeného výsledku: {answer.Reason}");
+                return;
+            }
+            TimeSpan extra = TimeSpan.FromMinutes(answer.Decision == CalibrationOperatorDecision.Extend15 ? 15 : 30);
+            manualTemperatureDeadline = plateauClock.Elapsed +
+                (issue == CalibrationOperatorIssue.Temperature && answer.Decision != CalibrationOperatorDecision.Retry
+                    ? extra : settings.ChamberStabilityTimeout > TimeSpan.Zero ? settings.ChamberStabilityTimeout : TimeSpan.FromMinutes(30));
+            // All unfinished windows are revalidated after human deliberation.
+            foreach (TargetTracker tracker in targets)
+            {
+                if (answer.Decision == CalibrationOperatorDecision.Retry)
+                {
+                    tracker.ResetForRuntimeSettingsChange();
+                    tracker.GrantManualTime(SensorTimeoutBudget.BaseLimit(settings.RequiredStableSamples,
+                        settings.RequiredMeasurementSamples, tracker.ObservedCadence(), tracker.Timeout));
+                    continue;
+                }
+                tracker.GrantManualTime(extra);
+            }
+        }
 
         while (true)
         {
@@ -190,6 +227,17 @@ public sealed class CalibrationOrchestrator
                 writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
             }
 
+            if (settings.OperatorSupervisionEnabled)
+            {
+                foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal)) tracker.UpdateDeadline();
+                TargetTracker[] expired = trackers.Values.Where(t => !t.IsTerminal && t.HasStarted && t.ActiveElapsed >= t.EffectiveTimeout).ToArray();
+                if (expired.Length > 0)
+                {
+                    await HandleOperatorIssue(CalibrationOperatorIssue.Sensors,
+                        "Vypršal čas FBG: " + string.Join("; ", expired.Select(t => $"SN {t.Mapping.SerialNumber}: {t.DeadlineProgress}")), expired);
+                    continue;
+                }
+            }
             // Wall time continues through reference loss, missing peaks and window resets.
             foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
             {
@@ -236,10 +284,19 @@ public sealed class CalibrationOrchestrator
                     "FBG fáza ukončená · neúspešné peaky sú označené · ukladám plato."));
                 break;
             }
-            actualTemperature = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
-            referenceTemperature = hasExternalReference
-                ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false)
-                : null;
+            try
+            {
+                actualTemperature = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
+                referenceTemperature = hasExternalReference
+                    ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false)
+                    : null;
+            }
+            catch (Exception ex) when (settings.OperatorSupervisionEnabled && ex is IOException or TimeoutException)
+            {
+                await HandleOperatorIssue(CalibrationOperatorIssue.Communication,
+                    $"Nepodarilo sa načítať teplotu komory alebo WIKA: {ex.Message}", trackers.Values);
+                continue;
+            }
 
             if (_peakLogger is IPeakLoggerSimulationControl simulation)
                 simulation.SimulatedTemperatureC = referenceTemperature ?? actualTemperature;
@@ -333,8 +390,14 @@ public sealed class CalibrationOrchestrator
                 if (!temperatureGateEverOpened)
                 {
                     if (settings.ChamberStabilityTimeout > TimeSpan.Zero &&
-                        plateauClock.Elapsed >= minimumPlateauDuration + settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed)
+                        plateauClock.Elapsed >= (manualTemperatureDeadline ?? (minimumPlateauDuration + settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed)))
                     {
+                        if (settings.OperatorSupervisionEnabled)
+                        {
+                            await HandleOperatorIssue(CalibrationOperatorIssue.Temperature,
+                                $"WIKA nedokončila stabilizáciu pri cieli {targetTemperatureC:F1} °C. {temperatureDetail}", trackers.Values);
+                            continue;
+                        }
                         if (TryExtendTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
                             settings, hasExternalReference, ref automaticTemperatureExtensionUsed))
                             continue;
@@ -347,8 +410,14 @@ public sealed class CalibrationOrchestrator
                 }
                 else if (temperatureRecoveryStartedAt is { } recoveryStart &&
                          settings.ChamberStabilityTimeout > TimeSpan.Zero &&
-                         loopAt - recoveryStart >= settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed)
+                         (manualTemperatureDeadline is { } deadline ? plateauClock.Elapsed >= deadline : loopAt - recoveryStart >= settings.ChamberStabilityTimeout + automaticTemperatureExtensionUsed))
                 {
+                    if (settings.OperatorSupervisionEnabled)
+                    {
+                        await HandleOperatorIssue(CalibrationOperatorIssue.Temperature,
+                            $"WIKA po strate stability nedokončila nový stabilný čas. {temperatureDetail}", trackers.Values);
+                        continue;
+                    }
                     if (TryExtendTemperatureTimeout(run, plateauIndex, targetTemperatureC, referenceTemperature, actualTemperature,
                         settings, hasExternalReference, ref automaticTemperatureExtensionUsed))
                         continue;
@@ -368,6 +437,7 @@ public sealed class CalibrationOrchestrator
                 temperatureGateOpen = true;
                 temperatureGateEverOpened = true;
                 temperatureRecoveryStartedAt = null;
+                manualTemperatureDeadline = null;
                 foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
                     tracker.BeginSensorPhase();
             }
@@ -384,6 +454,12 @@ public sealed class CalibrationOrchestrator
             }
             catch (Exception ex)
             {
+                if (settings.OperatorSupervisionEnabled)
+                {
+                    await HandleOperatorIssue(CalibrationOperatorIssue.Communication,
+                        $"PeakLogger neposkytuje dáta: {ex.Message}", trackers.Values);
+                    continue;
+                }
                 CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
                 {
                     Code = "PEAKLOGGER_DISCONNECTED",
@@ -403,6 +479,7 @@ public sealed class CalibrationOrchestrator
             if (trackers.Values.Any(t => !t.IsTerminal && t.HasStarted && t.ActiveElapsed >= t.EffectiveTimeout)) continue;
 
             var rawToWrite = new List<CalibrationRawSample>();
+            var operatorIssues = new List<string>();
             foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
             {
                 PeakLoggerMeasurement? measurement = FindMeasurement(batch, tracker.Mapping);
@@ -411,6 +488,11 @@ public sealed class CalibrationOrchestrator
                     tracker.MarkMissing(loopAt);
                     if (tracker.MissingFor >= settings.PeakLostGracePeriod)
                     {
+                        if (settings.OperatorSupervisionEnabled)
+                        {
+                            operatorIssues.Add($"Chýba peak SN {tracker.Mapping.SerialNumber}, kanál {tracker.Mapping.Channel}.");
+                            continue;
+                        }
                         CalibrationWarning warning = RaiseWarning(run, new CalibrationWarning
                         {
                             Code = "PEAK_LOST",
@@ -429,7 +511,9 @@ public sealed class CalibrationOrchestrator
 
                 if (loopAt - measurement.Timestamp > TimeSpan.FromSeconds(10))
                 {
-                    tracker.Fail(CalibrationTargetState.Disconnected, "PeakLogger poskytol zastarané dáta pre vybraný peak.");
+                    if (settings.OperatorSupervisionEnabled)
+                        operatorIssues.Add($"Zastarané dáta SN {tracker.Mapping.SerialNumber}.");
+                    else tracker.Fail(CalibrationTargetState.Disconnected, "PeakLogger poskytol zastarané dáta pre vybraný peak.");
                     continue;
                 }
 
@@ -447,12 +531,20 @@ public sealed class CalibrationOrchestrator
 
                 string? resetMessage = tracker.ProcessStableTemperatureSample(raw, settings);
                 if (resetMessage is not null)
+                {
                     writer.WriteDiagnostic("WARNING", "FBG_MEASUREMENT_RESET", resetMessage);
+                    if (settings.OperatorSupervisionEnabled) operatorIssues.Add(resetMessage);
+                }
             }
 
             if (rawToWrite.Count > 0)
                 await writer.AppendAsync(rawToWrite, cancellationToken).ConfigureAwait(false);
 
+            if (operatorIssues.Count > 0)
+            {
+                await HandleOperatorIssue(CalibrationOperatorIssue.Sensors, string.Join("\n", operatorIssues), trackers.Values);
+                continue;
+            }
             int completed = trackers.Values.Count(t => t.IsCompletedStable);
             int measuring = trackers.Values.Count(t => t.IsMeasuring && !t.IsTerminal);
             int stabilizing = trackers.Values.Count(t => !t.IsMeasuring && !t.IsTerminal);
@@ -545,20 +637,25 @@ public sealed class CalibrationOrchestrator
                 PlateauIndex = current.PlateauIndex,
                 SerialNumber = currentTarget.SerialNumber,
                 PeakId = currentTarget.PeakId,
-                Overridden = settings.AllowValidationOverride,
+                Overridden = settings.AllowValidationOverride && !settings.OperatorSupervisionEnabled,
                 OverrideReason = settings.AllowValidationOverride ? settings.ValidationOverrideReason : null,
             });
 
-            if (settings.AllowValidationOverride)
+            if (settings.AllowValidationOverride && !settings.OperatorSupervisionEnabled)
             {
                 currentTarget.Status = CalibrationTargetState.Overridden;
                 currentTarget.Problem = warning.Message;
                 continue;
             }
-            ApplyFailurePolicy(settings.ValidationFailurePolicy, warning);
+            if (settings.OperatorSupervisionEnabled)
+            {
+                currentTarget.Status = CalibrationTargetState.NoTemperatureResponse;
+                currentTarget.Problem = warning.Message;
+            }
+            else ApplyFailurePolicy(settings.ValidationFailurePolicy, warning);
         }
 
-        return allValid || settings.AllowValidationOverride;
+        return allValid || (settings.AllowValidationOverride && !settings.OperatorSupervisionEnabled);
     }
 
     private Exception BuildTemperatureTimeout(
@@ -786,6 +883,8 @@ public sealed class CalibrationOrchestrator
         private long? _startedAt;
         private TimeSpan _deadline;
         private TimeSpan? _finishedElapsed;
+        private TimeSpan _operatorPause;
+        private TimeSpan _manualAllowance;
         private TimeSpan _lastProgressAt;
         private double? _previousWindowScore;
         private bool _improving;
@@ -807,7 +906,7 @@ public sealed class CalibrationOrchestrator
         public CalibrationSensorMapping Mapping { get; }
         public TimeSpan Timeout { get; }
         public TimeSpan EffectiveTimeout => _deadline;
-        public TimeSpan ActiveElapsed => _finishedElapsed ?? (_startedAt is { } start ? _clock.GetElapsedTime(start) : TimeSpan.Zero);
+        public TimeSpan ActiveElapsed => _finishedElapsed ?? (_startedAt is { } start ? _clock.GetElapsedTime(start) - _operatorPause : TimeSpan.Zero);
         public bool HasStarted => _startedAt.HasValue;
         public CalibrationTargetState State { get; private set; }
         public StabilityMetrics? LastMetrics { get; private set; }
@@ -828,6 +927,8 @@ public sealed class CalibrationOrchestrator
                 State = CalibrationTargetState.Stabilizing;
         }
 
+        public void AddOperatorPause(TimeSpan duration) { if (HasStarted) _operatorPause += duration; }
+        public void GrantManualTime(TimeSpan duration) { _manualAllowance += duration; _deadline = (ActiveElapsed > _deadline ? ActiveElapsed : _deadline) + duration; }
         public void UpdateDeadline()
         {
             // Re-evaluate cadence while inside the base budget, never move the hard deadline.
@@ -1077,7 +1178,7 @@ public sealed class CalibrationOrchestrator
                 ActiveElapsed,
                 EffectiveTimeout,
                 state,
-                detail + (HasStarted && !IsTerminal ? $" · zostáva {FormatTime(EffectiveTimeout > ActiveElapsed ? EffectiveTimeout - ActiveElapsed : TimeSpan.Zero)} · do pevného stropu {FormatTime(SensorTimeoutBudget.HardLimit > ActiveElapsed ? SensorTimeoutBudget.HardLimit - ActiveElapsed : TimeSpan.Zero)}" : string.Empty),
+                detail + (HasStarted && !IsTerminal ? $" · zostáva {FormatTime(EffectiveTimeout > ActiveElapsed ? EffectiveTimeout - ActiveElapsed : TimeSpan.Zero)} · do pevného stropu {FormatTime(SensorTimeoutBudget.HardLimit + _manualAllowance > ActiveElapsed ? SensorTimeoutBudget.HardLimit + _manualAllowance - ActiveElapsed : TimeSpan.Zero)}" : string.Empty),
                 StabilitySamples: metrics.Count,
                 RequiredStabilitySamples: Math.Max(2, _settings.RequiredStableSamples),
                 MeasurementSamples: _measurementSamples.Count,
@@ -1102,7 +1203,7 @@ public sealed class CalibrationOrchestrator
             LastMetrics = null;
         }
 
-        private TimeSpan ObservedCadence()
+        public TimeSpan ObservedCadence()
         {
             if (_observedCadenceSeconds.Count == 0)
                 return TimeSpan.FromSeconds(Math.Clamp(_settings.SampleAcquisitionIntervalSeconds, 1, 30));

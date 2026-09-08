@@ -590,6 +590,183 @@ public sealed class CalibrationWorkflowRegressionTests
         }
     }
 
+    [Theory]
+    [InlineData(CalibrationOperatorDecision.Skip)]
+    [InlineData(CalibrationOperatorDecision.Extend15)]
+    [InlineData(CalibrationOperatorDecision.Extend30)]
+    [InlineData(CalibrationOperatorDecision.Retry)]
+    public async Task Supervision_SensorDeadlineRequiresDecisionAndPreservesOutcome(CalibrationOperatorDecision decision)
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            setup.Settings.OperatorSupervisionEnabled = true;
+            var clock = new ManualSensorClock();
+            var run = new CalibrationRunRecord { ProfileId = setup.ProfileId, Operator = "Test operator" };
+            var store = new CalibrationStore(root);
+            await using var writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger, clock);
+            int requests = 0;
+            bool advanced = false;
+            orchestrator.OperatorAttentionRequired += request =>
+            {
+                requests++;
+                Assert.Equal(CalibrationRunState.AwaitingOperator, run.State);
+                Assert.NotNull(run.OperatorDecisionDeadline);
+                Assert.Equal(CalibrationOperatorIssue.Sensors, request.Issue);
+                Assert.True(request.Submit(decision, "Overené operátorom"));
+            };
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var plateau = await orchestrator.WaitForPlateauAsync(run, setup, 0, 1, 20,
+                _ => Task.FromResult(20d), _ => Task.FromResult<double?>(20d), writer,
+                progress: snapshot =>
+                {
+                    if (!advanced && snapshot.TemperatureGateOpen == true)
+                    {
+                        advanced = true;
+                        clock.Advance(TimeSpan.FromMinutes(91));
+                    }
+                }, cancellationToken: timeout.Token);
+            Assert.Equal(1, requests);
+            Assert.Null(run.PendingOperatorIssue);
+            Assert.Null(run.OperatorDecisionDeadline);
+            var target = Assert.Single(plateau.Targets);
+            Assert.Equal(decision == CalibrationOperatorDecision.Skip ? CalibrationTargetState.TimedOut : CalibrationTargetState.Stable, target.Status);
+            Assert.Contains(run.Warnings, warning => warning.Code == "OPERATOR_DECISION" && warning.OverrideReason == "Overené operátorom");
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task Supervision_StopOrMissingOperatorSendsChamberStop(bool attachOperator, bool expire)
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "Supervised stop", ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments = { new ProfileSegment { Name = "20 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 20 } },
+            };
+            var setup = StableSetup(profile.Id);
+            setup.Settings.OperatorSupervisionEnabled = true;
+            setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(1);
+            setup.CalibrationSegmentIndices.Add(0);
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ChamberId = Guid.NewGuid() };
+            var store = new CalibrationStore(root);
+            await using var writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            if (attachOperator) orchestrator.OperatorAttentionRequired += request =>
+            {
+                if (expire) _ = request.WaitAsync(CancellationToken.None, TimeSpan.FromMilliseconds(5));
+                else request.Submit(CalibrationOperatorDecision.Stop, "Ukončiť");
+            };
+            var runner = new CalibrationProfileRunner(chamber, orchestrator, store);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await Assert.ThrowsAsync<CalibrationSupervisionStoppedException>(() =>
+                runner.RunAsync(profile, setup, run, writer, 20, null, _ => Task.FromResult<double?>(35), timeout.Token));
+            Assert.Equal(1, chamber.StopCount);
+            Assert.Equal(CalibrationRunState.Aborted, run.State);
+            Assert.NotNull(run.CompletedAt);
+            Assert.Null(run.PendingOperatorIssue);
+            Assert.True(run.OperatorSupervisionEnabled);
+            Assert.Empty(run.Plateaus);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Supervision_RechecksReferenceAfterRetryOrExtension(bool communicationFailure)
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            setup.Settings.OperatorSupervisionEnabled = true;
+            setup.Settings.ChamberStabilityTimeout = TimeSpan.FromMilliseconds(1);
+            var run = new CalibrationRunRecord { ProfileId = setup.ProfileId };
+            var store = new CalibrationStore(root);
+            await using var writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            bool recovered = false;
+            int requests = 0;
+            orchestrator.OperatorAttentionRequired += request =>
+            {
+                requests++;
+                Assert.Equal(communicationFailure ? CalibrationOperatorIssue.Communication : CalibrationOperatorIssue.Temperature, request.Issue);
+                recovered = true;
+                Assert.True(request.Submit(communicationFailure ? CalibrationOperatorDecision.Retry : CalibrationOperatorDecision.Extend15, "Referencia obnovená"));
+            };
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            var plateau = await orchestrator.WaitForPlateauAsync(run, setup, 0, 1, 20,
+                _ => Task.FromResult(20d),
+                _ => !recovered && communicationFailure ? Task.FromException<double?>(new IOException("WIKA offline")) : Task.FromResult<double?>(recovered ? 20 : 35),
+                writer, cancellationToken: timeout.Token);
+            Assert.Equal(1, requests);
+            Assert.Equal(CalibrationTargetState.Stable, Assert.Single(plateau.Targets).Status);
+            Assert.Equal(20, plateau.ReferenceTemperatureC);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+
+    [Fact]
+    public async Task Supervision_ValidationRetryArchivesAttemptAndSkipNeverApprovesIt()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "Validation retry", ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments =
+                {
+                    new ProfileSegment { Name = "20 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 20 },
+                    new ProfileSegment { Name = "30 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 30 },
+                },
+            };
+            var setup = StableSetup(profile.Id);
+            setup.Settings.OperatorSupervisionEnabled = true;
+            setup.Settings.AllowValidationOverride = true; // Saved overrides must not bypass supervision.
+            setup.Settings.ValidationMinimumWavelengthResponsePm = 100000;
+            setup.CalibrationSegmentIndices.AddRange(new[] { 0, 1 });
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ChamberId = Guid.NewGuid() };
+            var store = new CalibrationStore(root);
+            await using var writer = store.CreateRunWriter(run);
+            var orchestrator = new CalibrationOrchestrator(peakLogger);
+            int requests = 0;
+            orchestrator.OperatorAttentionRequired += request =>
+            {
+                Assert.Equal(CalibrationOperatorIssue.Validation, request.Issue);
+                Assert.True(request.Submit(++requests == 1 ? CalibrationOperatorDecision.Retry : CalibrationOperatorDecision.Skip, "Overená odozva"));
+            };
+            var runner = new CalibrationProfileRunner(chamber, orchestrator, store);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await runner.RunAsync(profile, setup, run, writer, 20, null, cancellationToken: timeout.Token);
+            Assert.Equal(2, requests);
+            Assert.Equal(2, run.Plateaus.Count);
+            Assert.Single(run.SupersededPlateaus);
+            Assert.Equal(CalibrationTargetState.NoTemperatureResponse, Assert.Single(run.Plateaus[1].Targets).Status);
+            Assert.Equal(CalibrationRunState.CompletedWithWarnings, run.State);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
     private sealed class ManualSensorClock : TimeProvider
     {
         private long _timestamp;

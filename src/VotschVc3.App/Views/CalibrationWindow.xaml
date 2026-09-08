@@ -28,7 +28,41 @@
         <!-- ===== Header: what this window is + what you can do with it =====
              The run controls are one group, set apart from "Uložiť zapojenie" so a stop is
              never a neighbour of a save. -->
-        <DockPanel Grid.Row="0" Margin="6,4,6,12">
+        <StackPanel Grid.Row="0">
+            <Border Margin="6,0,6,8" Padding="10" CornerRadius="7" Background="#332919" BorderBrush="#E8AA42" BorderThickness="1">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="?" FontWeight="Bold" FontSize="18" Margin="12,0"
+                                   ToolTip="Voliteľný dohľad pre tento beh. Pri timeoute WIKA/FBG, strate dát alebo nepotvrdenej odozve sa postup pozastaví a odošle jeden e-mail pre danú udalosť. Operátor má 30 minút na rozhodnutie; potom sa uloží beh a odošle STOP komore. Predĺženie pridá 15/30 minút. Nový pokus obnoví meranie rozpracovaných senzorov. Po rozhodnutí sa WIKA a rozpracované meracie okná overia odznova. Preskočenie nie je úspešná kalibrácia. Ak je trace log zapnutý, pokračuje aj počas čakania. Pri chybe komunikácie sú dostupné nový pokus a STOP; predĺženie platí pre WIKA/FBG. Dohľad vyžaduje zapnuté e-maily kalibrácie a adresáta v Administrácii. Každé rozhodnutie a jeho dôvod sa uložia." />
+                        <CheckBox Content="Operátorský dohľad – pri probléme vyžadovať moje rozhodnutie"
+                                  IsChecked="{Binding OperatorSupervisionEnabled}" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}"
+                                  FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding OperatorSupervisionLabel}" Foreground="#FFD27D" FontWeight="Bold" Margin="0,5,0,0"
+                               Visibility="{Binding OperatorSupervisionEnabled, Converter={StaticResource BoolToVisibility}}" />
+                    <Border Margin="0,8,0,0" Padding="12" CornerRadius="6" Background="#54262D" BorderBrush="#FF6474" BorderThickness="2"
+                            Visibility="{Binding HasOperatorDecision, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <ScrollViewer MaxHeight="90" VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding OperatorDecisionMessage}" TextWrapping="Wrap" Foreground="#FFFFFF" FontWeight="SemiBold" />
+                            </ScrollViewer>
+                            <TextBlock Text="{Binding OperatorDecisionCountdown}" Foreground="#FFD27D" FontWeight="Bold" Margin="0,6" TextWrapping="Wrap" />
+                            <DockPanel>
+                                <TextBlock Text="Dôvod rozhodnutia:" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <TextBox Text="{Binding OperatorDecisionReason, UpdateSourceTrigger=PropertyChanged}" MinWidth="200" />
+                            </DockPanel>
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button Content="Predĺžiť o 15 min" Command="{Binding ExtendOperator15Command}" Margin="0,0,8,0" />
+                                <Button Content="Predĺžiť o 30 min" Command="{Binding ExtendOperator30Command}" Margin="0,0,8,0" />
+                                <Button Content="Nový pokus" Command="{Binding RetryOperatorCommand}" Margin="0,0,8,0" />
+                                <Button Content="Preskočiť – nepotvrdené" Command="{Binding SkipOperatorCommand}" Margin="0,0,8,0" />
+                                <Button Content="Ukončiť a STOP komory" Command="{Binding StopOperatorCommand}" Style="{StaticResource DangerButton}" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+        <DockPanel Margin="6,4,6,12">
             <StackPanel DockPanel.Dock="Left" MaxWidth="310" Margin="0,0,16,0">
                 <TextBlock Text="FBG teplotná kalibrácia" FontSize="24" FontFamily="Segoe UI Semibold" />
                 <TextBlock Text="Live prehľad kalibračného procesu"
@@ -93,6 +127,7 @@
             </StackPanel>
         </DockPanel>
 
+        </StackPanel>
         <Border Grid.Row="2" Margin="6,0,6,8" Padding="10,6" CornerRadius="7"
                 Background="#15283A" BorderBrush="#315477" BorderThickness="1"
                 Visibility="{Binding HasResumableCalibration, Converter={StaticResource BoolToVisibility}}">

@@ -119,6 +119,7 @@ public static class CalibrationCheckpointRecovery
             FinalConditioningTemperatureC = settings.FinalConditioningTemperatureC,
             FinalConditioningDuration = settings.FinalConditioningDuration,
             FinalConditioningToleranceC = settings.FinalConditioningToleranceC,
+            OperatorSupervisionEnabled = settings.OperatorSupervisionEnabled,
             DefaultSensorStabilizationTimeout = settings.DefaultSensorStabilizationTimeout,
             SensorTimeoutPolicy = settings.SensorTimeoutPolicy,
             PeakLostPolicy = settings.PeakLostPolicy,

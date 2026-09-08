@@ -20,7 +20,7 @@ using VotschVc3.Core.Thermometers;
 
 namespace VotschVc3.App.ViewModels;
 
-public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
+public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDisposable
 {
     private static readonly TimeSpan ProgressDiagnosticInterval = TimeSpan.FromSeconds(30);
     public CalibrationDashboardViewModel Dashboard { get; } = new();
@@ -131,8 +131,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StartCalibrationCommand = new AsyncRelayCommand(StartCalibrationAsync, CanStartCalibration, ReportError);
         ResumeCalibrationCommand = new AsyncRelayCommand(ResumeCalibrationAsync, CanResumeCalibration, ReportError);
         ApplyCurrentDefaultsToResumeCommand = new RelayCommand(ApplyCurrentDefaultsToResume, () => HasResumableCalibration && !IsRunning);
-        PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null);
-        ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending);
+        PauseResumeCommand = new RelayCommand(PauseResume, () => IsRunning && _runner is not null && !HasOperatorDecision);
+        ForceNextStepCommand = new RelayCommand(ForceNextStep, () => IsRunning && _runner is not null && Dashboard.CanForceTemperatureGate && !_temperatureGateOverridePending && !HasOperatorDecision && !OperatorSupervisionEnabled);
         StopCalibrationCommand = new RelayCommand(StopCalibration, CanStopOrFinalizeCalibration);
         RefreshHistoryCommand = new RelayCommand(RefreshHistory);
         ExportSelectedRunCommand = new RelayCommand(ExportSelectedRun, () => SelectedHistoryRun is not null);
@@ -700,6 +700,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
     {
         if (IsRunning || HasResumableCalibration) return;
         _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: false);
+        OnPropertyChanged(nameof(OperatorSupervisionEnabled));
+        OnPropertyChanged(nameof(OperatorSupervisionLabel));
         OnPropertyChanged(nameof(SampleAcquisitionIntervalSeconds));
         OnPropertyChanged(nameof(WavelengthTraceIntervalSeconds));
         RefreshDashboardPlan();
@@ -1760,6 +1762,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         CalibrationCheckpoint? resume = resumeFromCheckpoint ? _resumeCheckpoint : null;
         if (resumeFromCheckpoint && resume is null)
             throw new InvalidOperationException("Uložený checkpoint pre vybraný profil a komoru už nie je dostupný.");
+        if (_setup.Settings.OperatorSupervisionEnabled)
+        {
+            RefreshEmailSettings();
+            if (!_email.CanSendType(NotificationType.CalibrationWarning))
+                throw new InvalidOperationException("Operátorský dohľad vyžaduje e-mail: v Administrácii zapnite e-mailové upozornenia kalibrácie a nastavte adresáta.");
+        }
         _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: resumeFromCheckpoint);
         RefreshSettingsBindings();
         RefreshDashboardPlan();
@@ -1860,6 +1868,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 await AppendWavelengthTraceIfDueAsync(firstMeasurements, force: true, _runCts.Token);
             }
             var orchestrator = new CalibrationOrchestrator(_peakLogger);
+            orchestrator.OperatorAttentionRequired += OnOperatorAttentionRequired;
             orchestrator.WarningRaised += warning =>
             {
                 writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
@@ -1922,6 +1931,12 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 : "Kalibrácia dokončená s upozorneniami.";
             await SendCompletionEmailAsync(_activeRun);
         }
+        catch (CalibrationSupervisionStoppedException ex)
+        {
+            RunState = CalibrationRunState.Aborted.ToString();
+            StatusMessage = "Operátorský dohľad ukončil beh; STOP komory bol potvrdený. " + ex.Message;
+            await NotifyRunInterruptionAsync(new CalibrationWarning { Code = "SUPERVISION_STOPPED", Message = StatusMessage });
+        }
         catch (CalibrationOperatorActionRequiredException ex)
         {
             // The runner exception was logged inside the writer lifetime.
@@ -1953,6 +1968,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 StatusMessage, DateTimeOffset.Now);
             _activeWriter = null;
             IsRunning = false;
+            OnPropertyChanged(nameof(OperatorSupervisionEnabled));
+            OnPropertyChanged(nameof(OperatorSupervisionLabel));
             _runner = null;
             if (_chamber is not null)
             {
@@ -2213,15 +2230,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         RunState,
         PlateauLabel,
         _calibrationProgressPercent,
-        Dashboard.StateLabel,
-        Dashboard.Now,
+        OperatorSupervisionEnabled ? OperatorSupervisionLabel + " · " + Dashboard.StateLabel : Dashboard.StateLabel,
+        HasOperatorDecision ? OperatorDecisionMessage + " · " + OperatorDecisionCountdown : Dashboard.Now,
         Dashboard.Target,
         Dashboard.Reference,
         Dashboard.PeakSummary,
         Dashboard.ProgressLabel,
         Dashboard.PhaseElapsed,
-        Dashboard.Eta,
-        Dashboard.Finish,
+        HasOperatorDecision ? "Čaká na operátora" : Dashboard.Eta,
+        HasOperatorDecision ? "—" : Dashboard.Finish,
         Dashboard.EtaBasis,
         Dashboard.StartedAt,
         Dashboard.EstimatedFinishAt);
@@ -2384,7 +2401,9 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         bool operatorAction = true; // Called only after the runner stops or requires operator action.
         EmailResult result = await _email.SendAsync(NotificationType.CalibrationWarning,
             operatorAction
-                ? $"KALIBRÁCIA ZASTAVENÁ – ZÁSAH OPERÁTORA – {run.DisplayProfileId}"
+                ? warning.Code == "OPERATOR_DECISION_REQUIRED"
+                    ? $"OPERÁTORSKÝ DOHĽAD – ČAKÁ NA ROZHODNUTIE – {run.DisplayProfileId}"
+                    : $"KALIBRÁCIA ZASTAVENÁ – ZÁSAH OPERÁTORA – {run.DisplayProfileId}"
                 : $"Kalibrácia FBG – WARNING – {run.DisplayProfileId}",
             $"Run ID: {run.DisplayRunId}\nProfil ID: {run.DisplayProfileId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nPlato: {plateau}\nSnímač: {sensor}\nPeak: {peak}\nČas: {warning.Timestamp:yyyy-MM-dd HH:mm:ss}\n\n{warning.Message}");
         if (result.Error is { Length: > 0 } error)
@@ -2493,6 +2512,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(WavelengthAveragingSamples));
         OnPropertyChanged(nameof(EnableWavelengthTraceLogging));
         OnPropertyChanged(nameof(WavelengthTraceIntervalSeconds));
+        OnPropertyChanged(nameof(OperatorSupervisionEnabled));
+        OnPropertyChanged(nameof(OperatorSupervisionLabel));
         OnPropertyChanged(nameof(SampleAcquisitionIntervalSeconds));
         OnPropertyChanged(nameof(RequiredStableSamples));
         OnPropertyChanged(nameof(RequiredMeasurementSamples));

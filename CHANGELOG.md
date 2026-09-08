@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.259] – 2026-09-08
+
+### Pridané
+
+- Voliteľný operátorský dohľad pre FBG beh: výrazné označenie v okne aj na karte komory, pomocník „?“ a červený panel s dôvodom problému a odpočtom.
+- Timeout WIKA/FBG, chyba komunikácie, strata peaku, zastarané dáta, rozpad finálneho meracieho okna alebo nepotvrdená teplotná odozva vyžiadajú rozhodnutie a jeden e-mail pre danú udalosť. Pred štartom sa kontroluje zapnutie e-mailov kalibrácie a adresát.
+- Operátor môže so zapísaným dôvodom predĺžiť čas o 15/30 minút, zopakovať meranie, preskočiť nepotvrdený bod alebo ukončiť beh. Pri strate komunikácie sú dostupné nový pokus a STOP. Po zásahu sa WIKA a rozpracované okná overujú odznova; pôvodné surové dáta zostávajú zachované.
+- Bez rozhodnutia do 30 minút sa beh riadene ukončí a odošle STOP komore. Nepotvrdený STOP sa hlási ako chyba. Čakanie neblokuje zapnutý trace log; režim, požiadavka a rozhodnutia sa ukladajú do výsledkov.
+- Nový pokus po chybnej teplotnej odozve uchová pôvodný výsledok medzi nahradenými pokusmi. Preskočenie ani uložená výnimka z validácie v režime dohľadu neoznačia nepotvrdený výsledok za úspešný.
+
 ## [1.76.258] – 2026-09-08
 
 ### Opravené

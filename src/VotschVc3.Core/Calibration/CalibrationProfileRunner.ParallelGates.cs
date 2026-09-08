@@ -79,6 +79,7 @@ public sealed class CalibrationProfileRunner
         List<PlateauWorkItem> workItems = PrepareResume(run, profile, setup, calibrationSteps.Count, resumeFrom);
         int progressPlateau = workItems.Count > 0 ? workItems[0].PlateauIndex : calibrationSteps.Count - 1;
 
+        run.OperatorSupervisionEnabled = setup.Settings.OperatorSupervisionEnabled;
         run.State = CalibrationRunState.Preflight;
         Progress?.Invoke(new CalibrationProgressSnapshot(
             CalibrationRunState.Preflight,
@@ -189,9 +190,6 @@ public sealed class CalibrationProfileRunner
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
 
-                SaveCheckpoint(run, setup, currentPlateau, step.Segment.TargetTemperature,
-                    workItems.Skip(workPosition + 1).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
-
                 if (validationBaseline is null)
                 {
                     validationBaseline = plateau;
@@ -201,8 +199,28 @@ public sealed class CalibrationProfileRunner
                 {
                     bool validated = _orchestrator.ValidateTemperatureResponse(run, validationBaseline, plateau, setup.Settings);
                     if (validated) responseValidated = true;
+                    else if (setup.Settings.OperatorSupervisionEnabled)
+                    {
+                        CalibrationOperatorAnswer answer = await _orchestrator.AskOperatorAsync(run, writer, currentPlateau, CalibrationOperatorIssue.Validation,
+                            "Odozva FBG na zmenu teploty nebola potvrdená. Pokračovanie tento bod neoznačí ako úspešný.", cancellationToken).ConfigureAwait(false);
+                        if (answer.Decision == CalibrationOperatorDecision.Retry)
+                        {
+                            run.SupersededPlateaus.Add(plateau);
+                            run.Plateaus.Remove(plateau);
+                            SaveCheckpoint(run, setup, currentPlateau, step.Segment.TargetTemperature,
+                                workItems.Skip(workPosition + 1).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
+                            writer.SaveSummary();
+                            workPosition--;
+                            continue;
+                        }
+                        foreach (var target in plateau.Targets.Where(t => t.Status == CalibrationTargetState.Stable))
+                        { target.Status = CalibrationTargetState.NoTemperatureResponse; target.Problem = "Odozva na teplotu nepotvrdená; pokračovanie povolil operátor."; }
+                        writer.SaveSummary();
+                    }
                 }
 
+                SaveCheckpoint(run, setup, currentPlateau, step.Segment.TargetTemperature,
+                    workItems.Skip(workPosition + 1).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
                 run.State = CalibrationRunState.PlateauCompleted;
                 Progress?.Invoke(new CalibrationProgressSnapshot(
                     run.State,
@@ -253,6 +271,27 @@ public sealed class CalibrationProfileRunner
             run.State = run.Warnings.Count == 0 ? CalibrationRunState.Completed : CalibrationRunState.CompletedWithWarnings;
             writer.SaveSummary();
             _store.DeleteCheckpoint(run.ChamberId);
+        }
+        catch (CalibrationSupervisionStoppedException ex)
+        {
+            try
+            {
+                using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                await _chamber.StopAsync(stopTimeout.Token).WaitAsync(stopTimeout.Token).ConfigureAwait(false);
+                run.State = CalibrationRunState.Aborted;
+                run.CompletedAt = DateTimeOffset.Now;
+                writer.WriteDiagnostic("WARNING", "SUPERVISION_STOPPED", ex.Message);
+                writer.SaveSummary();
+            }
+            catch (Exception stopError)
+            {
+                run.State = CalibrationRunState.Failed;
+                run.CompletedAt = DateTimeOffset.Now;
+                writer.WriteDiagnostic("ERROR", "SUPERVISION_STOP_FAILED", stopError.ToString());
+                writer.SaveSummary();
+                throw new InvalidOperationException("Operátorský dohľad: STOP komory sa nepodarilo potvrdiť. " + stopError.Message, stopError);
+            }
+            throw;
         }
         catch (OperationCanceledException)
         {

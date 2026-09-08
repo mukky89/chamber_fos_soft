@@ -287,7 +287,11 @@ public partial class HomeView
             if (state is not null)
             {
                 state.Text = snapshot.DisplayState;
-                state.Foreground = ok;
+                state.Foreground = snapshot.DisplayState.Contains("ČAKÁ NA ROZHODNUTIE", StringComparison.Ordinal)
+                    ? Brushes.Salmon : snapshot.DisplayState.Contains("OPERÁTORSKÝ DOHĽAD", StringComparison.Ordinal) ? Brushes.Orange : ok;
+                card.BorderBrush = snapshot.DisplayState.Contains("ČAKÁ NA ROZHODNUTIE", StringComparison.Ordinal)
+                    ? Brushes.Salmon : snapshot.DisplayState.Contains("OPERÁTORSKÝ DOHĽAD", StringComparison.Ordinal)
+                        ? Brushes.Orange : new SolidColorBrush(Color.FromRgb(56, 90, 130));
             }
             if (profile is not null) profile.Text = snapshot.ProfileName;
             if (runId is not null) runId.Text = $"ID kalibrácie: {snapshot.RunId}";

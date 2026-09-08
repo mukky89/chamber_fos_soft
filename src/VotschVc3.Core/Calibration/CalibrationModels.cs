@@ -69,6 +69,7 @@ public sealed class PeakLoggerSettings
 
 public sealed class CalibrationProfileSettings
 {
+    public bool OperatorSupervisionEnabled { get; set; }
     /// <summary>
     /// Shapes chamber setpoint commands into a gradual ramp. The chamber still regulates from its
     /// own internal sensor; this is not WIKA feedback control.
@@ -296,6 +297,10 @@ public sealed class CalibrationWarning
 
 public sealed class CalibrationRunRecord
 {
+    public bool OperatorSupervisionEnabled { get; set; }
+    public List<CalibrationPlateauResult> SupersededPlateaus { get; set; } = new();
+    public string? PendingOperatorIssue { get; set; }
+    public DateTimeOffset? OperatorDecisionDeadline { get; set; }
     /// <summary>Internal, globally unique technical identifier retained for files and data joins.</summary>
     public Guid RunId { get; set; } = Guid.NewGuid();
 
