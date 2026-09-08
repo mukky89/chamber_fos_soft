@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.297] – 2026-09-08
+
+### Pridané
+- Rýchly profil má režim Profil na žíhanie: samostatne nastaviteľný nábeh, jedno plato a výstupná rampa. Režim zostáva zachovaný pri uložení a opätovnom otvorení.
+- V rade profilov výstupná rampa žíhania prejde na prvú teplotu nasledujúceho profilu bez zmeny profilu v knižnici. Samostatné žíhanie používa zadanú výstupnú teplotu.
+
 ## [1.76.296] – 2026-09-08
 
 ### Opravené

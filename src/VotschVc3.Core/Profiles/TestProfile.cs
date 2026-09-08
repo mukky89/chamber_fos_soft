@@ -50,6 +50,8 @@ public sealed class TestProfile
     public string DeviceKindLabel => DeviceKind.Label();
 
     /// <summary>Normal test or PeakLogger-backed FBG temperature calibration.</summary>
+    public bool IsAnnealing { get; set; }
+
     public ProfileExecutionMode ExecutionMode { get; set; } = ProfileExecutionMode.Normal;
 
     /// <summary>When the profile was created / last saved.</summary>

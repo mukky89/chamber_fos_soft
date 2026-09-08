@@ -250,12 +250,24 @@
                         <StackPanel>
                         <TextBlock Text="Režim" Style="{StaticResource Heading}" Margin="0,4,0,4" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <RadioButton Content="Sweep (rozsah)" IsChecked="{Binding IsParametricMode}"
+                            <RadioButton GroupName="QuickProfileMode" Content="Sweep (rozsah)" IsChecked="{Binding IsParametricMode}"
                                          VerticalAlignment="Center"
                                          ToolTip="Symetrický sweep: od–do, počet krokov, voliteľne späť dole." />
-                            <RadioButton Content="Postupnosť teplôt" IsChecked="{Binding IsSequenceMode}"
+                            <RadioButton GroupName="QuickProfileMode" Content="Postupnosť teplôt" IsChecked="{Binding IsSequenceMode}"
                                          Margin="16,0,0,0" VerticalAlignment="Center"
                                          ToolTip="Zoznam teplotných bodov, každý s vlastnou dĺžkou plata – medzi každou dvojicou sa vygeneruje rampa." />
+                        </StackPanel>
+
+                        <RadioButton GroupName="QuickProfileMode" Content="Profil na žíhanie" IsChecked="{Binding IsAnnealingMode}" IsEnabled="{Binding UsesRamps}" Margin="0,0,0,12"
+                                     ToolTip="Nábeh, jedno plato a výstupná rampa. V rade sa výstup nastaví podľa nasledujúceho profilu."/>
+                        <StackPanel Visibility="{Binding IsAnnealingMode, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Jedno plato s nábehom a výstupnou rampou" FontWeight="SemiBold" Foreground="#FFBE75" Margin="0,0,0,8"/>
+                            <StackPanel Style="{StaticResource QpField}"><TextBlock Text="Teplota žíhania [°C]" Style="{StaticResource Label}"/><views:NumericStepper Value="{Binding AnnealingTemperature, Mode=TwoWay}" Minimum="-100" Maximum="300" Step="1"/></StackPanel>
+                            <StackPanel Style="{StaticResource QpField}"><TextBlock Text="Výdrž na plate [min]" Style="{StaticResource Label}"/><views:NumericStepper Value="{Binding PlateauMinutes, Mode=TwoWay}" Minimum="1" Maximum="10000" Step="1"/></StackPanel>
+                            <StackPanel Style="{StaticResource QpField}"><TextBlock Text="Nábeh na žíhanie [min]" Style="{StaticResource Label}"/><views:NumericStepper Value="{Binding StartRampMinutes, Mode=TwoWay}" Minimum="1" Maximum="1440" Step="1"/></StackPanel>
+                            <StackPanel Style="{StaticResource QpField}"><TextBlock Text="Výstupná teplota [°C]" Style="{StaticResource Label}"/><views:NumericStepper Value="{Binding EndTemperature, Mode=TwoWay}" Minimum="-100" Maximum="300" Step="1"/></StackPanel>
+                            <StackPanel Style="{StaticResource QpField}"><TextBlock Text="Výstupná rampa [min]" Style="{StaticResource Label}"/><views:NumericStepper Value="{Binding RampMinutes, Mode=TwoWay}" Minimum="1" Maximum="1440" Step="1"/></StackPanel>
+                            <TextBlock Text="V rade profilov sa výstupná teplota automaticky prevezme z prvého kroku nasledujúceho profilu. Samostatne sa použije zadaná výstupná teplota. Knižnica zostane nezmenená." Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,8"/>
                         </StackPanel>
 
                         <StackPanel Visibility="{Binding IsSequenceMode, Converter={StaticResource BoolToVisibility}}">
@@ -439,7 +451,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource QpGroup}">
+                    <Border Style="{StaticResource QpGroup}" Visibility="{Binding IsAnnealingMode, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                         <StackPanel>
                         <TextBlock Text="Nábeh a koniec" Style="{StaticResource Heading}" />
                         <!-- SIKA has no ramps at all – the whole lead-in block is meaningless there. -->

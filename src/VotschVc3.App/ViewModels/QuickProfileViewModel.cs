@@ -15,6 +15,7 @@ public enum QuickProfileMode
 
     /// <summary>An explicit, editable list of temperature points, each with its own plateau (hold) length.</summary>
     Sequence,
+    Annealing,
 }
 
 /// <summary>
@@ -252,6 +253,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         {
             if (SetProperty(ref _deviceKind, value))
             {
+                if (value == ProfileDeviceKind.Sika && IsAnnealingMode) Mode = QuickProfileMode.Parametric;
                 OnPropertyChanged(nameof(IsVotschProfile));
                 OnPropertyChanged(nameof(IsSikaProfile));
                 OnPropertyChanged(nameof(UsesRamps));
@@ -338,11 +340,29 @@ public sealed class QuickProfileViewModel : ObservableObject
 
                 OnPropertyChanged(nameof(IsParametricMode));
                 OnPropertyChanged(nameof(IsSequenceMode));
+                OnPropertyChanged(nameof(IsAnnealingMode));
+                if (value == QuickProfileMode.Annealing)
+                {
+                    Cycles = 1;
+                    EndAtSafeTemperature = false;
+                    StartFromCurrent = true;
+                    if (StartRampMinutes <= 0) StartRampMinutes = 30;
+                    if (RampMinutes <= 0) RampMinutes = 30;
+                    EnableAutoName();
+                }
                 OnPropertyChanged(nameof(HasLeadIn));
                 Recalculate();
             }
         }
     }
+
+    public bool IsAnnealingMode
+    {
+        get => Mode == QuickProfileMode.Annealing;
+        set { if (value) Mode = QuickProfileMode.Annealing; }
+    }
+    private double _annealingTemperature = 80;
+    public double AnnealingTemperature { get => _annealingTemperature; set { if (SetProperty(ref _annealingTemperature, value)) Recalculate(); } }
 
     public bool IsParametricMode
     {
@@ -727,7 +747,7 @@ public sealed class QuickProfileViewModel : ObservableObject
                 return SequenceSteps.Count > 0 ? SequenceSteps[0].Temperature : StartTemperature;
             }
 
-            return LowTemperature;
+            return IsAnnealingMode ? AnnealingTemperature : LowTemperature;
         }
     }
 
@@ -914,6 +934,15 @@ public sealed class QuickProfileViewModel : ObservableObject
                 : ProfileDeviceKind.Votsch;
 
             ApplyShape(shape);
+            if (profile.IsAnnealing && profile.Segments.Count == 3)
+            {
+                Mode = QuickProfileMode.Annealing;
+                AnnealingTemperature = profile.Segments[1].TargetTemperature;
+                PlateauMinutes = profile.Segments[1].Duration.TotalMinutes;
+                StartRampMinutes = profile.Segments[0].Duration.TotalMinutes;
+                RampMinutes = profile.Segments[2].Duration.TotalMinutes;
+                EndTemperature = profile.Segments[2].TargetTemperature;
+            }
 
             Cycles = Math.Max(1, profile.Cycles);
             CycleBodyOnly = profile.HasCycleRegion;
@@ -943,6 +972,7 @@ public sealed class QuickProfileViewModel : ObservableObject
         // leave the old name (with the old range and total time) sitting in the box. A name
         // typed by hand is left exactly as it is.
         bool generated = QuickProfileNaming.TryParseGeneratedName(profile.Name, out string namePrefix);
+        generated |= profile.IsAnnealing && profile.Name.StartsWith("Profil na žíhanie ·", StringComparison.Ordinal);
         _settingNameInternally = true;
         ProfileName = profile.Name;
         NamePrefix = generated ? namePrefix : NamePrefix;
@@ -1158,7 +1188,8 @@ public sealed class QuickProfileViewModel : ObservableObject
 
     /// <summary>Builds the segment list from the active mode's generator.</summary>
     private List<ProfileSegment> BuildSegments() =>
-        Mode == QuickProfileMode.Sequence ? BuildSequenceSegments() : BuildParametricSegments();
+        IsAnnealingMode ? AnnealingProfile.Build(AnnealingTemperature, PlateauMinutes, StartRampMinutes, EndTemperature, RampMinutes, ControlHumidity ? HumidityPercent : null)
+        : Mode == QuickProfileMode.Sequence ? BuildSequenceSegments() : BuildParametricSegments();
 
     private List<ProfileSegment> BuildParametricSegments()
     {
@@ -1346,7 +1377,8 @@ public sealed class QuickProfileViewModel : ObservableObject
             Name = string.IsNullOrWhiteSpace(ProfileName) ? "Rýchly profil" : ProfileName.Trim(),
             Kind = ControlHumidity ? ChamberKind.TemperatureHumidity : ChamberKind.TemperatureOnly,
             DeviceKind = DeviceKind,
-            Cycles = cyc,
+            IsAnnealing = IsAnnealingMode,
+            Cycles = IsAnnealingMode ? 1 : cyc,
             CycleStartIndex = start,
             CycleEndIndex = end,
             Customer = Customer.Trim(),
@@ -1522,7 +1554,20 @@ public sealed class QuickProfileViewModel : ObservableObject
 
         RefreshSegmentsFromGenerator();
 
-        if (Mode == QuickProfileMode.Sequence)
+        if (IsAnnealingMode)
+        {
+            StepTemperatures.Clear();
+            StepTemperatures.Add($"Žíhanie {AnnealingTemperature:0.#} °C");
+            StepTemperatures.Add($"Výstup {EndTemperature:0.#} °C");
+            SegmentCount = Segments.Count;
+            BaseTotalText = OptimizedTotalText = QuickProfileNaming.Duration(PreviewTotalMinutes());
+            EffectivePlateauText = $"{PlateauMinutes:0.#} min · jedno plato";
+            RampRateText = $"Nábeh {StartRampMinutes:0.#} min · výstup {RampMinutes:0.#} min";
+            SequenceParseError = string.Empty;
+            Summary = $"Žíhanie: nábeh → {AnnealingTemperature:0.#} °C / {PlateauMinutes:0.#} min → výstup {EndTemperature:0.#} °C. V rade sa výstup prispôsobí nasledujúcemu profilu.";
+            RecalculateSettling();
+        }
+        else if (Mode == QuickProfileMode.Sequence)
         {
             RecalculateSequence();
         }
@@ -1620,6 +1665,7 @@ public sealed class QuickProfileViewModel : ObservableObject
     /// </summary>
     private string ComposeAutoName()
     {
+        if (IsAnnealingMode) return $"Profil na žíhanie · {AnnealingTemperature:0.#} °C · {PlateauMinutes:0.#} min · výstup {EndTemperature:0.#} °C";
         if (Mode == QuickProfileMode.Sequence && SequenceSteps.Count < 2)
         {
             return "Rýchly profil (postupnosť)";

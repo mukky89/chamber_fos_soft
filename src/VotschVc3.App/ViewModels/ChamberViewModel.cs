@@ -2616,6 +2616,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Runs one or more profiles back-to-back (the test queue).</summary>
     private async Task RunSequenceAsync(IReadOnlyList<TestProfile> profiles, ProfileRunPosition? resumeFrom = null)
     {
+        profiles = AnnealingProfile.ConnectToFollowingProfiles(profiles);
         if (profiles.Count == 0)
         {
             return;
