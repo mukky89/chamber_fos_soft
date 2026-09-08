@@ -95,4 +95,5 @@
     <Geometry x:Key="Icon.Stop">M6 6h12v12H6z</Geometry>
     <Geometry x:Key="Icon.SkipNext">M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z</Geometry>
 
+    <Geometry x:Key="Icon.ProgressClock">M12,3 A9,9 0 1 1 11.99,3 M12,7 L12,12 L16,14</Geometry>
 </ResourceDictionary>

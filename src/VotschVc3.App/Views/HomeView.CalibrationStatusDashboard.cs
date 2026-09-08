@@ -213,22 +213,39 @@ public partial class HomeView
         var progress = new ProgressBar
         {
             Tag = "progress",
-            Height = 6,
+            Height = 12,
+            Style = FindResource("ProfileProgressBar") as Style,
             Minimum = 0,
             Maximum = 100,
             Value = 0,
         };
         var progressText = new TextBlock { Tag = "progressText", TextWrapping = TextWrapping.Wrap, FontSize = 10.5, Foreground = muted, Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
 
+        var progressOverlay = new Grid { Margin = new Thickness(0, 5, 0, 5) };
+        progressOverlay.Children.Add(progress);
+        var percent = new TextBlock { FontSize = 10, Foreground = Brushes.White,
+            FontFamily = new FontFamily("Segoe UI Semibold"),
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        percent.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Value") { Source = progress, StringFormat = "{0:0} %" });
+        progressOverlay.Children.Add(percent);
+        var etaRow = new DockPanel();
+        var clock = new System.Windows.Shapes.Path { Data = (Geometry)FindResource("Icon.ProgressClock"),
+            Stroke = (Brush)FindResource("OkBrush"), StrokeThickness = 1.6, Width = 15, Height = 15,
+            Stretch = Stretch.Uniform, Margin = new Thickness(0, 5, 6, 0), VerticalAlignment = VerticalAlignment.Center };
+        DockPanel.SetDock(clock, Dock.Left);
+        etaRow.Children.Add(clock);
+        eta.Foreground = (Brush)FindResource("OkBrush");
+        etaRow.Children.Add(eta);
         var stack = new StackPanel();
         stack.Children.Add(header);
         stack.Children.Add(profile);
         stack.Children.Add(runMeta);
         stack.Children.Add(plateau);
-        stack.Children.Add(eta);
+        stack.Children.Add(etaRow);
+        stack.Children.Add(progressOverlay);
         stack.Children.Add(detail);
         stack.Children.Add(metrics);
-        stack.Children.Add(progress);
+
         stack.Children.Add(progressText);
 
         return new Border

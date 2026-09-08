@@ -611,10 +611,10 @@
 
 
                                         <!-- Completion (day + time + countdown) right under the profile name. -->
-                                        <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
+<DockPanel Visibility="{Binding HasProfileCompletion, Converter={StaticResource BoolToVisibility}}"><Path DockPanel.Dock="Left" Data="{StaticResource Icon.ProgressClock}" Stroke="{StaticResource OkBrush}" StrokeThickness="1.6" Width="15" Height="15" Stretch="Uniform" Margin="0,4,6,0" VerticalAlignment="Center"/>                                        <TextBlock Text="{Binding ProfileCompletionText}" FontFamily="Segoe UI Semibold" FontSize="12.5"
                                                    Foreground="{StaticResource OkBrush}" Margin="0,4,0,0" TextWrapping="Wrap"
-                                                   Visibility="{Binding HasProfileCompletion, Converter={StaticResource BoolToVisibility}}"
-                                                   ToolTip="Predpokladané dokončenie profilu (deň, dátum a čas) a zostávajúci čas." />
+
+                                                   ToolTip="Predpokladané dokončenie profilu (deň, dátum a čas) a zostávajúci čas." /></DockPanel>
                                         <!-- Slim progress bar right at the top of the device card while a profile runs. -->
                                         <Grid Margin="0,6,0,0"
                                               Visibility="{Binding IsProfileRunning, Converter={StaticResource BoolToVisibility}}">

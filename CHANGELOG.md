@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.281] – 2026-09-08
+
+### Zmenené
+
+- FBG karta má pod odhadom konca rovnaký kompaktný progressbar s percentami ako profil komory. Odhady dokončenia FBG aj profilu používajú jednotnú vektorovú ikonu hodín.
+
 ## [1.76.280] – 2026-09-08
 
 ### Pridané

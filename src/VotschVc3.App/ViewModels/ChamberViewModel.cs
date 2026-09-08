@@ -1927,7 +1927,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         ProfileTimeRemaining = $"Zostáva {hms}";
 
         // Compact completion line for the card header, incl. the day name of completion.
-        ProfileCompletionText = $"🏁 Koniec: {DayShort(end)} {end:dd.MM.yyyy} {end:HH:mm} · zostáva {hms}";
+        ProfileCompletionText = $"Koniec: {DayShort(end)} {end:dd.MM.yyyy} {end:HH:mm} · zostáva {hms}";
     }
 
     /// <summary>Countdown clock: <c>2d 3:04:05</c> / <c>3:04:05</c> / <c>04:05</c>.</summary>
