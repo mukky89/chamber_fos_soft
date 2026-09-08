@@ -299,6 +299,9 @@
                                 </Button>
                             </Grid>
 
+                            <Button Content="Odpojiť teplomer" Command="{Binding SelectedF100.DisconnectCommand}"
+                                    HorizontalAlignment="Right" Margin="0,8,0,0"
+                                    ToolTip="Uvoľní COM port pre inú aplikáciu a vypne automatické pripájanie aj po reštarte. Pripojenie obnovíte tlačidlom Načítať teplotu. Priradenie ku komore zostane zachované." />
                             <!-- Live reference reading: the number the whole calibration is measured
                                  against, so it gets Metric weight and its own row. -->
                             <DockPanel Margin="0,10,0,0" LastChildFill="False">
@@ -308,7 +311,7 @@
                                         <Run Text="{Binding SelectedF100.Temperature, Mode=OneWay, TargetNullValue=—, StringFormat={}{0:F3}}" />
                                         <Run Text=" °C" FontSize="14" Foreground="{StaticResource MutedBrush}" />
                                     </TextBlock>
-                                    <TextBlock Text="{Binding F100ConnectionLabel}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding SelectedF100.ConnectionState, TargetNullValue=Teplomer nie je vybraný}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button DockPanel.Dock="Right" Content="{Binding F100ChartButtonText}" Style="{StaticResource GhostButton}"
                                         VerticalAlignment="Bottom" Margin="0"

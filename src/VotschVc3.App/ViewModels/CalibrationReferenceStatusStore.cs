@@ -127,6 +127,12 @@ public sealed class CalibrationReferenceStatusStore
     }
 
     /// <summary>Marks live data unavailable while preserving the persistent assignment.</summary>
+    public Guid? FindAssignedChamber(string portName, string? usbSerialNumber)
+    {
+        lock (_gate)
+            return _states.Values.FirstOrDefault(state =>
+                SamePhysicalThermometer(state, NormalizePort(portName), NormalizeSerial(usbSerialNumber)))?.ChamberId;
+    }
     public void MarkDisconnected(Guid chamberId)
     {
         bool changed = false;

@@ -38,7 +38,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
             $"f100_{info.PortName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
 
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, () => !IsConnected, ReportError);
-        DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, () => IsConnected, ReportError);
+        DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, () => !IsManuallyDisconnected, ReportError);
         IdentifyCommand = new AsyncRelayCommand(IdentifyAsync, () => IsConnected, ReportError);
         ReadOnceCommand = new AsyncRelayCommand(ReadOnceAsync, () => IsConnected, ReportError);
         SendTerminalCommand = new AsyncRelayCommand(SendTerminalAsync, () => IsConnected && !string.IsNullOrWhiteSpace(TerminalInput), ReportError);
@@ -114,7 +114,34 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
     }
 
-    public string ConnectionState => IsConnected
+    private IEnumerable<string> PauseFiles => new[] { PortName, SerialNumber }
+        .Where(value => !string.IsNullOrWhiteSpace(value)).Select(value =>
+            System.IO.Path.Combine(AppPaths.SettingsDir, "thermometer-manual-disconnect",
+                Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(value!.ToUpperInvariant()))) + ".paused"));
+
+    public bool IsManuallyDisconnected => PauseFiles.Any(System.IO.File.Exists);
+
+    public void ResumeAutomaticConnection()
+    {
+        foreach (string path in PauseFiles) System.IO.File.Delete(path);
+        OnPropertyChanged(nameof(IsManuallyDisconnected));
+        OnPropertyChanged(nameof(ConnectionState));
+        DisconnectCommand.RaiseCanExecuteChanged();
+    }
+
+    private void PauseAutomaticConnection()
+    {
+        foreach (string path in PauseFiles)
+        {
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+            System.IO.File.WriteAllText(path, PortName);
+        }
+        OnPropertyChanged(nameof(IsManuallyDisconnected));
+        OnPropertyChanged(nameof(ConnectionState));
+        DisconnectCommand.RaiseCanExecuteChanged();
+    }
+    public string ConnectionState => IsManuallyDisconnected ? "Ručne odpojené · COM port pre inú aplikáciu" : IsConnected
         ? $"Pripojené · {PortName} · kanál {SelectedChannel} @ {BaudRate} bd"
         : "Odpojené";
 
@@ -157,7 +184,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     public AsyncRelayCommand SendTerminalCommand { get; }
     public RelayCommand ClearTerminalCommand { get; }
 
-    private Task ConnectAsync() => ConnectAsync(CancellationToken.None);
+    private Task ConnectAsync() { ResumeAutomaticConnection(); return ConnectAsync(CancellationToken.None); }
 
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
@@ -174,6 +201,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private async Task ConnectUnderGateAsync(CancellationToken cancellationToken)
     {
+        if (IsManuallyDisconnected) return;
         // PrimeReferenceReadAsync and the five-second refresh can both request the first
         // sample at startup. The second caller must reuse the connection established by
         // the first one instead of disposing it and racing a second client onto the COM port.
@@ -214,15 +242,26 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
     }
 
-    private async Task DisconnectAsync()
+    public async Task DisconnectAsync()
     {
+        Guid? assigned = CalibrationReferenceStatusStore.Instance.FindAssignedChamber(PortName, SerialNumber);
+        if (assigned is { } chamberId && CalibrationStatusViewModel.Instance.GetWorkspace(chamberId).IsRunning)
+            throw new InvalidOperationException("Teplomer používa bežiaca FBG kalibrácia. Najprv ju ukončite.");
+        PauseAutomaticConnection();
+        Temperature = null;
+        LastUpdate = null;
+        if (assigned is { } activeOwner) CalibrationReferenceStatusStore.Instance.MarkDisconnected(activeOwner);
+        StopRecording();
         StopPolling();
         await _connectionGate.WaitAsync();
         try
         {
             await DisposeClientUnderGateAsync();
             IsConnected = false;
-            StatusMessage = "Odpojené.";
+            Temperature = null;
+            LastUpdate = null;
+            if (assigned is { } owner) CalibrationReferenceStatusStore.Instance.MarkDisconnected(owner);
+            StatusMessage = "Ručne odpojené. COM port je uvoľnený pre inú aplikáciu. Načítať teplotu obnoví pripojenie.";
         }
         finally
         {
@@ -269,18 +308,20 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     /// </summary>
     public async Task<double?> ReadReferenceTemperatureAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsConnected)
+        await _connectionGate.WaitAsync(cancellationToken);
+        try
         {
-            await ConnectAsync(cancellationToken);
+            if (IsManuallyDisconnected) return null;
+            await ConnectUnderGateAsync(cancellationToken);
+            if (_client is null) return null;
+            (string detectedChannel, ThermometerReading reading) =
+                await _client.ReadAvailableChannelAsync(SelectedChannel, ReadCommand, cancellationToken);
+            if (IsManuallyDisconnected) return null;
+            await ApplyReferenceReadingOnUiAsync(detectedChannel, reading);
+            return reading.Temperature;
         }
-
-        if (_client is null) return null;
-        (string detectedChannel, ThermometerReading reading) =
-            await _client.ReadAvailableChannelAsync(SelectedChannel, ReadCommand, cancellationToken);
-        await ApplyReferenceReadingOnUiAsync(detectedChannel, reading);
-        return reading.Temperature;
+        finally { _connectionGate.Release(); }
     }
-
     private Task ApplyReferenceReadingOnUiAsync(string detectedChannel, ThermometerReading reading)
     {
         void Apply()
@@ -342,6 +383,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
     /// <summary>Closes a stale/occupied handle owned by this app and opens the selected port again.</summary>
     public async Task<double?> ForceReconnectAsync(CancellationToken cancellationToken = default)
     {
+        ResumeAutomaticConnection();
         StopPolling();
         await _connectionGate.WaitAsync(cancellationToken);
         try
@@ -411,6 +453,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private void ApplyReading(ThermometerReading reading)
     {
+        if (IsManuallyDisconnected) return;
         if (!_uiDispatcher.CheckAccess())
         {
             _uiDispatcher.Invoke(() => ApplyReading(reading), DispatcherPriority.DataBind);

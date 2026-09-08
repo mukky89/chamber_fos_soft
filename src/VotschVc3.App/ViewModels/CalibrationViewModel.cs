@@ -1438,6 +1438,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     {
         await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is null) return;
+        SelectedF100.ResumeAutomaticConnection();
         bool acquired = EnsureF100Reservation();
         SelectedF100.SelectedChannel = SelectedF100Channel;
         StatusMessage = $"Čítam referenčný teplomer · {SelectedF100.PortName} · kanál {SelectedF100Channel}…";
@@ -1643,7 +1644,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private bool CanStartCalibration()
     {
-        if (IsRunning || (!UseSimulator && !PeakLoggerConnected) || SelectedProfile is null || SelectedChamber is null ||
+        if (IsRunning || (!UseSimulator && SelectedF100?.IsManuallyDisconnected == true) || (!UseSimulator && !PeakLoggerConnected) || SelectedProfile is null || SelectedChamber is null ||
             !CalibrationPoints.Any(p => p.Selected))
         {
             return false;

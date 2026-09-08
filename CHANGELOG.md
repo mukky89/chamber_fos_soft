@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.271] – 2026-09-08
+
+### Pridané
+
+- Referenčný teplomer v FBG kalibrácii má tlačidlo Odpojiť teplomer. Zastaví polling a samostatný záznam teplomera, počká na prebiehajúce čítanie, vráti WIKA do LOCAL a uvoľní COM port.
+- Ručné odpojenie sa pamätá podľa portu aj USB identity vrátane reštartu aplikácie a obnovy zoznamu portov. Automatické čítanie ho neobnoví; Načítať teplotu alebo explicitné pripojenie ho zruší.
+- Priradenie ku komore zostáva uložené, živá teplota sa vymaže a stav pripojenia sa aktualizuje priamo z teplomera. Odpojenie referencie používanej bežiacou kalibráciou je zablokované.
+
 ## [1.76.270] – 2026-09-08
 
 ### Opravené
