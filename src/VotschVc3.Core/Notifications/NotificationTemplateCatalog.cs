@@ -20,8 +20,8 @@ public static class NotificationTemplateCatalog
                 "Dokončenie profilu", "Po riadnom dokončení teplotného profilu a pokuse o bezpečné vypnutie výkonu.",
                 "Profil dokončený: Ukážkový profil (Komora 2)", "Profil: Ukážkový profil\nZariadenie: Komora 2\nDokončené: 06.09.2026 12:30:00\n\nVýkon komory bol bezpečne vypnutý. Ostrý e-mail obsahuje graf a CSV."),
             NotificationType.CalibrationWarning => (
-                "Varovanie FBG kalibrácie", "Pri timeoute, nestabilnom peaku alebo udalosti, ktorá vyžaduje zásah operátora.",
-                "Kalibrácia FBG – WARNING – TEST-001", "Run ID: TEST-001\nKomora: Komora 2\nPlato: 3\nPeak: 1.3/P1\n\nPeak nedokončil meranie v povolenom čase."),
+                "Varovanie FBG kalibrácie", "Iba pri zastavení FBG behu alebo požiadavke na zásah. Priebežné upozornenia sú v záverečnom súhrne.",
+                "KALIBRÁCIA ZASTAVENÁ – ZÁSAH OPERÁTORA – TEST-001", "Run ID: TEST-001\nKomora: Komora 2\nPlato: 3\nPeak: 1.3/P1\n\nKalibrácia sa zastavila. Skontrolujte pripojenie a dôvod zastavenia v aplikácii."),
             NotificationType.CalibrationCompleted => (
                 "Výsledok FBG kalibrácie", "Po ukončení kalibrácie v stave COMPLETED, COMPLETED WITH WARNINGS alebo FAILED.",
                 "Kalibrácia FBG – COMPLETED – TEST-001", "Výsledok: PASS\nRun ID: TEST-001\nKomora: Komora 2\nKalibračné modely: 24 PASS / 0 FAIL\n\nOstrý e-mail obsahuje tabuľku peakov, koeficienty, Excel, CSV a ZIP."),

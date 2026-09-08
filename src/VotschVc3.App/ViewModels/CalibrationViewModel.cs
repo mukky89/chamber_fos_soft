@@ -1864,17 +1864,8 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
                 writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
                 AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {warning.Code} · {warning.Message}");
                 _ = Application.Current.Dispatcher.InvokeAsync(() => WarningText = warning.Message);
-                bool sensorExtension = warning.Code == "SENSOR_STABILITY_TIMEOUT_EXTENDED";
-                bool automaticExtension = warning.Code == "REFERENCE_STABILITY_TIMEOUT_EXTENDED" || sensorExtension;
-                bool automaticDeferral = warning.Code == "REFERENCE_STABILITY_DEFERRED";
-                DesktopNotifier.Notify(
-                    automaticExtension
-                        ? sensorExtension ? "FBG dostal čas navyše na základe pokroku" : "Čakanie na stabilitu WIKA bolo predĺžené"
-                        : automaticDeferral ? "Plato sa odložilo na neskôr" : "FBG kalibrácia – upozornenie",
-                    warning.Message,
-                    automaticExtension || automaticDeferral ? DesktopNotificationKind.Warning : DesktopNotificationKind.Alarm);
-                if (!automaticExtension && !automaticDeferral)
-                    _ = SendWarningEmailAsync(_activeRun, warning);
+                // Non-blocking warnings stay in history and the completion report.
+                // Notify once only when the runner actually stops below.
             };
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
             DateTimeOffset nextProgressDiagnosticAt = DateTimeOffset.MinValue;
@@ -1932,10 +1923,11 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         }
         catch (CalibrationOperatorActionRequiredException ex)
         {
-            _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_ACTION_REQUIRED", ex.ToString());
+            // The runner exception was logged inside the writer lifetime.
             AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: vyžaduje zásah operátora · {ex.Message}");
             WarningText = ex.Message;
             RunState = CalibrationRunState.AwaitingOperator.ToString();
+            await NotifyRunInterruptionAsync(ex.Warning);
             StatusMessage = "Kalibrácia čaká na zásah operátora. Oprav výber/limity alebo povoľ zdôvodnený override a spusti kontrolu znovu.";
         }
         catch (OperationCanceledException)
@@ -1950,6 +1942,7 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
             AppLog.Error("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {ex}");
             RunState = CalibrationRunState.Failed.ToString();
             StatusMessage = ex.Message;
+            await NotifyRunInterruptionAsync(new CalibrationWarning { Code = "RUN_FAILED", Message = ex.Message });
             throw;
         }
         finally
@@ -2370,6 +2363,15 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         StatusMessage = $"Kalibračné koeficienty boli uložené: {dialog.FileName}";
     }
 
+    private async Task NotifyRunInterruptionAsync(CalibrationWarning warning)
+    {
+        DesktopNotifier.Notify("FBG kalibrácia sa zastavila – vyžaduje zásah", warning.Message, DesktopNotificationKind.Alarm);
+        try { await SendWarningEmailAsync(_activeRun, warning); }
+        catch (Exception ex)
+        {
+            AppLog.Warn("FBG kalibrácia", $"E-mail o zastavení behu sa nepodarilo odoslať: {ex.Message}");
+        }
+    }
     private async Task SendWarningEmailAsync(CalibrationRunRecord? run, CalibrationWarning warning)
     {
         if (run is null) return;
@@ -2378,10 +2380,10 @@ public sealed class CalibrationViewModel : ObservableObject, IAsyncDisposable
         string peak = string.IsNullOrWhiteSpace(warning.PeakId) ? "—" : warning.PeakId;
         string sensor = string.IsNullOrWhiteSpace(warning.SerialNumber) ? "—" : warning.SerialNumber;
 
-        bool operatorAction = warning.Code == "REFERENCE_STABILITY_TIMEOUT";
+        bool operatorAction = true; // Called only after the runner stops or requires operator action.
         EmailResult result = await _email.SendAsync(NotificationType.CalibrationWarning,
             operatorAction
-                ? $"ZÁSAH OPERÁTORA – FBG kalibrácia – {run.DisplayProfileId}"
+                ? $"KALIBRÁCIA ZASTAVENÁ – ZÁSAH OPERÁTORA – {run.DisplayProfileId}"
                 : $"Kalibrácia FBG – WARNING – {run.DisplayProfileId}",
             $"Run ID: {run.DisplayRunId}\nProfil ID: {run.DisplayProfileId}\nKomora: {run.ChamberName}\nProfil: {run.ProfileName}\nPlato: {plateau}\nSnímač: {sensor}\nPeak: {peak}\nČas: {warning.Timestamp:yyyy-MM-dd HH:mm:ss}\n\n{warning.Message}");
         if (result.Error is { Length: > 0 } error)

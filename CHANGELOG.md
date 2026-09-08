@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.254] – 2026-09-08
+
+### Opravené
+
+- FBG už neposiela samostatný e-mail ani zvukový alarm za každý neustálený senzor, ak beh automaticky pokračuje. Priebežné upozornenia zostávajú v histórii a záverečnom reporte.
+- Okamžité oznámenie a jeden e-mail vzniknú až pri skutočnom zastavení behu alebo požiadavke na zásah operátora. Záverečný súhrn zostáva zachovaný.
+
 ## [1.76.253] – 2026-09-08
 
 ### Opravené
