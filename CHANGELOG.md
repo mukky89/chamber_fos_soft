@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.273] – 2026-09-08
+
+### Zmenené
+
+- Po vyčerpaní stabilizácie wavelength sa vždy spustí ohraničený odber finálnych vzoriek aj bez stabilného FBG. Nestabilita wavelength už sama nezastaví vyhodnotenie ani pri operátorskom dohľade. Platné namerané dáta sa zahrnú do koeficientov s označením problému a zachovaním diagnostiky.
+- Každý senzor s výsledkami má vyhodnotenie; pri nedostatku rôznych teplotných bodov alebo singulárnom modeli vznikne explicitný N/A výsledok s dôvodom, bez vymyslených koeficientov.
+- Po plánovaných bodoch vždy nasleduje návrat na 25 °C, temperovanie a nezávislý kontrolný odber. Koeficienty predpovedia λ pri nameranej teplote WIKA; zaznamená sa rozdiel v pm a chyba prepočítanej teploty. Kontrolné dáta sa nezahŕňajú do výpočtu koeficientov.
+- História, CSV a XLSX koeficientov obsahujú výsledok kontroly, WIKA, meranú a vypočítanú λ, odchýlky a príčinu problému. Neúplná alebo nestabilná kontrola sa neoznačí ako PASS. Limit teplotnej chyby používa existujúcu toleranciu modelu.
+- Časový odhad a pomocníky vysvetľujú dodatočný odber. Chýbajúca WIKA, strata komunikácie, explicitný STOP a bezpečnostné blokovania zostávajú odlíšené od samotnej nestability wavelength.
+
 ## [1.76.272] – 2026-09-08
 
 ### Zmenené

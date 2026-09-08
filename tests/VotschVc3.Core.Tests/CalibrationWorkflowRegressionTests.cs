@@ -12,7 +12,7 @@ public sealed class CalibrationWorkflowRegressionTests
     [InlineData(false, 91, 1000)]
     [InlineData(false, 61, 50)]
     [InlineData(true, 91, 1000)]
-    public async Task ContinueAndFlagStopsAtDeadlineWithoutFallbackSampling(bool loseReference, int elapsedMinutes, int stableSamples)
+    public async Task TimeoutCollectsFlaggedSamplesOrReportsMissingReference(bool loseReference, int elapsedMinutes, int stableSamples)
     {
         string root = TempDirectory();
         try
@@ -25,6 +25,7 @@ public sealed class CalibrationWorkflowRegressionTests
             setup.Settings.DefaultSensorStabilizationTimeout = TimeSpan.FromSeconds(1);
             setup.Settings.SensorTimeoutPolicy = CalibrationFailurePolicy.ContinueAndFlag;
             bool referenceLost = false;
+            bool advanced = false;
             var clock = new ManualSensorClock();
             var run = new CalibrationRunRecord { ProfileId = setup.ProfileId, ProfileName = "Flagged sampling" };
             var store = new CalibrationStore(root);
@@ -39,8 +40,9 @@ public sealed class CalibrationWorkflowRegressionTests
                 writer,
                 progress: snapshot =>
                 {
-                    if (snapshot.TemperatureGateOpen == true)
+                    if (snapshot.TemperatureGateOpen == true && !advanced)
                     {
+                        advanced = true;
                         referenceLost = loseReference;
                         clock.Advance(TimeSpan.FromMinutes(loseReference ? 1 : elapsedMinutes));
                     }
@@ -49,11 +51,11 @@ public sealed class CalibrationWorkflowRegressionTests
                 cancellationToken: timeout.Token);
 
             CalibrationMeasurementResult target = Assert.Single(plateau.Targets);
-            Assert.Equal(CalibrationTargetState.TimedOut, target.Status);
-            Assert.Equal(0, target.SampleCount);
-            Assert.Empty(target.StableSamples);
+            Assert.Equal(loseReference ? CalibrationTargetState.TimedOut : CalibrationTargetState.CompletedWithStabilityWarning, target.Status);
+            Assert.Equal(loseReference ? 0 : 2, target.SampleCount);
+            Assert.Equal(target.SampleCount, target.StableSamples.Count);
             Assert.Contains("stabilita nepotvrdená", target.Problem);
-            Assert.Contains("bez náhradného merania", target.Problem);
+            Assert.Contains("odber finálnych vzoriek", target.Problem);
             Assert.Contains(run.Warnings, warning => warning.Code == "SENSOR_STABILITY_TIMEOUT");
         }
         finally
@@ -250,13 +252,15 @@ public sealed class CalibrationWorkflowRegressionTests
             await using CalibrationRunWriter writer = store.CreateRunWriter(run);
             var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store, TimeSpan.FromMilliseconds(10));
 
+            runner.Progress += snapshot => { if (snapshot.State == CalibrationRunState.PlateauCompleted) setup.Settings.EnableSetpointRamp = false; };
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
             await runner.RunAsync(profile, setup, run, writer, 40, null,
                 cancellationToken: timeout.Token, resumeFrom: checkpoint);
 
             Assert.NotEmpty(chamber.WrittenTemperatures);
             Assert.Equal(40, chamber.WrittenTemperatures[0], 6);
-            Assert.DoesNotContain(chamber.WrittenTemperatures, temperature => temperature < 40);
+            Assert.Equal(25, chamber.WrittenTemperatures[^1]);
+            Assert.All(chamber.WrittenTemperatures.SkipLast(1), temperature => Assert.True(temperature >= 40));
         }
         finally
         {
@@ -346,6 +350,8 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.Equal(25, run.FinalConditioningTemperatureC, 6);
             Assert.NotNull(run.FinalConditioningStartedAt);
             Assert.NotNull(run.FinalConditioningCompletedAt);
+            Assert.NotNull(run.FinalVerification);
+            Assert.All(run.FinalVerification.Targets, target => Assert.Contains("WIKA mimo tolerancie", target.Problem));
             Assert.Equal(1, chamber.StopCount);
             Assert.Contains(updates, update => update.State == CalibrationRunState.FinalConditioning &&
                                                update.PlateauIndex == -1 &&
@@ -404,7 +410,8 @@ public sealed class CalibrationWorkflowRegressionTests
             CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
             Assert.Equal(20, plateau.TargetTemperatureC, 6);
             Assert.Equal(CalibrationTargetState.Stable, Assert.Single(plateau.Targets).Status);
-            Assert.Equal(CalibrationRunState.Completed, run.State);
+            Assert.Equal(CalibrationRunState.CompletedWithWarnings, run.State);
+            Assert.NotNull(run.FinalVerification);
         }
         finally
         {
@@ -595,7 +602,7 @@ public sealed class CalibrationWorkflowRegressionTests
     [InlineData(CalibrationOperatorDecision.Extend15)]
     [InlineData(CalibrationOperatorDecision.Extend30)]
     [InlineData(CalibrationOperatorDecision.Retry)]
-    public async Task Supervision_SensorDeadlineRequiresDecisionAndPreservesOutcome(CalibrationOperatorDecision decision)
+    public async Task Supervision_SensorDeadlineCollectsFlaggedDataWithoutBlocking(CalibrationOperatorDecision decision)
     {
         string root = TempDirectory();
         try
@@ -630,12 +637,12 @@ public sealed class CalibrationWorkflowRegressionTests
                         clock.Advance(TimeSpan.FromMinutes(91));
                     }
                 }, cancellationToken: timeout.Token);
-            Assert.Equal(1, requests);
+            Assert.Equal(0, requests);
             Assert.Null(run.PendingOperatorIssue);
             Assert.Null(run.OperatorDecisionDeadline);
             var target = Assert.Single(plateau.Targets);
-            Assert.Equal(decision == CalibrationOperatorDecision.Skip ? CalibrationTargetState.TimedOut : CalibrationTargetState.Stable, target.Status);
-            Assert.Contains(run.Warnings, warning => warning.Code == "OPERATOR_DECISION" && warning.OverrideReason == "Overené operátorom");
+            Assert.Equal(CalibrationTargetState.CompletedWithStabilityWarning, target.Status);
+            Assert.Contains(run.Warnings, warning => warning.Code == "SENSOR_STABILITY_TIMEOUT");
         }
         finally { DeleteTempDirectory(root); }
     }

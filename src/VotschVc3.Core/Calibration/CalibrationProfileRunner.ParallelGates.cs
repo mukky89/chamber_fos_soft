@@ -265,6 +265,7 @@ public sealed class CalibrationProfileRunner
                 calibrationSteps.Count,
                 previousCommandedTemperature,
                 previousHumidity,
+                readReferenceTemperatureAsync,
                 cancellationToken).ConfigureAwait(false);
 
             run.CompletedAt = DateTimeOffset.Now;
@@ -467,15 +468,14 @@ public sealed class CalibrationProfileRunner
         int calibrationPlateauCount,
         double fromTemperature,
         double? humidity,
+        Func<CancellationToken, Task<double?>>? readReferenceTemperatureAsync,
         CancellationToken cancellationToken)
     {
-        double target = double.IsFinite(setup.Settings.FinalConditioningTemperatureC)
-            ? setup.Settings.FinalConditioningTemperatureC
-            : 25.0;
+        const double target = 25.0;
         TimeSpan required = setup.Settings.FinalConditioningDuration < TimeSpan.Zero
             ? TimeSpan.FromHours(1)
             : setup.Settings.FinalConditioningDuration;
-        if (required == TimeSpan.Zero) return;
+        run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
         run.State = CalibrationRunState.FinalConditioning;
         run.FinalConditioningTemperatureC = target;
         run.FinalConditioningRequiredDuration = required;
@@ -516,13 +516,27 @@ public sealed class CalibrationProfileRunner
                 elapsed,
                 Array.Empty<CalibrationTargetProgress>(),
                 $"Záverečné temperovanie pri nastavených {target:F1} °C · čas {elapsed:hh\\:mm\\:ss} / {required:hh\\:mm\\:ss}. " +
-                "Čas sa nevynuluje pri kolísaní teploty; po jeho uplynutí aplikácia vypne výkon zariadenia. FBG sa nemeria."));
+                "Čas sa nevynuluje pri kolísaní teploty; po jeho uplynutí nasleduje nezávislý kontrolný odber FBG s vypočítanými koeficientmi."));
 
             TimeSpan remaining = required - elapsed;
             if (remaining <= TimeSpan.Zero) break;
             await Task.Delay(remaining < _updateInterval ? remaining : _updateInterval, cancellationToken).ConfigureAwait(false);
         }
 
+        run.FinalVerification = await _orchestrator.CollectFinalVerificationAsync(
+            setup, run, writer, ReadTemperatureAsync, readReferenceTemperatureAsync, cancellationToken,
+            (collected, total, reference, chamber, elapsed) => Progress?.Invoke(new CalibrationProgressSnapshot(
+                CalibrationRunState.FinalConditioning, -1, calibrationPlateauCount, 25, chamber, reference,
+                0, setup.Mappings.Count(m => m.Selected), required + elapsed, Array.Empty<CalibrationTargetProgress>(),
+                $"KONTROLA KOEFICIENTOV PRI 25 °C · vzorky {collected}/{total} · WIKA {reference:F3} °C. Kontrolné dáta sa nepoužijú na fitovanie."))).ConfigureAwait(false);
+        run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
+        if (run.CalibrationResults.Any(r => r.FinalCheckStatus != "PASS"))
+        {
+            var warning = new CalibrationWarning { Code = "FINAL_VERIFICATION_PROBLEM",
+                Message = "Kontrola pri 25 °C nevyhovela alebo nie je úplná. Pozrite koeficienty a kontrolné vzorky." };
+            run.Warnings.Add(warning);
+            writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
+        }
         await _chamber.StopAsync(cancellationToken).ConfigureAwait(false);
         run.FinalConditioningCompletedAt = DateTimeOffset.Now;
         writer.SaveSummary();

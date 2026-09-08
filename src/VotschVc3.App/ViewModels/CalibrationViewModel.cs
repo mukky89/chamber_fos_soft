@@ -47,7 +47,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         sampleAcquisitionIntervalSeconds: _setup.Settings.SampleAcquisitionIntervalSeconds,
         stableDuration: _setup.Settings.ChamberStableDuration,
         stabilityTimeout: _setup.Settings.ChamberStabilityTimeout,
-        finalConditioningTemperatureC: _setup.Settings.FinalConditioningTemperatureC,
+        finalConditioningTemperatureC: 25,
         finalConditioningDuration: _setup.Settings.FinalConditioningDuration,
         stabilityExtensionStep: _setup.Settings.ChamberStabilityExtensionStep,
         maxAutomaticStabilityExtension: _setup.Settings.MaxAutomaticChamberStabilityExtension,

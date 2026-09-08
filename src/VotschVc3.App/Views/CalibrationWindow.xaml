@@ -33,7 +33,7 @@
                 <StackPanel>
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" Text="?" FontWeight="Bold" FontSize="18" Margin="12,0"
-                                   ToolTip="Voliteľný dohľad pre tento beh. Pri timeoute WIKA/FBG, strate dát alebo nepotvrdenej odozve sa postup pozastaví a odošle jeden e-mail pre danú udalosť. Operátor má 30 minút na rozhodnutie; potom sa uloží beh a odošle STOP komore. Predĺženie pridá 15/30 minút. Nový pokus obnoví meranie rozpracovaných senzorov. Po rozhodnutí sa WIKA a rozpracované meracie okná overia odznova. Preskočenie nie je úspešná kalibrácia. Ak je trace log zapnutý, pokračuje aj počas čakania. Pri chybe komunikácie sú dostupné nový pokus a STOP; predĺženie platí pre WIKA/FBG. Dohľad vyžaduje zapnuté e-maily kalibrácie a adresáta v Administrácii. Každé rozhodnutie a jeho dôvod sa uložia." />
+                                   ToolTip="Voliteľný dohľad pre tento beh. Pri timeoute WIKA, strate dát alebo nepotvrdenej odozve sa postup pozastaví a odošle jeden e-mail pre danú udalosť. Operátor má 30 minút na rozhodnutie; potom sa uloží beh a odošle STOP komore. Predĺženie pridá 15/30 minút. Nový pokus obnoví meranie rozpracovaných senzorov. Po rozhodnutí sa WIKA a rozpracované meracie okná overia odznova. Preskočenie nie je úspešná kalibrácia. Ak je trace log zapnutý, pokračuje aj počas čakania. Pri chybe komunikácie sú dostupné nový pokus a STOP; predĺženie platí pre WIKA/FBG. Timeout samotnej wavelength po vyčerpaní stabilizácie automaticky spustí finálny odber s problémovým označením, bez čakania na rozhodnutie. Dohľad vyžaduje zapnuté e-maily kalibrácie a adresáta v Administrácii. Každé rozhodnutie a jeho dôvod sa uložia." />
                         <CheckBox Content="Operátorský dohľad – pri probléme vyžadovať moje rozhodnutie"
                                   IsChecked="{Binding OperatorSupervisionEnabled}" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}"
                                   FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -751,6 +751,13 @@
                                     <DataGridTextColumn Header="R²" Binding="{Binding RSquared, StringFormat=F6}" Width="85" />
                                     <DataGridTextColumn Header="Stabilizácia" Binding="{Binding StabilityStatus}" Width="105" />
                                     <DataGridTextColumn Header="Problém stabilizácie" Binding="{Binding StabilityProblem}" Width="220" />
+                                    <DataGridTextColumn Header="Kontrola 25 °C" Binding="{Binding FinalCheckStatus}" Width="120" />
+                                    <DataGridTextColumn Header="WIKA kontroly [°C]" Binding="{Binding FinalReferenceTemperatureC, StringFormat=F3}" Width="130" />
+                                    <DataGridTextColumn Header="λ meraná [nm]" Binding="{Binding FinalMeasuredLambdaNm, StringFormat=F6}" Width="125" />
+                                    <DataGridTextColumn Header="λ vypočítaná [nm]" Binding="{Binding FinalExpectedLambdaNm, StringFormat=F6}" Width="130" />
+                                    <DataGridTextColumn Header="Rozdiel [pm]" Binding="{Binding FinalLambdaErrorPm, StringFormat=F3}" Width="100" />
+                                    <DataGridTextColumn Header="Chyba [°C]" Binding="{Binding FinalTemperatureErrorC, StringFormat=F3}" Width="100" />
+                                    <DataGridTextColumn Header="Problém kontroly" Binding="{Binding FinalCheckProblem}" Width="260" />
                                     <DataGridTextColumn Header="Výsledok" Binding="{Binding Result}" Width="85" />
                                 </DataGrid.Columns>
                             </DataGrid>

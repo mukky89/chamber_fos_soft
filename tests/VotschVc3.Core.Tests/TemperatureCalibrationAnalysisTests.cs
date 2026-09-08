@@ -113,7 +113,10 @@ public sealed class TemperatureCalibrationAnalysisTests
             ],
         };
 
-        Assert.Empty(TemperatureCalibrationAnalyzer.Analyze(run));
+        var result = Assert.Single(TemperatureCalibrationAnalyzer.Analyze(run));
+        Assert.Equal("N/A", result.Result);
+        Assert.Null(result.CoefficientA);
+        Assert.Contains("tri rôzne", result.StabilityProblem);
     }
 
     private static CalibrationPlateauResult Point(double temperature, double wavelength) => new()

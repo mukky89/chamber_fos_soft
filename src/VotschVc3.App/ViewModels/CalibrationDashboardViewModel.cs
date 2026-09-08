@@ -164,7 +164,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         "Reálny interval sa vyhodnocuje pre každý peak samostatne; jeho vlastný uložený limit môže byť odlišný. " +
         "Po vyčerpaní základu sa pridá najviac 10 min iba pri platných finálnych vzorkách z posledných 10 min alebo pri zlepšení najhoršieho pomeru range/σ/drift k limitu aspoň o 10 % medzi úplnými oknami v posledných 10 min. " +
         "Pevný strop je 90 min od prvého otvorenia FBG fázy na plate. Reset, zmena nastavení ani strata stability WIKA čas nevynuluje. " +
-        "Bez pokroku alebo po strope: stabilita nepotvrdená / meranie nedokončené. ContinueAndFlag označí peak ako neúspešný a pokračuje; ostatné politiky vyžadujú zásah alebo ukončia beh. Náhradné meranie po limite sa nespúšťa.";
+        "Bez pokroku alebo po strope: stabilita nepotvrdená / meranie nedokončené. Po limite nasleduje ohraničený odber finálnych vzoriek bez stabilnej wavelength. Výsledky sa vyhodnotia s problémovým označením.";
     public string PeakDetail => $"{MeasuringCount} vo finálnom meraní{(WarningMeasuringCount > 0 ? $" · {WarningMeasuringCount} po timeout-e" : string.Empty)} · {DoneCount} úplne dokončených";
     public string PeakStabilityCriteria =>
         $"{_requiredStableSamples} vzoriek · range ≤ {_maxRangePm:F3} pm · σ ≤ {_maxStdDevPm:F3} pm · drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min";
@@ -215,7 +215,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? $"Meria {MeasuringCount} peakov. Ostatné peaky pokračujú v stabilizácii. Namerané vzorky: {SampleSummary}." : $"Stabilizuje sa {TotalTargets} peakov. Aktuálne stabilné: {StableCount} / {TotalTargets}.",
         CalibrationRunState.MovingToPlateau => $"Komore sa nastavuje cieľ {Target}. Profilové rampy a časy sa ignorujú.",
         CalibrationRunState.PlateauCompleted => "Kalibračný bod je dokončený. Pripravuje sa ďalšie vybrané plato.",
-        CalibrationRunState.FinalConditioning => _snapshot?.Message ?? $"Po meraní beží pevný čas temperovania pri nastavenej teplote {_finalConditioningTemperatureC:F1} °C. Po jeho uplynutí aplikácia vypne výkon zariadenia; FBG sa už nemeria.",
+        CalibrationRunState.FinalConditioning => _snapshot?.Message ?? $"Po meraní beží pevný čas temperovania pri nastavenej teplote {_finalConditioningTemperatureC:F1} °C. Po jeho uplynutí nasleduje nezávislý kontrolný odber FBG s koeficientmi, až potom vypnutie zariadenia.",
         CalibrationRunState.Completed => "Všetky kalibračné body sú dokončené. Výsledky a export nájdete v Histórii.",
         CalibrationRunState.CompletedWithWarnings => "Beh sa skončil s upozorneniami. Pred použitím výsledkov skontrolujte diagnostiku a históriu.",
         CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted => Alert,
@@ -576,13 +576,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 
         if (_state == CalibrationRunState.FinalConditioning)
         {
-            double conditioningSeconds = Math.Max(0, (_finalConditioningDuration - (_snapshot?.PlateauElapsed ?? TimeSpan.Zero)).TotalSeconds);
+            double conditioningSeconds = Math.Max(0, _finalConditioningDuration.TotalSeconds + _requiredMeasurementSamples * _sampleAcquisitionIntervalSeconds - (_snapshot?.PlateauElapsed ?? TimeSpan.Zero).TotalSeconds);
             if (_enableSetpointRamp && ActualTemperature is { } actual && Math.Abs(actual - _finalConditioningTemperatureC) > StabilityToleranceC)
                 conditioningSeconds += Math.Abs(actual - _finalConditioningTemperatureC) / (_setpointRampCPerMinute / 60d);
             Eta = "≈ " + Duration(TimeSpan.FromSeconds(conditioningSeconds));
             Finish = "≈ " + now.AddSeconds(conditioningSeconds).ToLocalTime().ToString("dd.MM. HH:mm");
             EstimatedFinishAt = now.AddSeconds(conditioningSeconds);
-            EtaBasis = $"Zostáva návrat na {_finalConditioningTemperatureC:F1} °C a súvislé temperovanie {Duration(_finalConditioningDuration)}; FBG sa už nemeria.";
+            EtaBasis = $"Zostáva návrat na {_finalConditioningTemperatureC:F1} °C a súvislé temperovanie {Duration(_finalConditioningDuration)} a kontrolný odber FBG s koeficientmi.";
             return;
         }
 
@@ -723,7 +723,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             $"Každý peak samostatne potrebuje {_requiredStableSamples} vzoriek na stabilizáciu: range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm, drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Nevyhovujúce celé okno sa resetuje. {Estimate(_requiredStableSamples)}. {cycle}. " + SensorDeadlineHelp,
             $"Po stabilizácii každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek; {Estimate(_requiredMeasurementSamples)}. Pri strate stability sa nehotové meranie zahodí. Hotové peaky sa nemenia. {cycle}. " + SensorDeadlineHelp,            "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
             "Po dokončení všetkých vybraných peakov uloží checkpoint a nastaví cieľ nasledujúceho vybraného plata. Ak žiadne nezostáva, prejde na záverečné temperovanie.",
-            $"Po poslednom kalibračnom bode nastaví komoru na {_finalConditioningTemperatureC:F1} °C. Až po vstupe internej teploty komory do povoleného pásma začne počítať súvislé temperovanie {Duration(_finalConditioningDuration)}; pri opustení pásma sa čas počíta odznova. WIKA ani FBG sa v tomto kroku nevyhodnocujú a nevzniká kalibračný bod.",
+            $"Po poslednom kalibračnom bode nastaví komoru na {_finalConditioningTemperatureC:F1} °C. Nasleduje pevné temperovanie {Duration(_finalConditioningDuration)} a nezávislý odber {_requiredMeasurementSamples} kontrolných vzoriek každých {_sampleAcquisitionIntervalSeconds} s. Porovná sa meraná wavelength s wavelength vypočítanou z koeficientov pri teplote WIKA. Kontrola sa nezahrnie do fitovania; neistá stabilita, chýbajúce dáta a chyba sa označia. Až potom sa komora vypne.",
             "Uzavrie beh, uloží súhrn, históriu a exporty. Výsledný stav môže byť dokončené alebo dokončené s upozorneniami."
         };
         if (Steps.Count == 0)

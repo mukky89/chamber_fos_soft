@@ -327,6 +327,7 @@ public sealed class CalibrationRunRecord
     public List<CalibrationPlateauResult> Plateaus { get; set; } = new();
     public List<CalibrationWarning> Warnings { get; set; } = new();
     public List<TemperatureCalibrationResult> CalibrationResults { get; set; } = new();
+    public CalibrationPlateauResult? FinalVerification { get; set; }
     public double FinalConditioningTemperatureC { get; set; }
     public TimeSpan FinalConditioningRequiredDuration { get; set; }
     public DateTimeOffset? FinalConditioningStartedAt { get; set; }

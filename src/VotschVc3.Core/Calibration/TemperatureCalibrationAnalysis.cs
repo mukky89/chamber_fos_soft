@@ -31,11 +31,20 @@ public sealed class TemperatureCalibrationResult
     public string StabilityStatus { get; set; } = "OK";
     public string? StabilityProblem { get; set; }
 
+    public string FinalCheckStatus { get; set; } = "N/A";
+    public string? FinalCheckProblem { get; set; }
+    public double? FinalReferenceTemperatureC { get; set; }
+    public double? FinalMeasuredLambdaNm { get; set; }
+    public double? FinalExpectedLambdaNm { get; set; }
+    public double? FinalLambdaErrorPm { get; set; }
+    public double? FinalTemperatureErrorC { get; set; }
+    public int FinalSampleCount { get; set; }
+
     public string Identity => $"{SerialNumber}|{Channel}|{PeakId}";
 }
 
 /// <summary>Temperature-coefficient calculation compatible with Auto_calibrator_Pali/SensTemp/TempCalculations.py.</summary>
-public static class TemperatureCalibrationAnalyzer
+public static partial class TemperatureCalibrationAnalyzer
 {
     public const double DefaultReferenceTemperatureC = 22.5;
     private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
@@ -44,11 +53,11 @@ public static class TemperatureCalibrationAnalyzer
     {
         ArgumentNullException.ThrowIfNull(run);
         var samples = run.Plateaus
-            .Where(p => p.ReferenceTemperatureC is { } t && double.IsFinite(t))
             .SelectMany(p => p.Targets
                 .Where(IsAccepted)
-                .Where(target => double.IsFinite(target.MeanWavelengthNm))
-                .Select(target => new AnalysisPoint(p.ReferenceTemperatureC!.Value, target)))
+                .Where(target => double.IsFinite(target.MeanWavelengthNm) && target.MeanWavelengthNm > 0)
+                .Select(target => new AnalysisPoint(target.StableSamples.Where(sample => sample.ReferenceTemperatureC is { } t && double.IsFinite(t)).Select(sample => sample.ReferenceTemperatureC!.Value).DefaultIfEmpty(p.ReferenceTemperatureC ?? double.NaN).Average(), target)))
+            .Where(point => double.IsFinite(point.TemperatureC))
             .GroupBy(point => $"{point.Target.PeakLoggerDeviceSerialNumber}|{point.Target.SerialNumber}|{point.Target.Channel}|{point.Target.PeakId}|{point.Target.PeakIndex}");
 
         var results = new List<TemperatureCalibrationResult>();
@@ -73,7 +82,7 @@ public static class TemperatureCalibrationAnalyzer
             if (points.Select(point => point.TemperatureC).Distinct().Count() >= 4)
                 TryAddPolynomial(results, first, temperature, wavelength, referenceTemperature, sensitivity, tolerance, 3);
             CalibrationMeasurementResult[] stabilityWarnings = points.Select(point => point.Target)
-                .Where(target => target.Status == CalibrationTargetState.CompletedWithStabilityWarning).ToArray();
+                .Where(target => target.Status is not (CalibrationTargetState.Stable or CalibrationTargetState.Overridden)).ToArray();
             foreach (TemperatureCalibrationResult result in results.Skip(firstResultIndex))
             {
                 result.StabilityStatus = stabilityWarnings.Length == 0 ? "OK" : "PROBLÉM";
@@ -82,6 +91,40 @@ public static class TemperatureCalibrationAnalyzer
                     : string.Join(" | ", stabilityWarnings.Select(target => target.Problem).Where(problem => !string.IsNullOrWhiteSpace(problem)).Distinct());
             }
         }
+        var allTargets = run.Plateaus.SelectMany(p => p.Targets)
+            .Concat(run.FinalVerification?.Targets ?? new List<CalibrationMeasurementResult>())
+            .GroupBy(t => (t.PeakLoggerDeviceSerialNumber, t.SerialNumber, t.Channel, t.PeakId, t.PeakIndex));
+        foreach (var group in allTargets)
+        {
+            var matching = results.Where(r => r.PeakLoggerDeviceSerialNumber == group.Key.PeakLoggerDeviceSerialNumber &&
+                r.SerialNumber == group.Key.SerialNumber && r.Channel == group.Key.Channel &&
+                r.PeakId == group.Key.PeakId && r.PeakIndex == group.Key.PeakIndex).ToArray();
+            if (matching.Length > 0)
+            {
+                var incomplete = run.Plateaus.SelectMany(p => p.Targets).Where(t =>
+                    t.PeakLoggerDeviceSerialNumber == group.Key.PeakLoggerDeviceSerialNumber &&
+                    t.SerialNumber == group.Key.SerialNumber && t.Channel == group.Key.Channel &&
+                    t.PeakId == group.Key.PeakId && t.PeakIndex == group.Key.PeakIndex && t.SampleCount == 0).ToArray();
+                foreach (var result in matching)
+                    if (incomplete.Length > 0)
+                    {
+                        result.StabilityStatus = "PROBLÉM";
+                        result.StabilityProblem = (result.StabilityProblem + " Niektoré plánované body nemajú platné vzorky. " +
+                            string.Join(" | ", incomplete.Select(t => t.Problem).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct())).Trim();
+                    }
+                continue;
+            }
+            var first = group.First();
+            results.Add(new TemperatureCalibrationResult
+            {
+                SerialNumber = first.SerialNumber, PeakLoggerDeviceSerialNumber = first.PeakLoggerDeviceSerialNumber,
+                Channel = first.Channel, PeakId = first.PeakId, PeakIndex = first.PeakIndex,
+                CalibrationType = "N/A", Result = "N/A", StabilityStatus = "PROBLÉM",
+                StabilityProblem = "Koeficienty nemožno vypočítať: chýbajú aspoň tri rôzne platné teplotné body alebo je model singulárny. " +
+                    string.Join(" | ", group.Select(t => t.Problem).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct()),
+            });
+        }
+        foreach (var result in results) ApplyFinalCheck(result, run.FinalVerification);
         return results.OrderBy(result => result.SerialNumber).ThenBy(result => result.Channel).ThenBy(result => result.PeakIndex)
             .ThenBy(result => result.CalibrationType).ToList();
     }
@@ -96,6 +139,7 @@ public static class TemperatureCalibrationAnalyzer
             double[] normalized = wavelength.Select(value => (value - lambdaTRef) / lambdaTRef).ToArray();
             double[] coefficients = FitPolynomial(normalized, temperature, order);
             double[] predicted = normalized.Select(value => Evaluate(coefficients, value)).ToArray();
+            if (coefficients.Any(value => !double.IsFinite(value)) || predicted.Any(value => !double.IsFinite(value))) return;
             results.Add(CreateResult(target, temperature, referenceTemperature, lambdaTRef, sensitivity, tolerance,
                 order == 2 ? "2nd · ABC" : "3rd · ABCD", predicted,
                 coefficientA: coefficients[order], coefficientB: coefficients[order - 1],
@@ -113,13 +157,15 @@ public static class TemperatureCalibrationAnalyzer
             double discriminant = Square(direct[1]) / (4 * Square(direct[2])) - direct[0] / direct[2] + referenceTemperature / direct[2];
             if (discriminant < 0 || Math.Abs(direct[2]) < 1e-20) return;
             double lambdaTRef = -direct[1] / (2 * direct[2]) + (direct[2] < 0 ? -1 : 1) * Math.Sqrt(discriminant);
+            if (!double.IsFinite(lambdaTRef) || lambdaTRef <= 0) return;
             double[] deltaTemperature = temperature.Select(value => value - referenceTemperature).ToArray();
             double[] logWavelength = wavelength.Select(value => Math.Log(value / lambdaTRef)).ToArray();
             double[] s = FitTwoPredictors(deltaTemperature, deltaTemperature.Select(Square).ToArray(), logWavelength);
             double s1 = s[1], s2 = s[2];
-            if (Math.Abs(s2) < 1e-20) return;
+            if (!double.IsFinite(s1) || !double.IsFinite(s2) || Math.Abs(s2) < 1e-20) return;
             double[] predicted = logWavelength.Select(log => referenceTemperature - s1 / (2 * s2) +
                 (s2 > 0 ? 1 : -1) * Math.Sqrt(Math.Max(0, Square(s1 / (2 * s2)) + log / s2))).ToArray();
+            if (predicted.Any(value => !double.IsFinite(value))) return;
             results.Add(CreateResult(target, temperature, referenceTemperature, lambdaTRef, sensitivity, tolerance,
                 "FBGS · s1/s2", predicted, coefficientS1: s1, coefficientS2: s2));
         }
@@ -159,14 +205,14 @@ public static class TemperatureCalibrationAnalyzer
 
     public static void ExportCsv(IEnumerable<TemperatureCalibrationResult> results, string path)
     {
-        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;CalibrationType;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefS1;CoefS2;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result;StabilityStatus;StabilityProblem\r\n");
+        var text = new StringBuilder("SerialNumber;PeakLoggerDeviceSN;Channel;PeakId;PeakIndex;CalibrationType;Points;MinTemperatureC;MaxTemperatureC;TRefC;LambdaTRefNm;SensitivityPmPerC;CoefS1;CoefS2;CoefA;CoefB;CoefC;CoefD;MaxErrorC;ErrorToleranceC;R2;Result;StabilityStatus;StabilityProblem;FinalCheck;FinalReferenceC;FinalMeasuredLambdaNm;FinalExpectedLambdaNm;FinalErrorPm;FinalErrorC;FinalSamples;FinalProblem\r\n");
         foreach (TemperatureCalibrationResult item in results)
             text.AppendJoin(';', E(item.SerialNumber), E(item.PeakLoggerDeviceSerialNumber), E(item.Channel), E(item.PeakId), item.PeakIndex,
                 E(item.CalibrationType),
                 item.PointCount, F(item.MinimumTemperatureC), F(item.MaximumTemperatureC), F(item.ReferenceTemperatureC), F(item.LambdaTRefNm),
                 F(item.SensitivityPmPerC), FN(item.CoefficientS1), FN(item.CoefficientS2), FN(item.CoefficientA), FN(item.CoefficientB), FN(item.CoefficientC),
                 FN(item.CoefficientD), F(item.MaxErrorC), F(item.ErrorToleranceC), F(item.RSquared), item.Result,
-                E(item.StabilityStatus), E(item.StabilityProblem ?? string.Empty)).Append("\r\n");
+                E(item.StabilityStatus), E(item.StabilityProblem ?? string.Empty), E(item.FinalCheckStatus), FN(item.FinalReferenceTemperatureC), FN(item.FinalMeasuredLambdaNm), FN(item.FinalExpectedLambdaNm), FN(item.FinalLambdaErrorPm), FN(item.FinalTemperatureErrorC), item.FinalSampleCount, E(item.FinalCheckProblem ?? string.Empty)).Append("\r\n");
         File.WriteAllText(path, text.ToString(), Encoding.UTF8);
     }
 
@@ -178,7 +224,7 @@ public static class TemperatureCalibrationAnalyzer
         sheet.Range("A1:X1").Merge().Style.Fill.SetBackgroundColor(XLColor.FromHtml("#182A40"));
         sheet.Cell("A1").Style.Font.SetBold().Font.SetFontSize(18).Font.SetFontColor(XLColor.White);
         sheet.Cell("A2").Value = $"{run.DisplayRunId} · {run.DisplayProfileId} · {run.ChamberName}";
-        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Kalibrácia", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "s1", "s2", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok", "Stabilizácia", "Problém stabilizácie"];
+        string[] headers = ["SN", "PeakLogger SN", "Kanál", "Peak", "Index", "Kalibrácia", "Body", "Min [°C]", "Max [°C]", "Tref [°C]", "λTref [nm]", "Citlivosť [pm/°C]", "s1", "s2", "A", "B", "C", "D", "Max. chyba [°C]", "Limit [°C]", "R²", "Výsledok", "Stabilizácia", "Problém stabilizácie", "Kontrola 25 °C", "WIKA kontrola [°C]", "λ meraná [nm]", "λ vypočítaná [nm]", "Rozdiel [pm]", "Chyba [°C]", "Vzorky kontroly", "Problém kontroly"];
         for (int i = 0; i < headers.Length; i++) sheet.Cell(4, i + 1).Value = headers[i];
         sheet.Range(4, 1, 4, headers.Length).Style.Fill.SetBackgroundColor(XLColor.FromHtml("#2C4770")).Font.SetBold().Font.SetFontColor(XLColor.White);
         int row = 5;
@@ -187,7 +233,7 @@ public static class TemperatureCalibrationAnalyzer
             object?[] values = [item.SerialNumber, item.PeakLoggerDeviceSerialNumber, item.Channel, item.PeakId, item.PeakIndex, item.CalibrationType, item.PointCount,
                 item.MinimumTemperatureC, item.MaximumTemperatureC, item.ReferenceTemperatureC, item.LambdaTRefNm, item.SensitivityPmPerC,
                 item.CoefficientS1, item.CoefficientS2, item.CoefficientA, item.CoefficientB, item.CoefficientC, item.CoefficientD,
-                item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result, item.StabilityStatus, item.StabilityProblem];
+                item.MaxErrorC, item.ErrorToleranceC, item.RSquared, item.Result, item.StabilityStatus, item.StabilityProblem, item.FinalCheckStatus, item.FinalReferenceTemperatureC, item.FinalMeasuredLambdaNm, item.FinalExpectedLambdaNm, item.FinalLambdaErrorPm, item.FinalTemperatureErrorC, item.FinalSampleCount, item.FinalCheckProblem];
             for (int col = 0; col < values.Length; col++)
                 if (values[col] is not null) sheet.Cell(row, col + 1).Value = XLCellValue.FromObject(values[col]);
             sheet.Cell(row, 22).Style.Font.SetBold().Font.SetFontColor(item.Result == "PASS" ? XLColor.FromHtml("#087F5B") : XLColor.FromHtml("#C92A2A"));
@@ -208,7 +254,7 @@ public static class TemperatureCalibrationAnalyzer
     }
 
     private static bool IsAccepted(CalibrationMeasurementResult target) =>
-        (target.Status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden or CalibrationTargetState.CompletedWithStabilityWarning) && target.SampleCount > 0;
+        target.SampleCount > 0;
 
     private static double[] FitPolynomial(double[] x, double[] y, int order)
     {
