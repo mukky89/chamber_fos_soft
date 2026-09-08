@@ -8,7 +8,7 @@ namespace VotschVc3.App.ViewModels;
 
 public sealed class FbgCalibrationHistoryViewModel : ObservableObject
 {
-    private readonly CalibrationStore _store = new(AppPaths.CalibrationDir, AppPaths.CalibrationRunsDir);
+    private CalibrationStore _store = CalibrationStorage.CreateStore();
     private FbgCalibrationHistoryItem? _selectedCalibration;
     private string _statusMessage = string.Empty;
 
@@ -49,6 +49,8 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
         Guid? selectedId = SelectedCalibration?.Run.RunId;
         try
         {
+            _store = CalibrationStorage.CreateStore();
+            OnPropertyChanged(nameof(RunsFolder));
             IReadOnlyList<FbgCalibrationHistoryItem> items = _store.LoadHistory()
                 .Select(run => new FbgCalibrationHistoryItem(run, _store.GetRunDirectory(run)))
                 .ToArray();

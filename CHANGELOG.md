@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.262] – 2026-09-08
+
+### Pridané
+
+- Redundantné ukladanie FBG kalibrácií: priebežný zápis na lokálny disk PC a predvolene aj sieťová kópia v produkčnom priečinku G:. Obe kópie zachovávajú štruktúru rok / mesiac / beh.
+- Jeden pracovník na pozadí synchronizuje zmenené súbory predvolene každých 10 sekúnd. Výpadok siete neblokuje lokálne meranie; trvalý front obnoví kopírovanie po návrate siete aj po reštarte aplikácie. Rozpracovaná sieťová kópia sa nahrádza cez dočasný súbor.
+- Administrácia obsahuje lokálnu a sieťovú cestu, prepínač sieťovej kópie pre nové behy, interval, kontrolu zápisu, ručnú synchronizáciu a priebežný stav čakajúcich kópií. Lokálna cesta je povinná a nesmie byť sieťová ani vnorená do druhého úložiska.
+- Cesty rozbehnutého behu sa nemenia po úprave predvolieb. História uprednostní lokálnu kópiu, nezobrazuje duplicity a nájde aj staršie cesty z frontu. Starý beh uložený iba na sieti sa pred obnovením skopíruje lokálne.
+- Panel dát FBG kalibrácie zobrazuje obe cesty a stav synchronizácie. Zálohujú sa trace log, raw samples, diagnostika, výsledky a reporty.
+
 ## [1.76.261] – 2026-09-08
 
 ### Zmenené

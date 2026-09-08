@@ -17,9 +17,12 @@ public sealed class CalibrationStore
 
     private readonly ConcurrentDictionary<Guid, string> _runDirectories = new();
     private readonly bool _partitionRunsByMonth;
+    private readonly string? _replicaDirectory;
+    private readonly CalibrationReplicationQueue? _replicationQueue;
+    private readonly string[] _additionalHistoryRoots;
     private static readonly string[] MonthFolders = { "01_Januar", "02_Februar", "03_Marec", "04_April", "05_Maj", "06_Jun", "07_Jul", "08_August", "09_September", "10_Oktober", "11_November", "12_December" };
 
-    public CalibrationStore(string rootDirectory, string? runsDirectory = null)
+    public CalibrationStore(string rootDirectory, string? runsDirectory = null, string? replicaDirectory = null, CalibrationReplicationQueue? replicationQueue = null, IEnumerable<string>? additionalHistoryRoots = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         RootDirectory = Path.GetFullPath(rootDirectory);
@@ -27,6 +30,9 @@ public sealed class CalibrationStore
         LegacyRunsDirectory = Path.Combine(RootDirectory, "Runs");
         RunsDirectory = runsDirectory is null ? LegacyRunsDirectory : Path.GetFullPath(runsDirectory);
         _partitionRunsByMonth = runsDirectory is not null;
+        _replicaDirectory = replicaDirectory is null ? null : Path.GetFullPath(replicaDirectory);
+        _replicationQueue = replicationQueue;
+        _additionalHistoryRoots = (additionalHistoryRoots ?? []).ToArray();
         CheckpointsDirectory = Path.Combine(RootDirectory, "Checkpoints");
         Directory.CreateDirectory(SetupsDirectory);
         Directory.CreateDirectory(LegacyRunsDirectory);
@@ -37,7 +43,9 @@ public sealed class CalibrationStore
     public string SetupsDirectory { get; }
     public string RunsDirectory { get; }
     public string LegacyRunsDirectory { get; }
-    private IEnumerable<string> HistoryRoots => new[] { RunsDirectory, LegacyRunsDirectory }.Distinct(StringComparer.OrdinalIgnoreCase);
+    private IEnumerable<string> HistoryRoots => new[] { RunsDirectory, LegacyRunsDirectory }
+        .Concat(_replicationQueue?.SourceDirectories ?? []).Concat(_additionalHistoryRoots)
+        .Distinct(StringComparer.OrdinalIgnoreCase);
     public string CheckpointsDirectory { get; }
 
     public void SaveSetup(CalibrationSetup setup)
@@ -76,7 +84,11 @@ public sealed class CalibrationStore
 
     public CalibrationRunWriter CreateRunWriter(CalibrationRunRecord run, bool append = false)
     {
-        try { return new(this, run, append); }
+        try
+        {
+            PrepareLocalRun(run, append);
+            return new(this, run, append);
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             throw new IOException($"Nie je možné zapisovať kalibračný beh do '{GetRunDirectory(run)}'. " +
@@ -84,6 +96,57 @@ public sealed class CalibrationStore
         }
     }
 
+    private string MonthlyPath(string root, CalibrationRunRecord run)
+    {
+        string readable = string.Concat((run.HumanRunId ?? "").Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        string name = string.IsNullOrWhiteSpace(readable) ? run.RunId.ToString("N") : readable + "__" + run.RunId.ToString("N");
+        return Path.Combine(root, run.StartedAt.Year.ToString("D4", CultureInfo.InvariantCulture), MonthFolders[run.StartedAt.Month - 1], name);
+    }
+
+    private void PrepareLocalRun(CalibrationRunRecord run, bool append)
+    {
+        if (_replicationQueue is null) return;
+        string source = GetRunDirectory(run);
+        // Old network-only runs are imported before resuming; never acquire directly to the network.
+        if (source.StartsWith(@"\\", StringComparison.Ordinal) ||
+            new DriveInfo(Path.GetPathRoot(source)!).DriveType == DriveType.Network ||
+            _additionalHistoryRoots.Any(root => CalibrationStorageSettings.IsWithin(source, root)))
+        {
+            string local = run.LocalRunDirectory ?? MonthlyPath(RunsDirectory, run);
+            if (append && !Directory.Exists(local))
+            {
+                string staging = local + ".import-" + Guid.NewGuid().ToString("N");
+                try
+                {
+                    Directory.CreateDirectory(staging);
+                    foreach (string file in Directory.EnumerateFiles(source, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = false }))
+                    {
+                        string target = Path.Combine(staging, Path.GetRelativePath(source, file));
+                        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                        File.Copy(file, target);
+                    }
+                    Directory.Move(staging, local);
+                }
+                finally { if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true); }
+            }
+            source = local;
+            _runDirectories[run.RunId] = source;
+        }
+        bool firstStorageSnapshot = run.LocalRunDirectory is null;
+        run.LocalRunDirectory = source;
+        if (firstStorageSnapshot && run.ReplicaRunDirectory is null && _replicaDirectory is not null)
+            run.ReplicaRunDirectory = MonthlyPath(_replicaDirectory, run);
+        Directory.CreateDirectory(source);
+        RequestReplication(run);
+    }
+
+    public void RequestReplication(CalibrationRunRecord run)
+    {
+        if (_replicationQueue is not null && run.LocalRunDirectory is { } local)
+            _replicationQueue.Enqueue(run.RunId, local, run.ReplicaRunDirectory);
+    }
+
+    public string ReplicationStatus(Guid? runId = null) => _replicationQueue?.Status(runId) ?? "Lokálne ukladanie.";
     public CalibrationRunRecord? LoadRun(Guid runId)
     {
         string path = Path.Combine(GetRunDirectory(runId), "summary.json");
@@ -124,6 +187,7 @@ public sealed class CalibrationStore
                 // Even an unwritable diagnostic must not affect the primary JSON/CSV calibration result.
             }
         }
+        RequestReplication(run);
     }
 
     public List<CalibrationRunRecord> LoadHistory()
@@ -141,7 +205,7 @@ public sealed class CalibrationStore
                 {
                     run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
                     string directory = Path.GetDirectoryName(file)!;
-                    _runDirectories[run.RunId] = directory;
+                    _runDirectories.TryAdd(run.RunId, directory);
                     string coefficientsCsv = Path.Combine(directory, "calibration-coefficients.csv");
                     bool currentFormat = File.Exists(coefficientsCsv) && File.ReadLines(coefficientsCsv).FirstOrDefault()?.Contains("CalibrationType", StringComparison.Ordinal) == true;
                     if ((run.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings) &&
@@ -245,10 +309,18 @@ public sealed class CalibrationStore
 
     public string GetRunDirectory(Guid runId)
     {
+        string? local = _replicationQueue?.SourceDirectory(runId);
+        if (local is not null && File.Exists(Path.Combine(local, "summary.json")))
+        {
+            _runDirectories[runId] = local;
+            return local;
+        }
         if (_runDirectories.TryGetValue(runId, out string? known)) return known;
         string id = runId.ToString("N");
         foreach (string root in HistoryRoots.Where(Directory.Exists))
         {
+            if (Path.GetFileName(root) == id || Path.GetFileName(root).EndsWith("__" + id, StringComparison.OrdinalIgnoreCase))
+                return _runDirectories.GetOrAdd(runId, root);
             string? directory = Directory.EnumerateDirectories(root, "*" + id, SearchOption.AllDirectories)
                 .FirstOrDefault(path => Path.GetFileName(path) == id || Path.GetFileName(path).EndsWith("__" + id, StringComparison.OrdinalIgnoreCase));
             if (directory is not null) return _runDirectories.GetOrAdd(runId, directory);
@@ -320,6 +392,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         {
             _diagnosticWriter.WriteLine(line);
         }
+        _store.RequestReplication(_run);
         DiagnosticWritten?.Invoke(line);
     }
 
@@ -350,6 +423,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
                 await _rawWriter.WriteLineAsync(line).ConfigureAwait(false);
             }
             await _rawWriter.FlushAsync(cancellationToken).ConfigureAwait(false);
+            _store.RequestReplication(_run);
         }
         finally
         {
@@ -382,6 +456,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
                 await _wavelengthWriter.WriteLineAsync(line).ConfigureAwait(false);
             }
             await _wavelengthWriter.FlushAsync(cancellationToken).ConfigureAwait(false);
+            _store.RequestReplication(_run);
         }
         finally
         {

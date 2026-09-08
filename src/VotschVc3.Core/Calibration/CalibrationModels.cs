@@ -299,6 +299,8 @@ public sealed class CalibrationRunRecord
 {
     public bool OperatorSupervisionEnabled { get; set; }
     public List<CalibrationPlateauResult> SupersededPlateaus { get; set; } = new();
+    public string? LocalRunDirectory { get; set; }
+    public string? ReplicaRunDirectory { get; set; }
     public string? PendingOperatorIssue { get; set; }
     public DateTimeOffset? OperatorDecisionDeadline { get; set; }
     /// <summary>Internal, globally unique technical identifier retained for files and data joins.</summary>

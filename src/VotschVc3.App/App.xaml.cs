@@ -19,6 +19,7 @@ public partial class App : Application
         // Create the Documents\Lab Control layout (and migrate the old VotschVc3
         // folder once) before anything reads or writes app data.
         AppPaths.Initialize();
+        CalibrationStorage.Start();
         AppLog.Configure(AppPaths.AppLogDir);
 
         // Dashboard Bridge is deliberately manual-only. Older builds registered a

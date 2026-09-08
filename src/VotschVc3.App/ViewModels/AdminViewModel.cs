@@ -14,7 +14,7 @@ namespace VotschVc3.App.ViewModels;
 /// the view binds to the shell's existing e-mail and chamber-management members
 /// through <see cref="Shell"/>.
 /// </remarks>
-public sealed class AdminViewModel : ObservableObject
+public sealed partial class AdminViewModel : ObservableObject
 {
     private readonly CalibrationDefaultsStore _defaultsStore;
     private CalibrationProfileSettings _calibrationDefaults;
@@ -26,6 +26,7 @@ public sealed class AdminViewModel : ObservableObject
         _defaultsStore = new CalibrationDefaultsStore(System.IO.Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json"));
         _calibrationDefaults = _defaultsStore.Load();
         SaveCalibrationDefaultsCommand = new RelayCommand(SaveCalibrationDefaults);
+        InitializeStorageSettings();
     }
 
     /// <summary>The root view model that owns the actual settings and commands.</summary>

@@ -98,6 +98,13 @@ public partial class CalibrationWindow
             RefreshDataPathPanel();
         }));
 
+        var storageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        storageTimer.Tick += (_, _) =>
+        {
+            if (_dataRootText is not null) _dataRootText.Text = _viewModel.StorageDirectories + "\n" + _viewModel.StorageStatus;
+        };
+        Closed += (_, _) => storageTimer.Stop();
+        storageTimer.Start();
         StartReferenceFiveSecondRefresh();
         StartPeakLoggerTopologyWatch();
     }
@@ -250,11 +257,11 @@ public partial class CalibrationWindow
 
     private TabItem BuildDataTab()
     {
-        _dataRootText = new TextBlock { Text = AppPaths.CalibrationRunsDir, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas") };
+        _dataRootText = new TextBlock { Text = _viewModel.StorageDirectories + "\n" + _viewModel.StorageStatus, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas") };
         _currentRunPathText = new TextBlock { Text = "—", TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas") };
 
         var rootButton = new Button { Content = "Otvoriť koreň kalibrácií", Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 8, 8, 0) };
-        rootButton.Click += (_, _) => OpenFolder(AppPaths.CalibrationRunsDir);
+        rootButton.Click += (_, _) => OpenFolder(CalibrationStorage.Settings.Load().LocalDirectory);
         var runButton = new Button { Content = "Otvoriť aktuálnu / poslednú kalibráciu", Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 8, 0, 0) };
         runButton.Click += (_, _) =>
         {
@@ -270,11 +277,11 @@ public partial class CalibrationWindow
         stack.Children.Add(new TextBlock { Text = "Ukladanie kalibrácie", FontSize = 17, FontWeight = FontWeights.SemiBold });
         stack.Children.Add(new TextBlock
         {
-            Text = "Behy sa ukladajú podľa dátumu spustenia: rok → mesiac (napr. 2026 / 09_September) → run. Raw samples, wavelength trace, CSV, summary a reporty zostávajú spolu aj pri prechode do ďalšieho mesiaca. Staršie lokálne behy zostávajú v histórii.",
+            Text = "Behy sa ukladajú podľa dátumu spustenia: rok → mesiac (napr. 2026 / 09_September) → run. Raw samples, wavelength trace, CSV, summary a reporty zostávajú spolu aj pri prechode do ďalšieho mesiaca. Lokálny zápis pokračuje aj pri výpadku siete; čakajúca sieťová kópia sa doplní automaticky. Nastavenia sú v Administrácii.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 5, 0, 12),
         });
-        stack.Children.Add(new TextBlock { Text = "Koreň dát", FontWeight = FontWeights.SemiBold });
+        stack.Children.Add(new TextBlock { Text = "Úložiská a synchronizácia", FontWeight = FontWeights.SemiBold });
         stack.Children.Add(_dataRootText);
         stack.Children.Add(new TextBlock { Text = "Aktuálny / posledný run", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
         stack.Children.Add(_currentRunPathText);
@@ -633,7 +640,7 @@ public partial class CalibrationWindow
 
     private void RefreshDataPathPanel()
     {
-        if (_dataRootText is not null) _dataRootText.Text = AppPaths.CalibrationRunsDir;
+        if (_dataRootText is not null) _dataRootText.Text = _viewModel.StorageDirectories + "\n" + _viewModel.StorageStatus;
         if (_currentRunPathText is null) return;
         string? run = FindLatestRunDirectory();
         if (run is null)

@@ -25,6 +25,31 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
             <StackPanel>
 
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Ukladanie a záloha FBG kalibrácií" Style="{StaticResource Heading}" />
+                    <TextBlock Text="Merania sa najprv bezpečne zapisujú na PC. Sieťová kópia sa dopĺňa na pozadí; výpadok siete neblokuje lokálny záznam. Obe úložiská používajú rok / mesiac / beh, napr. 2026 / 09_September."
+                               Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,12" />
+                    <TextBlock Text="Lokálny priečinok na PC (povinný)" Style="{StaticResource Label}" />
+                    <TextBox Text="{Binding Admin.StorageSettings.LocalDirectory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+                    <CheckBox Content="Vytvárať aj sieťovú kópiu nových behov" IsChecked="{Binding Admin.StorageSettings.NetworkCopyEnabled}" Margin="0,0,0,8" />
+                    <TextBlock Text="Sieťový priečinok" Style="{StaticResource Label}" />
+                    <TextBox Text="{Binding Admin.StorageSettings.NetworkDirectory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Interval synchronizácie [s]" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <views:NumericStepper Width="150" Value="{Binding Admin.StorageSettings.SynchronizationIntervalSeconds, Mode=TwoWay}" Minimum="1" Maximum="3600" Step="1" />
+                    </StackPanel>
+                    <WrapPanel>
+                        <Button Content="Uložiť ukladanie" Style="{StaticResource AccentButton}" Command="{Binding Admin.SaveStorageSettingsCommand}" Margin="0,0,8,0" />
+                        <Button Content="Overiť zápis" Command="{Binding Admin.CheckStoragePathsCommand}" Margin="0,0,8,0" />
+                        <Button Content="Synchronizovať teraz" Command="{Binding Admin.SyncStorageNowCommand}" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding Admin.StorageSettingsStatus}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    <Border Background="#332919" BorderBrush="#D99C37" BorderThickness="1" Padding="10" CornerRadius="6" Margin="0,10,0,0">
+                        <TextBlock Text="{Binding Admin.StorageSyncStatus}" Foreground="#FFD27D" TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+            </Border>
             <!-- ===== FBG calibration defaults ===== -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>

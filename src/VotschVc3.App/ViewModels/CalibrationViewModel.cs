@@ -57,7 +57,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         historicalPlateaus: ProfileStatistics.Plateaus);
     private readonly ProfileStore _profileStore;
     private readonly ChamberConfigStore _chamberStore;
-    private readonly CalibrationStore _calibrationStore;
+    private CalibrationStore _calibrationStore;
     private readonly CalibrationDefaultsStore _calibrationDefaultsStore;
     private readonly EmailNotifier _email = new();
     private readonly ThermometersViewModel _referenceThermometers;
@@ -100,7 +100,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         AppPaths.Initialize();
         _profileStore = new ProfileStore(AppPaths.ProfilesDir);
         _chamberStore = new ChamberConfigStore(Path.Combine(AppPaths.SettingsDir, "chambers.json"));
-        _calibrationStore = new CalibrationStore(AppPaths.CalibrationDir, AppPaths.CalibrationRunsDir);
+        _calibrationStore = CalibrationStorage.CreateStore();
         _calibrationDefaultsStore = new CalibrationDefaultsStore(Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json"));
         _setup.Settings = CalibrationCheckpointRecovery.CloneSettings(_calibrationDefaultsStore.Load());
         _email.Settings = new EmailSettingsStore(Path.Combine(AppPaths.SettingsDir, "email.json")).Load();
@@ -1759,6 +1759,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             await ConnectPeakLoggerAsync();
         }
         if (_peakLogger is null) return;
+        _calibrationStore = CalibrationStorage.CreateStore();
         CalibrationCheckpoint? resume = resumeFromCheckpoint ? _resumeCheckpoint : null;
         if (resumeFromCheckpoint && resume is null)
             throw new InvalidOperationException("Uložený checkpoint pre vybraný profil a komoru už nie je dostupný.");
@@ -1830,7 +1831,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             Dashboard.SetRunId(_activeRun.DisplayRunId);
 
             _nextWavelengthTraceAt = DateTimeOffset.MaxValue;
-            await using CalibrationRunWriter writer = _calibrationStore.CreateRunWriter(_activeRun, append: resume is not null);
+            await using CalibrationRunWriter writer = await Task.Run(() => _calibrationStore.CreateRunWriter(_activeRun, append: resume is not null));
             _activeWriter = writer;
             CalibrationTerminalLines.Clear();
             CalibrationTerminalLines.Add($"{DateTimeOffset.Now:HH:mm:ss.fff}  RUN  {_activeRun.DisplayRunId}  {writer.DiagnosticFilePath}");
@@ -1930,6 +1931,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 ? "Kalibrácia úspešne dokončená."
                 : "Kalibrácia dokončená s upozorneniami.";
             await SendCompletionEmailAsync(_activeRun);
+            _calibrationStore.RequestReplication(_activeRun);
         }
         catch (CalibrationSupervisionStoppedException ex)
         {
@@ -2272,6 +2274,19 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         _reservedF100Key = null;
     }
 
+    public string StorageStatus => _calibrationStore.ReplicationStatus(_activeRun?.RunId);
+    public string StorageDirectories
+    {
+        get
+        {
+            CalibrationStorageSettings settings = CalibrationStorage.Settings.Load();
+            string local = _activeRun?.LocalRunDirectory ?? _calibrationStore.RunsDirectory;
+            string network = _activeRun is not null
+                ? _activeRun.ReplicaRunDirectory ?? "vypnutá pre tento beh"
+                : settings.NetworkCopyEnabled ? settings.NetworkDirectory : "vypnutá pre nové behy";
+            return $"Lokálne: {local}\nSieťová kópia: {network}";
+        }
+    }
     public string? CurrentRunDirectory
     {
         get
