@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.304] – 2026-09-09
+
+### Odstránené
+- Z prehľadu kalibrácie bol úplne odstránený odkaz Zobraziť live terminál aj pripojený rozbaľovací panel.
+
 ## [1.76.303] – 2026-09-09
 
 ### Pridané
