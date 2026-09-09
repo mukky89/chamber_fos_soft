@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.305] – 2026-09-09
+
+### Opravené
+- Samostatné jednorazové a priebežné meranie WIKA používa spoločnú chránenú cestu čítania s detekciou sondy A/B, aktualizáciou identifikácie, grafu a CSV. Čítanie je synchronizované s pripojením a odpojením.
+- V module teplomerov bol zavádzajúci vstup READ? nahradený výberom kanála sondy. Overené časovanie a príkazy CTH7000 zostávajú zachované.
+
 ## [1.76.304] – 2026-09-09
 
 ### Odstránené

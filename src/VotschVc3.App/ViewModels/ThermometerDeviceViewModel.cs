@@ -77,7 +77,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         }
     }
 
-    private string _readCommand = F100Protocol.DefaultReadCommand;
+    private string _readCommand = F100Protocol.BuildMeasureChannelCommand("A");
     public string ReadCommand { get => _readCommand; set => SetProperty(ref _readCommand, value); }
 
     private double _pollIntervalSeconds = 2;
@@ -288,18 +288,9 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
 
     private async Task ReadOnceAsync()
     {
-        if (_client is null)
-        {
-            return;
-        }
-
-        ThermometerReading reading = await _client.ReadChannelAsync(SelectedChannel, ReadCommand);
-        LogTerminal(F100Protocol.BuildMeasureChannelCommand(SelectedChannel), reading.Raw);
-        ApplyReading(reading);
-        if (reading.Temperature is null)
-        {
-            throw new InvalidOperationException($"WIKA CTH7000 {PortName}, kanál {SelectedChannel}: zariadenie nevrátilo platnú teplotu. RAW: {reading.Raw}");
-        }
+        double? temperature = await ReadReferenceTemperatureAsync();
+        if (temperature is null)
+            throw new InvalidOperationException($"WIKA CTH7000 {PortName}: na vstupoch A/B nie je dostupná platná teplota. Skontrolujte pripojenie sondy.");
     }
 
     /// <summary>
@@ -340,6 +331,7 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
                 ChannelAutoDetected = true;
                 OnPropertyChanged(nameof(ChannelAutoDetected));
             }
+            LogTerminal(F100Protocol.BuildMeasureChannelCommand(detectedChannel), reading.Raw);
             ApplyReading(reading);
         }
 
@@ -428,8 +420,9 @@ public sealed class ThermometerDeviceViewModel : ObservableObject, IAsyncDisposa
         {
             try
             {
-                ThermometerReading reading = await _client.ReadChannelAsync(SelectedChannel, ReadCommand, token);
-                ApplyReading(reading);
+                double? temperature = await ReadReferenceTemperatureAsync(token);
+                if (temperature is null && !IsManuallyDisconnected)
+                    StatusMessage = "WIKA nevrátila platnú teplotu. Skontrolujte sondu na vstupoch A/B.";
             }
             catch (OperationCanceledException)
             {

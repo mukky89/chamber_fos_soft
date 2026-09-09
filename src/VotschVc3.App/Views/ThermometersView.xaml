@@ -123,15 +123,15 @@
                                         <ComboBox ItemsSource="{Binding BaudRates}" SelectedItem="{Binding BaudRate}" />
                                     </StackPanel>
                                     <StackPanel Width="150" Margin="0,0,12,8">
-                                        <TextBlock Text="Príkaz čítania" Style="{StaticResource Label}" />
-                                        <TextBox Text="{Binding ReadCommand, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" />
+                                        <TextBlock Text="Kanál sondy" Style="{StaticResource Label}" />
+                                        <ComboBox ItemsSource="{Binding ProbeChannels}" SelectedItem="{Binding SelectedChannel}" ToolTip="Preferovaný vstup sondy. Ak nemá platnú teplotu, aplikácia overí druhý vstup A/B." />
                                     </StackPanel>
                                     <StackPanel Width="110" Margin="0,0,12,8">
                                         <TextBlock Text="Interval (s)" Style="{StaticResource Label}" />
                                         <TextBox Text="{Binding PollIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
                                 </WrapPanel>
-                                <CheckBox Content="Automatické čítanie (polling)" IsChecked="{Binding PollingEnabled}" />
+                                <CheckBox Content="Priebežné meranie WIKA" IsChecked="{Binding PollingEnabled}" />
                                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                     <Button Content="Pripojiť" Style="{StaticResource AccentButton}" Command="{Binding ConnectCommand}" />
                                     <Button Content="Odpojiť" Style="{StaticResource DangerButton}" Command="{Binding DisconnectCommand}" />
