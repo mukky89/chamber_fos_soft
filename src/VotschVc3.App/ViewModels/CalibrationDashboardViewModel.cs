@@ -172,6 +172,29 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         "Každý peak musí v jednom spoločnom rolling okne splniť všetky štyri podmienky súčasne: požadovaný počet vzoriek, maximálny rozsah, smerodajnú odchýlku a absolútny drift. " +
         "Ak niektorá podmienka nevyhovie, okno sa zahodí a stabilizácia daného peaku začne od 0. Zobrazené hodnoty sú aktuálne nastavenia tejto kalibrácie.";
     public double StabilityProgress => TotalTargets == 0 ? 0 : 100d * StableCount / TotalTargets;
+    private DateTimeOffset _timerNow;
+    private DateTimeOffset? _lastFbgSampleAt;
+    private double SampleCycleSeconds => Math.Max(1, Math.Max(_sampleAcquisitionIntervalSeconds, _observedCycleSeconds ?? 0));
+    private bool SamplingActive => _running && !_paused && _state == CalibrationRunState.StabilizingSensors;
+    private double SampleAge => _lastFbgSampleAt is { } at ? Math.Max(0, (_timerNow - at).TotalSeconds) : 0;
+    public double SampleIntervalProgress => SamplingActive && _lastFbgSampleAt is not null ? Math.Clamp(100 * SampleAge / SampleCycleSeconds, 0, 100) : 0;
+    public string NextSampleCountdown => _paused ? "Odber pozastavený" : !SamplingActive ? "Odber neprebieha – čaká na podmienky" :
+        _lastFbgSampleAt is null ? "Čaká na prvú vzorku" : SampleAge >= SampleCycleSeconds ? "Čaká na ďalšiu vzorku…" :
+        $"Ďalšia vzorka približne o {Duration(TimeSpan.FromSeconds(Math.Ceiling(SampleCycleSeconds - SampleAge)))}";
+    public string SampleCadence => $"Interval odberu {_sampleAcquisitionIntervalSeconds:0.#} s · cyklus ≈ {SampleCycleSeconds:0.#} s";
+    public string StabilitySampleEstimate => SampleWindowEstimate(false);
+    public string MeasurementSampleEstimate => SampleWindowEstimate(true);
+    private string SampleWindowEstimate(bool measurement)
+    {
+        int configured = measurement ? _requiredMeasurementSamples : _requiredStableSamples;
+        int remaining = _snapshot?.Targets.Select(t => measurement
+            ? Math.Max(0, t.RequiredMeasurementSamples - t.MeasurementSamples)
+            : t.Phase is "Measuring" or "MeasuringWithStabilityWarning" or "Done" ? 0 : Math.Max(0, t.RequiredStabilitySamples - t.StabilitySamples)).DefaultIfEmpty(configured).Max() ?? configured;
+        string total = Duration(TimeSpan.FromSeconds(configured * SampleCycleSeconds));
+        string rest = Duration(TimeSpan.FromSeconds(remaining * SampleCycleSeconds));
+        return $"{configured} vzoriek / peak ≈ {total} · zostáva odber ≈ {rest}. " +
+            (measurement ? "Peaky sa merajú súbežne; čakanie na stabilitu je navyše." : "Odhad naplnenia okna; nestabilita môže čas predĺžiť.");
+    }
     public int Samples => _snapshot?.Targets.Sum(t => t.MeasurementSamples) ?? 0;
     public int RequiredSamples => _snapshot?.Targets.Sum(t => t.RequiredMeasurementSamples) ?? 0;
     public string SampleSummary => $"{Samples} / {RequiredSamples}";
@@ -359,6 +382,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void Begin(DateTimeOffset now)
     {
         _startupDetail = "Čaká sa na prvý stav zariadení.";
+        _lastFbgSampleAt = null;
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null; _observedCycleSeconds = null;
         _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
         CurrentPlateauTraceStart = null;
@@ -402,6 +426,10 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void Apply(CalibrationProgressSnapshot snapshot, DateTimeOffset now)
     {
         var previous = _snapshot;
+        if (snapshot.State == CalibrationRunState.StabilizingSensors && snapshot.Targets.Any(t =>
+            t.StabilitySamples > (previous?.Targets.FirstOrDefault(p => p.SerialNumber == t.SerialNumber && p.Channel == t.Channel && p.PeakId == t.PeakId)?.StabilitySamples ?? 0) ||
+            t.MeasurementSamples > (previous?.Targets.FirstOrDefault(p => p.SerialNumber == t.SerialNumber && p.Channel == t.Channel && p.PeakId == t.PeakId)?.MeasurementSamples ?? 0)))
+            _lastFbgSampleAt = now;
         string previousPhase = Phase;
         if (_lastSnapshotAt is { } previousUpdate && snapshot.State == CalibrationRunState.StabilizingSensors)
         {
@@ -447,6 +475,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (previousPhase != Phase) _phaseStarted = now;
         if (plateauChanged)
         {
+            _lastFbgSampleAt = null;
             FbgStabilityStartedAt = null;
             FbgMeasurementStartedAt = null;
             _chamberTemperatureTrace.Clear();
@@ -575,6 +604,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     }
     public void Tick(DateTimeOffset now)
     {
+        _timerNow = now;
         DateTimeOffset clock = _ended ?? now;
         Elapsed = _started is { } start ? Duration(clock - start) : "—";
         PhaseElapsed = _phaseStarted is { } phase ? Duration(clock - phase) : "—";

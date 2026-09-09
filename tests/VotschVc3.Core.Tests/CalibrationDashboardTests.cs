@@ -200,6 +200,23 @@ public sealed class CalibrationDashboardTests
         Assert.Null(m.FbgStabilityStartedAt);
         Assert.Null(m.FbgMeasurementStartedAt);
     }
+    [Fact] public void SampleCountdownAdvancesResetsAndStopsWhenPaused()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 1)), Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 2)), Start.AddSeconds(30));
+        m.Tick(Start.AddSeconds(35));
+        Assert.True(m.SampleIntervalProgress > 0);
+        Assert.Contains("Ďalšia vzorka", m.NextSampleCountdown);
+        m.Tick(Start.AddSeconds(95));
+        Assert.Equal(100, m.SampleIntervalProgress);
+        Assert.Contains("Čaká na ďalšiu", m.NextSampleCountdown);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 3)), Start.AddSeconds(96));
+        Assert.Equal(0, m.SampleIntervalProgress);
+        m.Pause(true, Start.AddSeconds(97));
+        Assert.Contains("pozastavený", m.NextSampleCountdown);
+        Assert.Equal(0, m.SampleIntervalProgress);
+    }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
         var m = Model();

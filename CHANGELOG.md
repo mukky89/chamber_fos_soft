@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.300] – 2026-09-09
+
+### Pridané
+- Karty stability a merania FBG zobrazujú odpočet ďalšej vzorky, priebeh odberového intervalu a odhad času naplnenia vzoriek na peak. Odhad rešpektuje súbežný odber a upozorňuje na čas navyše pri nestabilite.
+- Pri meškaní vzorky sa zobrazí čakanie; pri pauze sa odpočet zastaví.
+
 ## [1.76.299] – 2026-09-09
 
 ### Zmenené
