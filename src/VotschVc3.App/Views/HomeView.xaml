@@ -146,15 +146,20 @@
     <!-- ===== Classic: sidebar (left) + main content (right) ===== -->
     <Grid Visibility="{Binding IsProfessionalMode, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="236" />
+            <ColumnDefinition x:Name="SidebarColumn" Width="264" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- ===== Sidebar ===== -->
-        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="6,4,10,4" Padding="14,16">
-            <DockPanel>
+        <Border x:Name="SidebarFrame" Grid.Column="0" Style="{StaticResource Card}" Margin="6,4,10,4" Padding="10,12" Background="#172033" CornerRadius="14">
+          <DockPanel>
+           <Button x:Name="SidebarToggle" DockPanel.Dock="Top" Click="SidebarToggle_Click" HorizontalAlignment="Right" Width="34" Height="30" Padding="7" Margin="0,0,0,8" ToolTip="Zúžiť menu na ikony" AutomationProperties.Name="Zúžiť alebo rozbaliť menu">
+            <Path Data="M3,5 L21,5 M3,12 L21,12 M3,19 L21,19" Stroke="#8BC6FF" StrokeThickness="2" Stretch="Uniform"/>
+           </Button>
+           <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False" Tag="FinePixelScrolling">
+            <DockPanel x:Name="SidebarContent" Loaded="SidebarContent_Loaded">
                 <!-- Brand -->
-                <StackPanel DockPanel.Dock="Top">
+                <StackPanel x:Name="SidebarBrand" DockPanel.Dock="Top">
                     <Image Source="pack://application:,,,/VotschVc3.App;component/Assets/sylex-logo-red.png" Height="52" Stretch="Uniform" HorizontalAlignment="Left"
                            AutomationProperties.Name="Sylex" Margin="0,0,0,12" />
                     <TextBlock Text="Riadenie laboratórnych zariadení" FontFamily="Segoe UI Semibold"
@@ -170,7 +175,7 @@
                 <!-- User + logout pinned to the bottom -->
                 <StackPanel DockPanel.Dock="Bottom">
                     <Separator Margin="0,10,0,10" Background="{StaticResource BorderBrush}" />
-                    <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,7">
+                    <Border x:Name="SidebarAccount" Background="{StaticResource SurfaceAltBrush}" CornerRadius="8" Padding="10,7">
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap">
                             <Run Text="{Binding CurrentUserName, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
                             <Run Text=" · " />
@@ -278,7 +283,7 @@
 
                     <!-- Priečinky s dátami (otvoria sa v prieskumníkovi Windows) -->
                     <Separator Margin="0,10,0,8" Background="{StaticResource BorderBrush}" />
-                    <TextBlock Text="PRIEČINKY" Style="{StaticResource Caption}" Margin="12,0,0,4" />
+                    <TextBlock x:Name="SidebarFolderHeading" Text="PRIEČINKY" Style="{StaticResource Caption}" Margin="12,0,0,4" />
                     <Button Style="{StaticResource NavButton}" Command="{Binding OpenProfilesFolderCommand}"
                             ToolTip="Otvorí priečinok s profilmi (Dokumenty\Lab Control\Profiles).">
                         <StackPanel Orientation="Horizontal">
@@ -309,6 +314,8 @@
                     </Button>
                 </StackPanel>
             </DockPanel>
+           </ScrollViewer>
+          </DockPanel>
         </Border>
 
         <!-- ===== Main content ===== -->

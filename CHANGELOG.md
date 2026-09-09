@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.306] – 2026-09-09
+
+### Pridané
+- Bočné menu má širšie a vzdušnejšie rozloženie, samostatné posúvanie a prepínač do úzkeho režimu s ikonami. Položky majú tooltipy a režim sa zachová počas spustenia aplikácie.
+
 ## [1.76.305] – 2026-09-09
 
 ### Opravené
