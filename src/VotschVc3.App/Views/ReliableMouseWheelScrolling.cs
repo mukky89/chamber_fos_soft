@@ -39,6 +39,14 @@ internal static class ReliableMouseWheelScrolling
 
         foreach (ScrollViewer viewer in EnumerateScrollViewers(source))
         {
+            // Event history uses pixel offsets: small wheel deltas remain small, and the
+            // outer dashboard does not jump when the inner list reaches its edge.
+            if (Equals(viewer.Tag, "FinePixelScrolling"))
+            {
+                viewer.ScrollToVerticalOffset(Math.Clamp(viewer.VerticalOffset - e.Delta / 120d * 36d, 0d, viewer.ScrollableHeight));
+                e.Handled = true;
+                return;
+            }
             if (viewer.ScrollableHeight <= 0.5) continue;
             bool canMove = direction > 0
                 ? viewer.VerticalOffset > 0.5

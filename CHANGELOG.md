@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.302] – 2026-09-09
+
+### Opravené
+- Udalosti kalibrácie majú vždy viditeľný zvislý posuvník a jemné pixelové posúvanie namiesto skákania po celých udalostiach. Koliesko nad zoznamom neposúva nadradenú stránku ani na jeho okraji.
+
 ## [1.76.301] – 2026-09-09
 
 ### Zmenené
