@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.301] – 2026-09-09
+
+### Zmenené
+- Spoločná e-mailová šablóna má kompaktnú tmavú hlavičku, čitateľný nadpis na svetlom podklade, farebný stavový štítok a zvýraznenú správu. Detaily udalosti používajú striedavé pozadie riadkov a menšie rozostupy. Zachované je tabuľkové rozloženie pre Outlook aj mobilné prispôsobenie.
+
 ## [1.76.300] – 2026-09-09
 
 ### Pridané

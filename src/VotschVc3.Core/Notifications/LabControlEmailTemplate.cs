@@ -17,7 +17,7 @@ public static class LabControlEmailTemplate
     {
         subject ??= string.Empty;
         body ??= string.Empty;
-        (string accent, string soft, string badge, string symbol) = tone switch
+        (string accent, string soft, string badge, string _) = tone switch
         {
             EmailTone.Error => ("#B42335", "#FFF1F2", "CHYBA / ALARM", "🚨"),
             EmailTone.Warning => ("#925C0D", "#FFF7E8", "UPOZORNENIE", "⚠️"),
@@ -27,11 +27,13 @@ public static class LabControlEmailTemplate
         ParseBody(body, out var details, out string message);
         string preheader = string.IsNullOrWhiteSpace(message) ? subject : message.Split('\n')[0];
         var detailRows = new StringBuilder();
+        int rowIndex = 0;
         foreach ((string key, string value) in details)
         {
+            string rowColor = rowIndex++ % 2 == 0 ? "#F5F8FC" : "#FFFFFF";
             detailRows.Append($"""
-<tr><td width="32%" style="width:32%;padding:13px 12px 13px 0;border-bottom:1px solid #E5EBF2;vertical-align:top;color:#66758B;font-size:13px;line-height:21px;word-break:break-word">{H(key)}</td>
-<td style="padding:13px 0;border-bottom:1px solid #E5EBF2;vertical-align:top;color:#182A40;font-size:14px;line-height:21px;font-weight:600;word-break:break-word;overflow-wrap:anywhere">{H(value)}</td></tr>
+<tr bgcolor="{rowColor}" style="background:{rowColor}"><td width="28%" style="width:28%;padding:11px 12px;border-bottom:1px solid #E5EBF2;vertical-align:top;color:#66758B;font-size:13px;line-height:21px;word-break:break-word">{H(key)}</td>
+<td style="padding:11px 12px;border-bottom:1px solid #E5EBF2;vertical-align:top;color:#182A40;font-size:14px;line-height:21px;font-weight:600;word-break:break-word;overflow-wrap:anywhere">{H(value)}</td></tr>
 """);
         }
         string detailsHtml = details.Count == 0 ? string.Empty : $"""
@@ -42,7 +44,7 @@ public static class LabControlEmailTemplate
 """;
         string messageHtml = string.IsNullOrWhiteSpace(message) ? string.Empty : $"""
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:{soft};border-radius:10px">
-<tr><td style="padding:18px 20px;border-left:3px solid {accent};font-size:16px;line-height:26px;color:#24364D;word-break:break-word;overflow-wrap:anywhere">{H(message).Replace("\n", "<br>")}</td></tr>
+<tr><td style="padding:16px 18px;border-left:4px solid {accent};font-size:14px;line-height:23px;color:#24364D;word-break:break-word;overflow-wrap:anywhere">{H(message).Replace("\n", "<br>")}</td></tr>
 </table>
 """;
         const string responsiveStyles = """
@@ -52,7 +54,7 @@ table,td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
 @media only screen and (max-width:600px) {
  .outer-pad { padding:16px 8px !important; }
  .content-pad { padding-left:20px !important; padding-right:20px !important; }
- .email-title { font-size:25px !important; line-height:33px !important; }
+ .email-title { font-size:21px !important; line-height:28px !important; }
 }
 </style>
 """;
@@ -68,23 +70,25 @@ table,td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
 <body style="margin:0;padding:0;width:100%;background:#EDF1F6;font-family:Segoe UI,Arial,Helvetica,sans-serif;color:#182A40">
 <div style="display:none;font-size:1px;line-height:1px;color:#EDF1F6;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all">{H(preheader)}</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#EDF1F6" style="width:100%;background:#EDF1F6">
-<tr><td align="center" class="outer-pad" style="padding:36px 12px">
+<tr><td align="center" class="outer-pad" style="padding:24px 12px">
 <!--[if mso]><table role="presentation" width="680" align="center" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:680px;table-layout:fixed;font-family:Segoe UI,Arial,Helvetica,sans-serif;background:#FFFFFF;border:1px solid #DCE4EE;border-radius:16px;overflow:hidden">
 <tr><td height="5" bgcolor="{accent}" style="height:5px;background:{accent};font-size:1px;line-height:5px">&nbsp;</td></tr>
-<tr><td class="content-pad" bgcolor="#122237" style="padding:28px 32px 30px;background:#122237">
-<p style="margin:0 0 26px;font-size:12px;line-height:18px;font-weight:700;letter-spacing:2px;color:#A9BED8">SYLEX · LAB CONTROL</p>
-<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
-<td width="56" height="56" align="center" valign="middle" bgcolor="{soft}" style="width:56px;height:56px;background:{soft};border-radius:12px;text-align:center;vertical-align:middle;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;font-size:34px;line-height:44px"><span aria-hidden="true">{symbol}</span></td>
-<td style="padding-left:14px"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="{soft}" style="padding:7px 12px;background:{soft};border-radius:5px;color:{accent};font-size:11px;line-height:16px;letter-spacing:1px;font-weight:700">{badge}</td></tr></table></td>
+<tr><td class="content-pad" bgcolor="#122237" style="padding:18px 32px;background:#122237">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+<td style="font-size:12px;line-height:20px;font-weight:700;letter-spacing:1px;color:#D5E1EF">SYLEX · LAB CONTROL</td>
+<td align="right" style="font-size:11px;line-height:18px;color:#A9BED8">NOTIFIKÁCIA</td>
 </tr></table>
-<h1 class="email-title" style="margin:16px 0 0;color:#FFFFFF;font-size:29px;line-height:38px;font-weight:600;word-break:break-word;overflow-wrap:anywhere">{H(subject)}</h1>
-<p style="margin:12px 0 0;color:#A9BED8;font-size:13px;line-height:20px">Riadenie komôr a FBG kalibrácia</p>
 </td></tr>
-<tr><td class="content-pad" style="padding:28px 32px">{messageHtml}</td></tr>
+<tr><td class="content-pad" style="padding:24px 32px 18px">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="{soft}" style="padding:6px 10px;background:{soft};border:1px solid {accent};border-radius:6px;color:{accent};font-size:11px;line-height:16px;letter-spacing:0.6px;font-weight:700">{badge}</td></tr></table>
+<h1 class="email-title" style="margin:14px 0 0;color:#182A40;font-size:23px;line-height:31px;font-weight:700;word-break:break-word;overflow-wrap:anywhere">{H(subject)}</h1>
+<p style="margin:8px 0 0;color:#66758B;font-size:12px;line-height:19px">Riadenie komôr a FBG kalibrácia</p>
+</td></tr>
+<tr><td class="content-pad" style="padding:0 32px 24px">{messageHtml}</td></tr>
 {detailsHtml}
 {additionalHtml}
-<tr><td class="content-pad" bgcolor="#F7F9FC" style="padding:20px 32px;background:#F7F9FC;border-top:1px solid #E5EBF2">
+<tr><td class="content-pad" bgcolor="#F7F9FC" style="padding:16px 32px;background:#F7F9FC;border-top:1px solid #E5EBF2">
 <p style="margin:0 0 4px;color:#52647C;font-size:12px;line-height:19px;font-weight:600">Automatická správa · Lab Control</p>
 <p style="margin:0;color:#75849A;font-size:12px;line-height:19px">Podrobnosti nájdete v aplikácii. Na tento e-mail nie je potrebné odpovedať.</p>
 </td></tr>
