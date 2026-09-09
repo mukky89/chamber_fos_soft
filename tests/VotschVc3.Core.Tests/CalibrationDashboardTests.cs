@@ -186,6 +186,20 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("pokračuje ďalším platom", m.ReferenceTimeHelp);
         Assert.Contains("automaticky raz vráti", m.ReferenceTimeHelp);
     }
+    [Fact] public void WikaTimelineKeepsFirstFbgMilestonesAndResetsForNextPlateau()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing)), Start.AddMinutes(10));
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 2)), Start.AddMinutes(12));
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 3)), Start.AddMinutes(13));
+        Assert.Equal(Start.AddMinutes(10), m.FbgStabilityStartedAt);
+        Assert.Equal(Start.AddMinutes(12), m.FbgMeasurementStartedAt);
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 1), Start.AddMinutes(15));
+        Assert.Null(m.FbgStabilityStartedAt);
+        Assert.Null(m.FbgMeasurementStartedAt);
+    }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
         var m = Model();
@@ -546,7 +560,7 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(35, m.WikaStabilityScoreTrace[1].ScoreSeconds);
         Assert.Equal(600, m.WikaStabilityScoreTrace[1].RequiredSeconds);
     }
-    [Fact] public void WikaChartResetsToStableWindowWhenStableTimeStarts()
+    [Fact] public void WikaChartKeepsFullPlateauWhenStableTimeStarts()
     {
         var m = Model();
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability) with
@@ -562,7 +576,7 @@ public sealed class CalibrationDashboardTests
             RequiredTemperatureScoreSeconds = 600,
         }, Start.AddSeconds(7));
 
-        Assert.Equal(Start.AddSeconds(2), m.CurrentPlateauTraceStart);
+        Assert.Equal(Start.AddMinutes(-10), m.CurrentPlateauTraceStart);
         Assert.Equal(2, m.WikaStabilityScoreTrace.Count);
         Assert.Equal(0, m.WikaStabilityScoreTrace[0].ScoreSeconds);
         Assert.Equal(Start.AddSeconds(2), m.WikaStabilityScoreTrace[0].Timestamp);

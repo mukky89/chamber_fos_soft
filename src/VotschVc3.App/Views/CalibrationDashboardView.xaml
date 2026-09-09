@@ -270,7 +270,8 @@
         </Grid>
       </Border>
       <TextBlock Text="Zelené = splnené · oranžové = čaká" Style="{StaticResource Muted}" Margin="0,7,0,7"/>
-      <Border Style="{StaticResource ChartFrame}"><views:ChartView x:Name="CompactReferenceChart" Height="190" Unit="°C" SecondaryUnit=" s" MinimumYDecimals="3" ShowControls="False" AllowZoom="False" ChartTitle="WIKA teplota a stabilný čas" EmptyText="Čaká sa na dáta WIKA..."/></Border>
+      <Border Style="{StaticResource ChartFrame}"><views:ChartView x:Name="CompactReferenceChart" Height="190" Unit="°C" MinimumYDecimals="3" ShowControls="False" AllowZoom="False" ChartTitle="Teplota WIKA počas celého plata" EmptyText="Čaká sa na dáta WIKA..."/></Border>
+      <TextBlock x:Name="ReferencePhaseTimeline" TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
      </StackPanel>
     </Border>
     <Border Grid.Column="2" Style="{StaticResource Panel}" Margin="0,0,10,14">

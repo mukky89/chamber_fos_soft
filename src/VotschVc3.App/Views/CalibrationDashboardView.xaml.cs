@@ -317,28 +317,33 @@ public partial class CalibrationDashboardView : UserControl
         }
 
         ReferenceTraceChart.Series = series;
-        var combinedSeries = new List<ChartSeries>
+        var combinedSeries = new List<ChartSeries>();
+        var phases = new List<(DateTimeOffset Start, string Label, Brush Color)>
         {
-            new ChartSeries("WIKA CTH7000", Brushes.DeepSkyBlue,
-                TimeSeriesEnvelopeReducer.Reduce(measured, point => point.Y, 240), strokeThickness: 1.8),
+            (origin, "WIKA – stabilizácia", Brushes.DeepSkyBlue)
         };
-        IReadOnlyList<DashboardStabilityScoreSample> stabilityTrace = vm.WikaStabilityScoreTrace;
-        if (stabilityTrace.Count > 0)
+        if (vm.FbgStabilityStartedAt is { } fbgStart)
+            phases.Add((fbgStart, "FBG – stabilizácia", Brushes.Orange));
+        if (vm.FbgMeasurementStartedAt is { } measurementStart)
+            phases.Add((measurementStart, "FBG – odber vzoriek", Brushes.MediumSeaGreen));
+        for (int i = 0; i < phases.Count; i++)
         {
-            IReadOnlyList<DashboardStabilityScoreSample> visibleScore = TimeSeriesEnvelopeReducer.Reduce(
-                stabilityTrace, sample => sample.ScoreSeconds, 240);
-            Point[] scorePoints = visibleScore
-                .Select(sample => new Point((sample.Timestamp - origin).TotalMinutes, sample.ScoreSeconds))
-                .ToArray();
-            combinedSeries.Add(new ChartSeries("Stabilný čas", Brushes.Orange,
-                scorePoints, strokeThickness: 2, useSecondaryAxis: true));
-            double required = stabilityTrace[^1].RequiredSeconds;
-            double maxMinutes = Math.Max(measured[^1].X, scorePoints[^1].X);
-            combinedSeries.Add(new ChartSeries($"Cieľ {required:0} s", Brushes.MediumSeaGreen,
-                new[] { new Point(0, required), new Point(maxMinutes, required) },
-                dashed: true, strokeThickness: 1.4, useSecondaryAxis: true));
+            var phase = phases[i];
+            DateTimeOffset end = i + 1 < phases.Count ? phases[i + 1].Start : trace[^1].Timestamp;
+            var points = trace.Where(point => point.Timestamp >= phase.Start && point.Timestamp <= end)
+                .Select(point => new Point((point.Timestamp - origin).TotalMinutes, point.TemperatureC)).ToList();
+            // Include the preceding observation so phase changes do not leave gaps in the curve.
+            var preceding = trace.LastOrDefault(point => point.Timestamp < phase.Start);
+            if (points.Count > 0 && preceding is not null)
+                points.Insert(0, new Point((preceding.Timestamp - origin).TotalMinutes, preceding.TemperatureC));
+            if (points.Count > 0)
+                combinedSeries.Add(new ChartSeries(phase.Label, phase.Color,
+                    TimeSeriesEnvelopeReducer.Reduce(points, point => point.Y, 240), strokeThickness: 2.2));
         }
         CompactReferenceChart.Series = combinedSeries;
+        ReferencePhaseTimeline.Text = string.Join("  →  ", phases.Select(phase =>
+            $"{phase.Label}: {Math.Max(0, (phase.Start - origin).TotalMinutes):0.#} min"));
+        ReferencePhaseTimeline.ToolTip = "Čas od začiatku zobrazeného plata. Odber začína prvou finálnou vzorkou; ostatné peaky sa môžu ešte stabilizovať. Celá krivka zobrazuje nameranú teplotu WIKA.";
         RefreshStabilitySamples(trace, vm.TargetTemperatureC, vm.StabilityToleranceC);
     }
 
@@ -391,6 +396,7 @@ public partial class CalibrationDashboardView : UserControl
 
     private void ClearReferenceTrace()
     {
+        ReferencePhaseTimeline.Text = "";
         ReferencePortText.Text = "—";
         ReferenceCurrentTemperatureText.Text = "—";
         ReferenceTraceChart.Series = Array.Empty<ChartSeries>();

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.299] – 2026-09-09
+
+### Zmenené
+- Kompaktný graf WIKA zobrazuje teplotu počas celého plata bez sekundovej osi stabilného času. Začiatok stabilného okna už neoreže predchádzajúci priebeh.
+- Farebné úseky a časové značky odlišujú stabilizáciu WIKA, začiatok stabilizácie FBG a prvý finálny odber FBG; ostatné peaky sa môžu stabilizovať súbežne.
+
 ## [1.76.298] – 2026-09-09
 
 ### Opravené

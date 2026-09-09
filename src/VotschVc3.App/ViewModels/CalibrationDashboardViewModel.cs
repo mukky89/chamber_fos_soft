@@ -249,6 +249,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string PhaseElapsed { get; private set; } = "—";
     public string PointElapsed => _snapshot is null ? "—" : Duration(_snapshot.PlateauElapsed);
     public DateTimeOffset? CurrentPlateauTraceStart { get; private set; }
+    public DateTimeOffset? FbgStabilityStartedAt { get; private set; }
+    public DateTimeOffset? FbgMeasurementStartedAt { get; private set; }
     public string Eta { get; private set; } = "Po prvom bode";
     public string Finish { get; private set; } = "—";
     public DateTimeOffset? EstimatedFinishAt { get; private set; }
@@ -360,6 +362,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null; _observedCycleSeconds = null;
         _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
         CurrentPlateauTraceStart = null;
+        FbgStabilityStartedAt = null;
+        FbgMeasurementStartedAt = null;
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; TrendTone = "Steady"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
@@ -443,12 +447,18 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (previousPhase != Phase) _phaseStarted = now;
         if (plateauChanged)
         {
+            FbgStabilityStartedAt = null;
+            FbgMeasurementStartedAt = null;
             _chamberTemperatureTrace.Clear();
             _wikaStabilityScoreTrace.Clear();
             _targetEvents.Clear();
             FbgStabilityCharts.Clear();
             AddEvent(now, "INFO", $"Začal sa bod {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount} na {Target}.");
         }
+        if (snapshot.State == CalibrationRunState.StabilizingSensors)
+            FbgStabilityStartedAt ??= now;
+        if (snapshot.Targets.Any(t => t.MeasurementSamples > 0))
+            FbgMeasurementStartedAt ??= now;
         int stableScoreSeconds = snapshot.TemperatureStableScoreSeconds ?? 0;
         int requiredStableScoreSeconds = snapshot.RequiredTemperatureScoreSeconds ?? 0;
         bool stableTimeStarted = snapshot.State == CalibrationRunState.WaitingForChamberStability && stableScoreSeconds > 0 &&
@@ -456,7 +466,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (stableTimeStarted && requiredStableScoreSeconds > 0)
         {
             DateTimeOffset stableWindowStart = now - TimeSpan.FromSeconds(stableScoreSeconds);
-            CurrentPlateauTraceStart = stableWindowStart;
+            // Keep the full plateau timeline, including unsuccessful stability windows.
             _wikaStabilityScoreTrace.Clear();
             AddWikaStabilityScoreSample(stableWindowStart, 0, requiredStableScoreSeconds);
         }
