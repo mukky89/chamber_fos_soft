@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.76.298] – 2026-09-09
+
+### Opravené
+- Stavové štítky kalibrácie sú jednotne po slovensky: Splnené, Prebieha, Čaká, Zastavené a Monitorovanie. Preložené sú aj celkový stav behu a popis výsledkových e-mailov v administrácii.
+
 ## [1.76.297] – 2026-09-08
 
 ### Pridané

@@ -55,18 +55,18 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public double StabilityToleranceC { get; private set; }
     public string Alert { get; private set; } = "Bez hlásených upozornení";
     public string AlertTone => _lastWarning.Length > 0 ? "Waiting" : "Done";
-    public string StateLabel => _paused ? "PAUSED · Pauza" : _state switch
+    public string StateLabel => _paused ? "Pozastavené" : _state switch
     {
-        CalibrationRunState.Completed => "DONE · Ukončené",
-        CalibrationRunState.CompletedWithWarnings => "DONE · S upozorneniami",
-        CalibrationRunState.Failed => "ERROR · Chyba",
-        CalibrationRunState.Aborted => "STOPPED · Zastavené",
-        CalibrationRunState.AwaitingOperator => "BLOCKED · Zásah operátora",
-        CalibrationRunState.WaitingForChamberStability => "WAITING · Čaká na stabilitu",
-        CalibrationRunState.FinalConditioning => "CONDITIONING · Temperovanie 25 °C",
-        CalibrationRunState.StabilizingSensors when MeasuringCount > 0 => "MEASURING · Meria",
-        _ when _running => "RUNNING · Beží",
-        _ => "READY · Pripravené"
+        CalibrationRunState.Completed => "Dokončené",
+        CalibrationRunState.CompletedWithWarnings => "Dokončené s upozorneniami",
+        CalibrationRunState.Failed => "Chyba",
+        CalibrationRunState.Aborted => "Zastavené",
+        CalibrationRunState.AwaitingOperator => "Čaká na rozhodnutie operátora",
+        CalibrationRunState.WaitingForChamberStability => "Čaká na stabilitu",
+        CalibrationRunState.FinalConditioning => "Temperovanie 25 °C",
+        CalibrationRunState.StabilizingSensors when MeasuringCount > 0 => "Meria",
+        _ when _running => "Prebieha",
+        _ => "Pripravené"
     };
     public string Tone => _paused || _state is CalibrationRunState.AwaitingOperator or CalibrationRunState.CompletedWithWarnings or CalibrationRunState.Aborted ? "Waiting" :
         _state == CalibrationRunState.Failed ? "Error" : _state == CalibrationRunState.Completed ? "Done" :
@@ -150,7 +150,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         ? CurrentTemperatureSettlingLimit - TemperatureSettlingElapsed
         : TimeSpan.Zero;
     public string TemperatureScore => _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Po nastavení cieľa sa začne vyhodnocovať výhradne WIKA referencia." : _snapshot?.TemperatureStableScoreSeconds is { } score ? $"Skóre stability WIKA {score} / {_snapshot.RequiredTemperatureScoreSeconds} s" : "Čaká na skóre stability WIKA";
-    public string TemperatureStatus => _snapshot is null || _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Stabilita WIKA sa ešte nevyhodnocuje" : _snapshot?.TemperatureGateOpen == true ? "✓ STABLE · WIKA referencia potvrdená" : "WAITING · WIKA teplotná brána";
+    public string TemperatureStatus => _snapshot is null || _state is CalibrationRunState.Preflight or CalibrationRunState.Preparing or CalibrationRunState.MovingToPlateau ? "Stabilita WIKA sa ešte nevyhodnocuje" : _snapshot?.TemperatureGateOpen == true ? "✓ SPLNENÉ · WIKA referencia potvrdená" : "ČAKÁ · Stabilita WIKA";
     public int TotalTargets => _snapshot?.TotalTargets ?? 0;
     public int StableCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable || t.Phase == "Measuring") ?? 0;
     public int DoneCount => _snapshot?.Targets.Count(t => t.State is CalibrationTargetState.Stable or CalibrationTargetState.Overridden or CalibrationTargetState.CompletedWithStabilityWarning) ?? 0;
@@ -184,7 +184,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         : !ChamberEntry.Enabled ? "Vstupná kontrola vypnutá · komora sa iba monitoruje."
         : ChamberEntry.IsOpen ? $"Vstupná kontrola splnená. Hodnoty pri potvrdení {ChamberEntry.EvaluatedAt.ToLocalTime():HH:mm:ss}; ďalej rozhoduje WIKA."
         : "Vstupná kontrola zapnutá · čaká na ustálenie komory pred WIKA.";
-    public string ChamberCardState => RunStoppedWithError ? "! STOPPED" : ChamberEntry is null ? "○ PENDING" : !ChamberEntry.Enabled ? "● MONITORING" : ChamberEntry.IsOpen ? "✓ SPLNENÉ" : "Ⅱ WAITING";
+    public string ChamberCardState => RunStoppedWithError ? "! ZASTAVENÉ" : ChamberEntry is null ? "○ ČAKÁ" : !ChamberEntry.Enabled ? "● MONITOROVANIE" : ChamberEntry.IsOpen ? "✓ SPLNENÉ" : "Ⅱ ČAKÁ";
     public string ChamberCardTone => RunStoppedWithError ? "Error" : ChamberEntry is null ? "Pending" : !ChamberEntry.Enabled ? "Active" : ChamberEntry.IsOpen ? "Done" : "Waiting";
     private string ChamberCriterion(double? value, double? limit, string name, string unit) =>
         ChamberEntry is null ? $"{name} · čaká na údaje" : !ChamberEntry.Enabled ? $"{name} · vypnuté"
@@ -202,13 +202,13 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ChamberRangeHelp => "Rozdiel maxima a minima v aktuálnom časovom okne komory. Na výpočet treba aspoň dve vzorky. Všetky štyri podmienky musia vyhovieť súčasne.";
     public string ChamberDriftHelp => "Absolútna rýchlosť zmeny teploty vypočítaná lineárnou regresiou zo vzoriek v okne, v °C/min. Jedna vzorka nestačí.";
     public string ChamberTimeHelp => "Dĺžka zozbieraného okna v tolerancii. Výpadok vzoriek okno resetuje. Po splnení času, rozsahu a driftu sa vstupná kontrola pre toto plato potvrdí a začne nové okno WIKA. Zobrazené hodnoty sa potom uchovajú ako doklad potvrdenia.";
-    public string ReferenceCardState => WaitingForChamber ? "○ ČAKÁ NA KOMORU" : RunStoppedWithError ? "! STOPPED" : !HasReference ? "— N/A" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ DONE" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ WAITING" : "○ PENDING";
-    public string ReferenceCardTone => RunStoppedWithError ? "Error" : !HasReference ? "Pending" : ReferenceCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : ReferenceCardState.Contains("WAITING", StringComparison.Ordinal) ? "Waiting" : "Pending";
+    public string ReferenceCardState => WaitingForChamber ? "○ ČAKÁ NA KOMORU" : RunStoppedWithError ? "! ZASTAVENÉ" : !HasReference ? "— NEDOSTUPNÉ" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ SPLNENÉ" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ ČAKÁ" : "○ ČAKÁ";
+    public string ReferenceCardTone => RunStoppedWithError ? "Error" : !HasReference ? "Pending" : ReferenceCardState.Contains("SPLNENÉ", StringComparison.Ordinal) ? "Done" : _state == CalibrationRunState.WaitingForChamberStability ? "Waiting" : "Pending";
     private bool UnconfirmedPoint => PointFinished && (TotalTargets == 0 || _snapshot!.Targets.Any(t => t.State != CalibrationTargetState.Stable));
-    public string PeakCardState => RunStoppedWithError ? "! STOPPED" : UnconfirmedPoint ? "! STABILITA NEPOTVRDENÁ" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ DONE" : _state == CalibrationRunState.StabilizingSensors ? "● RUNNING" : PointFinished ? "✓ DONE" : "○ PENDING";
-    public string PeakCardTone => RunStoppedWithError ? "Error" : UnconfirmedPoint ? "Waiting" : PeakCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : PeakCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
-    public string MeasurementCardState => RunStoppedWithError ? "! STOPPED" : UnconfirmedPoint ? "! VÝSLEDOK NEPOTVRDENÝ" : PointFinished ? "✓ DONE" : MeasuringCount > 0 || Samples > 0 ? "● RUNNING" : "○ PENDING";
-    public string MeasurementCardTone => RunStoppedWithError ? "Error" : UnconfirmedPoint ? "Waiting" : MeasurementCardState.Contains("DONE", StringComparison.Ordinal) ? "Done" : MeasurementCardState.Contains("RUNNING", StringComparison.Ordinal) ? "Active" : "Pending";
+    public string PeakCardState => RunStoppedWithError ? "! ZASTAVENÉ" : UnconfirmedPoint ? "! STABILITA NEPOTVRDENÁ" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ SPLNENÉ" : _state == CalibrationRunState.StabilizingSensors ? "● PREBIEHA" : PointFinished ? "✓ SPLNENÉ" : "○ ČAKÁ";
+    public string PeakCardTone => RunStoppedWithError ? "Error" : UnconfirmedPoint ? "Waiting" : PeakCardState.Contains("SPLNENÉ", StringComparison.Ordinal) ? "Done" : PeakCardState.Contains("PREBIEHA", StringComparison.Ordinal) ? "Active" : "Pending";
+    public string MeasurementCardState => RunStoppedWithError ? "! ZASTAVENÉ" : UnconfirmedPoint ? "! VÝSLEDOK NEPOTVRDENÝ" : PointFinished ? "✓ SPLNENÉ" : MeasuringCount > 0 || Samples > 0 ? "● PREBIEHA" : "○ ČAKÁ";
+    public string MeasurementCardTone => RunStoppedWithError ? "Error" : UnconfirmedPoint ? "Waiting" : MeasurementCardState.Contains("SPLNENÉ", StringComparison.Ordinal) ? "Done" : MeasurementCardState.Contains("PREBIEHA", StringComparison.Ordinal) ? "Active" : "Pending";
     public string ActivePeakKey => _snapshot?.Targets.FirstOrDefault(t => t.Phase is "Measuring" or "MeasuringWithStabilityWarning") is { } m ? $"{m.SerialNumber}|{m.Channel}|{m.PeakId}" :
         _snapshot?.Targets.FirstOrDefault(t => t.State != CalibrationTargetState.Stable) is { } s ? $"{s.SerialNumber}|{s.Channel}|{s.PeakId}" : "";
     public string ActivePeak => ActivePeakKey.Length == 0 ? "—" : ActivePeakKey.Replace("|", " · ");
@@ -827,7 +827,7 @@ public sealed class DashboardNode : INotifyPropertyChanged
         _calibrationBadge = success ? "✓ ÚSPEŠNÉ" : failed ? "! NEÚSPEŠNÉ" : "! NEPOTVRDENÉ";
         State = success ? "Done" : "Warning";
     }
-    public string Badge => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge : State switch { "Done" => "✓ DONE", "Active" => "● RUNNING", "Waiting" => "Ⅱ WAITING", "Error" => "! ERROR", "Warning" => "! UPOZORNENIE", "Skipped" => "— N/A", _ => "○ PENDING" };
+    public string Badge => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge : State switch { "Done" => "✓ SPLNENÉ", "Active" => "● PREBIEHA", "Waiting" => "Ⅱ ČAKÁ", "Error" => "! CHYBA", "Warning" => "! UPOZORNENIE", "Skipped" => "— NEDOSTUPNÉ", _ => "○ ČAKÁ" };
     public string ChipLabel => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge[2..] : State switch
     {
         "Done" => "DOKONČENÉ", "Active" => "PREBIEHA", "Waiting" => "ČAKÁ NA STABILITU",

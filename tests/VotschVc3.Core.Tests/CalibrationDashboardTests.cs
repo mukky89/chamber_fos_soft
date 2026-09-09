@@ -189,28 +189,28 @@ public sealed class CalibrationDashboardTests
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
         var m = Model();
-        Assert.Contains("PENDING", m.ChamberCardState);
-        Assert.Contains("PENDING", m.ReferenceCardState);
+        Assert.Contains("ČAKÁ", m.ChamberCardState);
+        Assert.Contains("ČAKÁ", m.ReferenceCardState);
 
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability), Start);
-        Assert.Contains("WAITING", m.ReferenceCardState);
-        Assert.Contains("PENDING", m.PeakCardState);
-        Assert.Contains("PENDING", m.MeasurementCardState);
+        Assert.Contains("ČAKÁ", m.ReferenceCardState);
+        Assert.Contains("ČAKÁ", m.PeakCardState);
+        Assert.Contains("ČAKÁ", m.MeasurementCardState);
 
         m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
             Target("Stabilizing", 0, CalibrationTargetState.Stabilizing)), Start.AddSeconds(1));
-        Assert.Contains("DONE", m.ReferenceCardState);
-        Assert.Contains("RUNNING", m.PeakCardState);
-        Assert.Contains("PENDING", m.MeasurementCardState);
+        Assert.Contains("SPLNENÉ", m.ReferenceCardState);
+        Assert.Contains("PREBIEHA", m.PeakCardState);
+        Assert.Contains("ČAKÁ", m.MeasurementCardState);
 
         m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
             Target("Measuring", 2)), Start.AddSeconds(2));
-        Assert.Contains("DONE", m.PeakCardState);
-        Assert.Contains("RUNNING", m.MeasurementCardState);
+        Assert.Contains("SPLNENÉ", m.PeakCardState);
+        Assert.Contains("PREBIEHA", m.MeasurementCardState);
 
         m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
             Target("Done", 5, CalibrationTargetState.Stable)), Start.AddSeconds(3));
-        Assert.Contains("DONE", m.MeasurementCardState);
+        Assert.Contains("SPLNENÉ", m.MeasurementCardState);
     }
     [Fact] public void PeakSummaryDistinguishesPassedStabilityFromCompletedMeasurement()
     {
@@ -344,7 +344,7 @@ public sealed class CalibrationDashboardTests
         m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 0, Target("Temperature", 0, CalibrationTargetState.WaitingForTemperature)), Start.AddSeconds(1));
         Assert.Equal(0, m.Samples); Assert.Equal("Waiting", m.Steps[3].State); Assert.Equal("Pending", m.Steps[5].State);
         Assert.Equal(0, m.CompletedPoints);
-        Assert.Contains("WAITING", m.TemperatureStatus); // 100% score alone is not gate approval.
+        Assert.Contains("ČAKÁ", m.TemperatureStatus); // 100% score alone is not gate approval.
         Assert.Equal("Teplota komory", m.TimelinePreviousTitle);
         Assert.Equal("WIKA referencia", m.TimelineCurrentTitle);
         Assert.Equal("Stabilita FBG", m.TimelineNextTitle);
@@ -408,13 +408,13 @@ public sealed class CalibrationDashboardTests
         var live = Model();
         live.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0, Target("Done", 5, status)), Start);
         Assert.Contains(label, live.Points[0].Badge);
-        Assert.DoesNotContain("DONE", live.Points[0].Badge);
+        Assert.DoesNotContain("SPLNENÉ", live.Points[0].Badge);
         Assert.Contains("Stabilita", live.Points[0].Detail);
         Assert.Equal(1, live.CompletedPoints);
         if (status != CalibrationTargetState.Stable)
         {
-            Assert.DoesNotContain("DONE", live.PeakCardState);
-            Assert.DoesNotContain("DONE", live.MeasurementCardState);
+            Assert.DoesNotContain("SPLNENÉ", live.PeakCardState);
+            Assert.DoesNotContain("SPLNENÉ", live.MeasurementCardState);
         }
         var restored = Model();
         restored.RestoreCompletedPoints(new[] { new CalibrationPlateauResult
