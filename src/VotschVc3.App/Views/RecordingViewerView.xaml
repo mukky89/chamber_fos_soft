@@ -26,7 +26,7 @@
         <!-- Chart + recent profile logs -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="340" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -42,14 +42,20 @@
                                 Command="{Binding RefreshRecentLogsCommand}"
                                 ToolTip="Znovu načítať zoznam zo zložiek Profilelog a Recordings." />
                     </DockPanel>
-                    <ListBox Grid.Row="1" ItemsSource="{Binding RecentLogs}" DisplayMemberPath="DisplayText"
+                    <ListBox Grid.Row="1" ItemsSource="{Binding RecentLogs}"
                              SelectedItem="{Binding SelectedRecentLog}"
-                             ToolTip="Automatické záznamy teplôt: „Profil“ = beh testovacieho profilu (Documents\Lab Control\Profilelog), „Priebežný“ = nepretržitý záznam bežiaci automaticky, kým je komora pripojená (Documents\Lab Control\Recordings). Záznam presmerovaný na vlastnú cestu cez „Browse“ tu nie je – otvorí sa cez „Otvoriť CSV…“." />
+                             ToolTip="Automatické záznamy teplôt: „Profil“ = beh testovacieho profilu (Documents\Lab Control\Profilelog), „Priebežný“ = nepretržitý záznam bežiaci automaticky, kým je komora pripojená (Documents\Lab Control\Recordings). Záznam presmerovaný na vlastnú cestu cez „Browse“ tu nie je – otvorí sa cez „Otvoriť CSV…“." >
+                     <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="4,6" ToolTip="{Binding FilePath}">
+                      <TextBlock Text="{Binding FileName}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                      <TextBlock Text="{Binding Kind}" Foreground="#8BCAFF" FontSize="11" Margin="0,3,0,0"/>
+                      <TextBlock Text="{Binding Modified, StringFormat=dd.MM.yyyy HH:mm}" Style="{StaticResource Caption}"/>
+                     </StackPanel></DataTemplate></ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
 
             <Border Grid.Column="1" Style="{StaticResource Card}">
-                <views:ChartView Series="{Binding Series}" EmptyText="Otvor CSV záznam alebo vyber záznam profilu vľavo…" />
+                <views:ChartView Unit="°C" SecondaryUnit=" % RH" MinimumYDecimals="2" Series="{Binding Series}" EmptyText="Otvor CSV záznam alebo vyber záznam profilu vľavo…" />
             </Border>
         </Grid>
 

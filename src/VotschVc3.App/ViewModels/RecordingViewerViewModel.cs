@@ -40,7 +40,7 @@ public sealed class RecordingStatRow
 {
     public RecordingStatRow(RecordingSeries series, Brush color)
     {
-        Name = series.Name;
+        Name = RecordingViewerViewModel.SeriesLabel(series.Name);
         Color = color;
         Min = Format(series.Min);
         Max = Format(series.Max);
@@ -55,7 +55,7 @@ public sealed class RecordingStatRow
     public string Mean { get; }
     public int Count { get; }
 
-    private static string Format(double? v) => v?.ToString("0.000", CultureInfo.InvariantCulture) ?? "—";
+    private static string Format(double? v) => v?.ToString("0.000", CultureInfo.CurrentCulture) ?? "—";
 }
 
 /// <summary>
@@ -179,8 +179,11 @@ public sealed class RecordingViewerViewModel : ObservableObject
 
     private void Load(string path)
     {
-        RecordingData data = RecordingReader.Read(path);
+        // Clear the previous file before parsing so an empty/broken file never retains its graph.
         FilePath = path;
+        Series = Array.Empty<ChartSeries>();
+        Stats.Clear();
+        RecordingData data = RecordingReader.Read(path);
 
         DateTimeOffset t0 = data.Timestamps.Count > 0 ? data.Timestamps[0] : DateTimeOffset.Now;
 
@@ -220,7 +223,7 @@ public sealed class RecordingViewerViewModel : ObservableObject
 
             if (points.Count > 0)
             {
-                chartSeries.Add(new ChartSeries(series.Name, color, points, dashed));
+                chartSeries.Add(new ChartSeries(SeriesLabel(series.Name), color, points, dashed, useSecondaryAxis: series.Name.StartsWith("Humidity", StringComparison.OrdinalIgnoreCase)));
             }
 
             Stats.Add(new RecordingStatRow(series, color));
@@ -229,6 +232,14 @@ public sealed class RecordingViewerViewModel : ObservableObject
         Series = chartSeries;
         StatusMessage = $"{System.IO.Path.GetFileName(path)} · {data.RowCount} riadkov · {data.Series.Count} sérií.";
     }
+
+    public static string SeriesLabel(string name) => name switch
+    {
+        "Temperature" => "Teplota [°C]", "TemperatureSetpoint" => "Nastavená teplota [°C]",
+        "Humidity" => "Vlhkosť [% RH]", "HumiditySetpoint" => "Nastavená vlhkosť [% RH]",
+        "ReferenceTemperature" => "Referenčná teplota [°C]", "Deviation" => "Odchýlka [°C]",
+        _ => name
+    };
 
     private static Brush ColorFor(string name, int index)
     {

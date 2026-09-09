@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.307] – 2026-09-09
+
+### Opravené
+- Prehliadač záznamov po chybe načítania nezobrazuje graf a štatistiky predchádzajúceho súboru.
+- Teplota a vlhkosť majú oddelené osi a slovenské názvy s jednotkami. Zoznam záznamov má širšie viacriadkové položky s názvom súboru, typom a dátumom.
+
 ## [1.76.306] – 2026-09-09
 
 ### Pridané
