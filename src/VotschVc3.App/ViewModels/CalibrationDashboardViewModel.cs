@@ -390,7 +390,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         FbgMeasurementStartedAt = null;
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; TrendTone = "Steady"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
-        foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; }
+        foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; point.Explanation = ""; point.Graphs.Clear(); }
         AddEvent(now, "INFO", "Kalibrácia spustená."); RefreshSteps(); Tick(now);
     }
     public void RestoreCompletedPoints(IEnumerable<CalibrationPlateauResult> completedPlateaus)
@@ -406,6 +406,12 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             bool warning = plateau.Targets.Count == 0 || plateau.Targets.Any(target => target.Status != CalibrationTargetState.Stable);
             string completedAt = plateau.CompletedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss");
             point.SetCalibrationOutcome(plateau.Targets.Select(t => t.Status), plateau.Targets.Count);
+            point.Explanation = string.Join("\n\n", plateau.Targets.Where(t => t.Status != CalibrationTargetState.Stable).Select(t =>
+                $"SN {t.SerialNumber} · {t.Channel}/{t.PeakId}: {t.Problem ?? "Podrobný dôvod nie je uložený."}\nVzorky {t.SampleCount} · rozsah {t.RangePm:F3} pm · σ {t.StandardDeviationPm:F3} pm · drift {t.DriftPmPerMinute:F3} pm/min"));
+            point.Graphs.Clear();
+            foreach (var target in plateau.Targets)
+                point.Graphs.Add(new PlateauDiagnosticGraph($"SN {target.SerialNumber} · {target.Channel}/{target.PeakId} – uložené finálne vzorky", "nm",
+                    target.StableSamples.Select(sample => new DashboardTemperatureSample(sample.Timestamp, sample.WavelengthNm)).ToList()));
             point.Duration = duration;
             point.Detail = $"Stabilita {plateau.Targets.Count(t => t.Status == CalibrationTargetState.Stable)}/{plateau.Targets.Count} · {Duration(duration)} · {completedAt}";
             AddEvent(plateau.CompletedAt, warning ? "WARNING" : "SUCCESS",
@@ -540,6 +546,17 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 else if (t.Phase == "MeasuringWithStabilityWarning") AddEvent(now, "WARNING", $"Peak {key.Replace("|", " · ")} po timeout-e začína finálne meranie s upozornením na stabilizáciu.");
                 _targetEvents[key] = state;
             }
+        }
+        if (snapshot.PlateauIndex >= 0 && snapshot.PlateauIndex < Points.Count)
+        {
+            var node = Points[snapshot.PlateauIndex];
+            var targets = _snapshot?.Targets ?? snapshot.Targets;
+            node.Explanation = string.Join("\n\n", targets.Where(t => t.State != CalibrationTargetState.Stable).Select(t =>
+                $"SN {t.SerialNumber} · {t.Channel}/{t.PeakId}: {(!string.IsNullOrWhiteSpace(t.Detail) ? t.Detail : !string.IsNullOrWhiteSpace(t.BlockingReason) ? t.BlockingReason : "Stabilita zatiaľ nebola potvrdená; podrobný dôvod nie je dostupný.")}\nStabilizačné vzorky {t.StabilitySamples}/{t.RequiredStabilitySamples} · finálne {t.MeasurementSamples}/{t.RequiredMeasurementSamples}\nRozsah {t.RangePm:F3}/{t.RangeLimitPm:F3} pm · σ {t.StandardDeviationPm:F3}/{t.StdDevLimitPm:F3} pm · drift {t.DriftPmPerMinute:F3}/{t.DriftLimitPmPerMinute:F3} pm/min"));
+            if (snapshot.ReferenceTemperatureC is { } reference && double.IsFinite(reference)) node.AddGraphSample("WIKA – priebeh plata", "°C", now, reference);
+            foreach (var target in snapshot.Targets)
+                if (target.CurrentWavelengthNm is { } wavelength && double.IsFinite(wavelength))
+                    node.AddGraphSample($"SN {target.SerialNumber} · {target.Channel}/{target.PeakId} – priebeh FBG", "nm", now, wavelength);
         }
         if (previous?.State != snapshot.State) AddEvent(now, "INFO", Now);
         RefreshSteps(); Tick(now);
@@ -858,6 +875,18 @@ public sealed class DashboardNode : INotifyPropertyChanged
     private string _state = "Pending", _detail;
     public string State { get => _state; set { _state = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null)); } }
     public string Detail { get => _detail; set { _detail = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Detail))); } }
+    public string Explanation { get; set; } = "";
+    public string DiagnosticHelp => string.IsNullOrWhiteSpace(Explanation)
+        ? (State == "Done" ? "Stabilita všetkých peakov bola potvrdená." : "Podrobný dôvod nie je dostupný. Plato môže ešte čakať na vyhodnotenie.")
+        : "Nepotvrdené znamená, že nie všetky peaky majú potvrdenú stabilitu. Neznamená to automaticky, že chýbajú namerané vzorky.\n\n" + Explanation;
+    public List<PlateauDiagnosticGraph> Graphs { get; } = new();
+    public void AddGraphSample(string title, string unit, DateTimeOffset timestamp, double value)
+    {
+        var graph = Graphs.FirstOrDefault(g => g.Title == title);
+        if (graph is null) { graph = new(title, unit, new()); Graphs.Add(graph); }
+        if (graph.Samples.Count == 0 || graph.Samples[^1].Timestamp < timestamp)
+            graph.Samples.Add(new(timestamp, value));
+    }
     private string? _calibrationBadge;
     public void SetCalibrationOutcome(IEnumerable<CalibrationTargetState> states, int expected)
     {
@@ -974,3 +1003,5 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
 }
 public sealed record FbgStabilitySample(double Minutes, double WavelengthNm);
 public sealed record DashboardEvent(string Time, string Level, string Plateau, string Temperatures, string Message);
+
+public sealed record PlateauDiagnosticGraph(string Title, string Unit, List<DashboardTemperatureSample> Samples);

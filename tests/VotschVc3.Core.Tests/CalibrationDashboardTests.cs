@@ -217,6 +217,17 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("pozastavený", m.NextSampleCountdown);
         Assert.Equal(0, m.SampleIntervalProgress);
     }
+    [Fact] public void PlateauDiagnosticsRetainSpecificProblemAndSamplesAfterAdvancing()
+    {
+        var m = Model();
+        var target = Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { Detail = "Prekročený drift", CurrentWavelengthNm = 1550.2 };
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, target), Start);
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0, target), Start.AddSeconds(30));
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 1), Start.AddSeconds(40));
+        Assert.Contains("Prekročený drift", m.Points[0].DiagnosticHelp);
+        Assert.Contains(target.SerialNumber, m.Points[0].DiagnosticHelp);
+        Assert.Contains(m.Points[0].Graphs, g => g.Unit == "nm" && g.Samples.Count == 2);
+    }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
         var m = Model();

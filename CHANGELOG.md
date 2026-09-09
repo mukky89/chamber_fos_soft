@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.303] – 2026-09-09
+
+### Pridané
+- Otáznik na plate zobrazuje vysvetlenie nepotvrdených peakov vrátane SN, dôvodu, vzoriek a dostupných metrík stability. Kliknutie otvorí detail s grafmi WIKA a FBG.
+- Dokončené platy zachovávajú dostupný priebeh v pamäti. Pri obnovení sa grafy zostavia z uložených finálnych vzoriek; chýbajúci priebeh je výslovne označený.
+
 ## [1.76.302] – 2026-09-09
 
 ### Opravené

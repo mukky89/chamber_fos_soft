@@ -88,6 +88,28 @@ public partial class CalibrationDashboardView : UserControl
         DataContextChanged += (_, _) => RequestReferenceTraceRefresh();
     }
 
+    private void PlateauDetails_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: DashboardNode node }) return;
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(new TextBlock { Text = $"Plato {node.Number} · {node.Title} · {node.ChipLabel}", FontSize = 21, FontWeight = FontWeights.SemiBold });
+        panel.Children.Add(new TextBlock { Text = node.DiagnosticHelp, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 16) });
+        foreach (var graph in node.Graphs.Where(g => g.Samples.Count > 0))
+        {
+            var origin = graph.Samples[0].Timestamp;
+            panel.Children.Add(new TextBlock { Text = graph.Title, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 6) });
+            panel.Children.Add(new ChartView { Height = 240, Unit = graph.Unit, MinimumYDecimals = graph.Unit == "nm" ? 4 : 3,
+                ChartTitle = graph.Title, Series = new[] { new ChartSeries(graph.Title, Brushes.DeepSkyBlue,
+                    TimeSeriesEnvelopeReducer.Reduce(graph.Samples.Select(sample => new Point((sample.Timestamp - origin).TotalMinutes, sample.TemperatureC)).ToArray(), point => point.Y, 600), strokeThickness: 2) } });
+        }
+        panel.Children.Add(new TextBlock { Text = node.Graphs.Any(g => g.Samples.Count > 0)
+            ? "Grafy zobrazujú dostupné vzorky. Po obnovení behu sú dostupné uložené finálne vzorky; celý priebeh stabilizácie tu nemusí byť zachovaný."
+            : "Pre toto plato nie sú v pamäti dostupné grafové dáta. Podrobnosti skontrolujte v uložených súboroch behu.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0) });
+        new Window { Title = $"Diagnostika plata {node.Number}", Owner = Window.GetWindow(this), Width = 850, Height = 680,
+            MaxHeight = SystemParameters.WorkArea.Height, Background = new SolidColorBrush(Color.FromRgb(20, 31, 47)), Foreground = Brushes.White,
+            Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, WindowStartupLocation = WindowStartupLocation.CenterOwner }.Show();
+    }
+
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.Tag is not string text || string.IsNullOrWhiteSpace(text)) return;
