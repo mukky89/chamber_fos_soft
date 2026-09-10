@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.333] – 2026-09-10
+
+### Opravené
+
+- Pole SN v párovaní má väčšiu minimálnu výšku a menšie zvislé odsadenie, aby sa spodná časť textu neorezávala.
+
 ## [1.76.332] – 2026-09-10
 
 ### Opravené
