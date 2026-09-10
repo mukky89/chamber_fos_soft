@@ -56,6 +56,12 @@ public sealed class EmailNotifier
         CancellationToken cancellationToken = default)
     {
         if (!CanSendType(type)) return Task.FromResult(EmailResult.SkippedResult);
+        // POL-EKO client-limit disconnects remain visible/audited in the app,
+        // but must not generate recurring alarm e-mails during reconnects.
+        if (type == NotificationType.DeviceAlarm &&
+            body.Contains("Strata spojenia: POL-EKO", StringComparison.OrdinalIgnoreCase) &&
+            body.Contains("LIMIT_LOGGED_EXT_CLIENT", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult(EmailResult.SkippedResult);
         return DeliverAsync(Settings.Recipient, RenameLegacyReferenceThermometer(subject),
             RenameLegacyReferenceThermometer(body),
             htmlBody is null ? null : RenameLegacyReferenceThermometer(htmlBody), attachments, cancellationToken);

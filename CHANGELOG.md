@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.308] – 2026-09-10
+
+### Opravené
+
+- E-mailové alarmy straty spojenia POL-EKO s chybou `LIMIT_LOGGED_EXT_CLIENT` sa už neodosielajú. Stav spojenia, záznam alarmu, automatické opätovné pripojenie a bezpečnostné reakcie v aplikácii zostávajú zachované; ostatné e-mailové alarmy sa riadia existujúcimi nastaveniami.
+
 ## [1.76.307] – 2026-09-09
 
 ### Opravené
