@@ -8,6 +8,54 @@ namespace VotschVc3.Core.Tests;
 
 public sealed class CalibrationWorkflowRegressionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RecoveryReconnectsDisconnectedPeakLoggerAndRetriesFailedHandshake(bool failFirstHandshake)
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var logger = new FakePeakLoggerClient();
+            await logger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            setup.Settings.OperatorSupervisionEnabled = false;
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ChamberId = Guid.NewGuid() };
+            await using var writer = store.CreateRunWriter(run);
+            int reads = 0, peakReconnects = 0;
+            var orchestrator = new CalibrationOrchestrator(logger)
+            {
+                ReconnectChamberAsync = _ => Task.CompletedTask,
+                ReconnectPeakLoggerAsync = async token =>
+                {
+                    peakReconnects++;
+                    if (failFirstHandshake && peakReconnects == 1)
+                        throw new HttpRequestException("network still unavailable");
+                    await logger.ConnectAsync(new PeakLoggerSettings(), token);
+                }
+            };
+            using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(failFirstHandshake ? 12 : 7));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                orchestrator.CollectFinalVerificationAsync(setup, run, writer,
+                    async _ =>
+                    {
+                        if (++reads == 1)
+                        {
+                            await logger.DisconnectAsync();
+                            throw new TimeoutException("chamber and PeakLogger network lost");
+                        }
+                        return 25d;
+                    },
+                    _ => Task.FromResult<double?>(30d), cancel.Token));
+            Assert.Equal(failFirstHandshake ? 2 : 1, peakReconnects);
+            Assert.True(logger.IsConnected);
+            Assert.True(reads > (failFirstHandshake ? 3 : 2));
+            Assert.Null(run.FinalVerification);
+            Assert.Empty(run.Plateaus);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
     [Fact]
     public async Task CommunicationRecoveryReconnectsAndRechecksStabilityUntilCancelled()
     {

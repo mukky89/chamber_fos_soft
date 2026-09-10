@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.343] – 2026-09-10
+
+### Opravené
+
+- Automatické obnovenie FBG kalibrácie po sieťovom výpadku znovu pripája aj odpojený PeakLogger na pôvodný endpoint. Odpojený PeakLogger už nepreruší obnovovanie komory; opakované výpadky sa skúšajú znovu v existujúcom limite. Dokončené body zostávajú zachované a nedokončené okná sa znovu stabilizujú.
+
 ## [1.76.342] – 2026-09-10
 
 ### Opravené

@@ -32,6 +32,7 @@ public sealed partial class CalibrationOrchestrator
 
     public event Action<CalibrationWarning>? WarningRaised;
     public Func<CancellationToken, Task>? ReconnectChamberAsync { get; set; }
+    public Func<CancellationToken, Task>? ReconnectPeakLoggerAsync { get; set; }
 
     /// <summary>Requests an audited one-time bypass of the stability gate for the current plateau.</summary>
     public void RequestTemperatureGateOverride() =>
@@ -196,12 +197,15 @@ public sealed partial class CalibrationOrchestrator
                         double? referenceValue = hasExternalReference ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false) : chamberValue;
                         if (!double.IsFinite(chamberValue) || referenceValue is not double value || !double.IsFinite(value))
                             throw new IOException("Čakám na platnú teplotu komory a referencie.");
+                        if (!_peakLogger.IsConnected && ReconnectPeakLoggerAsync is not null)
+                            await ReconnectPeakLoggerAsync(cancellationToken).ConfigureAwait(false);
                         await _peakLogger.ReadMeasurementsAsync(cancellationToken).ConfigureAwait(false);
                         writer.WriteDiagnostic("INFO", "CONNECTION_RESTORED", "Spojenie obnovené. Začína nová stabilizácia nedokončených peakov.");
                         break;
                     }
                     catch (Exception retryError) when (!cancellationToken.IsCancellationRequested &&
-                        retryError is IOException or TimeoutException or System.Net.Sockets.SocketException or HttpRequestException or OperationCanceledException)
+                        (retryError is IOException or TimeoutException or System.Net.Sockets.SocketException or HttpRequestException or OperationCanceledException ||
+                         (retryError is InvalidOperationException && !_peakLogger.IsConnected && ReconnectPeakLoggerAsync is not null)))
                     { failure = retryError; }
                 }
             }
@@ -495,7 +499,8 @@ public sealed partial class CalibrationOrchestrator
                 batch = await _peakLogger.ReadMeasurementsAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ReconnectChamberAsync is not null &&
-                !settings.OperatorSupervisionEnabled && ex is IOException or TimeoutException or HttpRequestException or OperationCanceledException)
+                !settings.OperatorSupervisionEnabled && (ex is IOException or TimeoutException or HttpRequestException or OperationCanceledException ||
+                (ex is InvalidOperationException && !_peakLogger.IsConnected && ReconnectPeakLoggerAsync is not null)))
             {
                 await RecoverCommunication(ex, chamberFailure: false);
                 continue;
