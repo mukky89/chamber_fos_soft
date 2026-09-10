@@ -42,7 +42,11 @@ public static class ProfileCompletionEmail
         };
         if (hasCsv)
         {
-            attachments.Add(new EmailAttachment(Path.GetFileName(info.LogFilePath!), File.ReadAllBytes(info.LogFilePath!), "text/csv"));
+            // The profile logger still owns its write handle until run cleanup.
+            using var file = new FileStream(info.LogFilePath!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var buffer = new MemoryStream();
+            file.CopyTo(buffer);
+            attachments.Add(new EmailAttachment(Path.GetFileName(info.LogFilePath!), buffer.ToArray(), "text/csv"));
         }
 
         string chartSection = $"""

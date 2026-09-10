@@ -2665,6 +2665,11 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 await RunProfileCoreAsync(profile, i, profiles.Count, token, profiles, i == 0 ? resumeFrom : null);
             }
 
+            // The sequence is complete before shutdown/reporting. A notification
+            // failure must never make a finished profile eligible for recovery.
+            completedNormally = true;
+            _checkpointStore?.Delete(Id);
+            SetInterruptedRun(null);
             ProfileProgress = 100;
             ProfileStatus = profiles.Count > 1 ? "Fronta dokončená." : "Profil dokončený.";
             StatusMessage = ProfileStatus;
@@ -2682,8 +2687,15 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 $"{ProfileStatus.TrimEnd('.')} · {Name}",
                 poweredOff ? $"{doneName} Výkon komory vypnutý." : doneName,
                 DesktopNotificationKind.Success);
-            await NotifyCompletionAsync(profiles, poweredOff);
-            completedNormally = true;
+            try
+            {
+                await NotifyCompletionAsync(profiles, poweredOff);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Profil dokončený · e-mail zlyhal: {ex.Message}";
+                AppLog.Warn(Name, $"Dokončovací e-mail profilu zlyhal: {ex.Message}");
+            }
         }
         catch (OperationCanceledException)
         {

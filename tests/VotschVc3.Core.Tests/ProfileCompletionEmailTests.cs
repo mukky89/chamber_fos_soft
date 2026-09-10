@@ -7,6 +7,26 @@ namespace VotschVc3.Core.Tests;
 public sealed class ProfileCompletionEmailTests
 {
     [Fact]
+    public void CompletionCanAttachCsvWhileProfileLoggerIsStillOpen()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            DateTime start = new(2026, 9, 10, 7, 0, 0);
+            using var log = new ProfileTemperatureLog(directory, "Finished", "Chamber", false, start);
+            log.Log(start, 25, 24.9);
+            var message = ProfileCompletionEmail.Create(new ProfileCompletionInfo(
+                "Chamber", ["Finished"], start, start.AddHours(1), true, log.GetSamples(), log.FilePath));
+            var csv = Assert.Single(message.Attachments.Where(a => a.MediaType == "text/csv"));
+            Assert.Contains("2026-09-10 07:00:00", System.Text.Encoding.UTF8.GetString(csv.Content));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void DefaultsMatchDashboardSmtpAndRequestedRecipients()
     {
         var settings = new EmailSettings();

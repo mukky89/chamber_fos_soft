@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.309] – 2026-09-10
+
+### Opravené
+
+- Dokončený testovací profil sa už po chybe dokončovacieho e-mailu neponúka ako prerušený. Záznam obnovy sa odstráni hneď po dokončení sekvencie a chyba prílohy alebo e-mailu nemení výsledok behu.
+- CSV príloha dokončovacieho e-mailu sa dá načítať aj počas otvoreného zápisu teplotného logu.
+
 ## [1.76.308] – 2026-09-10
 
 ### Opravené
