@@ -2133,10 +2133,15 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 _chamber = null;
             }
             IsRunning = false;
+            // A failed run must keep automatic reference reads available for checkpoint resume.
+            // Only a completed or deliberately stopped run pauses reference reconnects.
             // The runner and reference trace have stopped. Reuse the explicit-disconnect
             // path: pause background reconnects, drain serial IO, return LOCAL and release COM.
             // Preserve the persistent chamber/reference assignment for the next run.
-            if (runReference is not null && RunState != CalibrationRunState.AwaitingOperator.ToString())
+            if (runReference is not null &&
+                (RunState == CalibrationRunState.Completed.ToString() ||
+                 RunState == CalibrationRunState.CompletedWithWarnings.ToString() ||
+                 RunState == CalibrationRunState.Aborted.ToString()))
             {
                 try
                 {

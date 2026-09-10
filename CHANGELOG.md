@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.344] – 2026-09-10
+
+### Opravené
+
+- Chyba FBG kalibrácie už neoznačí WIKA ako ručne odpojenú. Automatické čítanie priradenej referencie ostáva dostupné pre pokračovanie z checkpointu; dokončenie alebo úmyselné zastavenie behu naďalej uvoľní COM port a pozastaví pripojenie.
+
 ## [1.76.343] – 2026-09-10
 
 ### Opravené
