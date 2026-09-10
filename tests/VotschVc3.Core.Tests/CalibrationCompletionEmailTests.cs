@@ -29,7 +29,11 @@ public sealed class CalibrationCompletionEmailTests
         Assert.Contains("Záverečné overenie: WARNING", message.Text);
         Assert.Contains("DOKONČENÁ S UPOZORNENIAMI", message.Text);
         Assert.Contains("Max. chyba 0,500 °C; limit 0,100 °C", html);
-        Assert.Equal(1, html.Split("Nestabilná WIKA").Length - 1);
+        Assert.Equal(2, html.Split("Nestabilná WIKA").Length - 1);
+        Assert.Contains("Teplota z koef. [°C]", html);
+        Assert.Contains("WIKA [°C]", html);
+        Assert.Contains("Problém", html);
+        Assert.Contains("max-width:1200px", html);
         Assert.Equal(1, html.Split("<h2 style=\"font-size:17px\">Záverečné overenie pri 25 °C").Length - 1);
         Assert.Contains("file:///G:/", message.Html);
         Assert.Contains("&amp;", message.Html);

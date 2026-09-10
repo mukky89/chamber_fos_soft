@@ -13,7 +13,7 @@ public static class LabControlEmailTemplate
         Create(subject, body, DetectTone(subject ?? string.Empty, body ?? string.Empty), string.Empty);
 
     // Only application-owned markup belongs in additionalHtml. All notification data is encoded.
-    internal static string Create(string subject, string body, EmailTone tone, string additionalHtml)
+    internal static string Create(string subject, string body, EmailTone tone, string additionalHtml, int contentWidth = 680)
     {
         subject ??= string.Empty;
         body ??= string.Empty;
@@ -71,8 +71,8 @@ table,td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
 <div style="display:none;font-size:1px;line-height:1px;color:#EDF1F6;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all">{H(preheader)}</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#EDF1F6" style="width:100%;background:#EDF1F6">
 <tr><td align="center" class="outer-pad" style="padding:24px 12px">
-<!--[if mso]><table role="presentation" width="680" align="center" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:680px;table-layout:fixed;font-family:Segoe UI,Arial,Helvetica,sans-serif;background:#FFFFFF;border:1px solid #DCE4EE;border-radius:16px;overflow:hidden">
+<!--[if mso]><table role="presentation" width="{contentWidth}" align="center" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:{contentWidth}px;table-layout:fixed;font-family:Segoe UI,Arial,Helvetica,sans-serif;background:#FFFFFF;border:1px solid #DCE4EE;border-radius:16px;overflow:hidden">
 <tr><td height="5" bgcolor="{accent}" style="height:5px;background:{accent};font-size:1px;line-height:5px">&nbsp;</td></tr>
 <tr><td class="content-pad" bgcolor="#122237" style="padding:18px 32px;background:#122237">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.313] – 2026-09-10
+
+### Zmenené
+
+- FBG e-mail má širší obsah (1200 px). Záverečné overenie dopĺňa teplotu z koeficientov s označením modelu, teplotu WIKA a konkrétny problém každého peaku. Zachováva jeden riadok na peak a serverový odkaz bez príloh.
+
 ## [1.76.312] – 2026-09-10
 
 ### Opravené

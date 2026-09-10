@@ -72,7 +72,10 @@ public static class CalibrationCompletionEmail
                 var item = peakModels.FirstOrDefault(r => r.CalibrationType == type);
                 cells.Add(item is null ? "N/A" : N(item.FinalTemperatureErrorC));
             }
+            cells.Add(string.Join("; ", peakModels.Select(r => $"{r.CalibrationType}: {N(r.FinalCalculatedTemperatureC)}")));
+            cells.Add(string.Join("; ", peakModels.Select(r => N(r.FinalReferenceTemperatureC)).Distinct()));
             cells.Add(Aggregate(peakModels.Select(r => r.FinalCheckStatus)));
+            cells.Add(string.Join("; ", peakModels.Select(r => r.FinalCheckProblem).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct()));
             verification.Add(cells.ToArray());
         }
         string runStatus = run.State switch
@@ -106,13 +109,13 @@ public static class CalibrationCompletionEmail
         string explanation = reference + " " + string.Join(" ", finalProblems) + " ΔT = teplota vypočítaná z koeficientov − skutočná teplota WIKA. Hodnoty sú v °C; N/A znamená chýbajúce overenie.";
         plain.Append("\n\n").Append(explanation);
         details += Section("Podmienky záverečného overenia", H(explanation));
-        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak" }.Concat(types.Select(t => "ΔT " + t)).Append("Overenie").ToArray(), verification, "N/A – nie sú dostupné kalibračné výsledky.", plain);
+        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak" }.Concat(types.Select(t => "ΔT " + t)).Concat(new[] { "Teplota z koef. [°C]", "WIKA [°C]", "Overenie", "Problém" }).ToArray(), verification, "N/A – nie sú dostupné kalibračné výsledky.", plain);
         var tone = calibrationStatus == "FAIL" || finalStatus == "FAIL" || run.State is not (CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings)
             ? LabControlEmailTemplate.EmailTone.Error
             : calibrationStatus != "PASS" || finalStatus != "PASS" || run.State == CalibrationRunState.CompletedWithWarnings
                 ? LabControlEmailTemplate.EmailTone.Warning : LabControlEmailTemplate.EmailTone.Success;
         // Only basic data enters the shared template parser; detail tables occur once.
-        return new(subject, plain.ToString(), LabControlEmailTemplate.Create(subject, summary, tone, details), []);
+        return new(subject, plain.ToString(), LabControlEmailTemplate.Create(subject, summary, tone, details, contentWidth: 1200), []);
     }
 
     private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain)
