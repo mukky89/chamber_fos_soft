@@ -139,18 +139,20 @@
                                                 </Style>
                                             </Button.Style>
                                         </Button>
-                                        <Border DockPanel.Dock="Left" CornerRadius="5" Padding="6,1" Margin="0,0,7,0"
+
+                                        <TextBlock DockPanel.Dock="Right" Text="!" FontSize="15" Margin="7,0,0,0"
+                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource WarnBrush}"
+                                                   Visibility="{Binding HasWarning, Converter={StaticResource BoolToVisibility}}" />
+                                        <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
+                                    </DockPanel>
+                                    <DockPanel Margin="0,3,0,0">
+                                        <Border DockPanel.Dock="Left" CornerRadius="5" Padding="5,1" VerticalAlignment="Top" Margin="0,1,7,0"
                                                 BorderThickness="1"
                                                 BorderBrush="{Binding ValidationStatus, Converter={StaticResource ProfileStatusToBrush}}"
                                                 ToolTip="{Binding ValidationStatusDescription}">
                                             <TextBlock Text="{Binding ValidationStatus}" FontSize="10.5" FontFamily="Segoe UI Semibold"
                                                        Foreground="{Binding ValidationStatus, Converter={StaticResource ProfileStatusToBrush}}" />
                                         </Border>
-                                        <TextBlock DockPanel.Dock="Right" Text="!" FontSize="15" Margin="7,0,0,0"
-                                                   FontFamily="Segoe UI Semibold" Foreground="{StaticResource WarnBrush}"
-                                                   Visibility="{Binding HasWarning, Converter={StaticResource BoolToVisibility}}" />
-                                        <TextBlock Text="{Binding CodeAndName}" FontFamily="Segoe UI Semibold" TextWrapping="Wrap" />
-                                    </DockPanel>
                                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0">
                                         <Run Text="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm', Mode=OneWay}" />
                                         <Run Text=" · " />
@@ -159,6 +161,7 @@
                                         <Run Text="{Binding Segments.Count, Mode=OneWay}" />
                                         <Run Text=" segm." />
                                     </TextBlock>
+                                    </DockPanel>
                                     <ItemsControl ItemsSource="{Binding Tags}" Margin="0,6,0,0"
                                                   ItemsPanel="{StaticResource ChipPanel}"
                                                   ItemTemplate="{StaticResource ChipTemplate}" />

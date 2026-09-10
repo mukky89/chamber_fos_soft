@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.320] – 2026-09-10
+
+### Vylepšené
+
+- Zoznam profilov používa kompaktný stavový štítok TBT/OK/NOK/WIP pri dátume a parametroch. Štítok sa nenaťahuje podľa výšky názvu a dlhé názvy majú viac priestoru.
+
 ## [1.76.319] – 2026-09-10
 
 ### Opravené
