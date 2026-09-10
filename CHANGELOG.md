@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.331] – 2026-09-10
+
+### Opravené
+
+- Automatické pripojenie PeakLoggera počká na dokončenie načítavania zariadení namiesto preskočenia zablokovaného príkazu. Uložený endpoint má prednosť pred paralelným discovery; obnova po dlhšom scane počká pred pripojením.
+
 ## [1.76.330] – 2026-09-10
 
 ### Vylepšené

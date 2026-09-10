@@ -169,7 +169,9 @@ public partial class CalibrationWindow
         // remembered simulator) from the previous session. A missing PeakLogger therefore leaves
         // the workspace usable and merely reports the ordinary connection error.
         await Task.Delay(150).ConfigureAwait(true);
-        if (_disposing || _viewModel.PeakLoggerConnected) return;
+        while (!_disposing && !_viewModel.IsRunning && _viewModel.IsLoadingDeviceData)
+            await Task.Delay(100);
+        if (_disposing || _viewModel.IsRunning || _viewModel.PeakLoggerConnected) return;
 
         try
         {

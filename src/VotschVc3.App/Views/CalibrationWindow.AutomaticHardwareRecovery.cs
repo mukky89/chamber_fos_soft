@@ -84,9 +84,14 @@ public partial class CalibrationWindow
         if (_peakLoggerRecoveryRunning || _disposing || _viewModel.IsRunning || _viewModel.UseSimulator)
             return;
 
+        // Saved workspaces reconnect their exact endpoint; never race that restore with discovery.
+        if (startup && _restoredWorkspaceState is not null) return;
+
         _peakLoggerRecoveryRunning = true;
         try
         {
+            while (!_disposing && !_viewModel.IsRunning && _viewModel.IsLoadingDeviceData) await Task.Delay(100);
+            if (_disposing || _viewModel.IsRunning) return;
             if (_viewModel.PeakLoggerConnected)
             {
                 if (!startup && _viewModel.RefreshSensorsCommand.CanExecute(null))
@@ -106,6 +111,7 @@ public partial class CalibrationWindow
                 await WaitForCommandAsync(_viewModel.DiscoverPeakLoggerApisCommand, TimeSpan.FromSeconds(15));
             }
 
+            while (!_disposing && !_viewModel.IsRunning && _viewModel.IsLoadingDeviceData) await Task.Delay(100);
             if (_disposing || _viewModel.IsRunning || _viewModel.PeakLoggerConnected)
                 return;
 
