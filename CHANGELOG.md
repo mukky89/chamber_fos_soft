@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.315] – 2026-09-10
+
+### Zmenené
+
+- Záverečné overenie v FBG e-maile má samostatný riadok pre každý model a požadované poradie stĺpcov: identita peaku, model, teploty, odchýlka, porovnanie ΔT troch modelov, vypočítaná WL pri teplote WIKA, stav a problém. Obsah má šírku do 1600 px a zostáva bez príloh.
+
 ## [1.76.314] – 2026-09-10
 
 ### Opravené

@@ -29,18 +29,20 @@ public sealed class CalibrationCompletionEmailTests
         Assert.Contains("Záverečné overenie: WARNING", message.Text);
         Assert.Contains("DOKONČENÁ S UPOZORNENIAMI", message.Text);
         Assert.Contains("Max. chyba 0,500 °C; limit 0,100 °C", html);
-        Assert.Equal(2, html.Split("Nestabilná WIKA").Length - 1);
+        Assert.Equal(4, html.Split("Nestabilná WIKA").Length - 1);
         Assert.Contains("Teplota z koef. [°C]", html);
         Assert.Contains("WIKA [°C]", html);
         Assert.Contains("Problém", html);
-        Assert.Contains("max-width:1200px", html);
+        Assert.Contains("max-width:1600px", html);
         Assert.Equal(1, html.Split("<h2 style=\"font-size:17px\">Záverečné overenie pri 25 °C").Length - 1);
         Assert.Contains("file:///G:/", message.Html);
         Assert.Contains("&amp;", message.Html);
         Assert.Empty(message.Attachments);
         Assert.DoesNotContain("KoeficientA", html);
         string finalTable = html[html.IndexOf("<h2 style=\"font-size:17px\">Záverečné overenie pri 25 °C")..];
-        Assert.Equal(1, finalTable.Split("SN-1").Length - 1);
+        Assert.Equal(3, finalTable.Split("SN-1").Length - 1);
+        Assert.Contains("Lambda at T [nm]", finalTable);
+        Assert.Contains("1550,123456", finalTable);
     }
     [Fact]
     public void MissingModelsAndDifferentDevicesAreNotCountedAsPassing()
@@ -68,7 +70,7 @@ public sealed class CalibrationCompletionEmailTests
     {
         SerialNumber = "SN-1", Channel = "1", PeakId = "P1", CalibrationType = type,
         Result = result, MaxErrorC = 0.5, ErrorToleranceC = 0.1,
-        FinalTemperatureErrorC = -0.2, FinalReferenceTemperatureC = 25.6,
+        FinalExpectedLambdaNm = 1550.123456, FinalTemperatureErrorC = -0.2, FinalReferenceTemperatureC = 25.6,
         FinalCheckStatus = "WARNING", FinalCheckProblem = "Nestabilná WIKA"
     };
 }

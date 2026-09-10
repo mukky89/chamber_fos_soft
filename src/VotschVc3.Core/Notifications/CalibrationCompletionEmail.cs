@@ -36,7 +36,7 @@ public static class CalibrationCompletionEmail
         var warnings = new List<string[]>();
         var verification = new List<string[]>();
         int failedPeaks = 0, unknownPeaks = 0, warningPeaks = 0;
-        var types = results.Select(r => r.CalibrationType).Distinct().OrderBy(t => t, StringComparer.Ordinal).ToArray();
+        string[] types = ["2nd · ABC", "3rd · ABCD", "FBGS · s1/s2"];
         foreach (string key in keys)
         {
             var peakModels = models.GetValueOrDefault(key) ?? [];
@@ -66,17 +66,18 @@ public static class CalibrationCompletionEmail
                 warningPeaks++;
                 warnings.Add([sn, source, string.Join("; ", problems)]);
             }
-            var cells = new List<string> { sn, source };
-            foreach (string type in types)
+            string position = $"{channel} / {peak} / {index}";
+            string[] deltas = types.Select(type => N(peakModels.FirstOrDefault(r => r.CalibrationType == type)?.FinalTemperatureErrorC)).ToArray();
+            foreach (var item in peakModels.OrderBy(r => r.CalibrationType, StringComparer.Ordinal))
             {
-                var item = peakModels.FirstOrDefault(r => r.CalibrationType == type);
-                cells.Add(item is null ? "N/A" : N(item.FinalTemperatureErrorC));
+                verification.Add(new[] { sn, position, item.CalibrationType,
+                    N(item.FinalCalculatedTemperatureC), N(item.FinalReferenceTemperatureC), N(item.FinalTemperatureErrorC) }
+                    .Concat(deltas).Concat(new[] {
+                        item.FinalExpectedLambdaNm is double wavelength && double.IsFinite(wavelength) ? wavelength.ToString("0.000000", Sk) : "N/A",
+                        item.FinalCheckStatus, item.FinalCheckProblem ?? "—" }).ToArray());
             }
-            cells.Add(string.Join("; ", peakModels.Select(r => $"{r.CalibrationType}: {N(r.FinalCalculatedTemperatureC)}")));
-            cells.Add(string.Join("; ", peakModels.Select(r => N(r.FinalReferenceTemperatureC)).Distinct()));
-            cells.Add(Aggregate(peakModels.Select(r => r.FinalCheckStatus)));
-            cells.Add(string.Join("; ", peakModels.Select(r => r.FinalCheckProblem).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct()));
-            verification.Add(cells.ToArray());
+            if (peakModels.Length == 0)
+                verification.Add([sn, position, "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "Chýbajú kalibračné modely."]);
         }
         string runStatus = run.State switch
         {
@@ -106,16 +107,16 @@ public static class CalibrationCompletionEmail
             details += Render("Upozornenia kalibrácie", ["SN", "Kanál / peak", "Upozornenie"], warnings, "", plain);
         string reference = "WIKA pri kontrolnom odbere: " + string.Join("; ", results.Select(r => N(r.FinalReferenceTemperatureC)).Distinct()) + " °C.";
         string[] finalProblems = results.Select(r => r.FinalCheckProblem).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!).Distinct().ToArray();
-        string explanation = reference + " " + string.Join(" ", finalProblems) + " ΔT = teplota vypočítaná z koeficientov − skutočná teplota WIKA. Hodnoty sú v °C; N/A znamená chýbajúce overenie.";
+        string explanation = reference + " " + string.Join(" ", finalProblems) + " ΔT = teplota vypočítaná z koeficientov − skutočná teplota WIKA. Odchýlka patrí modelu v danom riadku; stĺpce ΔT porovnávajú všetky tri modely toho istého peaku. Lambda at T je WL vypočítaná z modelu pri nameranej teplote WIKA, v nm. N/A znamená chýbajúce overenie.";
         plain.Append("\n\n").Append(explanation);
         details += Section("Podmienky záverečného overenia", H(explanation));
-        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak" }.Concat(types.Select(t => "ΔT " + t)).Concat(new[] { "Teplota z koef. [°C]", "WIKA [°C]", "Overenie", "Problém" }).ToArray(), verification, "N/A – nie sú dostupné kalibračné výsledky.", plain);
+        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "ΔT 2nd · ABC", "ΔT 3rd · ABCD", "ΔT FBGS · s1/s2", "Lambda at T [nm]", "Overenie", "Problém" }, verification, "N/A – nie sú dostupné kalibračné výsledky.", plain);
         var tone = calibrationStatus == "FAIL" || finalStatus == "FAIL" || run.State is not (CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings)
             ? LabControlEmailTemplate.EmailTone.Error
             : calibrationStatus != "PASS" || finalStatus != "PASS" || run.State == CalibrationRunState.CompletedWithWarnings
                 ? LabControlEmailTemplate.EmailTone.Warning : LabControlEmailTemplate.EmailTone.Success;
         // Only basic data enters the shared template parser; detail tables occur once.
-        return new(subject, plain.ToString(), LabControlEmailTemplate.Create(subject, summary, tone, details, contentWidth: 1200), []);
+        return new(subject, plain.ToString(), LabControlEmailTemplate.Create(subject, summary, tone, details, contentWidth: 1600), []);
     }
 
     private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain)
