@@ -13,9 +13,13 @@ public sealed class CalibrationDashboardTests
         m.Apply(snapshot, Start);
         Assert.Equal("Done", m.ChamberToleranceTone);
         Assert.Equal("Waiting", m.ChamberTimeTone);
+        Assert.Equal("Waiting", m.Steps[2].State);
+        Assert.Equal("Pending", m.Steps[3].State);
         Assert.Contains("ČAKÁ NA KOMORU", m.ReferenceCardState);
         m.Apply(snapshot with { ChamberEntry = entry with { IsOpen = true, WindowSeconds = 120 } }, Start);
         Assert.Equal("Done", m.ChamberCardTone);
+        Assert.Equal("Done", m.Steps[2].State);
+        Assert.Equal("Waiting", m.Steps[3].State);
         Assert.Contains("Hodnoty pri potvrdení", m.ChamberEntryDetail);
         m.Apply(snapshot with { ChamberEntry = entry with { Enabled = false } }, Start);
         Assert.Equal("Pending", m.ChamberRangeTone);

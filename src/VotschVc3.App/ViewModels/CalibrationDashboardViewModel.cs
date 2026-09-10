@@ -812,6 +812,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         int phase = effectiveState switch
         {
             CalibrationRunState.MovingToPlateau => 1,
+            CalibrationRunState.WaitingForChamberStability when WaitingForChamber => 2,
             CalibrationRunState.WaitingForChamberStability => 3,
             CalibrationRunState.StabilizingSensors when AllTargetsFinished => 6,
             CalibrationRunState.StabilizingSensors => 4,
@@ -822,7 +823,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             _ => 0
         };
         for (int i = 0; i < Steps.Count; i++) Steps[i].State = i < phase ? "Done" : i == phase && _running ? "Active" : "Pending";
-        if (phase == 3) Steps[3].State = "Waiting";
+        if (phase is 2 or 3) Steps[phase].State = "Waiting";
         if (phase == 4 && MeasuringCount > 0) Steps[5].State = "Active";
         if (!HasReference) Steps[3].State = "Skipped";
         if (_paused) foreach (var step in Steps.Where(s => s.State is "Active" or "Waiting")) step.State = "Waiting";

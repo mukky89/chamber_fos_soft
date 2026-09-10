@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.339] – 2026-09-10
+
+### Opravené
+
+- Horný prehľad kalibrácie označuje krok Teplota komory ako čakajúci, kým sa nepotvrdí vstupná stabilizácia komory. Krok WIKA začne až po otvorení tejto brány, zhodne s podrobnými kartami.
+
 ## [1.76.338] – 2026-09-10
 
 ### Opravené
