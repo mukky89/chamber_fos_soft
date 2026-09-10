@@ -263,12 +263,17 @@ public partial class CalibrationWindow
         return $"Odhad aktuálneho bodu: {sampleEstimate}; {stabilizing} peak(ov) má ešte neurčitý čas stabilizácie.";
     }
 
+    private string? _timelineSignatureV5;
     private void RefreshTimelineV5()
     {
         if (_timelineV5 is null) return;
-        _timelineV5.Children.Clear();
+
         CalibrationPointRowViewModel[] points = _viewModel.CalibrationPoints.Where(point => point.Selected).ToArray();
         int current = ParseCurrentPlateauIndexV5(_viewModel.PlateauLabel);
+        string signature = current + "|" + _viewModel.RunState + "|" + string.Join(";", points.Select(p => $"{p.SegmentIndex}:{p.Name}:{p.TemperatureC:R}"));
+        if (_timelineSignatureV5 == signature && _timelineV5.Children.Count > 0) return;
+        _timelineSignatureV5 = signature;
+        _timelineV5.Children.Clear();
 
         for (int index = 0; index < points.Length; index++)
         {
@@ -282,6 +287,7 @@ public partial class CalibrationWindow
                 TextWrapping = TextWrapping.Wrap,
                 Width = 180,
             };
+            StatusCheckIcons.SetSource(text, text.Text);
             _timelineV5.Children.Add(new Border
             {
                 Child = text,
@@ -300,12 +306,12 @@ public partial class CalibrationWindow
         bool conditioningDone = _viewModel.RunState is nameof(CalibrationRunState.Completed) or nameof(CalibrationRunState.CompletedWithWarnings);
         _timelineV5.Children.Add(new Border
         {
-            Child = new TextBlock
+            Child = PrepareTimelineIconV5(new TextBlock
             {
                 Text = $"{points.Length + 1}. Záver – temperovanie výrobkov\n25,0 °C · min. 1 h · bez FBG merania\n{(conditioningDone ? "✓ hotovo" : conditioningActive ? "▶ aktuálne" : "○ čaká")}",
                 TextWrapping = TextWrapping.Wrap,
                 Width = 210,
-            },
+            }),
             Padding = new Thickness(9, 7, 9, 7),
             Margin = new Thickness(0, 0, 7, 3),
             BorderBrush = conditioningActive
@@ -315,6 +321,12 @@ public partial class CalibrationWindow
             CornerRadius = new CornerRadius(6),
             Opacity = conditioningDone ? 0.65 : 1,
         });
+    }
+
+    private static TextBlock PrepareTimelineIconV5(TextBlock text)
+    {
+        StatusCheckIcons.SetSource(text, text.Text);
+        return text;
     }
 
     private void HideProfileDurationColumnV5()

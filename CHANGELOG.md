@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.340] – 2026-09-10
+
+### Opravené
+
+- Ikony plat v timeline sa vykresľujú priamo pri vytvorení a nezmenený timeline sa neobnovuje pri každej vzorke. Odstránené preblikávanie medzi textovým symbolom a farebnou ikonou.
+
 ## [1.76.339] – 2026-09-10
 
 ### Opravené
