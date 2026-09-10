@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.321] – 2026-09-10
+
+### Vylepšené
+
+- Tabuľka kalibračných plat má kompaktnú šírku do 720 px. Zaškrtávacie políčka vyberajú jednotlivé plata jedným kliknutím a zmenu okamžite zapisujú do výberu.
+
 ## [1.76.320] – 2026-09-10
 
 ### Vylepšené

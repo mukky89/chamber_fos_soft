@@ -604,7 +604,7 @@
             </TabItem>
 
             <TabItem Header="Kalibračné plata">
-                <Grid Margin="8">
+                <Grid Margin="8" MaxWidth="720" HorizontalAlignment="Left">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -624,7 +624,15 @@
                     </DockPanel>
                     <DataGrid Grid.Row="1" ItemsSource="{Binding CalibrationPoints}" AutoGenerateColumns="False" CanUserAddRows="False">
                         <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header="Kalibračný bod" Binding="{Binding Selected, Mode=TwoWay}" Width="130" />
+                            <DataGridTemplateColumn Header="Vybrať" Width="64">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  ToolTip="Použiť toto plato ako kalibračný bod" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Segment" Binding="{Binding SegmentIndex}" IsReadOnly="True" Width="80" />
                             <DataGridTextColumn Header="Názov" Binding="{Binding Name}" IsReadOnly="True" Width="*" />
                             <DataGridTextColumn Header="Teplota [°C]" Binding="{Binding TemperatureC, StringFormat=F2}" IsReadOnly="True" Width="120" />
