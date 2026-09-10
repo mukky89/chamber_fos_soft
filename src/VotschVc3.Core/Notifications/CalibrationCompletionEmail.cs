@@ -8,164 +8,125 @@ namespace VotschVc3.Core.Notifications;
 public sealed record CalibrationCompletionMessage(
     string Subject, string Text, string Html, IReadOnlyList<EmailAttachment> Attachments);
 
-/// <summary>Builds the final FBG calibration report with a server-folder link and no attachments.</summary>
+/// <summary>Compact result summary; complete data stays in the server run folder.</summary>
 public static class CalibrationCompletionEmail
 {
-    private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
+    private static readonly CultureInfo Sk = CultureInfo.GetCultureInfo("sk-SK");
+    private static string Key(string device, string sn, string channel, string peak, int index) =>
+        $"{device}|{sn}|{channel}|{peak}|{index}";
+    private static string Key(TemperatureCalibrationResult r) => Key(r.PeakLoggerDeviceSerialNumber, r.SerialNumber, r.Channel, r.PeakId, r.PeakIndex);
+    private static string Key(CalibrationMeasurementResult r) => Key(r.PeakLoggerDeviceSerialNumber, r.SerialNumber, r.Channel, r.PeakId, r.PeakIndex);
+    private static bool Pass(string status) => status == "PASS";
+    private static string Aggregate(IEnumerable<string> statuses)
+    {
+        var values = statuses.ToArray();
+        if (values.Contains("FAIL")) return "FAIL";
+        if (values.Length == 0 || values.Any(s => string.IsNullOrWhiteSpace(s) || s == "N/A")) return "N/A";
+        return values.All(Pass) ? "PASS" : "WARNING";
+    }
 
     public static CalibrationCompletionMessage Create(CalibrationRunRecord run, string? serverRunDirectory)
     {
         ArgumentNullException.ThrowIfNull(run);
-        string serverPath = string.IsNullOrWhiteSpace(serverRunDirectory) ? "Serverový priečinok nie je nastavený." : serverRunDirectory;
-
-        bool passed = run.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings;
-        string result = run.State == CalibrationRunState.Completed ? "PASS" : passed ? "PASS S UPOZORNENIAMI" : "FAIL";
-        string subjectStatus = run.State == CalibrationRunState.Completed
-            ? "COMPLETED"
-            : run.State == CalibrationRunState.CompletedWithWarnings ? "COMPLETED WITH WARNINGS" : "FAILED";
-        string subject = $"Kalibrácia FBG – {subjectStatus} – {run.DisplayProfileId}";
-        string finished = run.CompletedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.CurrentCulture) ?? "—";
-        TimeSpan? duration = run.CompletedAt - run.StartedAt;
-        int targetCount = run.Plateaus.Sum(p => p.Targets.Count);
-        int stabilityWarningCount = run.Plateaus.Sum(p => p.Targets.Count(t => t.Status == CalibrationTargetState.CompletedWithStabilityWarning));
-        int failedCount = run.Plateaus.Sum(p => p.Targets.Count(t => !IsTargetPass(t.Status) && t.Status != CalibrationTargetState.CompletedWithStabilityWarning));
-        List<TemperatureCalibrationResult> calibrationResults = run.CalibrationResults.Count > 0
-            ? run.CalibrationResults
-            : TemperatureCalibrationAnalyzer.Analyze(run);
-        run.CalibrationResults = calibrationResults;
-        int calibrationPassCount = calibrationResults.Count(item => item.Result == "PASS");
-
-        string text = $"Výsledok: {result}\r\nRun ID: {run.DisplayRunId}\r\nProfil ID: {run.DisplayProfileId}\r\n" +
-            $"Komora: {run.ChamberName}\r\nProfil: {run.ProfileName}\r\nOperátor: {run.Operator}\r\n" +
-            $"Spustené: {run.StartedAt.ToLocalTime():dd.MM.yyyy HH:mm:ss}\r\nDokončené: {finished}\r\n" +
-            $"Trvanie: {(duration is { } d ? FormatDuration(d) : "—")}\r\n" +
-            $"WIKA: {run.ReferenceThermometerPort} / {run.ReferenceThermometerChannel} / SN {Value(run.ReferenceThermometerSerialNumber)}\r\n" +
-            $"Plata: {run.Plateaus.Count}\r\nFBG výsledky: {targetCount - failedCount - stabilityWarningCount} PASS / {stabilityWarningCount} UPOZORNENIE / {failedCount} FAIL\r\n" +
-            $"Kalibračné modely: {calibrationPassCount} PASS / {calibrationResults.Count - calibrationPassCount} FAIL\r\n" +
-            $"Upozornenia: {run.Warnings.Count}\r\n\r\nServerový priečinok: {serverPath}";
-
-        string rows = string.Join(string.Empty, run.Plateaus.SelectMany(plateau => plateau.Targets.Select(target =>
+        var results = run.CalibrationResults.Count > 0 ? run.CalibrationResults : TemperatureCalibrationAnalyzer.Analyze(run);
+        var models = results.GroupBy(Key).ToDictionary(g => g.Key, g => g.ToArray());
+        var measurements = run.Plateaus.SelectMany(p => p.Targets).GroupBy(Key).ToDictionary(g => g.Key, g => g.ToArray());
+        var keys = models.Keys.Union(measurements.Keys).OrderBy(k => k, StringComparer.Ordinal).ToArray();
+        var failures = new List<string[]>();
+        var warnings = new List<string[]>();
+        var verification = new List<string[]>();
+        int failedPeaks = 0, unknownPeaks = 0, warningPeaks = 0;
+        var types = results.Select(r => r.CalibrationType).Distinct().OrderBy(t => t, StringComparer.Ordinal).ToArray();
+        foreach (string key in keys)
         {
-            bool targetPassed = IsTargetPass(target.Status);
-            bool stabilityWarning = target.Status == CalibrationTargetState.CompletedWithStabilityWarning;
-            string targetResult = stabilityWarning ? "UPOZORNENIE" : targetPassed ? "PASS" : "FAIL";
-            string color = stabilityWarning ? "#9A6700" : targetPassed ? "#087F5B" : "#C92A2A";
-            return $"<tr>" +
-                Cell((plateau.PlateauIndex + 1).ToString(CultureInfo.InvariantCulture)) +
-                Cell($"{plateau.TargetTemperatureC:0.###} °C") +
-                Cell(plateau.ReferenceTemperatureC is { } reference ? $"{reference:0.###} °C" : "—") +
-                Cell(Value(target.SerialNumber)) + Cell(Value(target.Channel)) + Cell(Value(target.PeakId)) +
-                Cell($"{target.MeanWavelengthNm:0.000000} nm") + Cell(target.SampleCount.ToString(CultureInfo.InvariantCulture)) +
-                $"<td style=\"padding:9px;border-bottom:1px solid #E5EBF2;color:{color};font-weight:700\">{targetResult}</td>" +
-                Cell(string.IsNullOrWhiteSpace(target.Problem) ? StatusText(target.Status) : target.Problem!) + "</tr>";
-        })));
-        if (rows.Length == 0)
-            rows = "<tr><td colspan=\"10\" style=\"padding:14px;color:#C92A2A\">Nie sú dostupné žiadne výsledky FBG peakov.</td></tr>";
-
-        TemperatureCalibrationResult[] coefficientModels = calibrationResults
-            .GroupBy(CoefficientColumnKey, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .OrderBy(item => item.Channel, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.PeakId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.CalibrationType, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        string coefficientHeaders = string.Concat(coefficientModels.Select(item => HeaderCell(
-            $"{Value(item.Channel)} / {Value(item.PeakId)} · {Value(item.CalibrationType)}")));
-        string coefficientRows = string.Join(string.Empty, calibrationResults
-            .GroupBy(item => Value(item.SerialNumber), StringComparer.OrdinalIgnoreCase)
-            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(group =>
+            var peakModels = models.GetValueOrDefault(key) ?? [];
+            var samples = measurements.GetValueOrDefault(key) ?? [];
+            string sn = peakModels.FirstOrDefault()?.SerialNumber ?? samples[0].SerialNumber;
+            string channel = peakModels.FirstOrDefault()?.Channel ?? samples[0].Channel;
+            string peak = peakModels.FirstOrDefault()?.PeakId ?? samples[0].PeakId;
+            int index = peakModels.FirstOrDefault()?.PeakIndex ?? samples[0].PeakIndex;
+            string device = peakModels.FirstOrDefault()?.PeakLoggerDeviceSerialNumber ?? samples[0].PeakLoggerDeviceSerialNumber;
+            string source = $"{channel} / {peak} / {index}" + (string.IsNullOrWhiteSpace(device) ? "" : $" · {device}");
+            var failed = peakModels.Where(r => r.Result == "FAIL").ToArray();
+            var unknown = peakModels.Where(r => r.Result != "PASS" && r.Result != "FAIL").ToArray();
+            if (failed.Length > 0) failedPeaks++;
+            else if (unknown.Length > 0 || peakModels.Length == 0) unknownPeaks++;
+            foreach (var item in failed)
+                failures.Add([sn, source, item.CalibrationType, $"Max. chyba {N(item.MaxErrorC)} °C; limit {N(item.ErrorToleranceC)} °C. {item.StabilityProblem}".Trim()]);
+            foreach (var item in unknown)
+                failures.Add([sn, source, item.CalibrationType, $"N/A – {item.StabilityProblem ?? "Model sa nedá vyhodnotiť."}"]);
+            if (peakModels.Length == 0)
+                failures.Add([sn, source, "N/A", "Chýbajú kalibračné modely. " + string.Join("; ", samples.Select(s => s.Problem).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct())]);
+            string[] problems = samples.Where(s => s.Status != CalibrationTargetState.Stable)
+                .Select(s => s.Problem ?? s.Status.ToString())
+                .Concat(peakModels.Select(r => r.StabilityProblem ?? ""))
+                .Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray();
+            if (problems.Length > 0)
             {
-                Dictionary<string, TemperatureCalibrationResult> models = group
-                    .GroupBy(CoefficientColumnKey, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(items => items.Key, items => items.First(), StringComparer.OrdinalIgnoreCase);
-                return "<tr>" + Cell(group.Key) + string.Concat(coefficientModels.Select(column =>
-                    models.TryGetValue(CoefficientColumnKey(column), out TemperatureCalibrationResult? item)
-                        ? CoefficientCell(item)
-                        : Cell("—"))) + "</tr>";
-            }));
-        if (coefficientRows.Length == 0)
-            coefficientRows = "<tr><td colspan=\"1\" style=\"padding:14px;color:#C92A2A\">Koeficienty nebolo možné vypočítať – nie sú dostupné aspoň tri platné teplotné body.</td></tr>";
-
-        string folderLink = string.IsNullOrWhiteSpace(serverRunDirectory)
-            ? H(serverPath)
-            : $"<a href=\"{H(new Uri(serverRunDirectory.TrimEnd('\\', '/') + '/').AbsoluteUri)}\" style=\"color:#1769AA\">Otvoriť priečinok behu na serveri</a><br><span style=\"color:#75849A\">{H(serverPath)}</span>";
-        string details = $"""
-<tr><td class="content-pad" style="padding:0 32px 28px">
-<h2 style="margin:0 0 12px;color:#182A40;font-size:19px">Výsledky kalibrácie</h2>
-<div style="margin:0 0 14px;padding:12px 16px;border-radius:8px;background:{(passed ? "#E8F7F1" : "#FDECEC")};color:{(passed ? "#087F5B" : "#C92A2A")};font-size:18px;font-weight:700">{H(result)}</div>
-<div style="overflow-x:auto"><table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:12px;color:#334155">
-<thead><tr style="background:#EEF3F8"><th style="padding:9px;text-align:left">Plato</th><th style="padding:9px;text-align:left">Cieľ</th><th style="padding:9px;text-align:left">WIKA</th><th style="padding:9px;text-align:left">SN</th><th style="padding:9px;text-align:left">Kanál</th><th style="padding:9px;text-align:left">Peak</th><th style="padding:9px;text-align:left">Priemer</th><th style="padding:9px;text-align:left">Vzorky</th><th style="padding:9px;text-align:left">Výsledok</th><th style="padding:9px;text-align:left">Poznámka</th></tr></thead>
-<tbody>{rows}</tbody></table></div>
-</td></tr>
-<tr><td class="content-pad" style="padding:0 32px 28px">
-<h2 style="margin:0 0 12px;color:#182A40;font-size:19px">Kalibračné koeficienty</h2>
-<div style="overflow-x:auto"><table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:11px;color:#334155">
-<thead><tr style="background:#EEF3F8"><th style="padding:9px;text-align:left">SN</th>{coefficientHeaders}</tr></thead>
-<tbody>{coefficientRows}</tbody></table></div>
-</td></tr>
-<tr><td class="content-pad" style="padding:0 32px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;border:1px solid #E5EBF2;border-radius:10px"><tr><td style="padding:18px 20px;color:#52647C;font-size:13px;line-height:22px;word-break:break-word">
-<strong style="color:#182A40">Súbory kalibrácie</strong><br>Výsledky, koeficienty a kompletné dáta nájdete v serverovom priečinku. Dostupnosť súborov závisí od dokončenia synchronizácie.<br>{folderLink}
-</td></tr></table></td></tr>
-""";
-
-        string FinalValue(double? value) => value is double v && double.IsFinite(v) ? v.ToString("0.000", SlovakCulture) : "N/A";
-        string verificationRows = string.Concat(calibrationResults.Select(item =>
-            "<tr>" + Cell(item.SerialNumber) + Cell(item.Channel + " / " + item.PeakId + " / " + item.PeakIndex) +
-            Cell(item.CalibrationType) + Cell(FinalValue(item.FinalCalculatedTemperatureC)) +
-            Cell(FinalValue(item.FinalReferenceTemperatureC)) + Cell(FinalValue(item.FinalTemperatureErrorC)) +
-            Cell(item.FinalCheckStatus) + Cell(item.FinalCheckProblem ?? "") + "</tr>"));
-        text += "\r\n\r\nZáverečné overenie pri cieli 25 °C – teplota po aplikovaní koeficientov. Porovnanie so skutočnou WIKA; hodnoty sa neupravujú na 25 °C.\r\n";
-        foreach (var item in calibrationResults)
-            text += $"SN {item.SerialNumber} · {item.Channel}/{item.PeakId}/{item.PeakIndex} · {item.CalibrationType}: " +
-                $"teplota z koeficientov {FinalValue(item.FinalCalculatedTemperatureC)} °C; WIKA {FinalValue(item.FinalReferenceTemperatureC)} °C; " +
-                $"odchýlka {FinalValue(item.FinalTemperatureErrorC)} °C; {item.FinalCheckStatus}; {item.FinalCheckProblem}\r\n";
-        if (calibrationResults.Count == 0)
-            verificationRows = "<tr><td colspan=\"8\">N/A – nie sú dostupné kalibračné výsledky.</td></tr>";
-        details += "<tr><td style=\"padding:20px 32px\"><h2>Záverečné overenie pri 25 °C</h2>" +
-            "<p>Teplota každého peaku vypočítaná zo skutočnej kontrolnej λ pomocou uvedeného modelu. Odchýlka = teplota z koeficientov − WIKA. Cieľ komory je 25 °C.</p>" +
-            "<table cellspacing=\"0\" style=\"width:100%;font-size:12px\"><thead><tr>" +
-            string.Concat(new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "Overenie", "Problém" }.Select(HeaderCell)) +
-            "</tr></thead><tbody>" + verificationRows + "</tbody></table></td></tr>";
-
-        string html = LabControlEmailTemplate.Create(subject, text,
-            passed ? LabControlEmailTemplate.EmailTone.Success : LabControlEmailTemplate.EmailTone.Error, details);
-        return new(subject, text, html, []);
-    }
-
-    private static bool IsTargetPass(CalibrationTargetState status) => status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden;
-    private static string StatusText(CalibrationTargetState status) => status switch
-    {
-        CalibrationTargetState.Overridden => "Schválený override",
-        CalibrationTargetState.CompletedWithStabilityWarning => "Vzorkovanie dokončené · problém so stabilizáciou",
-        _ => status.ToString(),
-    };
-    private static string FormatDuration(TimeSpan duration) => duration.TotalHours >= 1 ? $"{(int)duration.TotalHours} h {duration.Minutes:00} min" : $"{Math.Max(0, duration.Minutes)} min {Math.Max(0, duration.Seconds):00} s";
-    private static string Value(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
-    private static string FormatCoefficients(TemperatureCalibrationResult item)
-    {
-        var values = new List<string>();
-        Add("s1", item.CoefficientS1); Add("s2", item.CoefficientS2); Add("A", item.CoefficientA);
-        Add("B", item.CoefficientB); Add("C", item.CoefficientC); Add("D", item.CoefficientD);
-        return values.Count == 0 ? "—" : string.Join(" · ", values);
-
-        void Add(string name, double? value)
-        {
-            if (value is { } number) values.Add($"{name}={number.ToString("G10", SlovakCulture)}");
+                warningPeaks++;
+                warnings.Add([sn, source, string.Join("; ", problems)]);
+            }
+            var cells = new List<string> { sn, source };
+            foreach (string type in types)
+            {
+                var item = peakModels.FirstOrDefault(r => r.CalibrationType == type);
+                cells.Add(item is null ? "N/A" : N(item.FinalTemperatureErrorC));
+            }
+            cells.Add(Aggregate(peakModels.Select(r => r.FinalCheckStatus)));
+            verification.Add(cells.ToArray());
         }
+        string runStatus = run.State switch
+        {
+            CalibrationRunState.Completed => "DOKONČENÁ",
+            CalibrationRunState.CompletedWithWarnings => "DOKONČENÁ S UPOZORNENIAMI",
+            _ => $"NEDOKONČENÁ ({run.State})",
+        };
+        string calibrationStatus = failedPeaks > 0 ? "FAIL" : unknownPeaks > 0 || keys.Length == 0 ? "N/A" : warningPeaks > 0 ? "WARNING" : "PASS";
+        string finalStatus = Aggregate(results.Select(r => r.FinalCheckStatus));
+        string subject = $"FBG · {run.DisplayProfileId} · {runStatus} · {run.DisplayRunId}";
+        string range = run.Plateaus.Count == 0 ? "—" : $"{N(run.Plateaus.Min(p => p.TargetTemperatureC))} až {N(run.Plateaus.Max(p => p.TargetTemperatureC))} °C";
+        TimeSpan? duration = run.CompletedAt - run.StartedAt;
+        string summary = $"Beh: {runStatus}\nKalibrácia: {calibrationStatus}\nZáverečné overenie: {finalStatus}\n" +
+            $"Profil: {run.DisplayProfileId} · {run.ProfileName.Split('·')[0].Trim()}\nRun ID: {run.DisplayRunId}\nKomora: {run.ChamberName}\n" +
+            $"Rozsah: {range}\nPlata / peaky: {run.Plateaus.Count} / {keys.Length}\n" +
+            $"Nevyhovujúce peaky: {failedPeaks} · nevyhodnotené: {unknownPeaks} · s upozornením: {warningPeaks}\n" +
+            $"Začiatok: {run.StartedAt.ToLocalTime():dd.MM.yyyy HH:mm}\nKoniec: {run.CompletedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—"}\n" +
+            $"Trvanie: {(duration is { } d ? $"{(int)d.TotalHours} h {d.Minutes:00} min" : "—")}";
+        string serverPath = string.IsNullOrWhiteSpace(serverRunDirectory) ? "Serverový priečinok nie je nastavený." : serverRunDirectory;
+        string link = string.IsNullOrWhiteSpace(serverRunDirectory) ? H(serverPath) :
+            $"<a href=\"{H(new Uri(serverRunDirectory.TrimEnd('\\', '/') + '/').AbsoluteUri)}\" style=\"display:inline-block;background:#1769AA;color:white;padding:14px 18px;text-decoration:none;border-radius:6px\">Otvoriť výsledky kalibrácie na serveri</a><p style=\"word-break:break-all\">{H(serverPath)}</p>";
+        var plain = new StringBuilder(summary + "\n\nServerový priečinok: " + serverPath);
+        string details = Section("Súbory kalibrácie", link);
+        details += Render("Peaky, ktoré neprešli kalibráciou / nevyhodnotené", ["SN", "Kanál / peak", "Model", "Dôvod"], failures,
+            keys.Length == 0 ? "Nie sú dostupné výsledky peakov." : "Žiadny peak nemá výsledok FAIL ani N/A.", plain);
+        if (warnings.Count > 0)
+            details += Render("Upozornenia kalibrácie", ["SN", "Kanál / peak", "Upozornenie"], warnings, "", plain);
+        string reference = "WIKA pri kontrolnom odbere: " + string.Join("; ", results.Select(r => N(r.FinalReferenceTemperatureC)).Distinct()) + " °C.";
+        string[] finalProblems = results.Select(r => r.FinalCheckProblem).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!).Distinct().ToArray();
+        string explanation = reference + " " + string.Join(" ", finalProblems) + " ΔT = teplota vypočítaná z koeficientov − skutočná teplota WIKA. Hodnoty sú v °C; N/A znamená chýbajúce overenie.";
+        plain.Append("\n\n").Append(explanation);
+        details += Section("Podmienky záverečného overenia", H(explanation));
+        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak" }.Concat(types.Select(t => "ΔT " + t)).Append("Overenie").ToArray(), verification, "N/A – nie sú dostupné kalibračné výsledky.", plain);
+        var tone = calibrationStatus == "FAIL" || finalStatus == "FAIL" || run.State is not (CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings)
+            ? LabControlEmailTemplate.EmailTone.Error
+            : calibrationStatus != "PASS" || finalStatus != "PASS" || run.State == CalibrationRunState.CompletedWithWarnings
+                ? LabControlEmailTemplate.EmailTone.Warning : LabControlEmailTemplate.EmailTone.Success;
+        // Only basic data enters the shared template parser; detail tables occur once.
+        return new(subject, plain.ToString(), LabControlEmailTemplate.Create(subject, summary, tone, details), []);
     }
-    private static string CoefficientColumnKey(TemperatureCalibrationResult item) =>
-        $"{item.Channel}|{item.PeakId}|{item.CalibrationType}";
-    private static string CoefficientCell(TemperatureCalibrationResult item)
+
+    private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain)
     {
-        string color = item.Result == "PASS" ? "#087F5B" : "#C92A2A";
-        string value = $"λTref {item.LambdaTRefNm.ToString("0.000000", SlovakCulture)} nm · citlivosť {item.SensitivityPmPerC.ToString("0.######", SlovakCulture)} pm/°C · " +
-            $"{FormatCoefficients(item)} · max. chyba {item.MaxErrorC.ToString("0.######", SlovakCulture)} °C · R² {item.RSquared.ToString("0.########", SlovakCulture)} · " +
-            $"{Value(item.StabilityStatus)} · {Value(item.Result)}";
-        return $"<td style=\"padding:9px;border-bottom:1px solid #E5EBF2;color:{color};font-weight:600;min-width:220px\">{H(value)}</td>";
+        plain.Append("\n\n").AppendLine(title);
+        if (rows.Count > 0) plain.AppendLine(string.Join(" · ", headers));
+        foreach (var row in rows) plain.AppendLine(string.Join(" · ", row));
+        if (rows.Count == 0) plain.AppendLine(empty);
+        string table = rows.Count == 0 ? H(empty) : "<table width=\"100%\" cellspacing=\"0\" style=\"border-collapse:collapse;font-size:12px\"><thead><tr>" +
+            string.Concat(headers.Select(h => $"<th style=\"padding:7px;text-align:left;background:#EEF3F8\">{H(h)}</th>")) + "</tr></thead><tbody>" +
+            string.Concat(rows.Select(row => "<tr>" + string.Concat(row.Select(c => $"<td style=\"padding:7px;vertical-align:top;border-bottom:1px solid #E5EBF2\">{H(c)}</td>")) + "</tr>")) + "</tbody></table>";
+        return Section(title, table);
     }
-    private static string HeaderCell(string value) =>
-        $"<th style=\"padding:9px;text-align:left;min-width:220px\">{H(value)}</th>";
-    private static string Cell(string value) => $"<td style=\"padding:9px;border-bottom:1px solid #E5EBF2\">{H(value)}</td>";
+    private static string Section(string title, string content) => $"<tr><td style=\"padding:12px 24px 20px;color:#182A40\"><h2 style=\"font-size:17px\">{H(title)}</h2>{content}</td></tr>";
+    private static string N(double? value) => value is double n && double.IsFinite(n) ? n.ToString("0.000", Sk) : "N/A";
     private static string H(string value) => WebUtility.HtmlEncode(value);
 }

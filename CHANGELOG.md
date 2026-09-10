@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.311] – 2026-09-10
+
+### Zmenené
+
+- FBG e-mail obsahuje stručné základné údaje, oddelené stavy behu, kalibrácie a overenia, serverový odkaz a zoznam nevyhovujúcich alebo nevyhodnotených peakov. Počty peakov nezávisia od počtu plat ani modelov.
+- Záverečné overenie používa jeden riadok na peak a stĺpce odchýlok jednotlivých modelov voči WIKA. Spoločné upozornenia referencie sa neopakujú a rozsiahle koeficienty zostávajú na serveri.
+
 ## [1.76.310] – 2026-09-10
 
 ### Zmenené

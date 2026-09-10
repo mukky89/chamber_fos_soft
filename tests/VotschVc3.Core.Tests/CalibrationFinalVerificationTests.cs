@@ -95,8 +95,8 @@ public sealed class CalibrationFinalVerificationTests
         var run = new CalibrationRunRecord { CalibrationResults = [item] };
         var message = VotschVc3.Core.Notifications.CalibrationCompletionEmail.Create(run,
             Path.Combine(Path.GetTempPath(), "missing-verification-" + Guid.NewGuid().ToString("N")));
-        Assert.Contains("26,000", message.Text);
-        Assert.Contains("26,000", message.Html);
+        Assert.Contains("1,000", message.Text);
+        Assert.Contains("1,000", message.Html);
         Assert.Contains("SN-25", message.Html);
         Assert.Contains("FAIL", message.Text);
     }
