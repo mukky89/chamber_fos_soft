@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.IO.Compression;
 using System.Net;
 using System.Text;
 using VotschVc3.Core.Calibration;
@@ -9,15 +8,15 @@ namespace VotschVc3.Core.Notifications;
 public sealed record CalibrationCompletionMessage(
     string Subject, string Text, string Html, IReadOnlyList<EmailAttachment> Attachments);
 
-/// <summary>Builds the final FBG calibration report and a portable archive of the run files.</summary>
+/// <summary>Builds the final FBG calibration report with a server-folder link and no attachments.</summary>
 public static class CalibrationCompletionEmail
 {
     private static readonly CultureInfo SlovakCulture = CultureInfo.GetCultureInfo("sk-SK");
 
-    public static CalibrationCompletionMessage Create(CalibrationRunRecord run, string runDirectory)
+    public static CalibrationCompletionMessage Create(CalibrationRunRecord run, string? serverRunDirectory)
     {
         ArgumentNullException.ThrowIfNull(run);
-        ArgumentException.ThrowIfNullOrWhiteSpace(runDirectory);
+        string serverPath = string.IsNullOrWhiteSpace(serverRunDirectory) ? "Serverový priečinok nie je nastavený." : serverRunDirectory;
 
         bool passed = run.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings;
         string result = run.State == CalibrationRunState.Completed ? "PASS" : passed ? "PASS S UPOZORNENIAMI" : "FAIL";
@@ -43,7 +42,7 @@ public static class CalibrationCompletionEmail
             $"WIKA: {run.ReferenceThermometerPort} / {run.ReferenceThermometerChannel} / SN {Value(run.ReferenceThermometerSerialNumber)}\r\n" +
             $"Plata: {run.Plateaus.Count}\r\nFBG výsledky: {targetCount - failedCount - stabilityWarningCount} PASS / {stabilityWarningCount} UPOZORNENIE / {failedCount} FAIL\r\n" +
             $"Kalibračné modely: {calibrationPassCount} PASS / {calibrationResults.Count - calibrationPassCount} FAIL\r\n" +
-            $"Upozornenia: {run.Warnings.Count}\r\n\r\nLokálny priečinok: {Path.GetFullPath(runDirectory)}";
+            $"Upozornenia: {run.Warnings.Count}\r\n\r\nServerový priečinok: {serverPath}";
 
         string rows = string.Join(string.Empty, run.Plateaus.SelectMany(plateau => plateau.Targets.Select(target =>
         {
@@ -88,8 +87,9 @@ public static class CalibrationCompletionEmail
         if (coefficientRows.Length == 0)
             coefficientRows = "<tr><td colspan=\"1\" style=\"padding:14px;color:#C92A2A\">Koeficienty nebolo možné vypočítať – nie sú dostupné aspoň tri platné teplotné body.</td></tr>";
 
-        string fullDirectory = Path.GetFullPath(runDirectory);
-        string folderUri = new Uri(fullDirectory.EndsWith(Path.DirectorySeparatorChar) ? fullDirectory : fullDirectory + Path.DirectorySeparatorChar).AbsoluteUri;
+        string folderLink = string.IsNullOrWhiteSpace(serverRunDirectory)
+            ? H(serverPath)
+            : $"<a href=\"{H(new Uri(serverRunDirectory.TrimEnd('\\', '/') + '/').AbsoluteUri)}\" style=\"color:#1769AA\">Otvoriť priečinok behu na serveri</a><br><span style=\"color:#75849A\">{H(serverPath)}</span>";
         string details = $"""
 <tr><td class="content-pad" style="padding:0 32px 28px">
 <h2 style="margin:0 0 12px;color:#182A40;font-size:19px">Výsledky kalibrácie</h2>
@@ -105,7 +105,7 @@ public static class CalibrationCompletionEmail
 <tbody>{coefficientRows}</tbody></table></div>
 </td></tr>
 <tr><td class="content-pad" style="padding:0 32px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F7F9FC;border:1px solid #E5EBF2;border-radius:10px"><tr><td style="padding:18px 20px;color:#52647C;font-size:13px;line-height:22px;word-break:break-word">
-<strong style="color:#182A40">Súbory kalibrácie</strong><br>Koeficienty sú priložené v Exceli a CSV; všetky dáta zostávajú aj v kompletnom ZIP archíve.<br><a href="{H(folderUri)}" style="color:#1769AA">Otvoriť lokálny priečinok behu</a><br><span style="color:#75849A">{H(fullDirectory)}</span>
+<strong style="color:#182A40">Súbory kalibrácie</strong><br>Výsledky, koeficienty a kompletné dáta nájdete v serverovom priečinku. Dostupnosť súborov závisí od dokončenia synchronizácie.<br>{folderLink}
 </td></tr></table></td></tr>
 """;
 
@@ -127,50 +127,10 @@ public static class CalibrationCompletionEmail
             "<table cellspacing=\"0\" style=\"width:100%;font-size:12px\"><thead><tr>" +
             string.Concat(new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "Overenie", "Problém" }.Select(HeaderCell)) +
             "</tr></thead><tbody>" + verificationRows + "</tbody></table></td></tr>";
-        var attachments = BuildAttachments(fullDirectory, run.DisplayRunId);
+
         string html = LabControlEmailTemplate.Create(subject, text,
             passed ? LabControlEmailTemplate.EmailTone.Success : LabControlEmailTemplate.EmailTone.Error, details);
-        return new(subject, text, html, attachments);
-    }
-
-    private static List<EmailAttachment> BuildAttachments(string runDirectory, string runId)
-    {
-        var files = Directory.Exists(runDirectory)
-            ? Directory.EnumerateFiles(runDirectory, "*", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray()
-            : [];
-        var attachments = new List<EmailAttachment>();
-        string? summary = files.FirstOrDefault(path => string.Equals(Path.GetFileName(path), "summary.csv", StringComparison.OrdinalIgnoreCase));
-        if (summary is not null)
-            attachments.Add(new("calibration-results.csv", ReadShared(summary), "text/csv"));
-        string? coefficientsCsv = files.FirstOrDefault(path => string.Equals(Path.GetFileName(path), "calibration-coefficients.csv", StringComparison.OrdinalIgnoreCase));
-        if (coefficientsCsv is not null)
-            attachments.Add(new("calibration-coefficients.csv", ReadShared(coefficientsCsv), "text/csv"));
-        string? coefficientsWorkbook = files.FirstOrDefault(path => string.Equals(Path.GetFileName(path), "calibration-coefficients.xlsx", StringComparison.OrdinalIgnoreCase));
-        if (coefficientsWorkbook is not null)
-            attachments.Add(new("calibration-coefficients.xlsx", ReadShared(coefficientsWorkbook), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-
-        using var buffer = new MemoryStream();
-        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            foreach (string file in files)
-            {
-                string relativePath = Path.GetRelativePath(runDirectory, file).Replace('\\', '/');
-                ZipArchiveEntry entry = archive.CreateEntry(relativePath, CompressionLevel.Optimal);
-                using Stream destination = entry.Open();
-                using var source = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                source.CopyTo(destination);
-            }
-        }
-        attachments.Add(new($"calibration-{SafeFileName(runId)}-files.zip", buffer.ToArray(), "application/zip"));
-        return attachments;
-    }
-
-    private static byte[] ReadShared(string path)
-    {
-        using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        using var buffer = new MemoryStream();
-        source.CopyTo(buffer);
-        return buffer.ToArray();
+        return new(subject, text, html, []);
     }
 
     private static bool IsTargetPass(CalibrationTargetState status) => status is CalibrationTargetState.Stable or CalibrationTargetState.Overridden;
@@ -182,7 +142,6 @@ public static class CalibrationCompletionEmail
     };
     private static string FormatDuration(TimeSpan duration) => duration.TotalHours >= 1 ? $"{(int)duration.TotalHours} h {duration.Minutes:00} min" : $"{Math.Max(0, duration.Minutes)} min {Math.Max(0, duration.Seconds):00} s";
     private static string Value(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
-    private static string SafeFileName(string value) => string.Concat(value.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
     private static string FormatCoefficients(TemperatureCalibrationResult item)
     {
         var values = new List<string>();

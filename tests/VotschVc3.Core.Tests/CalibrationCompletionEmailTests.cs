@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Net;
 using VotschVc3.Core.Calibration;
 using VotschVc3.Core.Notifications;
@@ -9,7 +8,16 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationCompletionEmailTests
 {
     [Fact]
-    public void CreatesPassFailTableAndAttachesAllRunFiles()
+    public void MissingServerPathNeverFallsBackToLocalFiles()
+    {
+        var run = new CalibrationRunRecord { LocalRunDirectory = @"C:\private\run" };
+        var message = CalibrationCompletionEmail.Create(run, null);
+        Assert.Empty(message.Attachments);
+        Assert.Contains("Serverový priečinok nie je nastavený", message.Text);
+        Assert.DoesNotContain(@"C:\private", message.Html);
+    }
+    [Fact]
+    public void CreatesPassFailTableWithServerLinkAndNoAttachments()
     {
         string directory = Path.Combine(Path.GetTempPath(), $"calibration-email-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
@@ -52,7 +60,7 @@ public sealed class CalibrationCompletionEmailTests
                 ],
             };
 
-            CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, directory);
+            CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, @"G:\Kalibrácie & výsledky\09_September\run 01");
 
             string html = WebUtility.HtmlDecode(message.Html);
             Assert.Contains("PASS S UPOZORNENIAMI", html);
@@ -60,7 +68,7 @@ public sealed class CalibrationCompletionEmailTests
             Assert.Contains("Nestabilný", html);
             Assert.Contains("50", html);
             Assert.Contains("°C", html);
-            Assert.Contains("Otvoriť lokálny priečinok behu", html);
+            Assert.Contains("Otvoriť priečinok behu na serveri", html);
             Assert.Contains("Kalibračné koeficienty", html);
             Assert.Contains("3rd · ABCD", html);
             Assert.Contains("1.3 / P2 · FBGS · s1/s2", html);
@@ -71,17 +79,11 @@ public sealed class CalibrationCompletionEmailTests
                 html.IndexOf("Súbory kalibrácie", StringComparison.Ordinal)];
             Assert.Equal(1, coefficientTable.Split("289594/0001").Length - 1);
             Assert.Equal(1, coefficientTable.Split("<tbody><tr>").Length - 1);
-            Assert.Equal(4, message.Attachments.Count);
-            Assert.Equal("calibration-results.csv", message.Attachments[0].FileName);
-            Assert.Equal("calibration-coefficients.csv", message.Attachments[1].FileName);
-            Assert.Equal("calibration-coefficients.xlsx", message.Attachments[2].FileName);
-            Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", message.Attachments[2].MediaType);
-            using var zip = new ZipArchive(new MemoryStream(message.Attachments[3].Content), ZipArchiveMode.Read);
-            Assert.Equal(8, zip.Entries.Count);
-            Assert.Contains(zip.Entries, entry => entry.FullName == "raw-samples.csv");
-            Assert.Contains(zip.Entries, entry => entry.FullName == "diagnostics.log");
-            Assert.Contains(zip.Entries, entry => entry.FullName == "reports/plato-001/kalibracny-bod.xlsx");
-            Assert.Contains(zip.Entries, entry => entry.FullName == "calibration-coefficients.xlsx");
+            Assert.Empty(message.Attachments);
+            Assert.Contains(@"G:\Kalibrácie & výsledky\09_September\run 01", message.Text);
+            Assert.Contains("file:///G:/", message.Html);
+            Assert.DoesNotContain(directory, message.Text);
+            Assert.DoesNotContain("ZIP", message.Html);
         }
         finally
         {

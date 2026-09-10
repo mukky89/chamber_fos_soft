@@ -2579,8 +2579,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         try
         {
             RefreshEmailSettings();
-            string runDirectory = _calibrationStore.GetRunDirectory(run);
-            CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, runDirectory);
+            CalibrationCompletionMessage message = CalibrationCompletionEmail.Create(run, run.ReplicaRunDirectory);
             EmailResult result = await _email.SendAsync(NotificationType.CalibrationCompleted,
                 message.Subject, message.Text, message.Html, message.Attachments);
             if (result.Error is { Length: > 0 })

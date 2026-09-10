@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.310] – 2026-09-10
+
+### Zmenené
+
+- Dokončovacie e-maily FBG neobsahujú žiadne prílohy ani ZIP archív. Výsledky sprístupňujú odkazom a kopírovateľnou cestou na serverový priečinok konkrétneho behu (G:\). Lokálna cesta sa neposiela; pri chýbajúcom serverovom umiestnení správa výslovne uvedie, že nie je nastavené.
+
 ## [1.76.309] – 2026-09-10
 
 ### Opravené
