@@ -108,7 +108,7 @@ public partial class CalibrationWindow
 
         _sequentialSnBox = new TextBox
         {
-            MinWidth = 420, MinHeight = 44, FontSize = 18,
+            MinHeight = 44, FontSize = 20, VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 8, 0, 8),
         };
         _sequentialStatus = new TextBlock
@@ -119,22 +119,40 @@ public partial class CalibrationWindow
         };
         _sequentialArmButton = new Button
         {
-            Content = "Načítať z API a pripraviť", Padding = new Thickness(18, 9, 18, 9),
+            Content = "Pripraviť SN  ↵", Padding = new Thickness(18, 9, 18, 9),
             HorizontalAlignment = HorizontalAlignment.Left,
             Style = TryFindResource("AccentButton") as Style,
         };
         _sequentialArmButton.Click += async (_, _) => await ArmSequentialSerialV9Async();
         _sequentialSnBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; await ArmSequentialSerialV9Async(); } };
         var stack = new StackPanel { Margin = new Thickness(24) };
-        stack.Children.Add(new TextBlock { Text = "Poradové párovanie snímačov", FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = text });
+        stack.Children.Add(new TextBlock { Text = "Priradiť sériové číslo", FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = text });
         stack.Children.Add(new TextBlock
         {
-            Text = "1  Zadaj SN     2  Pripoj snímač     3  Nový kanál sa priradí automaticky",
-            Foreground = muted, Margin = new Thickness(0, 6, 0, 12),
+            Text = "Zadaj SN → Pripoj snímač → Automatické priradenie kanálu",
+            Foreground = muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 20),
         });
+        stack.Children.Add(new TextBlock { Text = "Sériové číslo (SN)", Foreground = text, FontWeight = FontWeights.SemiBold });
         stack.Children.Add(_sequentialSnBox);
         stack.Children.Add(_sequentialStatus);
-        stack.Children.Add(_sequentialArmButton);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal };
+        actions.Children.Add(_sequentialArmButton);
+        var reset = new Button { Content = "Zmeniť SN", Margin = new Thickness(10, 0, 0, 0),
+            Padding = new Thickness(18, 9, 18, 9), Style = TryFindResource("GhostButton") as Style };
+        reset.Click += (_, _) =>
+        {
+            _sequentialPendingSn = null;
+            _sequentialLookupCts?.Cancel();
+            _sequentialSnBox!.IsEnabled = true;
+            _sequentialArmButton!.IsEnabled = true;
+            _sequentialStatus!.Text = "Zadaj alebo naskenuj sériové číslo.";
+            _sequentialSnBox.Focus();
+            _sequentialSnBox.SelectAll();
+        };
+        actions.Children.Add(reset);
+        stack.Children.Add(actions);
+        stack.Children.Add(new TextBlock { Text = "API dopĺňa údaje na pozadí. SN môžeš priradiť aj bez pripojenia k API.",
+            Foreground = muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 16, 0, 0) });
         var card = new Border
         {
             Background = surface, BorderBrush = border, BorderThickness = new Thickness(1),
@@ -143,7 +161,7 @@ public partial class CalibrationWindow
         _sequentialWiringWindow = new Window
         {
             Owner = this, Title = "Priradenie FBG SN", Content = card,
-            SizeToContent = SizeToContent.WidthAndHeight, MinWidth = 620,
+            SizeToContent = SizeToContent.Height, Width = 640,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
             Background = background, Foreground = text,
         };
@@ -171,42 +189,36 @@ public partial class CalibrationWindow
 
     private async Task ArmSequentialSerialV9Async()
     {
-        if (_sequentialSnBox is null || _sequentialStatus is null || _sequentialArmButton is null || _sylexFosIntegration is null) return;
+        if (_sequentialSnBox is null || _sequentialStatus is null || _sequentialArmButton is null || _viewModel.IsRunning) return;
         string sn = SylexFosRowMetadataStore.ParseSerialNumber(_sequentialSnBox.Text);
         if (string.IsNullOrWhiteSpace(sn)) { _sequentialStatus.Text = "Zadaj SN snímača."; _sequentialSnBox.Focus(); return; }
         _sequentialLookupCts?.Cancel();
-        _sequentialLookupCts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-        _sequentialSnBox.IsEnabled = false; _sequentialArmButton.IsEnabled = false;
-        _sequentialStatus.Text = $"Načítavam {sn} zo Sylex FOS API…";
+        var lookup = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        _sequentialLookupCts = lookup;
+        // Arm before the optional lookup so a slow/offline API cannot block pairing.
+        _sequentialPendingSn = sn;
+        _sequentialBaseline = CurrentPeakIdentities();
+        _sequentialSnBox.IsEnabled = false;
+        _sequentialArmButton.IsEnabled = false;
+        _sequentialStatus.Text = $"SN {sn} je pripravené. Pripoj snímač.\nÚdaje z API sa načítavajú na pozadí…";
+        bool IsCurrent() => _sequentialWiringWindow is not null &&
+            ReferenceEquals(_sequentialLookupCts, lookup) && _sequentialPendingSn == sn;
         try
         {
-            ProductionMetadata? metadata = await _sylexFosIntegration.PreviewAsync(sn, _sequentialLookupCts.Token);
-            if (_sequentialWiringWindow is null) return;
-            if (metadata is null)
-            {
-                _sequentialStatus.Text = $"SN {sn} sa v API nenašlo. Skontroluj ho a skús znova.";
-                _sequentialSnBox.IsEnabled = true; _sequentialArmButton.IsEnabled = true; _sequentialSnBox.Focus(); _sequentialSnBox.SelectAll();
-                return;
-            }
-            _sequentialPendingSn = sn;
-            _sequentialBaseline = CurrentPeakIdentities();
-            _sequentialStatus.Text = $"{sn} · {metadata.SensorName}\n{metadata.ProductDescription}\nPripoj snímač – čakám na nový peak/kanál.";
-            ShowProductionInfo($"Poradové párovanie: SN {sn} je pripravené. Pripoj snímač.");
-        }
-        catch (OperationCanceledException)
-        {
-            if (_sequentialWiringWindow is null) return;
-            _sequentialStatus.Text = "API neodpovedalo včas. Skús SN načítať znova.";
-            _sequentialSnBox.IsEnabled = true; _sequentialArmButton.IsEnabled = true;
+            ProductionMetadata? metadata = _sylexFosIntegration is null ? null :
+                await _sylexFosIntegration.PreviewAsync(sn, lookup.Token);
+            if (!IsCurrent()) return;
+            _sequentialStatus!.Text = metadata is null
+                ? $"SN {sn} je pripravené. Pripoj snímač.\nBez overenia API – produkčné údaje zatiaľ nie sú dostupné."
+                : $"SN {sn} je pripravené. Pripoj snímač.\nAPI overené · {metadata.SensorName}\n{metadata.ProductDescription}";
         }
         catch (Exception ex)
         {
-            if (_sequentialWiringWindow is null) return;
-            _sequentialStatus.Text = $"API chyba: {ex.Message}";
-            _sequentialSnBox.IsEnabled = true; _sequentialArmButton.IsEnabled = true;
+            if (!IsCurrent()) return;
+            _sequentialStatus!.Text = $"SN {sn} je pripravené. Pripoj snímač.\nAPI neodpovedá – párovanie pokračuje bez overenia.";
+            AppLog.Warn("FBG zapojenie", $"Voliteľné API overenie SN zlyhalo: {ex.Message}");
         }
     }
-
     private bool TryPairSequentialPeak(IEnumerable<string> addedIdentities)
     {
         if (string.IsNullOrWhiteSpace(_sequentialPendingSn)) return false;
@@ -219,12 +231,13 @@ public partial class CalibrationWindow
                      string.Equals(x.Channel, row.Channel, StringComparison.OrdinalIgnoreCase)))
             channelRow.ChannelSerialNumber = sn;
         _sequentialPendingSn = null;
+        _sequentialLookupCts?.Cancel();
         ShowProductionInfo($"SN {sn} bolo priradené ku kanálu {row.Channel}. Pripravené na ďalší snímač.");
         if (_sequentialStatus is not null) _sequentialStatus.Text = $"Priradené: {sn} → kanál {row.Channel}. Zadaj ďalšie SN.";
         if (_sequentialSnBox is not null)
         {
             _sequentialSnBox.Text = string.Empty; _sequentialSnBox.IsEnabled = true; _sequentialArmButton!.IsEnabled = true;
-            _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => _sequentialSnBox.Focus()));
+            _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => _sequentialSnBox?.Focus()));
         }
         AppLog.Info("FBG zapojenie", $"Poradovo priradené SN {sn} ku kanálu {row.Channel}.");
         return true;

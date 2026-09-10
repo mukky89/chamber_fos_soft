@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.324] – 2026-09-10
+
+### Vylepšené
+
+- Okno priradenia SN má jasný postup, označené vstupné pole a akcie Pripraviť SN a Zmeniť SN. Párovanie sa pripraví okamžite aj bez API; voliteľné overenie beží na pozadí a jeho oneskorená odpoveď neprepíše ďalšie zadávanie.
+
 ## [1.76.323] – 2026-09-10
 
 ### Vylepšené
