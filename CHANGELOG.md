@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.316] – 2026-09-10
+
+### Zmenené
+
+- Riadky záverečného overenia v e-maile sú zoskupené podľa SN. Každá skupina má výraznejší modrosivý rám, jemné vnútorné čiary, zvýraznené SN a striedavé pozadie.
+
 ## [1.76.315] – 2026-09-10
 
 ### Zmenené

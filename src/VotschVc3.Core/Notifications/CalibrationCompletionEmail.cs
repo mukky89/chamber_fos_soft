@@ -110,7 +110,7 @@ public static class CalibrationCompletionEmail
         string explanation = reference + " " + string.Join(" ", finalProblems) + " ΔT = teplota vypočítaná z koeficientov − skutočná teplota WIKA. Odchýlka patrí modelu v danom riadku; stĺpce ΔT porovnávajú všetky tri modely toho istého peaku. Lambda at T je WL vypočítaná z modelu pri nameranej teplote WIKA, v nm. N/A znamená chýbajúce overenie.";
         plain.Append("\n\n").Append(explanation);
         details += Section("Podmienky záverečného overenia", H(explanation));
-        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "ΔT 2nd · ABC", "ΔT 3rd · ABCD", "ΔT FBGS · s1/s2", "Lambda at T [nm]", "Overenie", "Problém" }, verification, "N/A – nie sú dostupné kalibračné výsledky.", plain);
+        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "ΔT 2nd · ABC", "ΔT 3rd · ABCD", "ΔT FBGS · s1/s2", "Lambda at T [nm]", "Overenie", "Problém" }, verification, "N/A – nie sú dostupné kalibračné výsledky.", plain, groupBySerial: true);
         var tone = calibrationStatus == "FAIL" || finalStatus == "FAIL" || run.State is not (CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings)
             ? LabControlEmailTemplate.EmailTone.Error
             : calibrationStatus != "PASS" || finalStatus != "PASS" || run.State == CalibrationRunState.CompletedWithWarnings
@@ -119,16 +119,42 @@ public static class CalibrationCompletionEmail
         return new(subject, plain.ToString(), LabControlEmailTemplate.Create(subject, summary, tone, details, contentWidth: 1600), []);
     }
 
-    private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain)
+    private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain, bool groupBySerial = false)
     {
+        if (groupBySerial) rows = rows.GroupBy(row => row[0], StringComparer.OrdinalIgnoreCase).SelectMany(group => group).ToList();
         plain.Append("\n\n").AppendLine(title);
         if (rows.Count > 0) plain.AppendLine(string.Join(" · ", headers));
         foreach (var row in rows) plain.AppendLine(string.Join(" · ", row));
         if (rows.Count == 0) plain.AppendLine(empty);
         string table = rows.Count == 0 ? H(empty) : "<table width=\"100%\" cellspacing=\"0\" style=\"border-collapse:collapse;font-size:12px\"><thead><tr>" +
             string.Concat(headers.Select(h => $"<th style=\"padding:7px;text-align:left;background:#EEF3F8\">{H(h)}</th>")) + "</tr></thead><tbody>" +
-            string.Concat(rows.Select(row => "<tr>" + string.Concat(row.Select(c => $"<td style=\"padding:7px;vertical-align:top;border-bottom:1px solid #E5EBF2\">{H(c)}</td>")) + "</tr>")) + "</tbody></table>";
+            RenderRows(rows, groupBySerial) + "</tbody></table>";
         return Section(title, table);
+    }
+    private static string RenderRows(List<string[]> rows, bool grouped)
+    {
+        var html = new StringBuilder();
+        int group = -1;
+        for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            var row = rows[rowIndex];
+            bool first = rowIndex == 0 || !string.Equals(rows[rowIndex - 1][0], row[0], StringComparison.OrdinalIgnoreCase);
+            bool last = rowIndex == rows.Count - 1 || !string.Equals(rows[rowIndex + 1][0], row[0], StringComparison.OrdinalIgnoreCase);
+            if (first) group++;
+            string background = grouped && group % 2 == 0 ? "#F2F6FB" : "#FFFFFF";
+            html.Append("<tr>");
+            for (int column = 0; column < row.Length; column++)
+            {
+                string borders = grouped
+                    ? $"border-top:{(first ? "2px solid #8198B2" : "1px solid #DCE4EE")};border-bottom:{(last ? "2px solid #8198B2" : "1px solid #DCE4EE")};" +
+                      (column == 0 ? "border-left:2px solid #8198B2;font-weight:600;" : "") +
+                      (column == row.Length - 1 ? "border-right:2px solid #8198B2;" : "")
+                    : "border-bottom:1px solid #E5EBF2;";
+                html.Append($"<td bgcolor=\"{background}\" style=\"padding:9px 7px;vertical-align:top;background:{background};{borders}\">{H(row[column])}</td>");
+            }
+            html.Append("</tr>");
+        }
+        return html.ToString();
     }
     private static string Section(string title, string content) => $"<tr><td style=\"padding:12px 24px 20px;color:#182A40\"><h2 style=\"font-size:17px\">{H(title)}</h2>{content}</td></tr>";
     private static string N(double? value) => value is double n && double.IsFinite(n) ? n.ToString("0.000", Sk) : "N/A";
