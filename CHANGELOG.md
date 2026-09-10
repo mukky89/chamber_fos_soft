@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.322] – 2026-09-10
+
+### Opravené
+
+- V Zapojení je opäť dostupné tlačidlo Zadať SN v okne pre pôvodné poradové párovanie: overenie SN cez API a priradenie novo pripojenému kanálu. Okno je modálne a otvára sa iba na požiadanie, aj bez načítaných peakov. Zatvorenie počas API požiadavky bezpečne ukončí zadávanie.
+
 ## [1.76.321] – 2026-09-10
 
 ### Vylepšené

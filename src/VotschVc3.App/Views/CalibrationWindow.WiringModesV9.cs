@@ -86,6 +86,17 @@ public partial class CalibrationWindow
         _wiringGrid.BeginEdit();
     }
 
+    private void OpenSerialPairing_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsRunning) return;
+        if (_wiringGrid is not null &&
+            (!_wiringGrid.CommitEdit(DataGridEditingUnit.Cell, true) ||
+             !_wiringGrid.CommitEdit(DataGridEditingUnit.Row, true))) return;
+        _wiringEntryModeSequential = true;
+        try { OpenSequentialWiringV9(); }
+        finally { _wiringEntryModeSequential = false; }
+    }
+
     private void OpenSequentialWiringV9()
     {
         if (_sequentialWiringWindow is not null) { _sequentialWiringWindow.Activate(); return; }
@@ -142,8 +153,8 @@ public partial class CalibrationWindow
             _sequentialWiringWindow = null; _sequentialSnBox = null; _sequentialStatus = null; _sequentialArmButton = null;
             _sequentialPendingSn = null; _sequentialLookupCts?.Cancel();
         };
-        _sequentialWiringWindow.Show();
-        _sequentialSnBox.Focus();
+        _sequentialWiringWindow.Loaded += (_, _) => _sequentialSnBox?.Focus();
+        _sequentialWiringWindow.ShowDialog();
     }
 
     private static void EnableDarkTitleBarV9(Window? window)
@@ -170,6 +181,7 @@ public partial class CalibrationWindow
         try
         {
             ProductionMetadata? metadata = await _sylexFosIntegration.PreviewAsync(sn, _sequentialLookupCts.Token);
+            if (_sequentialWiringWindow is null) return;
             if (metadata is null)
             {
                 _sequentialStatus.Text = $"SN {sn} sa v API nenašlo. Skontroluj ho a skús znova.";
@@ -183,11 +195,13 @@ public partial class CalibrationWindow
         }
         catch (OperationCanceledException)
         {
+            if (_sequentialWiringWindow is null) return;
             _sequentialStatus.Text = "API neodpovedalo včas. Skús SN načítať znova.";
             _sequentialSnBox.IsEnabled = true; _sequentialArmButton.IsEnabled = true;
         }
         catch (Exception ex)
         {
+            if (_sequentialWiringWindow is null) return;
             _sequentialStatus.Text = $"API chyba: {ex.Message}";
             _sequentialSnBox.IsEnabled = true; _sequentialArmButton.IsEnabled = true;
         }
