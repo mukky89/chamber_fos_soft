@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.332] – 2026-09-10
+
+### Opravené
+
+- Barcode SN vo formáte 297970A000002 (aj B, X a ďalšie písmená) sa automaticky prevedie na 297970/0002 v modálnom párovaní, tabuľke aj API vyhľadávaní. Významové číslice sa neskracujú.
+
 ## [1.76.331] – 2026-09-10
 
 ### Opravené

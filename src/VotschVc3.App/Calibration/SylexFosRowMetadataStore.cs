@@ -24,13 +24,7 @@ public static partial class SylexFosRowMetadataStore
     [GeneratedRegex(@"(?<![A-Za-z0-9])[A-Za-z0-9]{6}/[A-Za-z0-9]{4}(?![A-Za-z0-9])", RegexOptions.IgnoreCase)]
     private static partial Regex SylexSerialRegex();
 
-    public static string ParseSerialNumber(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
-        string trimmed = raw.Trim();
-        Match match = SylexSerialRegex().Match(trimmed);
-        return match.Success ? match.Value.ToUpperInvariant() : trimmed;
-    }
+    public static string ParseSerialNumber(string? raw) => VotschVc3.Core.Calibration.FbgSerialParser.Parse(raw);
 
     public static void SetParsedSerial(CalibrationPeakRowViewModel row, string? raw)
     {

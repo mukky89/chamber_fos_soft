@@ -2987,7 +2987,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         string.IsNullOrWhiteSpace(SerialNumberWarning) ? warning : $"{SerialNumberWarning} {warning}";
 
     private static string NormalizeBarcode(string? value) =>
-        (value ?? string.Empty).Trim().Replace("\r", string.Empty).Replace("\n", string.Empty);
+        FbgSerialParser.Parse(value);
 
     public CalibrationSensorMapping ToMapping() => new()
     {
