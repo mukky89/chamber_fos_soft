@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.323] – 2026-09-10
+
+### Vylepšené
+
+- Kalibračný plán ponúka tlačidlá Vybrať všetko a Zrušiť výber pre všetky plata. Tlačidlá sú na samostatnom riadku, aby sa v úzkej tabuľke neorezávali; počas behu sú zablokované.
+
 ## [1.76.322] – 2026-09-10
 
 ### Opravené

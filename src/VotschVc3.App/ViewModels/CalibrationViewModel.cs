@@ -129,6 +129,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         SelectSuggestedPeaksCommand = new RelayCommand(SelectSuggestedPeaks, () => Peaks.Count > 0 && !IsRunning);
         ClearPeakSearchCommand = new RelayCommand(() => PeakSearchText = string.Empty);
         MarkAllPlateausCommand = new RelayCommand(MarkAllPlateaus, () => CalibrationPoints.Count > 0 && !IsRunning);
+        ClearAllPlateausCommand = new RelayCommand(ClearAllPlateaus, () => CalibrationPoints.Count > 0 && !IsRunning);
         StartCalibrationCommand = new AsyncRelayCommand(StartCalibrationAsync, CanStartCalibration, ReportError);
         ResumeCalibrationCommand = new AsyncRelayCommand(ResumeCalibrationAsync, CanResumeCalibration, ReportError);
         ApplyCurrentDefaultsToResumeCommand = new RelayCommand(ApplyCurrentDefaultsToResume, () => HasResumableCalibration && !IsRunning);
@@ -240,6 +241,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     public RelayCommand SelectSuggestedPeaksCommand { get; }
     public RelayCommand ClearPeakSearchCommand { get; }
     public RelayCommand MarkAllPlateausCommand { get; }
+    public RelayCommand ClearAllPlateausCommand { get; }
     public AsyncRelayCommand StartCalibrationCommand { get; }
     public AsyncRelayCommand ResumeCalibrationCommand { get; }
     public RelayCommand ApplyCurrentDefaultsToResumeCommand { get; }
@@ -1331,6 +1333,13 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
         StatusMessage = "Pre každý PeakLogger zdroj/kanál bol predvolený jeden peak. Operátor môže výber zmeniť a priradiť produkčné FBG SN.";
         RefreshCommands();
+    }
+
+    private void ClearAllPlateaus()
+    {
+        foreach (CalibrationPointRowViewModel point in CalibrationPoints) point.Selected = false;
+        StatusMessage = "Výber všetkých kalibračných plat bol zrušený.";
+        StartCalibrationCommand.RaiseCanExecuteChanged();
     }
 
     private void MarkAllPlateaus()
@@ -2726,6 +2735,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         SaveSetupCommand.RaiseCanExecuteChanged();
         SelectSuggestedPeaksCommand.RaiseCanExecuteChanged();
         MarkAllPlateausCommand.RaiseCanExecuteChanged();
+        ClearAllPlateausCommand.RaiseCanExecuteChanged();
         RefreshF100PortsCommand.RaiseCanExecuteChanged();
         DiagnoseF100TalkOnlyCommand.RaiseCanExecuteChanged();
         CheckF100Command.RaiseCanExecuteChanged();
