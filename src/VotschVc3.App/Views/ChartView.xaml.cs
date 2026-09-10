@@ -971,7 +971,15 @@ public partial class ChartView : UserControl
             }
         }
         double dataX = _minX + (mx - left) / _plotW * (_maxX - _minX);
-        if (InterpolateY(_hoverSeries.Points, dataX) is not { } yv)
+        // Phase-coloured traces are separate series. Never extrapolate the first
+        // phase beyond its time range; pick the visible curve nearest the pointer.
+        var hoverSeries = ShowStages ? _hoverSeries : Series?
+            .Where(series => !series.Dashed && series.Name != "Teraz" && series.Points.Count > 0 &&
+                dataX >= series.Points[0].X && dataX <= series.Points[^1].X)
+            .OrderBy(series => Math.Abs(PadTop +
+                (1 - ((InterpolateY(series.Points, dataX) ?? _minY) - _minY) / (_maxY - _minY)) * _plotH - pointer.Y))
+            .FirstOrDefault();
+        if (hoverSeries is null || InterpolateY(hoverSeries.Points, dataX) is not { } yv)
         {
             ClearOverlay();
             return;
@@ -988,7 +996,7 @@ public partial class ChartView : UserControl
 
         // Highlight the whole step (ramp or hold) the cursor is inside, so it is
         // obvious which segment the read-out belongs to.
-        (Point A, Point B)? piece = ShowStages ? PieceAt(_hoverSeries.Points, dataX) : null;
+        (Point A, Point B)? piece = ShowStages ? PieceAt(hoverSeries.Points, dataX) : null;
         if (piece is { } step)
         {
             double sx1 = PxOf(step.A.X);

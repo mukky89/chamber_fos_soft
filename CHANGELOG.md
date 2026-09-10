@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.345] – 2026-09-10
+
+### Opravené
+
+- Kurzor v grafe s farebnými fázami sleduje krivku v príslušnom časovom úseku. Hodnota sa už nepreberá z konca prvej série mimo jej rozsahu; pri prekrytí sa vyberie krivka najbližšia ku kurzoru.
+
 ## [1.76.344] – 2026-09-10
 
 ### Opravené
