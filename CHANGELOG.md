@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.342] – 2026-09-10
+
+### Opravené
+
+- Strata spojenia s komorou už nezobrazuje vyskakovací ani tray alarm. Stav spojenia, audit, e-mailové pravidlá, bezpečnostné alarmy a automatické obnovovanie spojenia zostávajú zachované.
+
 ## [1.76.341] – 2026-09-10
 
 ### Opravené

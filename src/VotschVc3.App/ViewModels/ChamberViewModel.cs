@@ -4324,7 +4324,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             StatusMessage = $"⚠ ALARM: {message}";
             _audit.Log(Name, "ALARM", message);
             AppLog.Warn(Name, $"ALARM: {message}");
-            if (!AlarmNotificationPolicy.IsSuppressed(NotificationType.DeviceAlarm, message))
+            if (!AlarmNotificationPolicy.IsDesktopSuppressed(NotificationType.DeviceAlarm, key, message))
                 DesktopNotifier.Notify($"⚠ ALARM · {Name}", message, DesktopNotificationKind.Alarm);
             _ = SendAlarmEmailAsync(message);
             if (AutoStopOnAlarm && IsProfileRunning)

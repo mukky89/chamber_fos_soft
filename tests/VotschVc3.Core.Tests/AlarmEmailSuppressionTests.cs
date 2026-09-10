@@ -6,6 +6,17 @@ namespace VotschVc3.Core.Tests;
 public class AlarmEmailSuppressionTests
 {
     [Theory]
+    [InlineData(NotificationType.DeviceAlarm, "link", "Timed out waiting for a response after 5s.", true)]
+    [InlineData(NotificationType.DeviceAlarm, "link", "Connection refused", true)]
+    [InlineData(NotificationType.DeviceAlarm, "temp", "Teplota mimo limitu", false)]
+    [InlineData(NotificationType.DeviceAlarm, "stop", "STOP zlyhal: timeout", false)]
+    [InlineData(NotificationType.CalibrationWarning, "link", "Timeout", false)]
+    public void DesktopConnectionAlarmsStayQuiet(NotificationType type, string key, string message, bool suppressed)
+    {
+        Assert.Equal(suppressed, AlarmNotificationPolicy.IsDesktopSuppressed(type, key, message));
+    }
+
+    [Theory]
     [InlineData(NotificationType.DeviceAlarm, "Strata spojenia: POL-EKO GET_STATUS: LIMIT_LOGGED_EXT_CLIENT", true)]
     [InlineData(NotificationType.DeviceAlarm, "Strata spojenia: pol-eko GET_STATUS: limit_logged_ext_client", true)]
     [InlineData(NotificationType.DeviceAlarm, "Strata spojenia: POL-EKO GET_STATUS: TIMEOUT", false)]
