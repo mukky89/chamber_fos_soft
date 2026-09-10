@@ -1997,7 +1997,14 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 await Application.Current.Dispatcher.InvokeAsync(() => ApplyLivePeakMeasurements(firstMeasurements));
                 await AppendWavelengthTraceIfDueAsync(firstMeasurements, force: true, _runCts.Token);
             }
-            var orchestrator = new CalibrationOrchestrator(_peakLogger);
+            var orchestrator = new CalibrationOrchestrator(_peakLogger)
+            {
+                ReconnectChamberAsync = async token =>
+                {
+                    await _chamber.DisconnectAsync();
+                    await _chamber.ConnectAsync(connection, token);
+                }
+            };
             orchestrator.OperatorAttentionRequired += OnOperatorAttentionRequired;
             orchestrator.WarningRaised += warning =>
             {

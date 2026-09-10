@@ -9,6 +9,37 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Fact]
+    public async Task CommunicationRecoveryReconnectsAndRechecksStabilityUntilCancelled()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var logger = new FakePeakLoggerClient();
+            await logger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            setup.Settings.OperatorSupervisionEnabled = false;
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ChamberId = Guid.NewGuid() };
+            await using var writer = store.CreateRunWriter(run);
+            int reads = 0, reconnects = 0;
+            var orchestrator = new CalibrationOrchestrator(logger)
+            {
+                ReconnectChamberAsync = _ => { reconnects++; return Task.CompletedTask; }
+            };
+            using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(7));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                orchestrator.CollectFinalVerificationAsync(setup, run, writer,
+                    _ => ++reads == 1 ? Task.FromException<double>(new TimeoutException("network lost")) : Task.FromResult(25d),
+                    _ => Task.FromResult<double?>(30d), cancel.Token));
+            Assert.Equal(1, reconnects);
+            Assert.True(reads > 1);
+            Assert.Null(run.FinalVerification);
+            Assert.Empty(run.Plateaus);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+
+    [Fact]
     public async Task FinalVerificationWaitsForReferenceInsteadOfSamplingUnstableTemperature()
     {
         string root = TempDirectory();

@@ -31,6 +31,7 @@ public sealed partial class CalibrationOrchestrator
     }
 
     public event Action<CalibrationWarning>? WarningRaised;
+    public Func<CancellationToken, Task>? ReconnectChamberAsync { get; set; }
 
     /// <summary>Requests an audited one-time bypass of the stability gate for the current plateau.</summary>
     public void RequestTemperatureGateOverride() =>
@@ -165,6 +166,52 @@ public sealed partial class CalibrationOrchestrator
         DateTimeOffset? temperatureRecoveryStartedAt = null;
         TimeSpan automaticTemperatureExtensionUsed = TimeSpan.Zero;
         TimeSpan? manualTemperatureDeadline = null;
+        async Task RecoverCommunication(Exception failure, bool chamberFailure)
+        {
+            if (ReconnectChamberAsync is null) throw failure;
+            var recoveryClock = Stopwatch.StartNew();
+            writer.WriteDiagnostic("WARNING", "CONNECTION_RECOVERY", failure.Message);
+            referenceDetector = NewTemperatureDetector(settings);
+            chamberDetector = NewTemperatureDetector(settings);
+            chamberEntry = new ChamberEntryGate();
+            temperatureGateOpen = false;
+            temperatureGateForced = false;
+            foreach (var tracker in trackers.Values.Where(t => !t.IsTerminal)) tracker.ResetForRuntimeSettingsChange();
+            try
+            {
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (recoveryClock.Elapsed > TimeSpan.FromMinutes(30))
+                        throw new TimeoutException("Spojenie sa neobnovilo do 30 minút. Beh je uložený na pokračovanie.", failure);
+                    progress?.Invoke(new CalibrationProgressSnapshot(CalibrationRunState.WaitingForChamberStability,
+                        plateauIndex, plateauCount, targetTemperatureC, null, null, 0, selected.Count,
+                        plateauClock.Elapsed, trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
+                        "Výpadok spojenia · obnovujem pripojenie, čakajte. Po návrate dát sa stabilizácia začne odznova."));
+                    await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        if (chamberFailure) await ReconnectChamberAsync(cancellationToken).ConfigureAwait(false);
+                        double chamberValue = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
+                        double? referenceValue = hasExternalReference ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false) : chamberValue;
+                        if (!double.IsFinite(chamberValue) || referenceValue is not double value || !double.IsFinite(value))
+                            throw new IOException("Čakám na platnú teplotu komory a referencie.");
+                        await _peakLogger.ReadMeasurementsAsync(cancellationToken).ConfigureAwait(false);
+                        writer.WriteDiagnostic("INFO", "CONNECTION_RESTORED", "Spojenie obnovené. Začína nová stabilizácia nedokončených peakov.");
+                        break;
+                    }
+                    catch (Exception retryError) when (!cancellationToken.IsCancellationRequested &&
+                        retryError is IOException or TimeoutException or System.Net.Sockets.SocketException or HttpRequestException or OperationCanceledException)
+                    { failure = retryError; }
+                }
+            }
+            finally
+            {
+                foreach (var tracker in trackers.Values.Where(t => !t.IsTerminal)) tracker.AddOperatorPause(recoveryClock.Elapsed);
+                temperatureRecoveryStartedAt = DateTimeOffset.UtcNow;
+                manualTemperatureDeadline = plateauClock.Elapsed + settings.ChamberStabilityTimeout;
+            }
+        }
         async Task HandleOperatorIssue(CalibrationOperatorIssue issue, string message, IEnumerable<TargetTracker> affected)
         {
             TargetTracker[] targets = affected.Where(t => !t.IsTerminal).ToArray();
@@ -285,10 +332,12 @@ public sealed partial class CalibrationOrchestrator
                     ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false)
                     : null;
             }
-            catch (Exception ex) when (settings.OperatorSupervisionEnabled && ex is IOException or TimeoutException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is IOException or TimeoutException or System.Net.Sockets.SocketException or HttpRequestException)
             {
-                await HandleOperatorIssue(CalibrationOperatorIssue.Communication,
-                    $"Nepodarilo sa načítať teplotu komory alebo WIKA: {ex.Message}", trackers.Values);
+                if (settings.OperatorSupervisionEnabled)
+                    await HandleOperatorIssue(CalibrationOperatorIssue.Communication,
+                        $"Nepodarilo sa načítať teplotu komory alebo WIKA: {ex.Message}", trackers.Values);
+                else await RecoverCommunication(ex, chamberFailure: true);
                 continue;
             }
 
@@ -444,6 +493,12 @@ public sealed partial class CalibrationOrchestrator
             try
             {
                 batch = await _peakLogger.ReadMeasurementsAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ReconnectChamberAsync is not null &&
+                !settings.OperatorSupervisionEnabled && ex is IOException or TimeoutException or HttpRequestException or OperationCanceledException)
+            {
+                await RecoverCommunication(ex, chamberFailure: false);
+                continue;
             }
             catch (OperationCanceledException)
             {

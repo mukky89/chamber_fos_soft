@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.341] – 2026-09-10
+
+### Opravené
+
+- Pri komunikačnom výpadku počas stabilizácie alebo merania FBG sa spojenie automaticky obnovuje každých 5 s, najviac 30 minút. Po návrate platných teplôt sa nedokončené okná stabilizácie a merania začnú odznova; dokončené výsledky sa zachovajú. STOP ostáva účinný a operátorský dohľad má prednosť.
+
 ## [1.76.340] – 2026-09-10
 
 ### Opravené
