@@ -23,6 +23,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private bool _disposed;
     private bool _configurationWarningLogged;
     private int _apiAvailable;
+    private readonly CancellationTokenSource _healthLifetime = new();
 
     public event EventHandler<SylexFosLookupStatus>? LookupStatusChanged;
     public event EventHandler<CalibrationPeakRowViewModel>? MetadataApplied;
@@ -43,6 +44,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     {
         Report(SylexFosLookupState.CheckingApi, "FOS API · kontrolujem pripojenie…");
         await CheckApiAsync().ConfigureAwait(false);
+        if (!_disposed && Volatile.Read(ref _apiAvailable) == 0) _ = RetryHealthAsync();
     }
 
     /// <summary>
@@ -206,23 +208,33 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
     private async Task CheckApiAsync()
     {
-        SylexFosApiHealth health = await _apiClient.CheckHealthAsync().ConfigureAwait(false);
+        SylexFosApiHealth health = await _apiClient.CheckHealthAsync(_healthLifetime.Token).ConfigureAwait(false);
         if (health.IsReachable)
         {
-            Interlocked.Exchange(ref _apiAvailable, 1);
-            Report(SylexFosLookupState.ApiAvailable, "FOS API · dostupné");
+            if (!_disposed && Interlocked.Exchange(ref _apiAvailable, 1) != 1)
+                Report(SylexFosLookupState.ApiAvailable, "FOS API · dostupné");
             AppLog.Info("Sylex FOS API", $"Centrálne API je dostupné na {ApiClientBaseUrl()}.");
         }
         else
         {
-            Interlocked.Exchange(ref _apiAvailable, 0);
-            Report(SylexFosLookupState.ApiUnavailable,
-                $"Sylex FOS API nie je dostupné. Kontrola /health a /api/v1/system/heartbeat na {ApiClientBaseUrl()} zlyhala ({health.Status}). " +
-                "Údaje podľa SN sa preto nemôžu automaticky doplniť do tabuľky. Skontrolujte sieť a službu Sylex FOS API na serveri; potom znovu otvorte FBG kalibráciu.");
-            AppLog.Warn("Sylex FOS API", $"Centrálne API nie je dostupné ({health.Status}). Kalibrácia môže pokračovať bez automatického doplnenia metadata.");
+            if (_disposed || Volatile.Read(ref _apiAvailable) == 1) return;
+            Report(SylexFosLookupState.CheckingApi, "FOS API · dostupnosť zatiaľ nepotvrdená, kontrolu zopakujem…");
+            AppLog.Warn("Sylex FOS API", $"Kontrola dostupnosti nebola potvrdená ({health.Status}); požiadavky na údaje zostávajú povolené a kontrola sa zopakuje.");
         }
     }
 
+    private async Task RetryHealthAsync()
+    {
+        try
+        {
+            while (!_disposed && Volatile.Read(ref _apiAvailable) == 0)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), _healthLifetime.Token).ConfigureAwait(false);
+                await CheckApiAsync().ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (_healthLifetime.IsCancellationRequested) { }
+    }
     private void Report(SylexFosLookupState state, string message) =>
         LookupStatusChanged?.Invoke(this, new SylexFosLookupStatus(state, message));
 
@@ -233,6 +245,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
+        _healthLifetime.Cancel();
         _viewModel.Peaks.CollectionChanged -= OnPeaksChanged;
         foreach (CalibrationPeakRowViewModel row in _attachedRows.ToArray()) DetachRow(row);
         foreach (CancellationTokenSource cts in _lookups.Values)

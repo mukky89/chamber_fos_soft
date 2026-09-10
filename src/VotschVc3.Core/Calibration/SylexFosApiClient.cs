@@ -50,6 +50,7 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
     private readonly HttpClient _httpClient;
     private readonly SylexFosApiSettings _settings;
     private readonly bool _ownsHttpClient;
+    private long _lastApiResponseTicks;
 
     public SylexFosApiClient(SylexFosApiSettings settings, HttpClient? httpClient = null)
     {
@@ -74,7 +75,7 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
             {
                 using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 TimeSpan timeout = _settings.RequestTimeout > TimeSpan.Zero
-                    ? TimeSpan.FromSeconds(Math.Min(_settings.RequestTimeout.TotalSeconds, 3))
+                    ? _settings.RequestTimeout
                     : TimeSpan.FromSeconds(3);
                 requestTimeout.CancelAfter(timeout);
 
@@ -102,6 +103,9 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
                 await Task.Delay(TimeSpan.FromMilliseconds(250 * (attempt + 1)), cancellationToken).ConfigureAwait(false);
         }
 
+        long lastResponse = Interlocked.Read(ref _lastApiResponseTicks);
+        if (DateTime.UtcNow.Ticks - lastResponse < TimeSpan.FromMinutes(2).Ticks)
+            return new(true, "metadata_available", DateTimeOffset.UtcNow);
         return new(false, status, DateTimeOffset.UtcNow, detail);
     }
 
@@ -117,6 +121,8 @@ public sealed class SylexFosApiClient : ISylexFosApiClient, IDisposable
         request.Headers.Add("X-API-Key", apiKey);
         request.Headers.Add("X-Correlation-ID", Guid.NewGuid().ToString("N"));
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+            Interlocked.Exchange(ref _lastApiResponseTicks, DateTime.UtcNow.Ticks);
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
         if (response.StatusCode == HttpStatusCode.Unauthorized) throw new InvalidOperationException("Sylex FOS API rejected the configured API key (401 Unauthorized).");
         if (response.StatusCode == HttpStatusCode.Forbidden) throw new InvalidOperationException("Sylex FOS API key is missing the calibrations.read scope (403 Forbidden).");

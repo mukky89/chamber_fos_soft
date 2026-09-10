@@ -344,7 +344,22 @@ public static class AppNotificationService
                 ToolTip = "Kopírovať upozornenie",
             };
             System.Windows.Automation.AutomationProperties.SetName(copy, "Kopírovať upozornenie");
-            copy.Click += (_, _) => Clipboard.SetText($"{notification.Title}\r\n{notification.Message}".Trim());
+            copy.Click += async (_, _) =>
+            {
+                for (int attempt = 0; attempt < 5; attempt++)
+                {
+                    try
+                    {
+                        Clipboard.SetText($"{notification.Title}\r\n{notification.Message}".Trim());
+                        return;
+                    }
+                    catch (System.Runtime.InteropServices.COMException)
+                    {
+                        await Task.Delay(100);
+                    }
+                }
+                copy.ToolTip = "Schránka je práve obsadená. Skúste kopírovanie znova.";
+            };
 
             _countdown.Foreground = new SolidColorBrush(Color.FromRgb(235, 239, 248));
             _countdown.FontSize = 10.5;

@@ -144,6 +144,19 @@ public sealed class SylexFosApiClientTests
         Assert.Equal(2, requestCount);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RecentProductionResponseTakesPrecedenceOverFailedHealthEndpoints(bool productionResponded)
+    {
+        using var http = new HttpClient(new StubHandler(request => new HttpResponseMessage(
+            request.RequestUri!.AbsolutePath.Contains("context") ? HttpStatusCode.NotFound : HttpStatusCode.ServiceUnavailable)));
+        using var client = new SylexFosApiClient(new SylexFosApiSettings { BaseUrl = "http://localhost:5080", ApiKey = "test" }, http);
+        if (productionResponded) Assert.Null(await client.GetFbgCalibrationContextAsync("test"));
+        var health = await client.CheckHealthAsync();
+        Assert.Equal(productionResponded, health.IsReachable);
+        Assert.Equal(productionResponded ? "metadata_available" : "http_503", health.Status);
+    }
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>

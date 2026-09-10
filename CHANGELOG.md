@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.317] – 2026-09-10
+
+### Opravené
+
+- Nepotvrdená kontrola dostupnosti Sylex FOS API nevyvoláva červený alarm ani neblokuje metadata. Kontrola rešpektuje nastavený timeout a po neúspechu sa opakuje na pozadí. Nedávna odpoveď produkčného API má prednosť pred zlyhanou diagnostikou.
+- Kopírovanie notifikácie pri obsadenej schránke krátko zopakuje pokus a nespôsobí dialóg neočakávanej chyby.
+
 ## [1.76.316] – 2026-09-10
 
 ### Zmenené
