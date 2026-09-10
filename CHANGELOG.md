@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.330] – 2026-09-10
+
+### Vylepšené
+
+- Prihlasovacia stránka obsahuje tlačidlo Ukončiť aplikáciu. Otvorí existujúci dialóg ukončenia a zachová bezpečné uloženie a uvoľnenie zariadení bez potreby prihlásenia.
+
 ## [1.76.329] – 2026-09-10
 
 ### Vylepšené

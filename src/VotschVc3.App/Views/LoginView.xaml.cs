@@ -19,6 +19,11 @@ public partial class LoginView : UserControl
         }
     }
 
+    private void Exit_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (System.Windows.Window.GetWindow(this) is MainWindow window) window.RequestExit();
+    }
+
     private void TryLogin()
     {
         if (DataContext is LoginViewModel vm)
