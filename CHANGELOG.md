@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.334] – 2026-09-10
+
+### Vylepšené
+
+- Tlačidlo v párovaní SN má názov Vytvoriť zapojenie snímača; potvrdenie klávesom Enter zostáva zachované.
+
 ## [1.76.333] – 2026-09-10
 
 ### Opravené
