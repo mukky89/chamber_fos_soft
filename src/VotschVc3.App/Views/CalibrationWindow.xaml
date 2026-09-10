@@ -459,6 +459,7 @@
                             BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,0,8">
                         <DockPanel LastChildFill="True">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Začať odznova" Style="{StaticResource GhostButton}" Padding="10,6" Click="ResetWiring_Click" />
                                 <Button Content="Zadať SN v okne" Style="{StaticResource AccentOutlineButton}"
                                         Padding="12,6" Margin="0,0,8,0" Click="OpenSerialPairing_Click"
                                         ToolTip="Zadaj SN a potom pripoj snímač. Nový kanál sa priradí automaticky." />

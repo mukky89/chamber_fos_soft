@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.325] – 2026-09-10
+
+### Vylepšené
+
+- Párovanie SN zobrazuje kroky zadania, pripojenia a priradenia, výsledný kanál a stav overenia API. Po priradení pripraví ďalšie zadanie; odmieta duplicitné SN a nejednoznačné pripojenie viacerých kanálov.
+- Zapojenie možno vymazať a začať odznova po modálnom potvrdení. Výsledky zostávajú zachované; zapojenie rozpracovaného behu je chránené.
+
 ## [1.76.324] – 2026-09-10
 
 ### Vylepšené

@@ -1644,6 +1644,20 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     private string _setupSaveColor = "#AAB7CE";
     public string SetupSaveColor { get => _setupSaveColor; private set => SetProperty(ref _setupSaveColor, value); }
 
+    public void ResetWiring()
+    {
+        if (IsRunning) throw new InvalidOperationException("Počas kalibrácie nemožno vymazať zapojenie.");
+        if (_resumeCheckpoint is not null || (SelectedChamber is not null && _calibrationStore.LoadCheckpoint(SelectedChamber.Config.Id) is not null))
+            throw new InvalidOperationException("Najprv ukonči rozpracovaný beh cez Ukončiť a začať odznova. Jeho zapojenie je potrebné pre pokračovanie.");
+        Peaks.Clear();
+        _setup.Mappings.Clear();
+        PersistSetup(showStatus: false);
+        ValidateSerialNumbers();
+        NotifyPeakCounts();
+        RefreshCommands();
+        StatusMessage = "Zapojenie bolo vymazané. Obnov peaky alebo pripoj snímače a zadaj nové SN.";
+    }
+
     private void SaveSetup() => PersistSetup(showStatus: true);
 
     private void PersistSetup(bool showStatus)

@@ -24,7 +24,22 @@ internal static class CalibrationWindowWiringModesV9Bootstrap
 
 public partial class CalibrationWindow
 {
+    private TextBlock? _pairingSteps;
+    private TextBlock? _pairingResult;
+    private bool _pairingApiVerified;
     private bool _wiringModesV9Initialized;
+
+    private void ResetWiring_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsRunning) return;
+        if (!ConfirmDialog.Ask("Vymazať uložené zapojenie, SN a výber peakov pre tento profil? Pripojené peaky sa pri obnovení načítajú znova bez priradení. Výsledky kalibrácií zostanú zachované.",
+            "Začať zapojenie odznova", "Vymazať zapojenie")) return;
+        _wiringGrid?.CancelEdit(DataGridEditingUnit.Cell);
+        _wiringGrid?.CancelEdit(DataGridEditingUnit.Row);
+        CloseSequentialWiringV9();
+        try { _viewModel.ResetWiring(); }
+        catch (InvalidOperationException ex) { ShowProductionInfo(ex.Message); }
+    }
     private bool _wiringEntryModeSequential;
     private Window? _sequentialWiringWindow;
     private TextBox? _sequentialSnBox;
@@ -133,6 +148,13 @@ public partial class CalibrationWindow
             Foreground = muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 20),
         });
         stack.Children.Add(new TextBlock { Text = "Sériové číslo (SN)", Foreground = text, FontWeight = FontWeights.SemiBold });
+        _pairingSteps = new TextBlock { Text = "● 1 Zadaj SN     ○ 2 Pripoj snímač     ○ 3 Priradenie",
+            TextWrapping = TextWrapping.Wrap, Foreground = text, FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 12) };
+        stack.Children.Insert(1, new Border { Background = background, CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12), Margin = new Thickness(0, 12, 0, 4), Child = _pairingSteps });
+        _pairingResult = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = muted,
+            Margin = new Thickness(0, 12, 0, 0) };
         stack.Children.Add(_sequentialSnBox);
         stack.Children.Add(_sequentialStatus);
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
@@ -151,6 +173,7 @@ public partial class CalibrationWindow
         };
         actions.Children.Add(reset);
         stack.Children.Add(actions);
+        stack.Children.Add(_pairingResult);
         stack.Children.Add(new TextBlock { Text = "API dopĺňa údaje na pozadí. SN môžeš priradiť aj bez pripojenia k API.",
             Foreground = muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 16, 0, 0) });
         var card = new Border
@@ -196,6 +219,13 @@ public partial class CalibrationWindow
         var lookup = new CancellationTokenSource(TimeSpan.FromSeconds(12));
         _sequentialLookupCts = lookup;
         // Arm before the optional lookup so a slow/offline API cannot block pairing.
+        if (_viewModel.Peaks.Any(p => string.Equals(p.ChannelSerialNumber, sn, StringComparison.OrdinalIgnoreCase)))
+        {
+            _sequentialStatus.Text = "Toto SN už je priradené. Skontroluj zapojenie alebo zadaj iné SN.";
+            return;
+        }
+        _pairingApiVerified = false;
+        if (_pairingSteps is not null) _pairingSteps.Text = "✓ 1 SN pripravené     ● 2 Pripoj snímač     ○ 3 Priradenie";
         _sequentialPendingSn = sn;
         _sequentialBaseline = CurrentPeakIdentities();
         _sequentialSnBox.IsEnabled = false;
@@ -208,6 +238,7 @@ public partial class CalibrationWindow
             ProductionMetadata? metadata = _sylexFosIntegration is null ? null :
                 await _sylexFosIntegration.PreviewAsync(sn, lookup.Token);
             if (!IsCurrent()) return;
+            _pairingApiVerified = metadata is not null;
             _sequentialStatus!.Text = metadata is null
                 ? $"SN {sn} je pripravené. Pripoj snímač.\nBez overenia API – produkčné údaje zatiaľ nie sú dostupné."
                 : $"SN {sn} je pripravené. Pripoj snímač.\nAPI overené · {metadata.SensorName}\n{metadata.ProductDescription}";
@@ -225,6 +256,13 @@ public partial class CalibrationWindow
         CalibrationPeakRowViewModel? row = _viewModel.Peaks.FirstOrDefault(x =>
             addedIdentities.Contains(PeakIdentity(x), StringComparer.OrdinalIgnoreCase) && !_sequentialBaseline.Contains(PeakIdentity(x)));
         if (row is null) return false;
+        int channels = _viewModel.Peaks.Where(p => addedIdentities.Contains(PeakIdentity(p)) && !_sequentialBaseline.Contains(PeakIdentity(p)))
+            .Select(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}").Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        if (channels != 1)
+        {
+            if (_sequentialStatus is not null) _sequentialStatus.Text = "Pribudlo viac kanálov naraz. Odpoj nové snímače a pripoj iba jeden, aby bolo priradenie jednoznačné.";
+            return true;
+        }
         string sn = _sequentialPendingSn;
         foreach (CalibrationPeakRowViewModel channelRow in _viewModel.Peaks.Where(x =>
                      string.Equals(x.PeakLoggerDeviceSerialNumber, row.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
@@ -232,6 +270,9 @@ public partial class CalibrationWindow
             channelRow.ChannelSerialNumber = sn;
         _sequentialPendingSn = null;
         _sequentialLookupCts?.Cancel();
+        if (_pairingResult is not null) _pairingResult.Text = $"✓ Priradenie dokončené: {sn} → kanál {row.Channel}\n" +
+            (_pairingApiVerified ? "API overené. Pripravené na ďalší snímač." : "SN priradené; API zatiaľ neoverené. Pripravené na ďalší snímač.");
+        if (_pairingSteps is not null) _pairingSteps.Text = "● 1 Zadaj ďalšie SN     ○ 2 Pripoj snímač     ○ 3 Priradenie";
         ShowProductionInfo($"SN {sn} bolo priradené ku kanálu {row.Channel}. Pripravené na ďalší snímač.");
         if (_sequentialStatus is not null) _sequentialStatus.Text = $"Priradené: {sn} → kanál {row.Channel}. Zadaj ďalšie SN.";
         if (_sequentialSnBox is not null)
