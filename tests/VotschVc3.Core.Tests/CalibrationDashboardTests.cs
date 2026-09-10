@@ -5,6 +5,19 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void AllStableTargetsFinishStabilityStepAndHideItsCountdown()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 2)), Start);
+        Assert.Equal("Done", m.Steps[4].State);
+        Assert.Equal("Active", m.Steps[5].State);
+        Assert.False(m.StabilitySamplingActive);
+        Assert.Equal("Stabilita FBG splnená", m.StabilityCountdown);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing)), Start.AddSeconds(30));
+        Assert.Equal("Active", m.Steps[4].State);
+        Assert.True(m.StabilitySamplingActive);
+    }
     [Fact] public void MeasurementCountdownOnlyRunsForMeasuringTargets()
     {
         var m = Model();

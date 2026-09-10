@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.347] – 2026-09-10
+
+### Opravené
+
+- Keď všetky peaky prešli stabilitou, krok Stabilita FBG zobrazí splnené a jeho odpočet sa skryje. Aktívne zostane meranie vzoriek; pri strate stability sa stav opäť vráti na stabilizáciu.
+
 ## [1.76.346] – 2026-09-10
 
 ### Opravené

@@ -180,6 +180,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string NextSampleCountdown => _paused ? "Odber pozastavený" : !SamplingActive ? "Odber neprebieha – čaká na podmienky" :
         _lastFbgSampleAt is null ? "Čaká na prvú vzorku" : SampleAge >= SampleCycleSeconds ? "Čaká na ďalšiu vzorku…" :
         $"Ďalšia vzorka približne o {Duration(TimeSpan.FromSeconds(Math.Ceiling(SampleCycleSeconds - SampleAge)))}";
+    public bool StabilitySamplingActive => SamplingActive && TotalTargets > StableCount + WarningMeasuringCount;
+    public string StabilityCountdown => TotalTargets > 0 && StableCount >= TotalTargets ? "Stabilita FBG splnená" : NextSampleCountdown;
     public bool MeasurementSamplingActive => SamplingActive && MeasuringCount > 0;
     public double MeasurementIntervalProgress => MeasurementSamplingActive ? SampleIntervalProgress : 0;
     public string MeasurementCountdown => MeasurementSamplingActive ? NextSampleCountdown : "Čaká na stabilitu FBG";
@@ -818,6 +820,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             CalibrationRunState.WaitingForChamberStability when WaitingForChamber => 2,
             CalibrationRunState.WaitingForChamberStability => 3,
             CalibrationRunState.StabilizingSensors when AllTargetsFinished => 6,
+            CalibrationRunState.StabilizingSensors when TotalTargets > 0 && StableCount >= TotalTargets => 5,
             CalibrationRunState.StabilizingSensors => 4,
             CalibrationRunState.PlateauCompleted => 7,
             CalibrationRunState.MovingToNextPlateau => 7,
