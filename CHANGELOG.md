@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.336] – 2026-09-10
+
+### Opravené
+
+- Editovateľné bunky zapojenia používajú jednu vektorovú ceruzku. Globálna náhrada textových symbolov ju už nemení na modrú stavovú ikonu, čím sa odstránilo striedanie ikoniek.
+
 ## [1.76.335] – 2026-09-10
 
 ### Vylepšené

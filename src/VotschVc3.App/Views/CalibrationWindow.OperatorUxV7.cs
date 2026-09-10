@@ -237,15 +237,17 @@ public partial class CalibrationWindow
         value.SetBinding(TextBlock.TextProperty, CloneBindingV7(sourceBinding, forEditing: false));
         root.AppendChild(value);
 
-        var pencil = new FrameworkElementFactory(typeof(TextBlock));
-        pencil.SetValue(TextBlock.TextProperty, "✎");
-        pencil.SetValue(TextBlock.FontSizeProperty, 12d);
-        pencil.SetValue(UIElement.OpacityProperty, 0.62d);
+        // A vector bypasses the global text-to-status-icon decorator and font fallback.
+        var pencil = new FrameworkElementFactory(typeof(System.Windows.Shapes.Path));
+        pencil.SetValue(System.Windows.Shapes.Path.DataProperty, Geometry.Parse("M2,10 L3,7 L8,2 L10,4 L5,9 Z M7,3 L9,5"));
+        pencil.SetValue(System.Windows.Shapes.Shape.StrokeProperty, TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue);
+        pencil.SetValue(System.Windows.Shapes.Shape.StrokeThicknessProperty, 1.2d);
+        pencil.SetValue(System.Windows.Shapes.Shape.StretchProperty, Stretch.Uniform);
+        pencil.SetValue(FrameworkElement.WidthProperty, 12d);
+        pencil.SetValue(FrameworkElement.HeightProperty, 12d);
+        pencil.SetValue(UIElement.IsHitTestVisibleProperty, false);
         pencil.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
-        pencil.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        pencil.SetValue(TextBlock.ForegroundProperty, TryFindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue);
-        pencil.SetValue(FrameworkElement.ToolTipProperty, "Editovateľná bunka");
-        root.AppendChild(pencil);
+        pencil.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);        root.AppendChild(pencil);
 
         return new DataTemplate { VisualTree = root };
     }
