@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.338] – 2026-09-10
+
+### Opravené
+
+- Automaticky pripojený PeakLogger sa zobrazí vo výbere API aj bez discovery. Prázdna odpoveď je označená ako API pripojené – bez peakov s adresou endpointu; aplikácia svojvoľne neprepína na inú inštanciu.
+
 ## [1.76.337] – 2026-09-10
 
 ### Vylepšené

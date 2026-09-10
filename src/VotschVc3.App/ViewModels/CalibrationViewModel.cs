@@ -1032,7 +1032,21 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             missing.MarkDisconnected();
             Peaks.Add(missing);
         }
-        PeakLoggerStatus = $"Pripojený · {sensors.Count} zdrojov/kanálov · {Peaks.Count} peakov";
+        int livePeakCount = sensors.Sum(sensor => sensor.Peaks.Count);
+        PeakLoggerStatus = livePeakCount == 0
+            ? $"API pripojené · {PeakLoggerHost}:{PeakLoggerPort} · bez peakov"
+            : $"Pripojený · {sensors.Count} zdrojov/kanálov · {livePeakCount} peakov";
+        if (_peakLogger is PeakLoggerApiClient api)
+        {
+            var connected = new PeakLoggerApiClient.DiscoveredInstance(PeakLoggerHost, PeakLoggerPort, api.PeaksPath, livePeakCount, sensors.Count);
+            var previous = PeakLoggerInstances.FirstOrDefault(x => x.Host == PeakLoggerHost && x.Port == PeakLoggerPort);
+            if (previous is not null) PeakLoggerInstances.Remove(previous);
+            PeakLoggerInstances.Add(connected);
+            SelectedPeakLoggerInstance = connected;
+            PeakLoggerDiscoverySummary = livePeakCount == 0
+                ? "Uložené API odpovedá bez peakov. Skontroluj pripojenie snímačov alebo vyber správnu API inštanciu."
+                : "Uložený PeakLogger bol pripojený a načítaný.";
+        }
         if (!UseSimulator && Peaks.Count > 0 && Peaks.All(p => string.IsNullOrWhiteSpace(p.SerialNumber)))
         {
             StatusMessage = "PeakLogger peaky načítané. Produkčné SN FBG senzora zadaj alebo naskenuj k vybranému peaku; deviceSN z API je SN interrogátora.";
