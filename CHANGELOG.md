@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.335] – 2026-09-10
+
+### Vylepšené
+
+- Informácie o nových peakoch v párovaní sú zobrazené väčším 20 px polotučným písmom s vyšším kontrastom a riadkovaním v samostatnej karte pre operátora.
+
 ## [1.76.334] – 2026-09-10
 
 ### Vylepšené
