@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.337] – 2026-09-10
+
+### Vylepšené
+
+- Zapojenie obsahuje tlačidlo Zrušiť výber peakov. Odznačí všetky peaky a uloží výber bez zmeny SN alebo poznámok; počas kalibrácie výber nemení.
+
 ## [1.76.336] – 2026-09-10
 
 ### Opravené

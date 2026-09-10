@@ -481,6 +481,7 @@
                                         ToolTip="Za každý kanál označí jeden najsilnejší peak." />
                                 <Button Content="☑  Vybrať všetky peaky" Style="{StaticResource GhostButton}"
                                         Padding="12,6" Margin="8,0,16,0" Click="SelectAllPeaks_Click" />
+                                <Button Content="Zrušiť výber peakov" Style="{StaticResource GhostButton}" Padding="10,6" Margin="0,0,10,0" Click="ClearPeaks_Click" ToolTip="Odznačí všetky peaky. SN a poznámky zostanú zachované." />
                                 <TextBlock Text="{Binding PeakSelectionSummary}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">

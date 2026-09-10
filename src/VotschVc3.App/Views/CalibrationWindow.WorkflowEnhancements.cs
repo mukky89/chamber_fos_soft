@@ -365,6 +365,14 @@ public partial class CalibrationWindow
         _selectAllPeaksButton = button;
     }
 
+    private void ClearPeaks_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsRunning) return;
+        foreach (CalibrationPeakRowViewModel peak in _viewModel.Peaks) peak.Selected = false;
+        if (_viewModel.SaveSetupCommand.CanExecute(null)) _viewModel.SaveSetupCommand.Execute(null);
+        AppLog.Info("FBG kalibrácia", "Výber všetkých peakov bol zrušený.");
+    }
+
     private void SelectAllPeaks_Click(object sender, RoutedEventArgs e)
     {
         foreach (CalibrationPeakRowViewModel peak in _viewModel.Peaks)
