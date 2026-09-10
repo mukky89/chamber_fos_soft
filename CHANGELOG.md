@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.318] – 2026-09-10
+
+### Opravené
+
+- Po dokončení, zastavení alebo zlyhaní FBG behu sa použitá WIKA bezpečne odpojí a uvoľní COM port. Automatické opätovné pripájanie zostane pozastavené do ručného načítania teploty. Uložené priradenie ku komore zostáva zachované; čakanie na zásah operátora počas obnoviteľného behu teplomer neodpája.
+
 ## [1.76.317] – 2026-09-10
 
 ### Opravené

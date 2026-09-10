@@ -1835,6 +1835,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         RefreshDashboardPlan();
         await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is not null) EnsureF100Reservation();
+        ThermometerDeviceViewModel? runReference = SelectedF100;
         SaveSetup();
         WarningText = string.Empty;
         TargetProgress.Clear();
@@ -2055,6 +2056,23 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 _chamber = null;
             }
             IsRunning = false;
+            // The runner and reference trace have stopped. Reuse the explicit-disconnect
+            // path: pause background reconnects, drain serial IO, return LOCAL and release COM.
+            // Preserve the persistent chamber/reference assignment for the next run.
+            if (runReference is not null && RunState != CalibrationRunState.AwaitingOperator.ToString())
+            {
+                try
+                {
+                    await runReference.DisconnectAsync();
+                    ReferenceTemperatureLabel = "—";
+                    AppLog.Info("FBG kalibrácia", $"WIKA {runReference.PortName}: po ukončení behu odpojená; COM port uvoľnený.");
+                }
+                catch (Exception referenceError)
+                {
+                    AppLog.Warn("FBG kalibrácia", $"WIKA {runReference.PortName}: uvoľnenie portu zlyhalo · {referenceError.Message}");
+                    WarningText = $"WIKA sa po ukončení nepodarilo odpojiť: {referenceError.Message}";
+                }
+            }
             OnPropertyChanged(nameof(OperatorSupervisionEnabled));
             OnPropertyChanged(nameof(OperatorSupervisionLabel));
             _stopRequested = false;
