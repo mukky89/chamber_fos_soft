@@ -180,6 +180,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string NextSampleCountdown => _paused ? "Odber pozastavený" : !SamplingActive ? "Odber neprebieha – čaká na podmienky" :
         _lastFbgSampleAt is null ? "Čaká na prvú vzorku" : SampleAge >= SampleCycleSeconds ? "Čaká na ďalšiu vzorku…" :
         $"Ďalšia vzorka približne o {Duration(TimeSpan.FromSeconds(Math.Ceiling(SampleCycleSeconds - SampleAge)))}";
+    public bool MeasurementSamplingActive => SamplingActive && MeasuringCount > 0;
+    public double MeasurementIntervalProgress => MeasurementSamplingActive ? SampleIntervalProgress : 0;
+    public string MeasurementCountdown => MeasurementSamplingActive ? NextSampleCountdown : "Čaká na stabilitu FBG";
     public string SampleCadence => $"Interval odberu {_sampleAcquisitionIntervalSeconds:0.#} s · cyklus ≈ {SampleCycleSeconds:0.#} s";
     public string StabilitySampleEstimate => SampleWindowEstimate(false);
     public string MeasurementSampleEstimate => SampleWindowEstimate(true);

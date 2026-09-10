@@ -5,6 +5,24 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void MeasurementCountdownOnlyRunsForMeasuringTargets()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing)), Start);
+        Assert.False(m.MeasurementSamplingActive);
+        Assert.Equal(0, m.MeasurementIntervalProgress);
+        Assert.Equal("Čaká na stabilitu FBG", m.MeasurementCountdown);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Measuring", 1),
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing) with { PeakId = "P2" }), Start.AddSeconds(30));
+        Assert.True(m.MeasurementSamplingActive);
+        Assert.Equal(m.NextSampleCountdown, m.MeasurementCountdown);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0, CalibrationTargetState.Stabilizing)), Start.AddSeconds(60));
+        Assert.False(m.MeasurementSamplingActive);
+        Assert.Equal(0, m.MeasurementIntervalProgress);
+    }
     [Fact] public void ChamberCriteriaDistinguishWaitingConfirmedAndDisabled()
     {
         var m = Model();

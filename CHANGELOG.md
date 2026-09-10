@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.346] – 2026-09-10
+
+### Opravené
+
+- Karta merania vzoriek zobrazuje odpočet a pohybujúci sa bar až pri skutočnom finálnom meraní aspoň jedného peaku. Počas stabilizácie všetkých peakov zobrazí čakanie na stabilitu FBG bez aktívneho baru.
+
 ## [1.76.345] – 2026-09-10
 
 ### Opravené
