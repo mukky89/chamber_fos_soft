@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.328] – 2026-09-10
+
+### Vylepšené
+
+- Modálne párovanie SN používa schválený dizajn: tri grafické kroky, veľké pole s potvrdením Enter, samostatné čakanie na snímač a výslednú kartu s výrazným kanálom. Po krátkom zobrazení dokončenia sa otvorí ďalšie zadávanie; posledný výsledok a samostatný stav API zostávajú viditeľné.
+
 ## [1.76.327] – 2026-09-10
 
 ### Opravené

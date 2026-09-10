@@ -24,6 +24,7 @@ internal static class CalibrationWindowWiringModesV9Bootstrap
 
 public partial class CalibrationWindow
 {
+    private SensorPairingPanel? _pairingPanel;
     private TextBlock? _pairingSteps;
     private TextBlock? _pairingResult;
     private bool _pairingApiVerified;
@@ -121,70 +122,36 @@ public partial class CalibrationWindow
         Brush text = TryFindResource("TextBrush") as Brush ?? Brushes.White;
         Brush muted = TryFindResource("MutedBrush") as Brush ?? Brushes.LightGray;
 
-        _sequentialSnBox = new TextBox
+        var panel = new SensorPairingPanel();
+        _pairingPanel = panel;
+        _sequentialSnBox = panel.SerialInput;
+        _sequentialStatus = panel.Status;
+        _sequentialArmButton = panel.Prepare;
+        _pairingSteps = null;
+        _pairingResult = null;
+        panel.Prepare.Click += async (_, _) => await ArmSequentialSerialV9Async();
+        panel.SerialInput.KeyDown += async (_, e) =>
         {
-            MinHeight = 44, FontSize = 20, VerticalContentAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 8, 0, 8),
+            if (e.Key == Key.Enter && panel.Prepare.IsEnabled)
+            { e.Handled = true; await ArmSequentialSerialV9Async(); }
         };
-        _sequentialStatus = new TextBlock
-        {
-            Text = "Zadaj alebo naskenuj sériové číslo.",
-            Foreground = muted, TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 16),
-        };
-        _sequentialArmButton = new Button
-        {
-            Content = "Pripraviť SN  ↵", Padding = new Thickness(18, 9, 18, 9),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Style = TryFindResource("AccentButton") as Style,
-        };
-        _sequentialArmButton.Click += async (_, _) => await ArmSequentialSerialV9Async();
-        _sequentialSnBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; await ArmSequentialSerialV9Async(); } };
-        var stack = new StackPanel { Margin = new Thickness(24) };
-        stack.Children.Add(new TextBlock { Text = "Priradiť sériové číslo", FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = text });
-        stack.Children.Add(new TextBlock
-        {
-            Text = "Zadaj SN → Pripoj snímač → Automatické priradenie kanálu",
-            Foreground = muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 20),
-        });
-        stack.Children.Add(new TextBlock { Text = "Sériové číslo (SN)", Foreground = text, FontWeight = FontWeights.SemiBold });
-        _pairingSteps = new TextBlock { Text = "● 1 Zadaj SN     ○ 2 Pripoj snímač     ○ 3 Priradenie",
-            TextWrapping = TextWrapping.Wrap, Foreground = text, FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 12) };
-        stack.Children.Insert(1, new Border { Background = background, CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(12), Margin = new Thickness(0, 12, 0, 4), Child = _pairingSteps });
-        _pairingResult = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = muted,
-            Margin = new Thickness(0, 12, 0, 0) };
-        stack.Children.Add(_sequentialSnBox);
-        stack.Children.Add(_sequentialStatus);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal };
-        actions.Children.Add(_sequentialArmButton);
-        var reset = new Button { Content = "Zmeniť SN", Margin = new Thickness(10, 0, 0, 0),
-            Padding = new Thickness(18, 9, 18, 9), Style = TryFindResource("GhostButton") as Style };
-        reset.Click += (_, _) =>
+        panel.CloseAction.Click += (_, _) => _sequentialWiringWindow?.Close();
+        panel.ChangeSerial.Click += (_, _) =>
         {
             _sequentialPendingSn = null;
             _sequentialLookupCts?.Cancel();
-            _sequentialSnBox!.IsEnabled = true;
-            _sequentialArmButton!.IsEnabled = true;
-            _sequentialStatus!.Text = "Zadaj alebo naskenuj sériové číslo.";
-            _sequentialSnBox.Focus();
-            _sequentialSnBox.SelectAll();
+            panel.SerialInput.IsEnabled = true;
+            panel.Prepare.IsEnabled = true;
+            panel.SetStage(1);
+            panel.Status.Text = "Po potvrdení SN pripoj snímač do voľného kanála.";
+            panel.SerialInput.Focus();
+            panel.SerialInput.SelectAll();
         };
-        actions.Children.Add(reset);
-        stack.Children.Add(actions);
-        stack.Children.Add(_pairingResult);
-        stack.Children.Add(new TextBlock { Text = "API dopĺňa údaje na pozadí. SN môžeš priradiť aj bez pripojenia k API.",
-            Foreground = muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 16, 0, 0) });
-        var card = new Border
-        {
-            Background = surface, BorderBrush = border, BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(12), Margin = new Thickness(18), Child = stack,
-        };
-        _sequentialWiringWindow = new Window
+        var card = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = SystemParameters.WorkArea.Height - 100 };        _sequentialWiringWindow = new Window
         {
             Owner = this, Title = "Priradenie FBG SN", Content = card,
-            SizeToContent = SizeToContent.Height, Width = 640,
+            SizeToContent = SizeToContent.Height, Width = 700,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
             Background = background, Foreground = text,
         };
@@ -227,6 +194,7 @@ public partial class CalibrationWindow
         _pairingApiVerified = false;
         if (_pairingSteps is not null) _pairingSteps.Text = "✓ 1 SN pripravené     ● 2 Pripoj snímač     ○ 3 Priradenie";
         _sequentialPendingSn = sn;
+        _pairingPanel?.SetStage(2, sn);
         _sequentialBaseline = CurrentPeakIdentities();
         _sequentialSnBox.IsEnabled = false;
         _sequentialArmButton.IsEnabled = false;
@@ -270,6 +238,7 @@ public partial class CalibrationWindow
             channelRow.ChannelSerialNumber = sn;
         _sequentialPendingSn = null;
         _sequentialLookupCts?.Cancel();
+        _pairingPanel?.ShowResult(sn, row.Channel, _pairingApiVerified);
         if (_pairingResult is not null) _pairingResult.Text = $"✓ Priradenie dokončené: {sn} → kanál {row.Channel}\n" +
             (_pairingApiVerified ? "API overené. Pripravené na ďalší snímač." : "SN priradené; API zatiaľ neoverené. Pripravené na ďalší snímač.");
         if (_pairingSteps is not null) _pairingSteps.Text = "● 1 Zadaj ďalšie SN     ○ 2 Pripoj snímač     ○ 3 Priradenie";
