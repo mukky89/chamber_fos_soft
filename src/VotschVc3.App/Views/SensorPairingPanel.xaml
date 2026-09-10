@@ -13,13 +13,14 @@
 <StackPanel x:Name="Entry">
 <TextBlock Text="Sériové číslo (SN)" FontSize="17" FontWeight="SemiBold" Foreground="#F2F5FC" Margin="0,0,0,8"/>
 <Grid><TextBox x:Name="SerialInput" Height="56" FontSize="22" Padding="14,8" VerticalContentAlignment="Center"/><TextBlock Text="Naskenuj alebo zadaj SN" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#A6B8D9" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SerialInput}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></Grid>
-<Grid Margin="0,16,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions><Button x:Name="Prepare" Content="Pripraviť snímač     Enter ↵" Style="{DynamicResource AccentButton}" Padding="12,12" Margin="0,0,10,0"/><Button x:Name="CloseAction" Grid.Column="1" Content="Zavrieť" Padding="12,12"/></Grid>
+<TextBlock Text="Poznámka" Foreground="#A6B8D9" Margin="0,12,0,6"/><TextBox x:Name="NoteInput" MinHeight="40" MaxHeight="90" AcceptsReturn="True" TextWrapping="Wrap"/>
+<Grid Margin="0,16,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions><Button x:Name="Prepare" Content="Pripraviť snímač     Enter ↵" Style="{DynamicResource AccentButton}" Padding="12,12" Margin="0,0,10,0"/><Button x:Name="CloseAction" Grid.Column="1" Content="Dokončiť zapájanie" Padding="12,12"/></Grid>
 </StackPanel>
 <StackPanel x:Name="Waiting" Visibility="Collapsed" Margin="0,4,0,8">
 <TextBlock Text="Teraz pripoj snímač" FontSize="18" HorizontalAlignment="Center" Foreground="#A6B8D9"/>
 <TextBlock x:Name="PendingSerial" FontSize="30" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="White" Margin="0,14"/>
 <ProgressBar Height="3" IsIndeterminate="True" Margin="0,0,0,12"/>
-<Button x:Name="ChangeSerial" Content="Zmeniť SN" HorizontalAlignment="Left" Style="{DynamicResource GhostButton}"/>
+<TextBlock x:Name="Candidates" TextWrapping="Wrap" Foreground="#A6B8D9" Margin="0,8"/><Button x:Name="ConfirmPeaks" Content="Potvrdiť priradenie peakov" IsEnabled="False" Style="{DynamicResource AccentButton}" Margin="0,8"/><Button x:Name="ChangeSerial" Content="Zmeniť SN" HorizontalAlignment="Left" Style="{DynamicResource GhostButton}"/>
 </StackPanel>
 <TextBlock x:Name="Status" Text="ⓘ  Po potvrdení SN pripoj snímač do voľného kanála." Foreground="#A6B8D9" TextWrapping="Wrap" Margin="0,16,0,16"/>
 <Border x:Name="ResultCard" Visibility="Collapsed" Background="#192F34" BorderBrush="#386963" BorderThickness="1" CornerRadius="9" Padding="18">

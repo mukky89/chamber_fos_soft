@@ -1089,24 +1089,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         return row;
     }
 
-    private void PropagateChannelSerialNumber(CalibrationPeakRowViewModel source)
-    {
-        _propagatingChannelSerialNumber = true;
-        try
-        {
-            foreach (CalibrationPeakRowViewModel row in Peaks.Where(row =>
-                         !ReferenceEquals(row, source) &&
-                         string.Equals(row.PeakLoggerDeviceSerialNumber, source.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
-                         string.Equals(row.Channel, source.Channel, StringComparison.OrdinalIgnoreCase)))
-            {
-                row.ChannelSerialNumber = source.ChannelSerialNumber;
-            }
-        }
-        finally
-        {
-            _propagatingChannelSerialNumber = false;
-        }
-    }
+    private void PropagateChannelSerialNumber(CalibrationPeakRowViewModel source) { }
 
     private void ValidateSerialNumbers()
     {

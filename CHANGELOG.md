@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.329] – 2026-09-10
+
+### Vylepšené
+
+- Postupné CHAIN zapájanie umožňuje zadávať SN a poznámku pre snímač s jedným alebo viacerými peakmi na rovnakom kanáli. Nové peaky operátor potvrdí po ustálení zoznamu; existujúce SN sa neprepisujú. Automatické kopírovanie SN na celý kanál bolo odstránené.
+- Pri chýbajúcich pôvodných peakoch alebo viacerých nových kanáloch sa potvrdenie pozastaví na kontrolu. Dokončiť zapájanie zatvorí okno so zachovaným zapojením.
+
 ## [1.76.328] – 2026-09-10
 
 ### Vylepšené

@@ -129,6 +129,11 @@ public partial class CalibrationWindow
         _sequentialArmButton = panel.Prepare;
         _pairingSteps = null;
         _pairingResult = null;
+        var pairingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        pairingTimer.Tick += (_, _) => RefreshPairingCandidates();
+        panel.Loaded += (_, _) => pairingTimer.Start();
+        panel.Unloaded += (_, _) => pairingTimer.Stop();
+        panel.ConfirmPeaks.Click += (_, _) => ConfirmSequentialPeaks();
         panel.Prepare.Click += async (_, _) => await ArmSequentialSerialV9Async();
         panel.SerialInput.KeyDown += async (_, e) =>
         {
@@ -193,6 +198,9 @@ public partial class CalibrationWindow
         }
         _pairingApiVerified = false;
         if (_pairingSteps is not null) _pairingSteps.Text = "✓ 1 SN pripravené     ● 2 Pripoj snímač     ○ 3 Priradenie";
+        _pendingNote = _pairingPanel?.NoteInput.Text ?? string.Empty;
+        _candidateSignature = string.Empty;
+        _candidateSince = DateTime.UtcNow;
         _sequentialPendingSn = sn;
         _pairingPanel?.SetStage(2, sn);
         _sequentialBaseline = CurrentPeakIdentities();
@@ -218,25 +226,35 @@ public partial class CalibrationWindow
             AppLog.Warn("FBG zapojenie", $"Voliteľné API overenie SN zlyhalo: {ex.Message}");
         }
     }
-    private bool TryPairSequentialPeak(IEnumerable<string> addedIdentities)
+    private string _pendingNote = string.Empty;
+    private string _candidateSignature = string.Empty;
+    private DateTime _candidateSince;
+    private List<CalibrationPeakRowViewModel> PendingCandidates() => _viewModel.Peaks.Where(p =>
+        !p.IsDisconnected && !_sequentialBaseline.Contains(PeakIdentity(p)) && string.IsNullOrWhiteSpace(p.ChannelSerialNumber)).ToList();
+    private bool TryPairSequentialPeak(IEnumerable<string> addedIdentities) => _sequentialPendingSn is not null;
+    private void RefreshPairingCandidates()
     {
-        if (string.IsNullOrWhiteSpace(_sequentialPendingSn)) return false;
-        CalibrationPeakRowViewModel? row = _viewModel.Peaks.FirstOrDefault(x =>
-            addedIdentities.Contains(PeakIdentity(x), StringComparer.OrdinalIgnoreCase) && !_sequentialBaseline.Contains(PeakIdentity(x)));
-        if (row is null) return false;
-        int channels = _viewModel.Peaks.Where(p => addedIdentities.Contains(PeakIdentity(p)) && !_sequentialBaseline.Contains(PeakIdentity(p)))
-            .Select(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}").Distinct(StringComparer.OrdinalIgnoreCase).Count();
-        if (channels != 1)
-        {
-            if (_sequentialStatus is not null) _sequentialStatus.Text = "Pribudlo viac kanálov naraz. Odpoj nové snímače a pripoj iba jeden, aby bolo priradenie jednoznačné.";
-            return true;
-        }
+        if (_pairingPanel is null || _sequentialPendingSn is null) return;
+        var rows = PendingCandidates();
+        string signature = string.Join(";", rows.Select(PeakIdentity).OrderBy(x => x));
+        if (signature != _candidateSignature) { _candidateSignature = signature; _candidateSince = DateTime.UtcNow; }
+        bool missing = _viewModel.Peaks.Any(p => _sequentialBaseline.Contains(PeakIdentity(p)) && p.IsDisconnected);
+        bool singleChannel = rows.Select(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}").Distinct().Count() == 1;
+        _pairingPanel.ConfirmPeaks.IsEnabled = rows.Count > 0 && singleChannel && !missing && (DateTime.UtcNow - _candidateSince).TotalSeconds >= 3;
+        _pairingPanel.Candidates.Text = missing ? "Pôvodné peaky chýbajú. Skontroluj pripojenie pred potvrdením." :
+            rows.Count == 0 ? "Čakám na nové peaky…" :
+            $"Nové peaky: {rows.Count}\n" + string.Join(", ", rows.Select(p => $"{p.Channel} / {p.PeakId} · {p.CurrentWavelengthNm:F3} nm")) +
+            (singleChannel ? "\nSkontroluj počet peakov snímača a potvrď priradenie." : "\nPribudlo viac kanálov. Pripájaj iba jeden snímač naraz.");
+    }
+    private void ConfirmSequentialPeaks()
+    {
+        RefreshPairingCandidates();
+        if (_pairingPanel?.ConfirmPeaks.IsEnabled != true || _sequentialPendingSn is null) return;
+        var rows = PendingCandidates();
+        var row = rows[0];
         string sn = _sequentialPendingSn;
-        foreach (CalibrationPeakRowViewModel channelRow in _viewModel.Peaks.Where(x =>
-                     string.Equals(x.PeakLoggerDeviceSerialNumber, row.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
-                     string.Equals(x.Channel, row.Channel, StringComparison.OrdinalIgnoreCase)))
-            channelRow.ChannelSerialNumber = sn;
-        _sequentialPendingSn = null;
+        foreach (var peak in rows) { peak.ChannelSerialNumber = sn; peak.Notes = _pendingNote; }
+        _pairingPanel.NoteInput.Clear();        _sequentialPendingSn = null;
         _sequentialLookupCts?.Cancel();
         _pairingPanel?.ShowResult(sn, row.Channel, _pairingApiVerified);
         if (_pairingResult is not null) _pairingResult.Text = $"✓ Priradenie dokončené: {sn} → kanál {row.Channel}\n" +
@@ -250,7 +268,6 @@ public partial class CalibrationWindow
             _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => _sequentialSnBox?.Focus()));
         }
         AppLog.Info("FBG zapojenie", $"Poradovo priradené SN {sn} ku kanálu {row.Channel}.");
-        return true;
     }
 
     private void CloseSequentialWiringV9()
