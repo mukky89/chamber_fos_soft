@@ -425,7 +425,7 @@ public sealed class CalibrationWorkflowRegressionTests
             };
             var setup = StableSetup(profile.Id);
             setup.CalibrationSegmentIndices.Add(1);
-            setup.Settings.FinalConditioningDuration = TimeSpan.FromMilliseconds(25);
+            setup.Settings.FinalConditioningDuration = TimeSpan.FromHours(1); // Legacy saved value must not impose a hold.
             chamber.FinalConditioningReadOffsetC = 0;
 
             var store = new CalibrationStore(root);
@@ -463,6 +463,7 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.Equal(25, run.FinalConditioningTemperatureC, 6);
             Assert.NotNull(run.FinalConditioningStartedAt);
             Assert.NotNull(run.FinalConditioningCompletedAt);
+            Assert.Equal(TimeSpan.Zero, run.FinalConditioningRequiredDuration);
             Assert.NotNull(run.FinalVerification);
             Assert.All(run.FinalVerification.Targets, target => Assert.Equal(CalibrationTargetState.Stable, target.Status));
             Assert.Equal(1, chamber.StopCount);

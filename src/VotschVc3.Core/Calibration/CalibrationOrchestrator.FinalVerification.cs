@@ -9,7 +9,7 @@ public sealed partial class CalibrationOrchestrator
         Func<CancellationToken, Task<double?>>? readReference, CancellationToken token,
         Action<int, int, double?, double, TimeSpan>? progress = null) =>
         WaitForPlateauAsync(run, setup, -1, run.Plateaus.Count, 25,
-            setup.Settings.FinalConditioningDuration, readChamber, readReference, writer,
+            TimeSpan.Zero, readChamber, readReference, writer,
             snapshot => progress?.Invoke(snapshot.Targets.Select(t => t.MeasurementSamples).DefaultIfEmpty(0).Min(), setup.Settings.RequiredMeasurementSamples,
                 snapshot.ReferenceTemperatureC, snapshot.ActualTemperatureC ?? double.NaN, snapshot.PlateauElapsed),
             token, deferOnTemperatureTimeout: false);

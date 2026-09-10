@@ -35,7 +35,6 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private bool _enableSetpointRamp = true;
     private double _setpointRampCPerMinute = 1;
     private double _finalConditioningTemperatureC = 25;
-    private TimeSpan _finalConditioningDuration = TimeSpan.FromHours(1);
     private double[] _plannedTemperatures = Array.Empty<double>();
     private IReadOnlyDictionary<int, CalibrationPlateauStatistics> _historicalPlateaus =
         new Dictionary<int, CalibrationPlateauStatistics>();
@@ -260,7 +259,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? $"Meria {MeasuringCount} peakov. Ostatné peaky pokračujú v stabilizácii. Namerané vzorky: {SampleSummary}." : $"Stabilizuje sa {TotalTargets} peakov. Aktuálne stabilné: {StableCount} / {TotalTargets}.",
         CalibrationRunState.MovingToPlateau => $"Komore sa nastavuje cieľ {Target}. Profilové rampy a časy sa ignorujú.",
         CalibrationRunState.PlateauCompleted => "Kalibračný bod je dokončený. Pripravuje sa ďalšie vybrané plato.",
-        CalibrationRunState.FinalConditioning => _snapshot?.Message ?? $"Po meraní beží pevný čas temperovania pri nastavenej teplote {_finalConditioningTemperatureC:F1} °C. Po uplynutí minimálneho času a potvrdení rovnakých stabilizačných brán ako na ostatných platách nasleduje nezávislý kontrolný odber FBG s koeficientmi, až potom vypnutie zariadenia.",
+        CalibrationRunState.FinalConditioning => _snapshot?.Message ?? $"Po meraní nasleduje záverečné overenie pri nastavenej teplote {_finalConditioningTemperatureC:F1} °C. Po potvrdení rovnakých stabilizačných brán ako na ostatných platách nasleduje nezávislý kontrolný odber FBG s koeficientmi, až potom vypnutie zariadenia.",
         CalibrationRunState.Completed => "Všetky kalibračné body sú dokončené. Výsledky a export nájdete v Histórii.",
         CalibrationRunState.CompletedWithWarnings => "Beh sa skončil s upozorneniami. Pred použitím výsledkov skontrolujte diagnostiku a históriu.",
         CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted => Alert,
@@ -368,7 +367,6 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _enableSetpointRamp = enableSetpointRamp;
         _setpointRampCPerMinute = Math.Clamp(Math.Abs(setpointRampCPerMinute), 0.1, 20.0);
         _finalConditioningTemperatureC = double.IsFinite(finalConditioningTemperatureC) ? finalConditioningTemperatureC : 25;
-        _finalConditioningDuration = finalConditioningDuration is { } duration && duration >= TimeSpan.Zero ? duration : TimeSpan.FromHours(1);
         _plannedTemperatures = plan;
         _historicalPlateaus = (historicalPlateaus ?? Array.Empty<CalibrationPlateauStatistics>())
             .GroupBy(item => item.PlateauIndex)
@@ -655,13 +653,10 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 
         if (_state == CalibrationRunState.FinalConditioning)
         {
-            double conditioningSeconds = Math.Max(0, _finalConditioningDuration.TotalSeconds + _requiredMeasurementSamples * _sampleAcquisitionIntervalSeconds - (_snapshot?.PlateauElapsed ?? TimeSpan.Zero).TotalSeconds);
-            if (_enableSetpointRamp && ActualTemperature is { } actual && Math.Abs(actual - _finalConditioningTemperatureC) > StabilityToleranceC)
-                conditioningSeconds += Math.Abs(actual - _finalConditioningTemperatureC) / (_setpointRampCPerMinute / 60d);
-            Eta = "≈ " + Duration(TimeSpan.FromSeconds(conditioningSeconds));
-            Finish = "≈ " + now.AddSeconds(conditioningSeconds).ToLocalTime().ToString("dd.MM. HH:mm");
-            EstimatedFinishAt = now.AddSeconds(conditioningSeconds);
-            EtaBasis = $"Zostáva návrat na {_finalConditioningTemperatureC:F1} °C a súvislé temperovanie {Duration(_finalConditioningDuration)} a kontrolný odber FBG s koeficientmi.";
+            Eta = "Závisí od stability";
+            Finish = "—";
+            EstimatedFinishAt = null;
+            EtaBasis = $"Záverečné overenie pri {_finalConditioningTemperatureC:F1} °C nemá pevný čas temperovania. Čaká na stabilitu komory, WIKA a peakov, potom na kontrolný odber.";
             return;
         }
 
@@ -739,7 +734,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         }
 
         seconds += EstimateRemainingRampSeconds(remainingIndices, currentIndex, currentIsActive);
-        seconds += _finalConditioningDuration.TotalSeconds;
+        seconds += _stableDuration.TotalSeconds + (_requiredStableSamples + _requiredMeasurementSamples) * _sampleAcquisitionIntervalSeconds;
         if (seconds <= 0)
         {
             Eta = "Dokončuje sa";
@@ -802,7 +797,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             $"Každý peak samostatne potrebuje {_requiredStableSamples} vzoriek na stabilizáciu: range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm, drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min. Nevyhovujúce celé okno sa resetuje. {Estimate(_requiredStableSamples)}. {cycle}. " + SensorDeadlineHelp,
             $"Po stabilizácii každý peak zbiera {_requiredMeasurementSamples} nových finálnych vzoriek; {Estimate(_requiredMeasurementSamples)}. Pri strate stability sa nehotové meranie zahodí. Hotové peaky sa nemenia. {cycle}. " + SensorDeadlineHelp,            "Z finálnych meracích vzoriek každého peaku vypočíta priemer, medián, minimum, maximum, range, štandardnú odchýlku a drift; následne uloží bod, raw samples a diagnostiku.",
             "Po dokončení všetkých vybraných peakov uloží checkpoint a nastaví cieľ nasledujúceho vybraného plata. Ak žiadne nezostáva, prejde na záverečné temperovanie.",
-            $"Po poslednom kalibračnom bode nastaví komoru na {_finalConditioningTemperatureC:F1} °C. Plato trvá najmenej {Duration(_finalConditioningDuration)}. Pred odberom platia rovnaké brány ako pri kalibračných bodoch: vstupná stabilita komory podľa nastavení, WIKA {Duration(_stableDuration)} v tolerancii ±{StabilityToleranceC:F3} °C a stabilita každého peaku na {_requiredStableSamples} vzorkách (range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm, drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min). Až potom nasleduje nezávislý odber {_requiredMeasurementSamples} kontrolných vzoriek každých {_sampleAcquisitionIntervalSeconds} s. Porovná sa meraná wavelength s wavelength vypočítanou z koeficientov pri teplote WIKA. Kontrola sa nezahrnie do fitovania; neistá stabilita, chýbajúce dáta a chyba sa označia. Až potom sa komora vypne.",
+            $"Po poslednom kalibračnom bode nastaví komoru na {_finalConditioningTemperatureC:F1} °C. Plato nemá pevné časové minimum. Pred odberom platia rovnaké brány ako pri kalibračných bodoch: vstupná stabilita komory podľa nastavení, WIKA {Duration(_stableDuration)} v tolerancii ±{StabilityToleranceC:F3} °C a stabilita každého peaku na {_requiredStableSamples} vzorkách (range ≤ {_maxRangePm:F3} pm, σ ≤ {_maxStdDevPm:F3} pm, drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min). Až potom nasleduje nezávislý odber {_requiredMeasurementSamples} kontrolných vzoriek každých {_sampleAcquisitionIntervalSeconds} s. Porovná sa meraná wavelength s wavelength vypočítanou z koeficientov pri teplote WIKA. Kontrola sa nezahrnie do fitovania; neistá stabilita, chýbajúce dáta a chyba sa označia. Až potom sa komora vypne.",
             "Uzavrie beh, uloží súhrn, históriu a exporty. Výsledný stav môže byť dokončené alebo dokončené s upozorneniami."
         };
         if (Steps.Count == 0)

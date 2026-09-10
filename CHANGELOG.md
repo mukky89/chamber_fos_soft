@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.314] – 2026-09-10
+
+### Opravené
+
+- Záverečné overenie pri 25 °C už nevyžaduje hodinové temperovanie, ani pri starších uložených nastaveniach. Kontrolný odber riadia iba rovnaké stabilizačné brány a počty vzoriek ako bežné plato.
+- Pomocník a odhad dokončenia už nepridávajú pevnú hodinu; pri záverečnom overení uvádzajú závislosť od stability.
+
 ## [1.76.313] – 2026-09-10
 
 ### Zmenené

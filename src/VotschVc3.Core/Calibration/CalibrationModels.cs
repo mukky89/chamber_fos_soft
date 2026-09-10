@@ -126,8 +126,8 @@ public sealed class CalibrationProfileSettings
 
     /// <summary>Mandatory product-conditioning target after all selected calibration plateaus.</summary>
     public double FinalConditioningTemperatureC { get; set; } = 25.0;
-    /// <summary>Fixed time at the final setpoint before the chamber output is stopped.</summary>
-    public TimeSpan FinalConditioningDuration { get; set; } = TimeSpan.FromHours(1);
+    /// <summary>Legacy storage field; final verification uses plateau stability gates without a fixed hold.</summary>
+    public TimeSpan FinalConditioningDuration { get; set; } = TimeSpan.Zero;
     public double FinalConditioningToleranceC { get; set; } = 0.5;
 
     public TimeSpan DefaultSensorStabilizationTimeout { get; set; } = TimeSpan.FromMinutes(60);

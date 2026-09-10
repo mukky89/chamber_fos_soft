@@ -93,9 +93,9 @@ public sealed class CalibrationDashboardTests
         m.ReportChamberTemperature(20, Start);
         m.Tick(Start);
 
-        Assert.Equal("≈ 3 h 55 min", m.Eta);
+        Assert.Equal("≈ 2 h 56 min", m.Eta);
         Assert.Contains("historické mediány", m.EtaBasis);
-        Assert.Equal(Start.AddHours(3).AddMinutes(55), m.EstimatedFinishAt);
+        Assert.Equal(Start.AddHours(2).AddMinutes(55).AddSeconds(100), m.EstimatedFinishAt);
         Assert.Equal("Temperovanie 25 °C", m.Steps[8].Title);
     }
     [Fact] public void EtaIncludesDeferredUnfinishedPlateausBeforeCurrentIndex()
@@ -108,8 +108,8 @@ public sealed class CalibrationDashboardTests
         }, Start.AddMinutes(12));
 
         // Point 1 (index 1) was deferred and remains unfinished even though point 2 is active.
-        Assert.Equal("≈ 3 h 43 min", m.Eta);
-        Assert.Equal(Start.AddHours(3).AddMinutes(55), m.EstimatedFinishAt);
+        Assert.Equal("≈ 2 h 44 min", m.Eta);
+        Assert.Equal(Start.AddHours(2).AddMinutes(55).AddSeconds(100), m.EstimatedFinishAt);
     }
     [Fact] public void ParallelMeasurementDoesNotCountStabilitySamplesAsMeasurement()
     {

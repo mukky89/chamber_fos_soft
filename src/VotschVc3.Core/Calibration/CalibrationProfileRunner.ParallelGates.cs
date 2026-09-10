@@ -494,9 +494,7 @@ public sealed class CalibrationProfileRunner
         CancellationToken cancellationToken)
     {
         const double target = 25.0;
-        TimeSpan required = setup.Settings.FinalConditioningDuration < TimeSpan.Zero
-            ? TimeSpan.FromHours(1)
-            : setup.Settings.FinalConditioningDuration;
+        TimeSpan required = TimeSpan.Zero; // Legacy conditioning duration must not delay verification.
         run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
         run.State = CalibrationRunState.FinalConditioning;
         run.FinalConditioningTemperatureC = target;
