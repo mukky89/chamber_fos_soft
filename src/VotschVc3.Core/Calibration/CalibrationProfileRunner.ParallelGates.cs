@@ -521,36 +521,17 @@ public sealed class CalibrationProfileRunner
         run.FinalConditioningStartedAt = startedAt;
         writer.SaveSummary();
 
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            TimeSpan elapsed = DateTimeOffset.UtcNow - startedAt;
-
-            Progress?.Invoke(new CalibrationProgressSnapshot(
-                CalibrationRunState.FinalConditioning,
-                -1,
-                calibrationPlateauCount,
-                target,
-                null,
-                null,
-                0,
-                0,
-                elapsed,
-                Array.Empty<CalibrationTargetProgress>(),
-                $"Záverečné temperovanie pri nastavených {target:F1} °C · čas {elapsed:hh\\:mm\\:ss} / {required:hh\\:mm\\:ss}. " +
-                "Čas sa nevynuluje pri kolísaní teploty; po jeho uplynutí nasleduje nezávislý kontrolný odber FBG s vypočítanými koeficientmi."));
-
-            TimeSpan remaining = required - elapsed;
-            if (remaining <= TimeSpan.Zero) break;
-            await Task.Delay(remaining < _updateInterval ? remaining : _updateInterval, cancellationToken).ConfigureAwait(false);
-        }
-
-        run.FinalVerification = await _orchestrator.CollectFinalVerificationAsync(
-            setup, run, writer, ReadTemperatureAsync, readReferenceTemperatureAsync, cancellationToken,
-            (collected, total, reference, chamber, elapsed) => Progress?.Invoke(new CalibrationProgressSnapshot(
-                CalibrationRunState.FinalConditioning, -1, calibrationPlateauCount, 25, chamber, reference,
-                0, setup.Mappings.Count(m => m.Selected), required + elapsed, Array.Empty<CalibrationTargetProgress>(),
-                $"KONTROLA KOEFICIENTOV PRI 25 °C · vzorky {collected}/{total} · WIKA {reference:F3} °C. Kontrolné dáta sa nepoužijú na fitovanie."))).ConfigureAwait(false);
+        // The final point uses the production plateau gates and fresh sampling.
+        // Keep it separate from run.Plateaus so it cannot influence the fitted coefficients.
+        run.FinalVerification = await _orchestrator.WaitForPlateauAsync(
+            run, setup, -1, calibrationPlateauCount, target, required,
+            ReadTemperatureAsync, readReferenceTemperatureAsync, writer,
+            snapshot => Progress?.Invoke(snapshot with
+            {
+                State = CalibrationRunState.FinalConditioning,
+                Message = "ZÁVEREČNÉ OVERENIE 25 °C · " + snapshot.Message +
+                    " Kontrolné vzorky sa nepoužijú na výpočet koeficientov."
+            }), cancellationToken, deferOnTemperatureTimeout: false).ConfigureAwait(false);
         run.CalibrationResults = TemperatureCalibrationAnalyzer.Analyze(run);
         if (run.CalibrationResults.Any(r => r.FinalCheckStatus != "PASS"))
         {

@@ -92,7 +92,7 @@ public sealed class CalibrationReferenceGateRegressionTests
                 writer,
                 7.0,
                 null,
-                _ => Task.FromResult<double?>(20.0));
+                _ => Task.FromResult<double?>(chamber.Setpoint));
 
             CalibrationPlateauResult plateau = Assert.Single(run.Plateaus);
             Assert.Equal(7.0, plateau.ActualTemperatureC, 6);
@@ -109,6 +109,7 @@ public sealed class CalibrationReferenceGateRegressionTests
     {
         private readonly double _actualTemperature;
         private double _setpoint;
+        public double Setpoint => _setpoint;
 
         public OffsetFakeChamber(double actualTemperature)
         {

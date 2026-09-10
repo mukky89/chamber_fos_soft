@@ -9,6 +9,30 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Fact]
+    public async Task FinalVerificationWaitsForReferenceInsteadOfSamplingUnstableTemperature()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var logger = new FakePeakLoggerClient();
+            await logger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ChamberId = Guid.NewGuid() };
+            await using var writer = store.CreateRunWriter(run);
+            int progressCount = 0;
+            using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(350));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                new CalibrationOrchestrator(logger).CollectFinalVerificationAsync(setup, run, writer,
+                    _ => Task.FromResult(25d), _ => Task.FromResult<double?>(30d), cancel.Token,
+                    (count, total, reference, chamber, elapsed) => { Assert.Equal(0, count); progressCount++; }));
+            Assert.True(progressCount > 0);
+            Assert.Null(run.FinalVerification);
+            Assert.Empty(run.Plateaus);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+    [Fact]
     public async Task FirstPlateauHasCheckpointBeforeMovementAndRefreshesWhileWaiting()
     {
         string root = TempDirectory();
@@ -402,7 +426,7 @@ public sealed class CalibrationWorkflowRegressionTests
             var setup = StableSetup(profile.Id);
             setup.CalibrationSegmentIndices.Add(1);
             setup.Settings.FinalConditioningDuration = TimeSpan.FromMilliseconds(25);
-            chamber.FinalConditioningReadOffsetC = 5;
+            chamber.FinalConditioningReadOffsetC = 0;
 
             var store = new CalibrationStore(root);
             var run = new CalibrationRunRecord
@@ -440,12 +464,12 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.NotNull(run.FinalConditioningStartedAt);
             Assert.NotNull(run.FinalConditioningCompletedAt);
             Assert.NotNull(run.FinalVerification);
-            Assert.All(run.FinalVerification.Targets, target => Assert.Contains("WIKA mimo tolerancie", target.Problem));
+            Assert.All(run.FinalVerification.Targets, target => Assert.Equal(CalibrationTargetState.Stable, target.Status));
             Assert.Equal(1, chamber.StopCount);
             Assert.Contains(updates, update => update.State == CalibrationRunState.FinalConditioning &&
                                                update.PlateauIndex == -1 &&
                                                Math.Abs(update.TargetTemperatureC - 25) < 0.001 &&
-                                               update.Targets.Count == 0);
+                                               update.Targets.Count > 0);
         }
         finally
         {
@@ -674,7 +698,7 @@ public sealed class CalibrationWorkflowRegressionTests
             };
 
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-            await runner.RunAsync(profile, setup, run, writer, 20, null, _ => Task.FromResult<double?>(35), timeout.Token);
+            await runner.RunAsync(profile, setup, run, writer, 20, null, _ => Task.FromResult<double?>(chamber.WrittenTemperatures.LastOrDefault() == 25 ? 25 : 35), timeout.Token);
 
             Assert.Equal(CalibrationRunState.CompletedWithWarnings, run.State);
             Assert.Contains(run.Warnings, warning => warning.Code == "TEMPERATURE_STABILITY_FORCED");
@@ -770,7 +794,7 @@ public sealed class CalibrationWorkflowRegressionTests
             var runner = new CalibrationProfileRunner(chamber, orchestrator, store);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await Assert.ThrowsAsync<CalibrationSupervisionStoppedException>(() =>
-                runner.RunAsync(profile, setup, run, writer, 20, null, _ => Task.FromResult<double?>(35), timeout.Token));
+                runner.RunAsync(profile, setup, run, writer, 20, null, _ => Task.FromResult<double?>(chamber.WrittenTemperatures.LastOrDefault() == 25 ? 25 : 35), timeout.Token));
             Assert.Equal(1, chamber.StopCount);
             Assert.Equal(CalibrationRunState.Aborted, run.State);
             Assert.NotNull(run.CompletedAt);

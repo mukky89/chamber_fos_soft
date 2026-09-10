@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.312] – 2026-09-10
+
+### Opravené
+
+- Záverečné overenie WL pri 25 °C používa rovnaké vstupné, WIKA a FBG stabilizačné brány a čerstvé meracie okná ako bežné kalibračné plato. Pevný čas temperovania je minimálny čas plata, nie povolenie odobrať nestabilné vzorky. Zachované sú timeouty, reakcie na nestabilitu a bezpečné zastavenie.
+- Kontrolný bod zostáva oddelený od bodov na výpočet koeficientov. Priebeh a pomocník zobrazujú stabilizačné podmienky záverečného overenia.
+
 ## [1.76.311] – 2026-09-10
 
 ### Zmenené
