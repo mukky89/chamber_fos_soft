@@ -14,6 +14,8 @@ public class AlarmEmailSuppressionTests
     [InlineData(NotificationType.CalibrationWarning, "Strata spojenia: POL-EKO GET_STATUS: LIMIT_LOGGED_EXT_CLIENT", false)]
     public async Task OnlyClientLimitConnectionAlarmIsSkipped(NotificationType type, string message, bool skipped)
     {
+        Assert.Equal(skipped, AlarmNotificationPolicy.IsSuppressed(type, message));
+
         var notifier = new EmailNotifier
         {
             Settings = new EmailSettings

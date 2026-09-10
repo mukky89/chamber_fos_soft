@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.319] – 2026-09-10
+
+### Opravené
+
+- Strata spojenia POL-EKO s kódom LIMIT_LOGGED_EXT_CLIENT už nevyvoláva vyskakovacie ani systémové upozornenie. E-mail zostáva potlačený; diagnostický záznam, stav alarmu a bezpečnostné zastavenie zostávajú zachované.
+
 ## [1.76.318] – 2026-09-10
 
 ### Opravené
