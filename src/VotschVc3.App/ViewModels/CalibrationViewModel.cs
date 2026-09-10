@@ -122,9 +122,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         TargetProgress = new ObservableCollection<CalibrationTargetProgressViewModel>();
         History = new ObservableCollection<CalibrationRunRecord>(_calibrationStore.LoadHistory());
 
-        ConnectPeakLoggerCommand = new AsyncRelayCommand(ConnectPeakLoggerAsync, () => !IsRunning, ReportError);
-        DiscoverPeakLoggerApisCommand = new AsyncRelayCommand(DiscoverPeakLoggerApisAsync, () => !IsRunning && !UseSimulator, ReportError);
-        RefreshSensorsCommand = new AsyncRelayCommand(DiscoverSensorsAsync, () => PeakLoggerConnected && !IsRunning, ReportError);
+        ConnectPeakLoggerCommand = new AsyncRelayCommand(ConnectPeakLoggerAsync, () => !IsRunning && !IsLoadingDeviceData, ReportError);
+        DiscoverPeakLoggerApisCommand = new AsyncRelayCommand(DiscoverPeakLoggerApisAsync, () => !IsRunning && !IsLoadingDeviceData && !UseSimulator, ReportError);
+        RefreshSensorsCommand = new AsyncRelayCommand(DiscoverSensorsAsync, () => PeakLoggerConnected && !IsRunning && !IsLoadingDeviceData, ReportError);
         SaveSetupCommand = new RelayCommand(() => { try { SaveSetup(); } catch (Exception ex) { ReportError(ex); } }, () => SelectedProfile is not null && !IsRunning);
         SelectSuggestedPeaksCommand = new RelayCommand(SelectSuggestedPeaks, () => Peaks.Count > 0 && !IsRunning);
         ClearPeakSearchCommand = new RelayCommand(() => PeakSearchText = string.Empty);
@@ -142,8 +142,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         ExportCalibrationCoefficientsCommand = new RelayCommand(ExportCalibrationCoefficients, () => SelectedHistoryRun?.CalibrationResults.Count > 0);
         RestoreSelectedRunCommand = new RelayCommand(RestoreSelectedHistoricalRun, CanRestoreSelectedHistoricalRun);
 
-        RefreshF100PortsCommand = new AsyncRelayCommand(RefreshF100PortsAsync, () => !IsRunning, ReportError);
-        CheckF100Command = new AsyncRelayCommand(CheckF100Async, () => SelectedF100 is not null, ReportError);
+        RefreshF100PortsCommand = new AsyncRelayCommand(RefreshF100PortsAsync, () => !IsRunning && !IsLoadingDeviceData, ReportError);
+        CheckF100Command = new AsyncRelayCommand(CheckF100Async, () => SelectedF100 is not null && !IsLoadingDeviceData, ReportError);
         ToggleF100ChartCommand = new RelayCommand(() => ShowF100Chart = !ShowF100Chart);
         ToggleUsbDiagnosticsCommand = new RelayCommand(ToggleUsbDiagnostics);
         AnalyzeUsbCommand = new RelayCommand(AnalyzeUsb);
@@ -841,7 +841,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         RefreshCommands();
     }
 
-    private async Task ConnectPeakLoggerAsync()
+    private Task ConnectPeakLoggerAsync() => LoadDeviceDataAsync(ConnectPeakLoggerAsyncCore);
+
+    private async Task ConnectPeakLoggerAsyncCore()
     {
         string? newReservationKey = null;
         if (!UseSimulator)
@@ -901,7 +903,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
     }
 
-    private async Task DiscoverPeakLoggerApisAsync()
+    private Task DiscoverPeakLoggerApisAsync() => LoadDeviceDataAsync(DiscoverPeakLoggerApisAsyncCore);
+
+    private async Task DiscoverPeakLoggerApisAsyncCore()
     {
         PeakLoggerDiscoverySummary = IsLocalPeakLoggerHost(PeakLoggerHost)
             ? "Hľadám PeakLogger API na všetkých aktívnych lokálnych TCP portoch…"
@@ -995,7 +999,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         host.Equals(".", StringComparison.OrdinalIgnoreCase) ||
         host.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase);
 
-    private async Task DiscoverSensorsAsync()
+    private Task DiscoverSensorsAsync() => LoadDeviceDataAsync(DiscoverSensorsAsyncCore);
+
+    private async Task DiscoverSensorsAsyncCore()
     {
         if (_peakLogger is null || SelectedProfile is null) return;
         IReadOnlyList<PeakLoggerSensor> sensors = await _peakLogger.DiscoverSensorsAsync();
@@ -1349,7 +1355,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         StartCalibrationCommand.RaiseCanExecuteChanged();
     }
 
-    private async Task RefreshF100PortsAsync()
+    private Task RefreshF100PortsAsync() => LoadDeviceDataAsync(RefreshF100PortsAsyncCore);
+
+    private async Task RefreshF100PortsAsyncCore()
     {
         await RescanF100PortsAsync();
     }
@@ -1467,7 +1475,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             : $"Port {SelectedF100.PortName} sa otvoril, ale WIKA CTH7000 neposlal platnú teplotu.";
     }
 
-    private async Task CheckF100Async()
+    private Task CheckF100Async() => LoadDeviceDataAsync(CheckF100AsyncCore);
+
+    private async Task CheckF100AsyncCore()
     {
         await RescanF100PortsAsync(showStatus: false);
         if (SelectedF100 is null) return;
@@ -1656,6 +1666,25 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         NotifyPeakCounts();
         RefreshCommands();
         StatusMessage = "Zapojenie bolo vymazané. Obnov peaky alebo pripoj snímače a zadaj nové SN.";
+    }
+
+    private int _deviceLoadCount;
+    public bool IsLoadingDeviceData => _deviceLoadCount > 0;
+
+    private async Task LoadDeviceDataAsync(Func<Task> load)
+    {
+        _deviceLoadCount++;
+        OnPropertyChanged(nameof(IsLoadingDeviceData));
+        RefreshCommands();
+        DiscoverPeakLoggerApisCommand.RaiseCanExecuteChanged();
+        try { await load(); }
+        finally
+        {
+            _deviceLoadCount--;
+            OnPropertyChanged(nameof(IsLoadingDeviceData));
+            RefreshCommands();
+            DiscoverPeakLoggerApisCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private void SaveSetup() => PersistSetup(showStatus: true);

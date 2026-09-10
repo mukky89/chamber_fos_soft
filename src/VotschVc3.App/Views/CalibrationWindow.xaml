@@ -169,7 +169,20 @@
         <Border Grid.Row="1" Style="{StaticResource Card}" Margin="6,0,6,10">
             <StackPanel>
                 <TextBlock Text="Zostava kalibrácie" Style="{StaticResource Heading}" Margin="0,0,0,10" />
+                <StackPanel Margin="0,0,0,10" Visibility="{Binding IsLoadingDeviceData, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Načítavam údaje, čakajte…" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <ProgressBar IsIndeterminate="True" Height="4" />
+                </StackPanel>
                 <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoadingDeviceData}" Value="True">
+                                    <Setter Property="IsEnabled" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="0.8*" />
                         <ColumnDefinition Width="10" />

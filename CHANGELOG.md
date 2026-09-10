@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.326] – 2026-09-10
+
+### Vylepšené
+
+- Pri pripájaní, vyhľadávaní a načítavaní PeakLoggera alebo WIKA sa zobrazuje Načítavam údaje, čakajte… s animovaným indikátorom. Ovládanie zostavy je do dokončenia zablokované a obnoví sa aj po chybe.
+
 ## [1.76.325] – 2026-09-10
 
 ### Vylepšené
