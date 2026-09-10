@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.327] – 2026-09-10
+
+### Opravené
+
+- Odpojený peak zostáva v zapojení s uloženým SN, červeným rámčekom a výzvou na opätovné pripojenie. Návrat rovnakého zariadenia, kanála a peaku obnoví živé údaje bez straty SN aj pri obnovení tabuľky.
+- Admin zóna obsahuje minimálnu intenzitu FBG, predvolene −40 dBm. Slabší signál je oranžové upozornenie v stave snímača a neblokuje kalibráciu.
+
 ## [1.76.326] – 2026-09-10
 
 ### Vylepšené

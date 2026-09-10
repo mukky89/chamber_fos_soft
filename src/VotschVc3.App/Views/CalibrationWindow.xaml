@@ -577,6 +577,16 @@
                                         <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                                         <Setter Property="BorderThickness" Value="2" />
                                     </Trigger>
+                                    <DataTrigger Binding="{Binding HasWeakSignal}" Value="True">
+                                        <Setter Property="BorderBrush" Value="#E7AE48" />
+                                        <Setter Property="BorderThickness" Value="2" />
+                                        <Setter Property="ToolTip" Value="{Binding ConnectionWarning}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsDisconnected}" Value="True">
+                                        <Setter Property="BorderBrush" Value="#FF6478" />
+                                        <Setter Property="BorderThickness" Value="2" />
+                                        <Setter Property="ToolTip" Value="{Binding ConnectionWarning}" />
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </DataGrid.RowStyle>
@@ -585,12 +595,13 @@
                             <DataGridTextColumn Header="Kanál" Binding="{Binding Channel}" IsReadOnly="True" Width="56" />
                             <DataGridTextColumn Header="Peak ID" Binding="{Binding PeakId}" IsReadOnly="True" Width="70" />
                             <DataGridTextColumn Header="FBG index" Binding="{Binding PeakIndex}" IsReadOnly="True" Width="78" />
-                            <DataGridTextColumn Header="Aktuálna λ [nm]" Binding="{Binding CurrentWavelengthNm, StringFormat=F3}" IsReadOnly="True" Width="96" />
+                            <DataGridTextColumn Header="Aktuálna λ [nm]" Binding="{Binding LiveWavelengthLabel}" IsReadOnly="True" Width="96" />
                             <DataGridTextColumn Header="Intenzita [dBm]" Binding="{Binding Intensity, StringFormat=F3}" IsReadOnly="True" Width="108" />
                             <DataGridTextColumn Header="Snímač" Binding="{Binding SensorType}" IsReadOnly="True" Width="112" />
                             <DataGridTextColumn Header="Typ FBG" Binding="{Binding FbgType}" IsReadOnly="True" Width="98" />
                             <DataGridTextColumn Header="FBG sensor SN (kanál)" Binding="{Binding ChannelSerialNumber, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="180" />
                             <DataGridTextColumn Header="FBG sensor SN CHAIN" Binding="{Binding ChainSerialNumber, UpdateSourceTrigger=LostFocus}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="185" />
+                            <DataGridTextColumn Header="Stav snímača" Binding="{Binding ConnectionWarning}" IsReadOnly="True" Width="300" />
                             <DataGridTextColumn Header="Poznámky" Binding="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="220" />
                             <DataGridTextColumn Header="Popis produktu" Binding="{Binding ProductDescription, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="175" IsReadOnly="True" />
                             <DataGridTextColumn Header="Zákazka" Binding="{Binding Order, UpdateSourceTrigger=PropertyChanged}" EditingElementStyle="{StaticResource DataGridEditTextBox}" Width="120" IsReadOnly="True" />

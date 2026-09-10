@@ -88,7 +88,11 @@
                     <TextBlock Text="Predvolené nastavenia FBG kalibrácie" Style="{StaticResource Heading}" />
                     <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,12"
                                Text="Prejdite myšou na informačnú ikonu pri parametri pre vysvetlenie. Zmeny potvrďte tlačidlom Uložiť predvolené nastavenia. Spoločný základ pre všetky budúce nové kalibračné zapojenia. Interval odberu FBG aj interval trace logu sa použijú pri každom novom behu aj pre uložené zapojenie. Zmenené predvoľby ustálenia komory sa prenesú aj do existujúcich zapojení pri otvorení alebo pred novým behom. Ostatné uložené hodnoty a nastavenia rozbehnutých či obnovených behov sa zachovajú." />
-                    <Border Background="#172333" BorderBrush="#35465D" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,10">
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="Minimálna intenzita FBG [dBm] – iba upozornenie" Style="{StaticResource Label}" />
+                        <views:NumericStepper Width="150" HorizontalAlignment="Left" Value="{Binding Admin.CalibrationDefaults.MinimumPeakIntensityDbm, Mode=TwoWay}" Minimum="-100" Maximum="0" Step="1" />
+                        <TextBlock Text="Predvolené −40 dBm. Slabší signál neblokuje kalibráciu. Platí po novom načítaní zapojenia." Style="{StaticResource Caption}" />
+                    </StackPanel>                    <Border Background="#172333" BorderBrush="#35465D" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,10">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel Margin="0,3,20,0">

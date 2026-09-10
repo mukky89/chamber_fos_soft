@@ -1009,6 +1009,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             .GroupBy(m => m.SourceIdentity, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        var previousRows = Peaks.ToDictionary(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}|{p.PeakId}", StringComparer.OrdinalIgnoreCase);
         Peaks.Clear();
         foreach (PeakLoggerSensor sensor in sensors)
         {
@@ -1016,10 +1017,21 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             {
                 string sourceIdentity = $"{sensor.SerialNumber}|{sensor.Channel}|{peak.PeakId}";
                 saved.TryGetValue(sourceIdentity, out CalibrationSensorMapping? mapping);
-                Peaks.Add(CreatePeakRow(sensor, peak, mapping));
+                if (previousRows.Remove(sourceIdentity, out CalibrationPeakRowViewModel? existing))
+                {
+                    existing.MinimumIntensityDbm = new CalibrationDefaultsStore(Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json")).Load().MinimumPeakIntensityDbm;
+                    existing.UpdateLive(peak.WavelengthNm, peak.Intensity, DateTimeOffset.Now);
+                    Peaks.Add(existing);
+                }
+                else Peaks.Add(CreatePeakRow(sensor, peak, mapping));
             }
         }
 
+        foreach (CalibrationPeakRowViewModel missing in previousRows.Values)
+        {
+            missing.MarkDisconnected();
+            Peaks.Add(missing);
+        }
         PeakLoggerStatus = $"Pripojený · {sensors.Count} zdrojov/kanálov · {Peaks.Count} peakov";
         if (!UseSimulator && Peaks.Count > 0 && Peaks.All(p => string.IsNullOrWhiteSpace(p.SerialNumber)))
         {
@@ -1035,6 +1047,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         CalibrationSensorMapping? saved)
     {
         var row = new CalibrationPeakRowViewModel(sensor, peak, saved);
+        row.MinimumIntensityDbm = new CalibrationDefaultsStore(Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json")).Load().MinimumPeakIntensityDbm;
         if (UseSimulator && string.IsNullOrWhiteSpace(row.SerialNumber))
         {
             row.ChannelSerialNumber = sensor.SerialNumber;
@@ -1059,6 +1072,10 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
             if (!_applyingRecoveredMappings &&
                 e.PropertyName is not nameof(CalibrationPeakRowViewModel.CurrentWavelengthNm)
+                and not nameof(CalibrationPeakRowViewModel.IsDisconnected)
+                and not nameof(CalibrationPeakRowViewModel.ConnectionWarning)
+                and not nameof(CalibrationPeakRowViewModel.HasWeakSignal)
+                and not nameof(CalibrationPeakRowViewModel.LiveWavelengthLabel)
                 and not nameof(CalibrationPeakRowViewModel.Intensity)
                 and not nameof(CalibrationPeakRowViewModel.LastWavelengthUpdate)
                 and not nameof(CalibrationPeakRowViewModel.SerialNumber)
@@ -1281,6 +1298,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             {
                 row.UpdateLive(measurement.WavelengthNm, measurement.Intensity, measurement.Timestamp);
             }
+            else row.MarkDisconnected();
         }
 
         if (added > 0)
@@ -2925,6 +2943,22 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     public string SensorType { get; }
     public string FbgType { get; }
     public double CurrentWavelengthNm { get => _currentWavelengthNm; private set => SetProperty(ref _currentWavelengthNm, value); }
+    private bool _isDisconnected;
+    public bool IsDisconnected { get => _isDisconnected; private set => SetProperty(ref _isDisconnected, value); }
+    public double MinimumIntensityDbm { get; set; } = -40;
+    public bool HasWeakSignal => !IsDisconnected && Intensity is double value && value < MinimumIntensityDbm;
+    public string ConnectionWarning => IsDisconnected
+        ? $"Pripoj snímač {SerialNumber} späť do kanála {Channel}."
+        : HasWeakSignal ? $"Slabý signál: {Intensity:F1} dBm; minimum {MinimumIntensityDbm:F1} dBm. Vyčisti konektor. Kalibrácia nie je blokovaná." : string.Empty;
+    public string LiveWavelengthLabel => IsDisconnected ? "—" : CurrentWavelengthNm.ToString("F3");
+    public void MarkDisconnected()
+    {
+        IsDisconnected = true;
+        Intensity = null;
+        OnPropertyChanged(nameof(ConnectionWarning));
+        OnPropertyChanged(nameof(HasWeakSignal));
+        OnPropertyChanged(nameof(LiveWavelengthLabel));
+    }
     public double? Intensity { get => _intensity; private set => SetProperty(ref _intensity, value); }
     public DateTimeOffset? LastWavelengthUpdate { get => _lastWavelengthUpdate; private set => SetProperty(ref _lastWavelengthUpdate, value); }
     public bool WasSavedSelected { get; }
@@ -2942,6 +2976,10 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         CurrentWavelengthNm = wavelengthNm;
         Intensity = intensity;
         LastWavelengthUpdate = timestamp;
+        IsDisconnected = false;
+        OnPropertyChanged(nameof(ConnectionWarning));
+        OnPropertyChanged(nameof(HasWeakSignal));
+        OnPropertyChanged(nameof(LiveWavelengthLabel));
     }
 
     public void SetSerialNumberWarning(string warning) => SerialNumberWarning = warning;

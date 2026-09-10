@@ -69,6 +69,7 @@ public sealed class PeakLoggerSettings
 
 public sealed class CalibrationProfileSettings
 {
+    public double MinimumPeakIntensityDbm { get; set; } = -40;
     public bool OperatorSupervisionEnabled { get; set; }
     /// <summary>
     /// Shapes chamber setpoint commands into a gradual ramp. The chamber still regulates from its
