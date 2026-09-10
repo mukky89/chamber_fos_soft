@@ -426,6 +426,10 @@ public sealed record CalibrationProgressSnapshot(
     TimeSpan? MaximumAutomaticTemperatureExtension = null)
 {
     public ChamberEntryStatus? ChamberEntry { get; init; }
+    public StabilityMetrics? ReferenceMetrics { get; init; }
+    public double ReferenceRangeLimit { get; init; }
+    public double ReferenceStdDevLimit { get; init; }
+    public string? ReferenceResetReason { get; init; }
 }
 
 public sealed class CalibrationOperatorActionRequiredException : Exception

@@ -208,18 +208,18 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("Timeout: 30 min 00 s", help);
         Assert.Contains("10 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("30 min 00 s", m.ReferenceTimeHelp);
-        Assert.Contains("súčasne splnené obe podmienky", m.ReferenceTimeHelp);
+        Assert.Contains("rozsah, σ a drift", m.ReferenceTimeHelp);
         Assert.Contains("najnovšia úspešne načítaná teplota", m.ReferenceStatusHelp);
         Assert.Contains("Jedna vzorka sama osebe nepotvrdzuje stabilitu", m.ReferenceStatusHelp);
         Assert.Contains("odchýlka aj drift", m.ReferenceStatusHelp);
-        Assert.Contains("odchýlka alebo drift nevyhovuje", m.ReferenceTimeHelp);
-        Assert.Contains("ďalej čaká a kontroluje nové bloky", m.ReferenceTimeHelp);
-        Assert.Contains("Predĺženie sa nikdy neopakuje nad tento strop", m.ReferenceTimeHelp);
+        Assert.Contains("vynuluje celý čas", m.ReferenceTimeHelp);
+        Assert.Contains("posledná platná vzorka začne nové okno", m.ReferenceTimeHelp);
+        Assert.Contains("najviac o", m.ReferenceTimeHelp);
         Assert.Contains("15 min 00 s", m.ReferenceTimeHelp);
         Assert.Contains("1 h 00 min", m.ReferenceTimeHelp);
         Assert.Contains("nevyhovujúci bod sa nikdy automaticky neprijme", m.ReferenceTimeHelp);
-        Assert.Contains("pokračuje ďalším platom", m.ReferenceTimeHelp);
-        Assert.Contains("automaticky raz vráti", m.ReferenceTimeHelp);
+        Assert.Contains("bod odloží", m.ReferenceTimeHelp);
+        Assert.Contains("jeden neskorší pokus", m.ReferenceTimeHelp);
     }
     [Fact] public void WikaTimelineKeepsFirstFbgMilestonesAndResetsForNextPlateau()
     {
@@ -617,7 +617,7 @@ public sealed class CalibrationDashboardTests
         Assert.Contains("±0", m.ReferenceToleranceHelp);
         Assert.Contains("skutočných časov vzoriek", m.ReferenceDriftHelp);
         Assert.Contains("posledných 120 sekúnd", m.ReferenceDriftHelp);
-        Assert.Contains("dvojnásobok", m.ReferenceTimeHelp);
+        Assert.Contains("vynuluje celý čas", m.ReferenceTimeHelp);
         Assert.Equal(2, m.WikaStabilityScoreTrace.Count);
         Assert.Equal(0, m.WikaStabilityScoreTrace[0].ScoreSeconds);
         Assert.Equal(35, m.WikaStabilityScoreTrace[1].ScoreSeconds);

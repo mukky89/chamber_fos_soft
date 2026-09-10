@@ -6,6 +6,21 @@ namespace VotschVc3.Core.Tests;
 public sealed class TemperatureStabilityDetectorTests
 {
     [Fact]
+    public void ResetReasonSurvivesFreshSamplesUntilExplicitReset()
+    {
+        var detector = new TemperatureStabilityDetector(TimeSpan.FromSeconds(60), 1, 0, 0.03, 0);
+        var start = DateTimeOffset.UtcNow;
+        detector.Add(start, 50, 50);
+        detector.Add(start.AddSeconds(30), 50.04, 50);
+        Assert.Equal(0, detector.StableScoreSeconds);
+        Assert.Contains("rozsah", detector.LastResetReason);
+        var reason = detector.LastResetReason;
+        detector.Add(start.AddSeconds(40), 50.041, 50);
+        Assert.Equal(reason, detector.LastResetReason);
+        detector.Reset();
+        Assert.Null(detector.LastResetReason);
+    }
+    [Fact]
     public void Minus40Point322_IsAcceptedByPaliStyleGateInsideHalfDegreeTolerance()
     {
         var detector = new TemperatureStabilityDetector(

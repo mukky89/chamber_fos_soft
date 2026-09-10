@@ -435,7 +435,13 @@ public sealed partial class CalibrationOrchestrator
                     temperatureSettlingElapsed,
                     settings.ChamberStabilityTimeout,
                     automaticTemperatureExtensionUsed,
-                    settings.MaxAutomaticChamberStabilityExtension));
+                    settings.MaxAutomaticChamberStabilityExtension)
+                {
+                    ReferenceMetrics = temperatureMetrics,
+                    ReferenceRangeLimit = settings.MaxChamberRangeC,
+                    ReferenceStdDevLimit = settings.MaxChamberStdDevC,
+                    ReferenceResetReason = (hasExternalReference ? referenceDetector : chamberDetector).LastResetReason
+                });
 
                 if (!temperatureGateEverOpened)
                 {
@@ -633,7 +639,13 @@ public sealed partial class CalibrationOrchestrator
                 (hasExternalReference ? referenceDetector : chamberDetector).DisplayedStableScoreSeconds,
                 (hasExternalReference ? referenceDetector : chamberDetector).RequiredStableScoreSeconds,
                 true,
-                temperatureMetrics?.SlopePerMinute));
+                temperatureMetrics?.SlopePerMinute)
+                {
+                    ReferenceMetrics = temperatureMetrics,
+                    ReferenceRangeLimit = settings.MaxChamberRangeC,
+                    ReferenceStdDevLimit = settings.MaxChamberStdDevC,
+                    ReferenceResetReason = (hasExternalReference ? referenceDetector : chamberDetector).LastResetReason
+                });
 
             if (allTerminal) break;
             await Task.Delay(

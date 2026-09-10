@@ -118,16 +118,20 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ReferenceDriftTone => _snapshot?.TemperatureDriftCPerMinute is { } drift &&
         (_stabilityMaxDriftCPerMinute <= 0 || Math.Abs(drift) <= _stabilityMaxDriftCPerMinute) ? "Done" : "Waiting";
     public string ReferenceTimeLabel => $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
+    public string ReferenceRangeLabel => ReferenceMetricLabel("Rozsah", _snapshot?.ReferenceMetrics?.Range, _snapshot?.ReferenceRangeLimit);
+    public string ReferenceStdDevLabel => ReferenceMetricLabel("σ", _snapshot?.ReferenceMetrics?.StandardDeviation, _snapshot?.ReferenceStdDevLimit);
+    private static string ReferenceMetricLabel(string name, double? value, double? limit) =>
+        value is null ? $"{name} · čaká na vzorky" : limit <= 0 ? $"{name} {value:F4} °C · limit vypnutý" : $"{name} {value:F4} / ≤ {limit:F4} °C";
+    public string ReferenceRangeTone => _snapshot?.ReferenceMetrics is { } metrics &&
+        (_snapshot.ReferenceRangeLimit <= 0 || metrics.Range <= _snapshot.ReferenceRangeLimit) ? "Done" : "Waiting";
+    public string ReferenceStdDevTone => _snapshot?.ReferenceMetrics is { } metrics &&
+        (_snapshot.ReferenceStdDevLimit <= 0 || metrics.StandardDeviation <= _snapshot.ReferenceStdDevLimit) ? "Done" : "Waiting";
+    public string ReferenceResetLabel => _snapshot?.ReferenceResetReason is { } reason ? $"Posledný reset: {reason}" : "Čas stability zatiaľ nebol resetovaný.";
     public string ReferenceTimeHelp =>
-        $"Stabilita znamená, že WIKA zostáva dostatočne blízko cieľovej teploty a zároveň sa jej teplota nemení príliš rýchlo. " +
-        $"Na otvorenie WIKA brány musia byť súčasne splnené obe podmienky: odchýlka od cieľa ≤ {StabilityToleranceC:F3} °C a absolútny drift ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min. " +
-        $"Takto treba nazbierať {Duration(_stableDuration)} stabilného skóre. Úspešný blok 5 vzoriek pripočíta jeho skutočne uplynutý čas. " +
-        "Ak odchýlka alebo drift nevyhovuje, blok je neúspešný: od skóre sa odpočíta dvojnásobok času bloku, najviac po nulu, a začne sa nový blok. " +
-        $"Aplikácia ďalej čaká a kontroluje nové bloky, kým odchýlka aj drift nebudú súčasne vyhovovať a stabilné skóre nedosiahne {Duration(_stableDuration)}; až potom pokračuje stabilizáciou FBG peakov. " +
-        $"Po základnom limite {Duration(_stabilityTimeout)} sa čakanie pri platných dátach WIKA automaticky predlžuje po {Duration(_stabilityExtensionStep)}, najviac spolu o {Duration(_maxAutomaticStabilityExtension)}. " +
-        "Predĺženie sa nikdy neopakuje nad tento strop. " +
-        "Po vyčerpaní predĺženia sa neustálené plato odloží, kalibrácia pokračuje ďalším platom a po prejdení ostatných bodov sa k nemu automaticky raz vráti. " +
-        "Ak neprejde ani opakovaný pokus, operátor dostane upozornenie aj e-mail a automatický postup sa zastaví; nevyhovujúci bod sa nikdy automaticky neprijme.";
+        $"Všetky vzorky musia súvisle počas {Duration(_stableDuration)} spĺňať toleranciu ±{StabilityToleranceC:F3} °C, rozsah, σ a drift. " +
+        "Prekročenie ktorejkoľvek podmienky vynuluje celý čas; posledná platná vzorka začne nové okno. Dôvod posledného resetu zostáva na karte. " +
+        $"Základný limit čakania je {Duration(_stabilityTimeout)}, nejde o povinnú výdrž. Pri platných dátach sa predlžuje po {Duration(_stabilityExtensionStep)}, najviac o {Duration(_maxAutomaticStabilityExtension)}. " +
+        "Operátorský dohľad vyžaduje rozhodnutie. Po vyčerpaní limitu sa bod odloží na jeden neskorší pokus; druhý neúspech zastaví automatický postup; nevyhovujúci bod sa nikdy automaticky neprijme.";
     public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
     public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
     public int TemperatureStableScoreSeconds => _snapshot?.TemperatureStableScoreSeconds ?? 0;

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.348] – 2026-09-10
+
+### Opravené
+
+- Karta WIKA zobrazuje aj rozsah, smerodajnú odchýlku a posledný dôvod resetu s časom a prekročenými limitmi. Pomoc vysvetľuje súvislé okno stability a základný časový limit bez povinnej výdrže.
+
 ## [1.76.347] – 2026-09-10
 
 ### Opravené

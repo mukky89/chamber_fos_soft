@@ -162,6 +162,7 @@ public sealed class TemperatureStabilityDetector
 
     /// <summary>Validated uninterrupted stability time in seconds.</summary>
     public int StableScoreSeconds => _stableScoreSeconds;
+    public string? LastResetReason { get; private set; }
 
     /// <summary>
     /// Stability time shown to the operator; identical to the authoritative continuous dwell.
@@ -183,6 +184,7 @@ public sealed class TemperatureStabilityDetector
         if (!toleranceOk || !double.IsFinite(value))
         {
             ResetWindow();
+            LastResetReason = $"{timestamp:HH:mm:ss} · neplatná teplota alebo odchýlka od cieľa {Math.Abs(value - target):F4} / {_toleranceC:F4} °C";
             return BuildMetrics(new[] { (timestamp, value) }, false);
         }
 
@@ -206,6 +208,12 @@ public sealed class TemperatureStabilityDetector
             // A failed sample invalidates the complete dwell. Keep only the newest valid sample as
             // the possible beginning of a fresh uninterrupted stability window.
             ResetWindow();
+            LastResetReason = $"{timestamp:HH:mm:ss} · " + string.Join(" · ", new[]
+            {
+                !rangeOk ? $"rozsah {candidate.Range:F4} > {_maxRangeC:F4} °C" : null,
+                !stdDevOk ? $"σ {candidate.StandardDeviation:F4} > {_maxStdDevC:F4} °C" : null,
+                !driftOk ? $"drift {Math.Abs(candidate.SlopePerMinute):F4} > {_maxDriftCPerMinute:F4} °C/min" : null
+            }.Where(reason => reason is not null));
             _window.Add((timestamp, value));
             // Return the rejected metrics for this refresh so the operator can see exactly which
             // criterion caused the reset; the next sample is evaluated from the fresh window.
@@ -221,7 +229,7 @@ public sealed class TemperatureStabilityDetector
         return BuildMetrics(_window, _isStable);
     }
 
-    public void Reset() => ResetWindow();
+    public void Reset() { ResetWindow(); LastResetReason = null; }
 
     private void ResetWindow()
     {
