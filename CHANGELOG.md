@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.367] – 2026-09-11
+
+### Opravené
+
+- Zapojenie sa obnoví z uložených identít ešte pred pripojením PeakLoggera. Automatické uloženie počas otvárania alebo neúplného načítania už nevymaže uložené SN, výber peakov a metadáta. Uloženie zapojenia je atómové so zálohou; obnovia sa aj staršie súbory obsahujúce iba pôvodné pole SN.
+
 ## [1.76.366] – 2026-09-11
 
 ### Pridané

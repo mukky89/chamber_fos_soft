@@ -724,7 +724,17 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         RefreshDashboardPlan();
     }
 
+    private bool _restoringWiring;
+
     private void LoadProfileSetup()
+    {
+        _setupAutosaveCts?.Cancel();
+        _restoringWiring = true;
+        try { LoadProfileSetupCore(); }
+        finally { _restoringWiring = false; }
+    }
+
+    private void LoadProfileSetupCore()
     {
         SetupSaveStatus = "Automatické ukladanie";
         SetupSaveColor = "#AAB7CE";
@@ -769,6 +779,17 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
         OnPropertyChanged(nameof(IgnoredChannelsLabel));
         RefreshResumeCheckpoint();
+        // Restore identities before background layout/settings autosaves or API connection.
+        // A disconnected PeakLogger must never make the saved wiring an empty UI snapshot.
+        foreach (var mapping in _setup.ActiveMappings)
+        {
+            var sensor = new PeakLoggerSensor(mapping.SourceDeviceSerialNumber, mapping.Channel, Array.Empty<PeakLoggerPeak>());
+            var peak = new PeakLoggerPeak(mapping.PeakId, mapping.PeakIndex,
+                mapping.CurrentWavelengthNm ?? mapping.NominalWavelengthNm ?? 0);
+            var row = CreatePeakRow(sensor, peak, mapping);
+            row.MarkDisconnected();
+            Peaks.Add(row);
+        }
         _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: HasResumableCalibration || IsRunning);
         RefreshSettingsBindings();
         RefreshDashboardPlan();
@@ -1010,6 +1031,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         foreach (var row in removable) Peaks.Remove(row);
         if (removable.Length > 0)
         {
+            var removed = removable.Select(p => p.ToMapping().SourceIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _setup.Mappings.RemoveAll(m => removed.Contains(m.SourceIdentity));
             PersistSetup(showStatus: false);
             NotifyPeakCounts();
             RefreshCommands();
@@ -1022,7 +1045,13 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     private async Task DiscoverSensorsAsyncCore()
     {
         if (_peakLogger is null || SelectedProfile is null) return;
+        Guid profileId = SelectedProfile.Id;
+        Guid chamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
         IReadOnlyList<PeakLoggerSensor> sensors = await _peakLogger.DiscoverSensorsAsync();
+        if (SelectedProfile?.Id != profileId || (SelectedChamber?.Config.Id ?? _workspaceChamberId) != chamberId) return;
+        _restoringWiring = true;
+        try
+        {
         Dictionary<string, CalibrationSensorMapping> saved = _setup.Mappings
             .GroupBy(m => m.SourceIdentity, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
@@ -1071,6 +1100,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
         ValidateSerialNumbers();
         RefreshCommands();
+        }
+        finally { _restoringWiring = false; }
     }
 
     private CalibrationPeakRowViewModel CreatePeakRow(
@@ -1167,7 +1198,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private void ScheduleSetupAutosave()
     {
-        if (SelectedProfile is null || IsRunning) return;
+        if (SelectedProfile is null || IsRunning || _restoringWiring) return;
         _setupAutosaveCts?.Cancel();
         _setupAutosaveCts?.Dispose();
         SetupSaveStatus = "Ukladá sa…";
@@ -1748,7 +1779,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private void PersistSetup(bool showStatus)
     {
-        if (SelectedProfile is null) return;
+        if (SelectedProfile is null || _restoringWiring) return;
         SetupSaveStatus = "Ukladá sa…";
         SetupSaveColor = "#FFD27D";
         try
@@ -1772,9 +1803,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         if (SelectedProfile is null) return;
         _setup.ProfileId = SelectedProfile.Id;
         _setup.ChamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
-        _setup.Mappings = _setup.Mappings.Where(m => IsPeakLoggerChannelIgnored(m.Channel))
-            .Concat(Peaks.Where(p => !IsPeakLoggerChannelIgnored(p.Channel)).Select(p => p.ToMapping()))
-            .GroupBy(m => m.SourceIdentity, StringComparer.OrdinalIgnoreCase).Select(g => g.Last()).ToList();
+        _setup.Mappings = CalibrationWiringPersistence.MergeVisibleMappings(_setup.Mappings,
+            Peaks.Where(p => !IsPeakLoggerChannelIgnored(p.Channel)).Select(p => p.ToMapping()));
         CalibrationCheckpoint? checkpoint = _resumeCheckpoint;
         if (checkpoint is null && SelectedChamber is not null)
         {
@@ -2946,9 +2976,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         _chainSerialNumber = saved?.ChainSerialNumber ?? string.Empty;
         ApiMetadata.SensorName = saved?.SensorName ?? string.Empty;
         ApiMetadata.SylexSerialNumber = VotschVc3.App.Calibration.SylexFosRowMetadataStore.ParseSerialNumber(saved?.SerialNumber);
-        _channelSerialNumber = saved?.ChannelSerialNumber
-            ?? (string.IsNullOrWhiteSpace(_chainSerialNumber) ? saved?.SerialNumber : string.Empty)
-            ?? string.Empty;
+        _channelSerialNumber = CalibrationWiringPersistence.ChannelSerial(saved);
         Channel = sensor.Channel;
         PeakId = peak.PeakId;
         PeakIndex = peak.PeakIndex;
@@ -3077,9 +3105,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
 
     public void ApplySavedMapping(CalibrationSensorMapping mapping)
     {
-        ChannelSerialNumber = mapping.ChannelSerialNumber
-            ?? (string.IsNullOrWhiteSpace(mapping.ChainSerialNumber) ? mapping.SerialNumber : string.Empty)
-            ?? string.Empty;
+        ChannelSerialNumber = CalibrationWiringPersistence.ChannelSerial(mapping);
         ChainSerialNumber = mapping.ChainSerialNumber ?? string.Empty;
         Core1 = mapping.Core1;
         Core2 = mapping.Core2;

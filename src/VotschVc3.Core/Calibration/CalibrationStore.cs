@@ -51,35 +51,17 @@ public sealed class CalibrationStore
     public void SaveSetup(CalibrationSetup setup)
     {
         ArgumentNullException.ThrowIfNull(setup);
-        File.WriteAllText(SetupPath(setup.ProfileId, setup.ChamberId), JsonSerializer.Serialize(setup, JsonOptions));
+        WriteRecoveryFile(SetupPath(setup.ProfileId, setup.ChamberId), JsonSerializer.Serialize(setup, JsonOptions));
     }
 
     public CalibrationSetup? LoadSetup(Guid profileId)
     {
-        string path = SetupPath(profileId, Guid.Empty);
-        if (!File.Exists(path)) return null;
-        try
-        {
-            return JsonSerializer.Deserialize<CalibrationSetup>(File.ReadAllText(path), JsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return ReadRecoveryFile<CalibrationSetup>(SetupPath(profileId, Guid.Empty));
     }
 
     public CalibrationSetup? LoadSetup(Guid profileId, Guid chamberId)
     {
-        string path = SetupPath(profileId, chamberId);
-        if (!File.Exists(path)) return null;
-        try
-        {
-            return JsonSerializer.Deserialize<CalibrationSetup>(File.ReadAllText(path), JsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return ReadRecoveryFile<CalibrationSetup>(SetupPath(profileId, chamberId));
     }
 
     public CalibrationRunWriter CreateRunWriter(CalibrationRunRecord run, bool append = false)
