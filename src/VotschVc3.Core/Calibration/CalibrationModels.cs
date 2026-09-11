@@ -38,6 +38,7 @@ public enum CalibrationTargetState
     Overridden,
     Failed,
     CompletedWithStabilityWarning,
+    SkippedIdentityUncertain,
 }
 
 public enum CalibrationFailurePolicy
@@ -69,6 +70,11 @@ public sealed class PeakLoggerSettings
 
 public sealed class CalibrationProfileSettings
 {
+    // Independent acquisition motion bounds, not calibration-fit or stability tolerances.
+    public double IdentityBaseToleranceNm { get; set; } = 0.02;
+    public double IdentityMaximumMotionNmPerMinute { get; set; } = 0.1;
+    public double IdentityMinimumSeparationNm { get; set; } = 0.02;
+    public double IdentityMaximumGapSeconds { get; set; } = 120;
     public double MinimumPeakIntensityDbm { get; set; } = -40;
     public bool OperatorSupervisionEnabled { get; set; }
     /// <summary>
@@ -148,6 +154,8 @@ public sealed class CalibrationProfileSettings
 
 public sealed class CalibrationSensorMapping
 {
+    /// <summary>Persistent physical grating binding; never derived from a live API index.</summary>
+    public Guid PhysicalFbgId { get; set; } = Guid.NewGuid();
     public string Channel { get; set; } = string.Empty;
     public int? Core1 { get; set; }
     public int? Core2 { get; set; }
@@ -270,6 +278,7 @@ public sealed class CalibrationWavelengthTraceSample
 
 public sealed class CalibrationMeasurementResult
 {
+    public Guid PhysicalFbgId { get; set; }
     public string SerialNumber { get; set; } = string.Empty;
     public string PeakLoggerDeviceSerialNumber { get; set; } = string.Empty;
     public string Channel { get; set; } = string.Empty;
@@ -296,6 +305,7 @@ public sealed class CalibrationPlateauResult
 {
     public int PlateauIndex { get; set; }
     public double TargetTemperatureC { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.AllowNamedFloatingPointLiterals)]
     public double ActualTemperatureC { get; set; }
     public double? ReferenceTemperatureC { get; set; }
     public DateTimeOffset StartedAt { get; set; }
@@ -317,6 +327,8 @@ public sealed class CalibrationWarning
 
 public sealed class CalibrationRunRecord
 {
+    public List<PeakIdentityChannel> PeakIdentityChannels { get; set; } = new();
+    public List<PeakIdentityEvent> PeakIdentityEvents { get; set; } = new();
     public bool OperatorSupervisionEnabled { get; set; }
     public List<SensorSettlingAttempt> SensorSettlingAttempts { get; set; } = new();
     public List<CalibrationPlateauResult> SupersededPlateaus { get; set; } = new();
@@ -367,6 +379,7 @@ public sealed class CalibrationRunRecord
 
 public sealed class CalibrationCheckpoint
 {
+    public List<PeakIdentityChannel> PeakIdentityChannels { get; set; } = new();
     public Guid RunId { get; set; }
     public Guid ProfileId { get; set; }
     public Guid ChamberId { get; set; }

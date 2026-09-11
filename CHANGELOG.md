@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.381] – 2026-09-11
+
+### Pridané
+
+- Autonómna ochrana identity FBG počas rampy, čakania na referenciu aj odberu: jednoznačné prečíslovanie PeakLogger API zachová pôvodné priradenie. Pri zmene počtu peakov, prekrytí, nejednoznačnom pohybe alebo prerušení kontinuity sa body dotknutého kanála vynechajú bez dialógu operátora. Ostatné kanály pokračujú a po ich dokončení nasleduje ďalší bod; neistá identita nevydáva STOP komory.
+- Neistý kanál zostáva vyradený do konca behu vrátane záverečného overenia; návrat peakov ani obnovenie checkpointu nepredstierajú fyzický dôkaz identity. Rozpracované finálne vzorky sa vyradia a vynechané body nevstupujú do koeficientov.
+- Trvalé interné ID mriežky, audit prepriradení a pôvodné rámce v `peak-observations.jsonl`. Monitor a história označujú „Vynechané – neistá identita FBG“. Limity kontinuity sú samostatné od kalibračných koeficientov a limitov stability.
+
 ## [1.76.380] – 2026-09-11
 
 ### Opravené

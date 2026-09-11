@@ -19,6 +19,7 @@ internal sealed class CalibrationProgressPhaseConverter : IMultiValueConverter
             CalibrationTargetState.Stable => "4 · hotovo",
             CalibrationTargetState.Overridden => "4 · hotovo (override)",
             CalibrationTargetState.PeakLost => "CHYBA · peak stratený",
+            CalibrationTargetState.SkippedIdentityUncertain => "VYNECHANÉ · neistá identita",
             CalibrationTargetState.TimedOut => "CHYBA · timeout",
             CalibrationTargetState.Disconnected => "CHYBA · odpojené",
             CalibrationTargetState.Failed => "CHYBA",

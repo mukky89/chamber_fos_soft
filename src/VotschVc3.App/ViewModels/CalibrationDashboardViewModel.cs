@@ -157,6 +157,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int TotalTargets => _snapshot?.TotalTargets ?? 0;
     public int StableCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.Stable || t.Phase == "Measuring") ?? 0;
     public int DoneCount => _snapshot?.Targets.Count(t => t.State is CalibrationTargetState.Stable or CalibrationTargetState.Overridden or CalibrationTargetState.CompletedWithStabilityWarning) ?? 0;
+    public int IdentitySkippedCount => _snapshot?.Targets.Count(t => t.State == CalibrationTargetState.SkippedIdentityUncertain) ?? 0;
     public int MeasuringCount => _snapshot?.Targets.Count(t => t.Phase is "Measuring" or "MeasuringWithStabilityWarning") ?? 0;
     public int WarningMeasuringCount => _snapshot?.Targets.Count(t => t.Phase == "MeasuringWithStabilityWarning") ?? 0;
     public string PeakSummary => $"{StableCount} / {TotalTargets} prešlo stabilitou";
@@ -167,8 +168,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         "Reálny interval sa vyhodnocuje pre každý peak samostatne; jeho vlastný uložený limit môže byť odlišný. " +
         "Po vyčerpaní základu sa pridá najviac 10 min iba pri platných finálnych vzorkách z posledných 10 min alebo pri zlepšení najhoršieho pomeru range/σ/drift k limitu aspoň o 10 % medzi úplnými oknami v posledných 10 min. " +
         "Pevný strop je 90 min od prvého otvorenia FBG fázy na plate. Reset, zmena nastavení ani strata stability WIKA čas nevynuluje. " +
-        "Bez pokroku alebo po strope: stabilita nepotvrdená / meranie nedokončené. Po limite nasleduje ohraničený odber finálnych vzoriek bez stabilnej wavelength. Výsledky sa vyhodnotia s problémovým označením.";
-    public string PeakDetail => $"{MeasuringCount} vo finálnom meraní{(WarningMeasuringCount > 0 ? $" · {WarningMeasuringCount} po timeout-e" : string.Empty)} · {DoneCount} úplne dokončených";
+        "Bez pokroku alebo po strope: stabilita nepotvrdená / meranie nedokončené. Po limite nasleduje ohraničený odber finálnych vzoriek bez stabilnej wavelength. Výsledky sa vyhodnotia s problémovým označením. " +
+        "Pri neistej identite (prekrytie, výpadok, nejednoznačné priradenie) sa bod dotknutého kanála automaticky vynechá bez finálneho odberu a bez dialógu operátora. " +
+        "Po dokončení ostatných kanálov pokračuje ďalší bod. Identita sa po návrate peakov automaticky nepovažuje za obnovenú; dotknutý kanál zostáva vyradený do konca behu. Komora nedostáva STOP z dôvodu identity.";
+    public string PeakDetail => $"{MeasuringCount} vo finálnom meraní{(WarningMeasuringCount > 0 ? $" · {WarningMeasuringCount} po timeout-e" : string.Empty)} · {DoneCount} úplne dokončených" +
+        (IdentitySkippedCount > 0 ? $" · {IdentitySkippedCount} vynechaných pre neistú identitu" : string.Empty);
     public string PeakStabilityCriteria =>
         $"{_requiredStableSamples} vzoriek · range ≤ {_maxRangePm:F3} pm · σ ≤ {_maxStdDevPm:F3} pm · drift ≤ {_maxPeakDriftPmPerMinute:F3} pm/min";
     public string PeakStabilityCriteriaHelp =>
@@ -936,6 +940,7 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
     public string Drift => Metric("Drift", _progress?.DriftPmPerMinute is { } value ? Math.Abs(value) : null, _progress?.DriftLimitPmPerMinute, "pm/min");
     public string State => _progress?.Phase switch
     {
+        _ when _progress?.State == CalibrationTargetState.SkippedIdentityUncertain => "VYNECHANÉ · IDENTITA",
         "Measuring" => "MERANIE",
         "MeasuringWithStabilityWarning" => "MERANIE · UPOZORNENIE",
         _ when _progress?.State == CalibrationTargetState.Stable => "HOTOVO",
@@ -955,6 +960,7 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
         : 0;
     public string MeasurementState => _progress?.Phase switch
     {
+        _ when _progress?.State == CalibrationTargetState.SkippedIdentityUncertain => "VYNECHANÉ · IDENTITA",
         "Measuring" => "MERANIE",
         "MeasuringWithStabilityWarning" => "MERANIE · UPOZORNENIE",
         "Done" when _progress.State == CalibrationTargetState.Stable => "HOTOVO",

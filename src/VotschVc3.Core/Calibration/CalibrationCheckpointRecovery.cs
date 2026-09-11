@@ -32,6 +32,7 @@ public static class CalibrationCheckpointRecovery
                 .Select(group => group.First())
                 .Select(target => new CalibrationSensorMapping
                 {
+                    PhysicalFbgId = target.PhysicalFbgId == Guid.Empty ? Guid.NewGuid() : target.PhysicalFbgId,
                     Selected = true,
                     SerialNumber = target.SerialNumber,
                     ChannelSerialNumber = target.SerialNumber,
@@ -56,6 +57,7 @@ public static class CalibrationCheckpointRecovery
             CurrentTargetTemperatureC = run.Plateaus.LastOrDefault()?.TargetTemperatureC,
             State = CalibrationRunState.Aborted,
             CompletedPlateaus = run.Plateaus.ToList(),
+            PeakIdentityChannels = run.PeakIdentityChannels,
             Mappings = mappings,
             SettingsSnapshot = CloneSettings(setup.Settings),
             CalibrationSegmentIndices = setup.CalibrationSegmentIndices.ToList(),
@@ -96,6 +98,10 @@ public static class CalibrationCheckpointRecovery
         ArgumentNullException.ThrowIfNull(settings);
         return new CalibrationProfileSettings
         {
+            IdentityBaseToleranceNm = settings.IdentityBaseToleranceNm,
+            IdentityMaximumMotionNmPerMinute = settings.IdentityMaximumMotionNmPerMinute,
+            IdentityMinimumSeparationNm = settings.IdentityMinimumSeparationNm,
+            IdentityMaximumGapSeconds = settings.IdentityMaximumGapSeconds,
             EnableSetpointRamp = settings.EnableSetpointRamp,
             SetpointRampCPerMinute = settings.SetpointRampCPerMinute,
             EnableWavelengthAveraging = settings.EnableWavelengthAveraging,
@@ -159,6 +165,7 @@ public static class CalibrationCheckpointRecovery
 
     private static CalibrationSensorMapping CloneMapping(CalibrationSensorMapping mapping) => new()
     {
+        PhysicalFbgId = mapping.PhysicalFbgId,
         Channel = mapping.Channel,
         Core1 = mapping.Core1,
         Core2 = mapping.Core2,

@@ -263,6 +263,8 @@ public sealed partial class CalibrationOrchestrator
         {
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            SkipUncertainTargets(run, plateauIndex, trackers.Values, writer);
             foreach (var item in trackers.Values)
                 settling.Peak(DateTimeOffset.UtcNow, item.Mapping.Identity, item.HasStarted,
                     item.IsMeasuring, item.IsForcedMeasurement, item.IsTerminal, item.State);
@@ -334,7 +336,7 @@ public sealed partial class CalibrationOrchestrator
                 settling.Peak(DateTimeOffset.UtcNow, tracker.Mapping.Identity, tracker.HasStarted,
                     true, true, tracker.IsTerminal, tracker.State);
             }
-            if (trackers.Values.All(t => t.IsTerminal))
+            if (trackers.Values.All(t => t.IsTerminal) && (plateauIndex >= 0 || temperatureGateOpen))
             {
                 progress?.Invoke(new CalibrationProgressSnapshot(CalibrationRunState.StabilizingSensors,
                     plateauIndex, plateauCount, targetTemperatureC, actualTemperature, referenceTemperature,
@@ -363,6 +365,10 @@ public sealed partial class CalibrationOrchestrator
 
             if (_peakLogger is IPeakLoggerSimulationControl simulation)
                 simulation.SimulatedTemperatureC = referenceTemperature ?? actualTemperature;
+
+            var identityBatch = await ObserveIdentityAsync(run, setup, writer, cancellationToken).ConfigureAwait(false);
+            SkipUncertainTargets(run, plateauIndex, trackers.Values, writer);
+            if (trackers.Values.All(t => t.IsTerminal) && plateauIndex >= 0) continue;
 
             // If WIKA is configured, a missing WIKA reading is NOT silently replaced by the chamber
             // probe. The chamber probe is used only when no external reference is configured.
@@ -522,10 +528,13 @@ public sealed partial class CalibrationOrchestrator
             }
 
             run.State = CalibrationRunState.StabilizingSensors;
+            // Even if every FBG was skipped, the final return must satisfy its temperature gate
+            // before the runner performs the normal end-of-run chamber STOP.
+            if (trackers.Values.All(t => t.IsTerminal)) continue;
             IReadOnlyList<PeakLoggerMeasurement> batch;
             try
             {
-                batch = await _peakLogger.ReadMeasurementsAsync(cancellationToken).ConfigureAwait(false);
+                batch = identityBatch;
                 if (MeasurementBatchObserved is { } observed)
                     await observed(batch, referenceTemperature, referenceSampleAt, cancellationToken).ConfigureAwait(false);
             }
@@ -722,12 +731,15 @@ public sealed partial class CalibrationOrchestrator
 
         run.State = CalibrationRunState.TemperatureResponseValidation;
         bool allValid = true;
+        bool compared = false;
         foreach (CalibrationMeasurementResult currentTarget in current.Targets)
         {
             CalibrationMeasurementResult? baseTarget = baseline.Targets.FirstOrDefault(x =>
                 string.Equals(x.Identity, currentTarget.Identity, StringComparison.OrdinalIgnoreCase));
             if (baseTarget is null || currentTarget.Status != CalibrationTargetState.Stable || baseTarget.Status != CalibrationTargetState.Stable)
                 continue;
+
+            compared = true;
 
             double deltaPm = (currentTarget.MeanWavelengthNm - baseTarget.MeanWavelengthNm) * 1000d;
             bool magnitudeOk = Math.Abs(deltaPm) >= settings.ValidationMinimumWavelengthResponsePm;
@@ -765,7 +777,7 @@ public sealed partial class CalibrationOrchestrator
             else ApplyFailurePolicy(settings.ValidationFailurePolicy, warning);
         }
 
-        return allValid || (settings.AllowValidationOverride && !settings.OperatorSupervisionEnabled);
+        return compared && (allValid || (settings.AllowValidationOverride && !settings.OperatorSupervisionEnabled));
     }
 
     private Exception BuildTemperatureTimeout(
@@ -1236,6 +1248,17 @@ public sealed partial class CalibrationOrchestrator
             Result = CreateResultFromCurrentWindow(state, problem);
         }
 
+        public void SkipIdentity(string problem)
+        {
+            _measurementSamples.Clear();
+            _averagingWindow.Clear();
+            _stabilityDetector.Reset();
+            LastMetrics = null;
+            LastMeasurement = null;
+            IsForcedMeasurement = false;
+            Fail(CalibrationTargetState.SkippedIdentityUncertain, problem);
+        }
+
         public void CompleteTimedOut(
             CalibrationRunRecord run,
             int plateauIndex,
@@ -1398,6 +1421,7 @@ public sealed partial class CalibrationOrchestrator
             StabilityMetrics metrics = CalculateMetrics(samples);
             return new CalibrationMeasurementResult
             {
+                PhysicalFbgId = Mapping.PhysicalFbgId,
                 SerialNumber = Mapping.SerialNumber,
                 PeakLoggerDeviceSerialNumber = Mapping.SourceDeviceSerialNumber,
                 Channel = Mapping.Channel,
@@ -1428,6 +1452,7 @@ public sealed partial class CalibrationOrchestrator
             StabilityMetrics metrics = LastMetrics ?? _stabilityDetector.Evaluate();
             return new CalibrationMeasurementResult
             {
+                PhysicalFbgId = Mapping.PhysicalFbgId,
                 SerialNumber = Mapping.SerialNumber,
                 PeakLoggerDeviceSerialNumber = Mapping.SourceDeviceSerialNumber,
                 Channel = Mapping.Channel,

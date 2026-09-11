@@ -105,7 +105,8 @@ public static partial class TemperatureCalibrationAnalyzer
                 var incomplete = run.Plateaus.SelectMany(p => p.Targets).Where(t =>
                     t.PeakLoggerDeviceSerialNumber == group.Key.PeakLoggerDeviceSerialNumber &&
                     t.SerialNumber == group.Key.SerialNumber && t.Channel == group.Key.Channel &&
-                    t.PeakId == group.Key.PeakId && t.PeakIndex == group.Key.PeakIndex && t.SampleCount == 0).ToArray();
+                    t.PeakId == group.Key.PeakId && t.PeakIndex == group.Key.PeakIndex &&
+                    (t.SampleCount == 0 || t.Status == CalibrationTargetState.SkippedIdentityUncertain)).ToArray();
                 foreach (var result in matching)
                     if (incomplete.Length > 0)
                     {
@@ -271,7 +272,7 @@ public static partial class TemperatureCalibrationAnalyzer
     }
 
     private static bool IsAccepted(CalibrationMeasurementResult target) =>
-        target.SampleCount > 0;
+        target.Status != CalibrationTargetState.SkippedIdentityUncertain && target.SampleCount > 0;
 
     private static double[] FitPolynomial(double[] x, double[] y, int order)
     {

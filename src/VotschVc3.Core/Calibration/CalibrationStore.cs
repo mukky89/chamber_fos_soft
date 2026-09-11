@@ -379,6 +379,9 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
     private readonly StreamWriter _rawWriter;
     private readonly StreamWriter _wavelengthWriter;
     private readonly StreamWriter _diagnosticWriter;
+    private readonly StreamWriter _peakObservationWriter;
+    private static readonly JsonSerializerOptions ObservationOptions = new()
+    { NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals };
     private readonly object _diagnosticSync = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -390,6 +393,8 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         _run = run;
         string dir = store.GetRunDirectory(run);
         Directory.CreateDirectory(dir);
+        _peakObservationWriter = new StreamWriter(new FileStream(Path.Combine(dir, "peak-observations.jsonl"),
+            append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.Read), Encoding.UTF8);
         string rawPath = Path.Combine(dir, "raw-samples.csv");
         bool rawHasContent = append && File.Exists(rawPath) && new FileInfo(rawPath).Length > 0;
         _rawWriter = new StreamWriter(rawPath, append, Encoding.UTF8);
@@ -415,6 +420,19 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
     }
 
     public string DiagnosticFilePath { get; }
+
+    public async Task AppendPeakObservationsAsync(IReadOnlyList<PeakLoggerMeasurement> observations, CancellationToken token)
+    {
+        await _gate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            string json = JsonSerializer.Serialize(new { ReceivedAt = DateTimeOffset.UtcNow, Observations = observations }, ObservationOptions);
+            await _peakObservationWriter.WriteLineAsync(json).ConfigureAwait(false);
+            await _peakObservationWriter.FlushAsync(token).ConfigureAwait(false);
+            _store.RequestReplication(_run);
+        }
+        finally { _gate.Release(); }
+    }
 
     public void WriteDiagnostic(string level, string eventName, string details)
     {
@@ -511,6 +529,8 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
         try
         {
             await _rawWriter.FlushAsync().ConfigureAwait(false);
+            await _peakObservationWriter.FlushAsync().ConfigureAwait(false);
+            _peakObservationWriter.Dispose();
             await _wavelengthWriter.FlushAsync().ConfigureAwait(false);
             _rawWriter.Dispose();
             _wavelengthWriter.Dispose();

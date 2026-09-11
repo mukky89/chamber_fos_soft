@@ -3069,6 +3069,7 @@ public sealed record CalibrationChamberOption(ChamberConfig Config)
 
 public sealed class CalibrationPeakRowViewModel : ObservableObject
 {
+    private Guid _physicalFbgId = Guid.NewGuid();
     public VotschVc3.App.Calibration.SylexFosDisplayMetadata ApiMetadata { get; } = new();
     private bool _selected;
     private string? _automaticSelectionSerial;
@@ -3087,6 +3088,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
 
     public CalibrationPeakRowViewModel(PeakLoggerSensor sensor, PeakLoggerPeak peak, CalibrationSensorMapping? saved)
     {
+        _physicalFbgId = saved?.PhysicalFbgId ?? Guid.NewGuid();
         PeakLoggerDeviceSerialNumber = sensor.SerialNumber;
         _chainSerialNumber = saved?.ChainSerialNumber ?? string.Empty;
         ApiMetadata.Restore(saved);
@@ -3117,8 +3119,10 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         get => _channelSerialNumber;
         set
         {
+            string previousSerial = SerialNumber;
             if (SetProperty(ref _channelSerialNumber, NormalizeBarcode(value)))
             {
+                if (!string.Equals(previousSerial, SerialNumber, StringComparison.OrdinalIgnoreCase)) _physicalFbgId = Guid.NewGuid();
                 if (!string.Equals(_automaticSelectionSerial, SerialNumber, StringComparison.OrdinalIgnoreCase)) _automaticSelectionSerial = null;
                 OnPropertyChanged(nameof(SerialNumber));
                 OnPropertyChanged(nameof(NeedsSensorSerialNumber));
@@ -3133,8 +3137,10 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         get => _chainSerialNumber;
         set
         {
+            string previousSerial = SerialNumber;
             if (SetProperty(ref _chainSerialNumber, NormalizeBarcode(value)))
             {
+                if (!string.Equals(previousSerial, SerialNumber, StringComparison.OrdinalIgnoreCase)) _physicalFbgId = Guid.NewGuid();
                 if (!string.Equals(_automaticSelectionSerial, SerialNumber, StringComparison.OrdinalIgnoreCase)) _automaticSelectionSerial = null;
                 OnPropertyChanged(nameof(SerialNumber));
                 OnPropertyChanged(nameof(NeedsSensorSerialNumber));
@@ -3235,6 +3241,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
 
     public void ApplySavedMapping(CalibrationSensorMapping mapping)
     {
+        _physicalFbgId = mapping.PhysicalFbgId;
         ChannelSerialNumber = CalibrationWiringPersistence.ChannelSerial(mapping);
         ChainSerialNumber = mapping.ChainSerialNumber ?? string.Empty;
         ApiMetadata.Restore(mapping);
@@ -3256,6 +3263,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
 
     public CalibrationSensorMapping ToMapping() => new()
     {
+        PhysicalFbgId = _physicalFbgId,
         Channel = Channel,
         Core1 = Core1,
         Core2 = Core2,

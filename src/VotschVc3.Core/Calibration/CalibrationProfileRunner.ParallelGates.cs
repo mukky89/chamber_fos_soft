@@ -98,7 +98,24 @@ public sealed class CalibrationProfileRunner
         writer.SaveSummary();
         SaveCheckpoint(run, setup, progressPlateau, calibrationSteps[progressPlateau].Segment.TargetTemperature,
             workItems.Where(item => item.IsRetry).Select(item => item.PlateauIndex));
-        await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
+        if (resumeFrom is null)
+        {
+            var discovered = await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
+            run.PeakIdentityChannels = PeakIdentityGuard.Initialize(discovered, setup.ActiveMappings, DateTimeOffset.UtcNow);
+        }
+        else
+        {
+            // An offline interval cannot prove which physical FBG returned at a familiar API index.
+            run.PeakIdentityChannels = resumeFrom.PeakIdentityChannels;
+            if (run.PeakIdentityChannels.Count == 0)
+                run.PeakIdentityChannels = setup.ActiveMappings.Where(m => m.Selected)
+                    .GroupBy(m => (m.SourceDeviceSerialNumber, m.Channel))
+                    .Select(g => new PeakIdentityChannel { Device = g.Key.SourceDeviceSerialNumber, Channel = g.Key.Channel }).ToList();
+            foreach (var channel in run.PeakIdentityChannels)
+                channel.Problem ??= "Po obnovení behu chýba súvislý dôkaz identity FBG; body sa automaticky vynechajú.";
+        }
+        _identityObservation = token => _orchestrator.ObserveIdentityAsync(run, setup, writer, token);
+        writer.SaveSummary();
         run.State = CalibrationRunState.Preparing;
 
         double? previousHumidity = startHumidity;
@@ -217,10 +234,12 @@ public sealed class CalibrationProfileRunner
 
                 if (validationBaseline is null)
                 {
-                    validationBaseline = plateau;
+                    if (plateau.Targets.Any(t => t.Status == CalibrationTargetState.Stable))
+                        validationBaseline = plateau;
                     run.State = CalibrationRunState.BaselineCollection;
                 }
-                else if (!responseValidated)
+                else if (!responseValidated && plateau.Targets.Any(t => t.Status == CalibrationTargetState.Stable &&
+                    validationBaseline.Targets.Any(b => b.Status == CalibrationTargetState.Stable && b.Identity == t.Identity)))
                 {
                     bool validated = _orchestrator.ValidateTemperatureResponse(run, validationBaseline, plateau, setup.Settings);
                     if (validated) responseValidated = true;
@@ -403,6 +422,7 @@ public sealed class CalibrationProfileRunner
             CurrentPlateauIndex = currentPlateau,
             CurrentTargetTemperatureC = targetTemperature,
             State = run.State,
+            PeakIdentityChannels = run.PeakIdentityChannels,
             CompletedPlateaus = run.Plateaus.ToList(),
             DeferredPlateauIndices = deferredPlateaus.Distinct().ToList(),
             Mappings = setup.ActiveMappings.Select(CloneMapping).ToList(),
@@ -412,6 +432,7 @@ public sealed class CalibrationProfileRunner
     }
 
     private sealed record PlateauWorkItem(int PlateauIndex, bool IsRetry);
+    private Func<CancellationToken, Task<IReadOnlyList<PeakLoggerMeasurement>>>? _identityObservation;
 
     private static HashSet<int> ResolveCalibrationSegmentIndices(TestProfile profile, CalibrationSetup setup)
     {
@@ -449,6 +470,7 @@ public sealed class CalibrationProfileRunner
     {
         if (!settings.EnableSetpointRamp || Math.Abs(targetTemperature - fromTemperature) < 0.001)
         {
+            if (_identityObservation is not null) await _identityObservation(cancellationToken).ConfigureAwait(false);
             await WriteSetpointAsync(targetTemperature, targetHumidity, cancellationToken).ConfigureAwait(false);
             return;
         }
@@ -463,6 +485,8 @@ public sealed class CalibrationProfileRunner
         {
             cancellationToken.ThrowIfCancellationRequested();
             await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
+
+            if (_identityObservation is not null) await _identityObservation(cancellationToken).ConfigureAwait(false);
 
             commanded += direction * Math.Min(stepC, Math.Abs(targetTemperature - commanded));
             await WriteSetpointAsync(commanded, targetHumidity, cancellationToken).ConfigureAwait(false);
@@ -591,6 +615,7 @@ public sealed class CalibrationProfileRunner
 
     private static CalibrationSensorMapping CloneMapping(CalibrationSensorMapping m) => new()
     {
+        PhysicalFbgId = m.PhysicalFbgId,
         Channel = m.Channel,
         Core1 = m.Core1,
         Core2 = m.Core2,

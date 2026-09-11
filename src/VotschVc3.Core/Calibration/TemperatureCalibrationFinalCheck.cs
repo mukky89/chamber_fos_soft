@@ -56,7 +56,7 @@ public static partial class TemperatureCalibrationAnalyzer
         var target = check.Targets.FirstOrDefault(t => t.SerialNumber == result.SerialNumber &&
             t.PeakLoggerDeviceSerialNumber == result.PeakLoggerDeviceSerialNumber && t.Channel == result.Channel &&
             t.PeakId == result.PeakId && t.PeakIndex == result.PeakIndex);
-        if (target is null || target.StableSamples.Count == 0)
+        if (target is null || target.Status == CalibrationTargetState.SkippedIdentityUncertain || target.StableSamples.Count == 0)
         {
             result.FinalCheckProblem = target?.Problem ?? "Chýbajú kontrolné vzorky.";
             return;

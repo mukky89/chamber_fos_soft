@@ -991,6 +991,8 @@ public sealed class CalibrationWorkflowRegressionTests
         ProfileId = profileId,
         Settings = new CalibrationProfileSettings
         {
+            // The fake chamber jumps instantly; these tests exercise WIKA/operator timing.
+            IdentityBaseToleranceNm = 0.5,
             EnableSetpointRamp = false,
             SampleAcquisitionIntervalSeconds = 1,
             RequiredStableSamples = 2,

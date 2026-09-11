@@ -103,6 +103,7 @@ public sealed record SensorHistoryDetail(SensorSettlingRow Data, string Folder)
         "Stable" => "Stabilný", "TimedOut" => "Timeout", "PeakLost" => "Strata peaku",
         "Disconnected" => "Odpojený", "Overridden" => "Manuálne preskočené", "Failed" => "Chyba",
         "CompletedWithStabilityWarning" => "Dokončené bez potvrdenej stability", "NoTemperatureResponse" => "Bez teplotnej odozvy",
+        "SkippedIdentityUncertain" => "Vynechané – neistá identita FBG",
         "Completed" => "Dokončené", "CompletedWithWarnings" => "Dokončené s upozorneniami", "Aborted" => "Prerušené",
         _ => status
     };
