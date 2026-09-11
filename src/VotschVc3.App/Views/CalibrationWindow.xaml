@@ -472,6 +472,8 @@
                             BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,0,8">
                         <DockPanel LastChildFill="True">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Odstrániť neprítomné" Style="{StaticResource GhostButton}" Padding="10,6"
+                                        Click="RemoveMissingPeaks_Click" ToolTip="Odstráni neprítomné peaky bez SN, ktoré nie sú vybrané na kalibráciu." />
                                 <Button Content="Začať odznova" Style="{StaticResource GhostButton}" Padding="10,6" Click="ResetWiring_Click" />
                                 <Button Content="Zadať SN v okne" Style="{StaticResource AccentOutlineButton}"
                                         Padding="12,6" Margin="0,0,8,0" Click="OpenSerialPairing_Click"
@@ -583,7 +585,7 @@
                                         <Setter Property="BorderThickness" Value="2" />
                                         <Setter Property="ToolTip" Value="{Binding ConnectionWarning}" />
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsDisconnected}" Value="True">
+                                    <DataTrigger Binding="{Binding RequiresReconnect}" Value="True">
                                         <Setter Property="BorderBrush" Value="#FF6478" />
                                         <Setter Property="BorderThickness" Value="2" />
                                         <Setter Property="ToolTip" Value="{Binding ConnectionWarning}" />

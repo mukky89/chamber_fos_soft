@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.361] – 2026-09-11
+
+### Opravené
+
+- Neprítomné peaky bez priradeného SN a výberu na kalibráciu nevyžadujú opätovné pripojenie. V zapojení ich možno hromadne odstrániť; priradené a vybrané peaky ostávajú chránené. Hlásenia zapojenia možno zavrieť a kontrola topológie neobnovuje tabuľku opakovane pre už neprítomné peaky.
+
 ## [1.76.360] – 2026-09-11
 
 ### Opravené

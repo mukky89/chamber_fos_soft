@@ -194,6 +194,18 @@ public partial class CalibrationWindow
         };
         Grid.SetRow(banner, 2);
         grid.Children.Add(banner);
+        var dismiss = new Button
+        {
+            Content = "×", ToolTip = "Zavrieť hlásenie", Padding = new Thickness(8, 0, 8, 0),
+            Style = TryFindResource("GhostButton") as Style,
+        };
+        dismiss.Click += (_, _) => banner.Visibility = Visibility.Collapsed;
+        banner.Child = null;
+        var content = new DockPanel();
+        DockPanel.SetDock(dismiss, Dock.Right);
+        content.Children.Add(dismiss);
+        content.Children.Add(text);
+        banner.Child = content;
         _productionInfoBanner = banner;
         _productionInfoText = text;
     }

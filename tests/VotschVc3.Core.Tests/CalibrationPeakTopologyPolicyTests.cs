@@ -5,6 +5,19 @@ namespace VotschVc3.Core.Tests;
 
 public sealed class CalibrationPeakTopologyPolicyTests
 {
+    [Theory]
+    [InlineData(true, false, "", false, true, false)]
+    [InlineData(true, false, "291877/0001", false, false, true)]
+    [InlineData(true, true, "", false, false, true)]
+    [InlineData(false, false, "", false, false, false)]
+    [InlineData(true, false, "", true, false, false)]
+    public void MissingNoiseCanBeDiscardedButAssignedSelectedAndRunningPeaksAreProtected(
+        bool disconnected, bool selected, string serial, bool running, bool removable, bool reconnect)
+    {
+        Assert.Equal(removable, CalibrationPeakTopologyPolicy.CanDiscardMissingPeak(disconnected, selected, serial, running));
+        Assert.Equal(reconnect, CalibrationPeakTopologyPolicy.RequiresReconnect(disconnected, selected, serial));
+    }
+
     [Fact]
     public void EquivalentTopology_IgnoresMissingInterrogatorSerialAfterResume()
     {

@@ -178,7 +178,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     public bool PeakFilterErrors { get => _peakFilterMode == "Errors"; set { if (value) SetPeakFilter("Errors"); } }
     public int PeakTotalCount => Peaks.Count;
     public int PeakSelectedCount => Peaks.Count(p => p.Selected);
-    public int PeakErrorCount => Peaks.Count(p => p.NeedsSensorSerialNumber || p.HasSerialNumberWarning);
+    public int PeakErrorCount => Peaks.Count(p => p.NeedsSensorSerialNumber || p.HasSerialNumberWarning || p.RequiresReconnect);
     public string PeakSelectionSummary => $"{PeakSelectedCount} z {PeakTotalCount} vybraných · {Peaks.Where(p => p.Selected).Select(p => p.Channel).Distinct(StringComparer.OrdinalIgnoreCase).Count()} kanálov";
 
     private void NotifyPeakCounts()
@@ -203,7 +203,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     {
         if (item is not CalibrationPeakRowViewModel row) return false;
         if (_peakFilterMode == "Selected" && !row.Selected) return false;
-        if (_peakFilterMode == "Errors" && !row.NeedsSensorSerialNumber && !row.HasSerialNumberWarning) return false;
+        if (_peakFilterMode == "Errors" && !row.NeedsSensorSerialNumber && !row.HasSerialNumberWarning && !row.RequiresReconnect) return false;
         string query = _peakSearchText.Trim();
         if (query.Length == 0) return true;
         return new[] { row.Channel, row.PeakId, row.PeakIndex.ToString(), row.SerialNumber, row.ChannelSerialNumber,
@@ -1000,6 +1000,21 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         host.Equals(".", StringComparison.OrdinalIgnoreCase) ||
         host.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase);
 
+    public int RemoveMissingUnassignedPeaks()
+    {
+        if (IsRunning) return 0;
+        var removable = Peaks.Where(p => CalibrationPeakTopologyPolicy.CanDiscardMissingPeak(
+            p.IsDisconnected, p.Selected, p.SerialNumber, IsRunning)).ToArray();
+        foreach (var row in removable) Peaks.Remove(row);
+        if (removable.Length > 0)
+        {
+            PersistSetup(showStatus: false);
+            NotifyPeakCounts();
+            RefreshCommands();
+        }
+        return removable.Length;
+    }
+
     private Task DiscoverSensorsAsync() => LoadDeviceDataAsync(DiscoverSensorsAsyncCore);
 
     private async Task DiscoverSensorsAsyncCore()
@@ -1085,9 +1100,12 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                     PeaksView.Refresh();
             }
 
+            if (e.PropertyName == nameof(CalibrationPeakRowViewModel.IsDisconnected)) NotifyPeakCounts();
+
             if (!_applyingRecoveredMappings &&
                 e.PropertyName is not nameof(CalibrationPeakRowViewModel.CurrentWavelengthNm)
                 and not nameof(CalibrationPeakRowViewModel.IsDisconnected)
+                and not nameof(CalibrationPeakRowViewModel.RequiresReconnect)
                 and not nameof(CalibrationPeakRowViewModel.ConnectionWarning)
                 and not nameof(CalibrationPeakRowViewModel.HasWeakSignal)
                 and not nameof(CalibrationPeakRowViewModel.LiveWavelengthLabel)
@@ -2951,6 +2969,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(SerialNumber));
                 OnPropertyChanged(nameof(NeedsSensorSerialNumber));
+                OnPropertyChanged(nameof(RequiresReconnect));
+                OnPropertyChanged(nameof(ConnectionWarning));
             }
         }
     }
@@ -2964,13 +2984,16 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(SerialNumber));
                 OnPropertyChanged(nameof(NeedsSensorSerialNumber));
+                OnPropertyChanged(nameof(RequiresReconnect));
+                OnPropertyChanged(nameof(ConnectionWarning));
             }
         }
     }
     public string SerialNumber => string.IsNullOrWhiteSpace(ChainSerialNumber)
         ? ChannelSerialNumber
         : ChainSerialNumber;
-    public bool NeedsSensorSerialNumber => string.IsNullOrWhiteSpace(SerialNumber);
+    public bool NeedsSensorSerialNumber => (!IsDisconnected || Selected) && string.IsNullOrWhiteSpace(SerialNumber);
+    public bool RequiresReconnect => CalibrationPeakTopologyPolicy.RequiresReconnect(IsDisconnected, Selected, SerialNumber);
     public string SerialNumberWarning
     {
         get => _serialNumberWarning;
@@ -2994,7 +3017,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     public double MinimumIntensityDbm { get; set; } = -40;
     public bool HasWeakSignal => !IsDisconnected && Intensity is double value && value < MinimumIntensityDbm;
     public string ConnectionWarning => IsDisconnected
-        ? $"Pripoj snímač {SerialNumber} späť do kanála {Channel}."
+        ? RequiresReconnect ? $"Pripoj snímač {SerialNumber} späť do kanála {Channel}." : "Nepriradený peak už nie je prítomný. Možno ho odstrániť."
         : HasWeakSignal ? $"Slabý signál: {Intensity:F1} dBm; minimum {MinimumIntensityDbm:F1} dBm. Vyčisti konektor. Kalibrácia nie je blokovaná." : string.Empty;
     public string LiveWavelengthLabel => IsDisconnected ? "—" : CurrentWavelengthNm.ToString("F3");
     public void MarkDisconnected()
@@ -3002,6 +3025,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         IsDisconnected = true;
         Intensity = null;
         OnPropertyChanged(nameof(ConnectionWarning));
+        OnPropertyChanged(nameof(NeedsSensorSerialNumber));
+        OnPropertyChanged(nameof(RequiresReconnect));
         OnPropertyChanged(nameof(HasWeakSignal));
         OnPropertyChanged(nameof(LiveWavelengthLabel));
     }
@@ -3010,7 +3035,17 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     public bool WasSavedSelected { get; }
     public int? Core1 { get; set; }
     public int? Core2 { get; set; }
-    public bool Selected { get => _selected; set => SetProperty(ref _selected, value); }
+    public bool Selected
+    {
+        get => _selected;
+        set
+        {
+            if (!SetProperty(ref _selected, value)) return;
+            OnPropertyChanged(nameof(NeedsSensorSerialNumber));
+            OnPropertyChanged(nameof(RequiresReconnect));
+            OnPropertyChanged(nameof(ConnectionWarning));
+        }
+    }
     public string Notes { get => _notes; set => SetProperty(ref _notes, value); }
     public string ProductDescription { get => _productDescription; set => SetProperty(ref _productDescription, value); }
     public string Customer { get => _customer; set => SetProperty(ref _customer, value); }
@@ -3024,6 +3059,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         LastWavelengthUpdate = timestamp;
         IsDisconnected = false;
         OnPropertyChanged(nameof(ConnectionWarning));
+        OnPropertyChanged(nameof(NeedsSensorSerialNumber));
+        OnPropertyChanged(nameof(RequiresReconnect));
         OnPropertyChanged(nameof(HasWeakSignal));
         OnPropertyChanged(nameof(LiveWavelengthLabel));
     }

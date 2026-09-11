@@ -30,6 +30,25 @@ public partial class CalibrationWindow
     private bool _pairingApiVerified;
     private bool _wiringModesV9Initialized;
 
+    private void RemoveMissingPeaks_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsRunning) { ShowProductionInfo("Počas kalibrácie nemožno odstraňovať peaky."); return; }
+        if (IsWiringGridEditingV3()) { ShowProductionInfo("Najprv dokonči editáciu bunky klávesom Enter."); return; }
+        try
+        {
+            int removed = _viewModel.RemoveMissingUnassignedPeaks();
+            _knownPeakIdentities = CurrentPeakIdentities();
+            _sequentialBaseline.IntersectWith(_knownPeakIdentities);
+            ShowProductionInfo(removed > 0
+                ? $"Odstránené neprítomné nepriradené peaky: {removed}."
+                : "Nie sú tu neprítomné nepriradené peaky na odstránenie. Priradené a vybrané peaky sa zachovávajú.");
+        }
+        catch (Exception ex)
+        {
+            ShowProductionInfo($"Zmenu zapojenia sa nepodarilo uložiť: {ex.Message}. Zopakuj uloženie ikonou.");
+        }
+    }
+
     private void ResetWiring_Click(object sender, RoutedEventArgs e)
     {
         if (_viewModel.IsRunning) return;
@@ -244,7 +263,7 @@ public partial class CalibrationWindow
             rows.Select(p => ($"{p.Channel} / {p.PeakId}", p.CurrentWavelengthNm)), _pairingMetadata?.Fbg));
         string signature = string.Join(";", rows.Select(PeakIdentity).OrderBy(x => x));
         if (signature != _candidateSignature) { _candidateSignature = signature; _candidateSince = DateTime.UtcNow; }
-        bool missing = _viewModel.Peaks.Any(p => _sequentialBaseline.Contains(PeakIdentity(p)) && p.IsDisconnected);
+        bool missing = _viewModel.Peaks.Any(p => _sequentialBaseline.Contains(PeakIdentity(p)) && p.RequiresReconnect);
         bool singleChannel = rows.Select(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}").Distinct().Count() == 1;
         _pairingPanel.ConfirmPeaks.IsEnabled = rows.Count > 0 && singleChannel && !missing && (DateTime.UtcNow - _candidateSince).TotalSeconds >= 3;
         _pairingPanel.Candidates.Text = missing ? "Pôvodné peaky chýbajú. Skontroluj pripojenie pred potvrdením." :

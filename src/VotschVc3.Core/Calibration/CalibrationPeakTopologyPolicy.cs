@@ -6,6 +6,12 @@ namespace VotschVc3.Core.Calibration;
 /// </summary>
 public static class CalibrationPeakTopologyPolicy
 {
+    public static bool RequiresReconnect(bool disconnected, bool selected, string? serialNumber) =>
+        disconnected && (selected || !string.IsNullOrWhiteSpace(serialNumber));
+
+    public static bool CanDiscardMissingPeak(bool disconnected, bool selected, string? serialNumber, bool running) =>
+        !running && disconnected && !selected && string.IsNullOrWhiteSpace(serialNumber);
+
     public static IReadOnlyList<string> SelectNewSources(
         IEnumerable<string> knownSources,
         IEnumerable<string> measuredSources,
