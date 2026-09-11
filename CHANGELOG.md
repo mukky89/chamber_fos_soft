@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.355] – 2026-09-11
+
+### Zmenené
+
+- Okno priradenia FBG snímača používa jednotné vektorové ikony skenovania, konektora, potvrdenia a informácií. Kroky zachovávajú číslovanie v popisoch a potvrdená ikona má kontrastný odtieň na zelenom pozadí.
+
 ## [1.76.354] – 2026-09-11
 
 ### Pridané
