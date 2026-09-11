@@ -485,7 +485,11 @@
                                         <WrapPanel Orientation="Horizontal" Margin="0,0,0,0">
                                             <Border Background="{StaticResource DangerBrush}" CornerRadius="7" Padding="6,3"
                                                     Margin="0,0,3,4" VerticalAlignment="Center"
-                                                    Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}">
+                                                    Visibility="{Binding IsAlarm, Converter={StaticResource BoolToVisibility}}"
+                                                    ToolTipService.InitialShowDelay="200" ToolTipService.ShowDuration="60000" ToolTipService.ShowOnDisabled="True">
+                                                <Border.ToolTip>
+                                                    <ToolTip><TextBlock Text="{Binding AlarmMessage}" MaxWidth="420" TextWrapping="Wrap"/></ToolTip>
+                                                </Border.ToolTip>
                                                 <TextBlock Text="⚠ ALARM" Foreground="White" FontFamily="Segoe UI Semibold" FontSize="11.5" />
                                             </Border>
                                             <Border Style="{StaticResource Badge}">

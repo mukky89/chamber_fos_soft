@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.388] – 2026-09-11
+
+### Opravené
+
+- Označenie ALARM na domovskej karte komory po prejdení myšou zobrazí aktuálne dôvody alarmu. Dlhý text sa zalamuje a pomoc zostáva zobrazená dostatočne dlho na prečítanie.
+
+
 ## [1.76.387] – 2026-09-11
 
 ### Opravené
