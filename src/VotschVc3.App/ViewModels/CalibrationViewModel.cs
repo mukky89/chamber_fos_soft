@@ -734,6 +734,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         if (SelectedProfile is null)
         {
             _setup = new CalibrationSetup { Settings = CalibrationCheckpointRecovery.CloneSettings(_calibrationDefaultsStore.Load()) };
+            OnPropertyChanged(nameof(IgnoredChannelsLabel));
             RefreshSettingsBindings();
             RefreshResumeCheckpoint();
             RefreshCommands();
@@ -766,6 +767,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 CalibrationPoints.Add(point);
             }
         }
+        OnPropertyChanged(nameof(IgnoredChannelsLabel));
         RefreshResumeCheckpoint();
         _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: HasResumableCalibration || IsRunning);
         RefreshSettingsBindings();
@@ -1027,7 +1029,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
         var previousRows = Peaks.ToDictionary(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}|{p.PeakId}", StringComparer.OrdinalIgnoreCase);
         Peaks.Clear();
-        foreach (PeakLoggerSensor sensor in sensors)
+        foreach (PeakLoggerSensor sensor in sensors.Where(s => !IsPeakLoggerChannelIgnored(s.Channel)))
         {
             foreach (PeakLoggerPeak peak in sensor.Peaks)
             {
@@ -1043,12 +1045,12 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             }
         }
 
-        foreach (CalibrationPeakRowViewModel missing in previousRows.Values)
+        foreach (CalibrationPeakRowViewModel missing in previousRows.Values.Where(p => !IsPeakLoggerChannelIgnored(p.Channel)))
         {
             missing.MarkDisconnected();
             Peaks.Add(missing);
         }
-        int livePeakCount = sensors.Sum(sensor => sensor.Peaks.Count);
+        int livePeakCount = sensors.Where(s => !IsPeakLoggerChannelIgnored(s.Channel)).Sum(sensor => sensor.Peaks.Count);
         PeakLoggerStatus = livePeakCount == 0
             ? $"API pripojené · {PeakLoggerHost}:{PeakLoggerPort} · bez peakov"
             : $"Pripojený · {sensors.Count} zdrojov/kanálov · {livePeakCount} peakov";
@@ -1296,6 +1298,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     private void ApplyLivePeakMeasurements(IReadOnlyList<PeakLoggerMeasurement> measurements)
     {
         Dictionary<string, PeakLoggerMeasurement> bySource = measurements
+            .Where(m => !IsPeakLoggerChannelIgnored(m.Channel))
             .GroupBy(m => $"{m.SerialNumber}|{m.Channel}|{m.PeakId}", StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
 
@@ -1319,7 +1322,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 measurement.PeakIndex,
                 measurement.WavelengthNm,
                 measurement.Intensity);
-            CalibrationPeakRowViewModel row = CreatePeakRow(sensor, peak, null);
+            CalibrationPeakRowViewModel row = CreatePeakRow(sensor, peak, _setup.Mappings.FirstOrDefault(m =>
+                string.Equals(m.SourceIdentity, entry.Key, StringComparison.OrdinalIgnoreCase)));
             row.UpdateLive(measurement.WavelengthNm, measurement.Intensity, measurement.Timestamp);
             Peaks.Add(row);
             knownSources.Add(entry.Key);
@@ -1768,7 +1772,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         if (SelectedProfile is null) return;
         _setup.ProfileId = SelectedProfile.Id;
         _setup.ChamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
-        _setup.Mappings = Peaks.Select(p => p.ToMapping()).ToList();
+        _setup.Mappings = _setup.Mappings.Where(m => IsPeakLoggerChannelIgnored(m.Channel))
+            .Concat(Peaks.Where(p => !IsPeakLoggerChannelIgnored(p.Channel)).Select(p => p.ToMapping()))
+            .GroupBy(m => m.SourceIdentity, StringComparer.OrdinalIgnoreCase).Select(g => g.Last()).ToList();
         CalibrationCheckpoint? checkpoint = _resumeCheckpoint;
         if (checkpoint is null && SelectedChamber is not null)
         {

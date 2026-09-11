@@ -44,7 +44,7 @@ public sealed partial class CalibrationOrchestrator
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(setup);
-        List<CalibrationSensorMapping> selected = setup.Mappings.Where(x => x.Selected).ToList();
+        List<CalibrationSensorMapping> selected = setup.ActiveMappings.Where(x => x.Selected).ToList();
         if (selected.Count == 0)
             throw new InvalidOperationException("Nie je vybraná žiadna wavelength na kalibráciu.");
 
@@ -131,7 +131,7 @@ public sealed partial class CalibrationOrchestrator
 
         CalibrationProfileSettings settings = setup.Settings;
         minimumPlateauDuration = minimumPlateauDuration < TimeSpan.Zero ? TimeSpan.Zero : minimumPlateauDuration;
-        List<CalibrationSensorMapping> selected = setup.Mappings.Where(x => x.Selected).ToList();
+        List<CalibrationSensorMapping> selected = setup.ActiveMappings.Where(x => x.Selected).ToList();
         if (selected.Count == 0)
             throw new InvalidOperationException("Calibration setup nemá vybrané peaky.");
 

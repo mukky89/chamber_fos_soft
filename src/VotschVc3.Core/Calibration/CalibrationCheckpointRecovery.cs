@@ -16,8 +16,8 @@ public static class CalibrationCheckpointRecovery
         if (run.Plateaus.Count == 0)
             throw new InvalidOperationException("Historický beh neobsahuje žiadne dokončené plato.");
 
-        List<CalibrationSensorMapping> mappings = setup.Mappings
-            .Where(mapping => mapping.Selected && !string.IsNullOrWhiteSpace(mapping.SerialNumber))
+        List<CalibrationSensorMapping> mappings = setup.ActiveMappings
+            .Where(mapping => !setup.IsChannelIgnored(mapping.Channel) && mapping.Selected && !string.IsNullOrWhiteSpace(mapping.SerialNumber))
             .Select(CloneMapping)
             .ToList();
         if (mappings.Count == 0)
@@ -25,7 +25,7 @@ public static class CalibrationCheckpointRecovery
             mappings = run.Plateaus
                 .OrderByDescending(plateau => plateau.PlateauIndex)
                 .SelectMany(plateau => plateau.Targets)
-                .Where(target => !string.IsNullOrWhiteSpace(target.SerialNumber))
+                .Where(target => !setup.IsChannelIgnored(target.Channel) && !string.IsNullOrWhiteSpace(target.SerialNumber))
                 .GroupBy(
                     target => $"{target.PeakLoggerDeviceSerialNumber}|{target.Channel}|{target.PeakId}",
                     StringComparer.OrdinalIgnoreCase)
@@ -145,15 +145,15 @@ public static class CalibrationCheckpointRecovery
         ArgumentNullException.ThrowIfNull(setup);
         ArgumentNullException.ThrowIfNull(checkpoint);
 
-        bool setupHasUsableSelection = setup.Mappings.Any(mapping =>
+        bool setupHasUsableSelection = setup.ActiveMappings.Any(mapping =>
             mapping.Selected && !string.IsNullOrWhiteSpace(mapping.SerialNumber));
         List<CalibrationSensorMapping> checkpointMappings = checkpoint.Mappings
-            .Where(mapping => mapping.Selected && !string.IsNullOrWhiteSpace(mapping.SerialNumber))
+            .Where(mapping => !setup.IsChannelIgnored(mapping.Channel) && mapping.Selected && !string.IsNullOrWhiteSpace(mapping.SerialNumber))
             .Select(CloneMapping)
             .ToList();
         if (setupHasUsableSelection || checkpointMappings.Count == 0) return false;
 
-        setup.Mappings = checkpointMappings;
+        setup.Mappings = setup.Mappings.Where(m => setup.IsChannelIgnored(m.Channel)).Concat(checkpointMappings).ToList();
         return true;
     }
 

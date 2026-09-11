@@ -56,7 +56,7 @@ public sealed class CalibrationWlLog : IAsyncDisposable
         Directory.CreateDirectory(directory);
         try
         {
-            foreach (var device in setup.Mappings.Where(m => m.Selected).GroupBy(m => m.SourceDeviceSerialNumber, StringComparer.OrdinalIgnoreCase))
+            foreach (var device in setup.ActiveMappings.Where(m => m.Selected).GroupBy(m => m.SourceDeviceSerialNumber, StringComparer.OrdinalIgnoreCase))
             {
                 var peaks = device.OrderBy(m => Array.IndexOf(CalibrationWlFormat.Channels, m.Channel)).ThenBy(m => m.PeakIndex).ToArray();
                 if (peaks.Any(m => !CalibrationWlFormat.Channels.Contains(m.Channel)) ||
@@ -65,7 +65,7 @@ public sealed class CalibrationWlLog : IAsyncDisposable
                     throw new InvalidOperationException("WLN: nejednoznačné mapovanie kanálov/peakov.");
                 string[] channelSerials = CalibrationWlFormat.Channels.Select(channel =>
                 {
-                    var channelMappings = setup.Mappings.Where(m => string.Equals(m.SourceDeviceSerialNumber, device.Key, StringComparison.OrdinalIgnoreCase) && m.Channel == channel).ToArray();
+                    var channelMappings = setup.ActiveMappings.Where(m => string.Equals(m.SourceDeviceSerialNumber, device.Key, StringComparison.OrdinalIgnoreCase) && m.Channel == channel).ToArray();
                     string[] serials = channelMappings.Select(m => string.IsNullOrWhiteSpace(m.ChannelSerialNumber) ? m.SerialNumber : m.ChannelSerialNumber)
                         .Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray();
                     return serials.Length == 1 ? serials[0] : "NOSN";

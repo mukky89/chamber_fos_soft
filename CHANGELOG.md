@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.365] – 2026-09-11
+
+### Pridané
+
+- V zapojení možno nastaviť ignorované kanály PeakLoggera pre konkrétnu komoru a profil. Nevstupujú do tabuľky, párovania, kontroly topológie ani kalibračných cieľov a exportov. Nastavenie sa ukladá; SN ignorovaných kanálov zostávajú zachované pre opätovné zapnutie.
+
 ## [1.76.364] – 2026-09-11
 
 ### Opravené

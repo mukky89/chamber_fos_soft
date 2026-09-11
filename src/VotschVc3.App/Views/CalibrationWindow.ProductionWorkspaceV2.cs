@@ -585,7 +585,7 @@ public partial class CalibrationWindow
                 _topologyPollCts.Token);
             if (topology is null) return;
 
-            HashSet<string> live = topology.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> live = topology.Where(identity => !_viewModel.IsPeakLoggerSourceIgnored(identity)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (!_peakIdentityBaselineReady || _knownPeakIdentities.Count == 0)
             {
                 // Only trigger a refresh if the API reports topology that is genuinely different

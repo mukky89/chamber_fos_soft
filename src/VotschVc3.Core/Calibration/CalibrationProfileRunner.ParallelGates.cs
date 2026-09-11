@@ -89,7 +89,7 @@ public sealed class CalibrationProfileRunner
             startTemperature,
             null,
             0,
-            setup.Mappings.Count(m => m.Selected),
+            setup.ActiveMappings.Count(m => m.Selected),
             TimeSpan.Zero,
             Array.Empty<CalibrationTargetProgress>(),
             "Kontrola PeakLoggera a zapojenia. Z profilu sa použijú iba vybrané teploty kalibračných plat; rampy a časy profilu sa ignorujú."));
@@ -198,7 +198,7 @@ public sealed class CalibrationProfileRunner
                         null,
                         null,
                         0,
-                        setup.Mappings.Count(mapping => mapping.Selected),
+                        setup.ActiveMappings.Count(mapping => mapping.Selected),
                         TimeSpan.Zero,
                         Array.Empty<CalibrationTargetProgress>(),
                         $"Plato {currentPlateau + 1} / {calibrationSteps.Count} sa odložilo: {deferred.Message} Nasleduje ďalšie dostupné plato."));
@@ -364,7 +364,7 @@ public sealed class CalibrationProfileRunner
             throw new InvalidOperationException("Checkpoint nepatrí k vybranému profilu, komore alebo kalibračnému behu.");
         if (checkpoint.CompletedPlateaus.Count > plateauCount)
             throw new InvalidOperationException("Checkpoint obsahuje viac dokončených plat, než má aktuálny kalibračný plán.");
-        if (checkpoint.Mappings.Count > 0 && setup.Mappings.Count(m => m.Selected) == 0)
+        if (checkpoint.Mappings.Count > 0 && setup.ActiveMappings.Count(m => m.Selected) == 0)
             throw new InvalidOperationException("Pred obnovením kalibrácie chýba uložené zapojenie vybraných FBG peakov.");
 
         run.Plateaus.Clear();
@@ -398,7 +398,7 @@ public sealed class CalibrationProfileRunner
             State = run.State,
             CompletedPlateaus = run.Plateaus.ToList(),
             DeferredPlateauIndices = deferredPlateaus.Distinct().ToList(),
-            Mappings = setup.Mappings.Select(CloneMapping).ToList(),
+            Mappings = setup.ActiveMappings.Select(CloneMapping).ToList(),
             SettingsSnapshot = CalibrationCheckpointRecovery.CloneSettings(setup.Settings),
             CalibrationSegmentIndices = setup.CalibrationSegmentIndices.ToList(),
         });

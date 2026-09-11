@@ -470,8 +470,10 @@
                     </Grid.RowDefinitions>
                     <Border Grid.Row="0" Background="#111C2B" BorderBrush="{StaticResource BorderBrush}"
                             BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,0,8">
-                        <DockPanel LastChildFill="True">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel>
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
+                                <Button Content="{Binding IgnoredChannelsLabel}" Style="{StaticResource GhostButton}" Padding="10,6"
+                                        Click="IgnoredChannels_Click" ToolTip="Vyber kanály používané na iné meranie, ktoré sa nemajú sledovať v tejto kalibrácii." />
                                 <Button Content="Odstrániť neprítomné" Style="{StaticResource GhostButton}" Padding="10,6"
                                         Click="RemoveMissingPeaks_Click" ToolTip="Odstráni neprítomné peaky bez SN, ktoré nie sú vybrané na kalibráciu." />
                                 <Button Content="Začať odznova" Style="{StaticResource GhostButton}" Padding="10,6" Click="ResetWiring_Click" />
@@ -485,7 +487,7 @@
                                         Padding="12,6" Margin="8,0,16,0" Click="SelectAllPeaks_Click" />
                                 <Button Content="Zrušiť výber peakov" Style="{StaticResource GhostButton}" Padding="10,6" Margin="0,0,10,0" Click="ClearPeaks_Click" ToolTip="Odznačí všetky peaky. SN a poznámky zostanú zachované." />
                                 <TextBlock Text="{Binding PeakSelectionSummary}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
-                            </StackPanel>
+                            </WrapPanel>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Grid Width="270" Margin="0,0,10,0">
                                     <TextBox Padding="28,6,28,6" Text="{Binding PeakSearchText, UpdateSourceTrigger=PropertyChanged}"
@@ -514,7 +516,7 @@
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="Chyby" /><Border Style="{StaticResource WiringCountBadge}" Background="#512A38"><TextBlock Text="{Binding PeakErrorCount}" /></Border></StackPanel>
                                 </RadioButton>
                             </StackPanel>
-                        </DockPanel>
+                        </StackPanel>
                     </Border>
 
                     <!-- Empty state: an empty grid with 15 headers and nothing under them says

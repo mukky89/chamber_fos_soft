@@ -268,7 +268,7 @@ public partial class CalibrationWindow
                 _topologyPollCts.Token);
             if (topology is null || IsWiringGridEditingV3()) return;
 
-            HashSet<string> live = topology.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> live = topology.Where(identity => !_viewModel.IsPeakLoggerSourceIgnored(identity)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (!ConfirmTopologyChange(live, _viewModel.Peaks.Where(p => !p.IsDisconnected).Select(PeakIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase))) return;
 
             if (_viewModel.SaveSetupCommand.CanExecute(null)) _viewModel.SaveSetupCommand.Execute(null);

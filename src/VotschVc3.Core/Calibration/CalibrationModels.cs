@@ -195,6 +195,11 @@ public sealed class CalibrationSensorMapping
 
 public sealed class CalibrationSetup
 {
+    public List<string> IgnoredPeakLoggerChannels { get; set; } = new();
+    public bool IsChannelIgnored(string channel) =>
+        IgnoredPeakLoggerChannels?.Contains(channel, StringComparer.OrdinalIgnoreCase) == true;
+    [JsonIgnore]
+    public List<CalibrationSensorMapping> ActiveMappings => Mappings.Where(m => !IsChannelIgnored(m.Channel)).ToList();
     public Guid ProfileId { get; set; }
     public Guid ChamberId { get; set; }
     public List<int> CalibrationSegmentIndices { get; set; } = new();

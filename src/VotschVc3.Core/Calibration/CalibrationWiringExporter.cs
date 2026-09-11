@@ -24,13 +24,13 @@ public static class CalibrationWiringExporter
         sheet.Range("A1:N1").Style.Font.Bold = true;
         sheet.Row(1).Height = 36;
         sheet.Range("A2:N2").Merge().Value = $"Beh: {run.DisplayRunId}   |   Profil: {run.ProfileName}   |   Komora: {run.ChamberName}";
-        sheet.Range("A3:N3").Merge().Value = $"Začiatok: {run.StartedAt.LocalDateTime:dd.MM.yyyy HH:mm:ss}   |   Operátor: {run.Operator}   |   Vybrané peaky: {setup.Mappings.Count(m => m.Selected)} / {setup.Mappings.Count}";
+        sheet.Range("A3:N3").Merge().Value = $"Začiatok: {run.StartedAt.LocalDateTime:dd.MM.yyyy HH:mm:ss}   |   Operátor: {run.Operator}   |   Vybrané peaky: {setup.ActiveMappings.Count(m => m.Selected)} / {setup.ActiveMappings.Count}";
         sheet.Rows(2, 3).Height = 25;
         sheet.Range("A2:N3").Style.Font.FontColor = XLColor.FromHtml("#52677E");
         string[] headers = { "Kalibrovať", "Kanál", "Peak ID", "FBG index", "SN snímača", "SN kanála", "SN CHAIN", "SN interrogátora", "λ pri štarte [nm]", "Nominálna λ [nm]", "Zákazník", "Zákazka", "Popis produktu", "Poznámky" };
         for (int c = 0; c < headers.Length; c++) sheet.Cell(5, c + 1).Value = headers[c];
         int row = 6;
-        foreach (var m in setup.Mappings)
+        foreach (var m in setup.ActiveMappings)
         {
             string[] values = { m.Selected ? "Áno" : "Nie", m.Channel, m.PeakId, m.PeakIndex.ToString(),
                 m.SerialNumber, m.ChannelSerialNumber, m.ChainSerialNumber, m.PeakLoggerDeviceSerialNumber,
