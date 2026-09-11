@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.371] – 2026-09-11
+
+### Vylepšené
+
+- Načítanie zapojenia zobrazuje prehľad podľa komory, profilu, dátumu, názvov snímačov a výrobných SN namiesto výberu podľa interných ID súborov. Automatické zálohy a zálohy pred importom sú odlíšené, zoznam sa dá vyhľadávať a vybrané zapojenie uložiť ako kópia s čitateľným názvom. Staršie súbory zostávajú podporované; nové zapojenia obsahujú aj názvy komory, profilu a čas uloženia.
+
 ## [1.76.370] – 2026-09-11
 
 ### Pridané

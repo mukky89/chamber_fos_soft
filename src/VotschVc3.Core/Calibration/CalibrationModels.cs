@@ -196,6 +196,9 @@ public sealed class CalibrationSensorMapping
 
 public sealed class CalibrationSetup
 {
+    public string ProfileName { get; set; } = "";
+    public string ChamberName { get; set; } = "";
+    public DateTimeOffset? SavedAt { get; set; }
     public List<string> IgnoredPeakLoggerChannels { get; set; } = new();
     public bool IsChannelIgnored(string channel) =>
         IgnoredPeakLoggerChannels?.Contains(channel, StringComparer.OrdinalIgnoreCase) == true;

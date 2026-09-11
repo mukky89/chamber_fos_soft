@@ -1834,6 +1834,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         if (SelectedProfile is null) return;
         _setup.ProfileId = SelectedProfile.Id;
         _setup.ChamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
+        _setup.ProfileName = SelectedProfile.Name;
+        _setup.ChamberName = SelectedChamber?.Config.Name ?? "";
         _setup.Mappings = CalibrationWiringPersistence.MergeVisibleMappings(_setup.Mappings,
             Peaks.Where(p => !IsPeakLoggerChannelIgnored(p.Channel)).Select(p => p.ToMapping()));
         CalibrationCheckpoint? checkpoint = _resumeCheckpoint;

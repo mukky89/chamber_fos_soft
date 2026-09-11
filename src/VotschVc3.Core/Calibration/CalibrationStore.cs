@@ -51,6 +51,7 @@ public sealed class CalibrationStore
     public void SaveSetup(CalibrationSetup setup)
     {
         ArgumentNullException.ThrowIfNull(setup);
+        setup.SavedAt = DateTimeOffset.Now;
         WriteRecoveryFile(SetupPath(setup.ProfileId, setup.ChamberId), JsonSerializer.Serialize(setup, JsonOptions));
     }
 

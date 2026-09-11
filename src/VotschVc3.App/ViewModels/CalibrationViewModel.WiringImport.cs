@@ -15,6 +15,8 @@ public sealed partial class CalibrationViewModel
         var replacement = CalibrationWiringImporter.PrepareReplacement(_setup, mappings, live.Values.Select(p => p.ToMapping()));
         replacement.ProfileId = SelectedProfile!.Id;
         replacement.ChamberId = SelectedChamber?.Config.Id ?? _workspaceChamberId;
+        replacement.ProfileName = SelectedProfile.Name;
+        replacement.ChamberName = SelectedChamber?.Config.Name ?? "";
         replacement.CalibrationSegmentIndices = CalibrationPoints.Where(p => p.Selected).Select(p => p.SegmentIndex).ToList();
 
         _setupAutosaveCts?.Cancel();
