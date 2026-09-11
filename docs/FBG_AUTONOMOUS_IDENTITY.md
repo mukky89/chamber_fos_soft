@@ -32,3 +32,7 @@ Medzi dvoma HTTP odbermi nemožno zaručiť odhalenie ľubovoľného rýchleho p
 ## Návrat pôvodnej verzie
 
 Pred zmenou bola vytvorená vetva `codex/before-autonomous-identity-20260911` na commite `191474f`. Návrat sa má vykonať revertnutím tejto funkčnej zmeny so zachovaním následných opráv, nie resetom celého repozitára alebo prepísaním histórie. Staré dáta ani zapojenie sa nemažú.
+
+### Obnova po komunikácii (1.76.389)
+Počas obnovy komory sa naďalej odoberajú optické pozorovania. Komunikačná medzera sama osebe umožňuje nové overenie, nie nové naučenie identity z aktuálneho poradia. Pre každý pôvodný peak sa použije rozsah ±(IdentityBaseToleranceNm + IdentityMaximumMotionNmPerMinute × celý čas od posledného prijatého pozorovania). Rozsahy všetkých peakov kanála musia byť navzájom oddelené vrátane IdentityMinimumSeparationNm. Nový rámec musí spĺňať pôvodné kontroly kvality a mať jediné úplné priradenie. Platnosť tohto dôkazu závisí od správne nastavenej fyzikálnej hornej medze pohybu; nejde o identifikáciu podľa SN zo spektra.
+Prekrytie, zmena počtu, nejednoznačnosť a staré trvalo vyradené kanály sa automaticky neodblokujú. Obnova sa zapisuje do histórie. Už vynechaný bod sa tým spätne nevaliduje ani automaticky neopakuje; na jeho získanie treba nový merací priebeh. Čiastočné vzorky po komunikačnej chybe zahodí existujúci reset stabilizácie a odberu.

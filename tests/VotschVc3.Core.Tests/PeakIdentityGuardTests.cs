@@ -21,6 +21,49 @@ public sealed class PeakIdentityGuardTests
             } },
     };
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DisjointReachableIntervalsRecoverGapWithoutTrustingApiOrder(bool interrupted)
+    {
+        var channels = Channels();
+        channels[0].CommunicationGap = interrupted;
+        channels[0].Problem = interrupted ? "Výpadok dát" : null;
+        channels = JsonSerializer.Deserialize<List<PeakIdentityChannel>>(JsonSerializer.Serialize(channels))!;
+        var events = new List<PeakIdentityEvent>();
+        var time = Start.AddSeconds(121);
+        var accepted = PeakIdentityGuard.Observe(new[] { Peak("P2", 1510.1, time), Peak("P1", 1511.1, time) },
+            channels, new(), time, events.Add);
+        Assert.Equal(2, accepted.Count);
+        Assert.Equal(1510.1, accepted.Single(p => p.PeakId == "P1").WavelengthNm);
+        Assert.Null(channels[0].Problem);
+        Assert.False(channels[0].CommunicationGap);
+        Assert.Contains(events, e => e.Reason.Contains("automaticky potvrdená"));
+    }
+
+    [Fact]
+    public void RecoveryCannotAcceptRepeatedSourceFrames()
+    {
+        var channels = Channels();
+        channels[0].CommunicationGap = true;
+        channels[0].Problem = "Výpadok dát";
+        foreach (var track in channels[0].Tracks) track.LastSourceTimestamp = Start;
+        Assert.Empty(PeakIdentityGuard.Observe(new[] { Peak("P1", 1510, Start), Peak("P2", 1511, Start) },
+            channels, new(), Start.AddSeconds(2), _ => { }));
+        Assert.False(channels[0].CommunicationGap);
+        Assert.Contains("neposunul", channels[0].Problem);
+    }
+    [Fact]
+    public void LongGapWithOverlappingReachableIntervalsRemainsUncertainEvenForUnchangedEndpoints()
+    {
+        var channels = Channels();
+        var time = Start.AddMinutes(30);
+        Assert.Empty(PeakIdentityGuard.Observe(new[] { Peak("P1", 1510, time), Peak("P2", 1511, time) },
+            channels, new(), time, _ => { }));
+        Assert.Contains("prekrývajú", channels[0].Problem);
+        Assert.False(channels[0].CommunicationGap);
+        Assert.Equal(Start, channels[0].LastObservedAt);
+    }
     [Fact]
     public void ReindexingPreservesBindingAndAuditsBothAssignments()
     {
@@ -44,7 +87,6 @@ public sealed class PeakIdentityGuardTests
     [InlineData("close")]
     [InlineData("jump")]
     [InlineData("stale")]
-    [InlineData("gap")]
     [InlineData("nan")]
     public void AmbiguityIsLatchedAcrossReturnAndSerialization(string scenario)
     {

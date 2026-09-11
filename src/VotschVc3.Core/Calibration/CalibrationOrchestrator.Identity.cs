@@ -23,6 +23,7 @@ public sealed partial class CalibrationOrchestrator
         {
             foreach (var channel in run.PeakIdentityChannels.Where(c => c.Problem is null))
             {
+                channel.CommunicationGap = true;
                 channel.Problem = "Výpadok PeakLogger dát prerušil dôkaz identity: " + ex.Message;
                 Audit(new PeakIdentityEvent { Timestamp = DateTimeOffset.UtcNow, Device = channel.Device,
                     Channel = channel.Channel, Reason = channel.Problem });

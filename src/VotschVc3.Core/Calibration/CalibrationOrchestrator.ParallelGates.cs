@@ -201,6 +201,9 @@ public sealed partial class CalibrationOrchestrator
                     await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
                     try
                     {
+                        // A chamber outage must not suspend independent optical identity evidence.
+                        if (_peakLogger.IsConnected)
+                            await ObserveIdentityAsync(run, setup, writer, cancellationToken).ConfigureAwait(false);
                         if (chamberFailure) await ReconnectChamberAsync(cancellationToken).ConfigureAwait(false);
                         double chamberValue = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
                         double? referenceValue = hasExternalReference ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false) : chamberValue;

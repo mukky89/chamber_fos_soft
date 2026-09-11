@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.389] – 2026-09-11
+
+### Opravené
+
+- Počas obnovovania spojenia s komorou pokračuje nezávislé sledovanie identity cez PeakLogger. Samotný výpadok komory už zbytočne nevytvára medzeru optického sledovania.
+- Po komunikačnej medzere možno identitu automaticky obnoviť iba pri neprekrývajúcich sa rozsahoch pohybu podľa nakonfigurovaných limitov, platných čerstvých dátach a jedinom úplnom priradení. Obnova je auditovaná; zlúčené, nejednoznačné alebo inak narušené kanály zostávajú vyradené. Vynechané výsledky sa spätne nemenia na platné.
+
+
 ## [1.76.388] – 2026-09-11
 
 ### Opravené

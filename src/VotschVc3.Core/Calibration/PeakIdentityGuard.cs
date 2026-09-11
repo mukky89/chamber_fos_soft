@@ -8,6 +8,7 @@ public sealed class PeakIdentityChannel
     public string Channel { get; set; } = "";
     public DateTimeOffset LastObservedAt { get; set; }
     public string? Problem { get; set; }
+    public bool CommunicationGap { get; set; }
     public List<PeakIdentityTrack> Tracks { get; set; } = new();
 }
 
@@ -61,17 +62,18 @@ public static class PeakIdentityGuard
         var accepted = new List<PeakLoggerMeasurement>();
         foreach (var channel in channels)
         {
-            if (channel.Problem is not null) continue;
+            if (channel.Problem is not null && !channel.CommunicationGap) continue;
             var observations = batch.Where(p => Same(p.SerialNumber, channel.Device) && Same(p.Channel, channel.Channel)).ToArray();
             string? problem = null;
             double elapsed = (now - channel.LastObservedAt).TotalSeconds;
             double maxGap = settings.IdentityMaximumGapSeconds;
+            bool recovering = channel.CommunicationGap || elapsed > maxGap;
             double separation = settings.IdentityMinimumSeparationNm;
             double movement = settings.IdentityBaseToleranceNm + settings.IdentityMaximumMotionNmPerMinute * Math.Max(0, elapsed) / 60;
             if (!double.IsFinite(movement) || !double.IsFinite(separation) || !double.IsFinite(maxGap) ||
                 settings.IdentityBaseToleranceNm <= 0 || settings.IdentityMaximumMotionNmPerMinute < 0 || separation <= 0 || maxGap <= 0)
                 problem = "Neplatné limity sledovania identity.";
-            else if (elapsed < 0 || elapsed > maxGap)
+            else if (elapsed < 0)
                 problem = "Prerušená časová kontinuita sledovania; identitu nemožno potvrdiť.";
             else if (observations.Length != channel.Tracks.Count || observations.Length == 0)
                 problem = $"Počet peakov sa zmenil z {channel.Tracks.Count} na {observations.Length}; možné prekrytie, výpadok alebo nový peak.";
@@ -82,6 +84,12 @@ public static class PeakIdentityGuard
             else if (TooClose(observations.Select(p => p.WavelengthNm), separation) ||
                      TooClose(channel.Tracks.Select(p => p.WavelengthNm), separation))
                 problem = "Peaky sú príliš blízko na jednoznačné priradenie; možné prekrytie.";
+
+            // Disjoint reachable intervals rule out a hidden crossing under the configured
+            // motion bound. Merely finding a nearest/unique endpoint after a gap is insufficient.
+            if (problem is null && recovering &&
+                TooClose(channel.Tracks.Select(t => t.WavelengthNm), 2 * movement + separation))
+                problem = "Po výpadku sa možné rozsahy pohybu peakov prekrývajú; identitu nemožno potvrdiť.";
 
             int[]? assignment = null;
             if (problem is null)
@@ -103,15 +111,24 @@ public static class PeakIdentityGuard
             }
             if (problem is not null)
             {
+                channel.CommunicationGap = false;
                 channel.Problem = problem;
                 audit(new PeakIdentityEvent { Timestamp = now, Device = channel.Device, Channel = channel.Channel, Reason = problem });
                 continue;
             }
             if (assignment!.Select((j, i) => channel.Tracks[i].LastSourceTimestamp is { } previous && observations[j].Timestamp <= previous).Any(stale => stale))
             {
+                channel.CommunicationGap = false;
                 channel.Problem = "Čas zdrojových vzoriek sa neposunul; opakované alebo oneskorené dáta.";
                 audit(new PeakIdentityEvent { Timestamp = now, Device = channel.Device, Channel = channel.Channel, Reason = channel.Problem });
                 continue;
+            }
+            if (recovering)
+            {
+                audit(new PeakIdentityEvent { Timestamp = now, Device = channel.Device, Channel = channel.Channel,
+                    Reason = "Identita po výpadku automaticky potvrdená: neprekrývajúce sa rozsahy pohybu a jediné úplné priradenie. Neistý úsek zostáva nepoužiteľný." });
+                channel.Problem = null;
+                channel.CommunicationGap = false;
             }
             for (int i = 0; i < assignment!.Length; i++)
             {
