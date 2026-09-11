@@ -59,6 +59,24 @@ public sealed class CalibrationStore
         return ReadRecoveryFile<CalibrationSetup>(SetupPath(profileId, Guid.Empty));
     }
 
+    public string? SaveImportedSetup(CalibrationSetup setup)
+    {
+        lock (RecoveryFileSync)
+        {
+            string path = SetupPath(setup.ProfileId, setup.ChamberId);
+            string? backup = null;
+            if (File.Exists(path))
+            {
+                string directory = Path.Combine(SetupsDirectory, "ImportBackups");
+                Directory.CreateDirectory(directory);
+                backup = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(path)}-pred-importom-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.json");
+                File.Copy(path, backup, overwrite: false);
+            }
+            SaveSetup(setup);
+            return backup;
+        }
+    }
+
     public CalibrationSetup? LoadSetup(Guid profileId, Guid chamberId)
     {
         return ReadRecoveryFile<CalibrationSetup>(SetupPath(profileId, chamberId));

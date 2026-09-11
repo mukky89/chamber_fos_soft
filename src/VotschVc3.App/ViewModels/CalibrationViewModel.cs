@@ -2912,6 +2912,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private void RefreshCommands()
     {
+        OnPropertyChanged(nameof(CanImportWiring));
         ConnectPeakLoggerCommand.RaiseCanExecuteChanged();
         RefreshSensorsCommand.RaiseCanExecuteChanged();
         StartCalibrationCommand.RaiseCanExecuteChanged();

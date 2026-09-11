@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.369] – 2026-09-11
+
+### Pridané
+
+- V zapojení pribudlo načítanie zo súborov JSON uloženého zapojenia, ich záloh a exportu zapojenie.xlsx. Pred nahradením sa zobrazí súhrn peakov a zhôd; import zachová aktuálny profil a kritériá stability, zálohuje pôvodné zapojenie a je blokovaný počas kalibrácie alebo jej pokračovania.
+
 ## [1.76.368] – 2026-09-11
 
 ### Opravené
