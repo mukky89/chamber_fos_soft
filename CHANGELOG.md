@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.352] – 2026-09-11
+
+### Zmenené
+
+- Stĺpec Overenie v záverečnej tabuľke kalibračného e-mailu zobrazuje farebné štítky: zelený PASS, červený FAIL, žltý WARNING a neutrálny N/A. Textový výsledok zostáva zachovaný aj bez podpory farieb v e-mailovom klientovi.
+
 ## [1.76.351] – 2026-09-11
 
 ### Zmenené

@@ -110,7 +110,7 @@ public static class CalibrationCompletionEmail
         string explanation = reference + " " + string.Join(" ", finalProblems) + " ΔT = teplota vypočítaná z koeficientov − skutočná teplota WIKA. Odchýlka patrí modelu v danom riadku; stĺpce ΔT porovnávajú všetky tri modely toho istého peaku. Lambda at T je WL vypočítaná z modelu pri nameranej teplote WIKA, v nm. N/A znamená chýbajúce overenie.";
         plain.Append("\n\n").Append(explanation);
         details += Section("Podmienky záverečného overenia", H(explanation));
-        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "ΔT 2nd · ABC", "ΔT 3rd · ABCD", "ΔT FBGS · s1/s2", "Lambda at T [nm]", "Overenie", "Problém" }, verification, "N/A – nie sú dostupné kalibračné výsledky.", plain, groupBySerial: true);
+        details += Render("Záverečné overenie pri 25 °C", new[] { "SN", "Kanál / peak / index", "Model", "Teplota z koef. [°C]", "WIKA [°C]", "Odchýlka [°C]", "ΔT 2nd · ABC", "ΔT 3rd · ABCD", "ΔT FBGS · s1/s2", "Lambda at T [nm]", "Overenie", "Problém" }, verification, "N/A – nie sú dostupné kalibračné výsledky.", plain, groupBySerial: true, statusColumn: 10);
         var tone = calibrationStatus == "FAIL" || finalStatus == "FAIL" || run.State is not (CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings)
             ? LabControlEmailTemplate.EmailTone.Error
             : calibrationStatus != "PASS" || finalStatus != "PASS" || run.State == CalibrationRunState.CompletedWithWarnings
@@ -128,7 +128,7 @@ public static class CalibrationCompletionEmail
             : "% rozsahu: N/A";
     }
 
-    private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain, bool groupBySerial = false)
+    private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain, bool groupBySerial = false, int statusColumn = -1)
     {
         if (groupBySerial) rows = rows.GroupBy(row => row[0], StringComparer.OrdinalIgnoreCase).SelectMany(group => group).ToList();
         plain.Append("\n\n").AppendLine(title);
@@ -137,10 +137,10 @@ public static class CalibrationCompletionEmail
         if (rows.Count == 0) plain.AppendLine(empty);
         string table = rows.Count == 0 ? H(empty) : "<table width=\"100%\" cellspacing=\"0\" style=\"border-collapse:collapse;font-size:12px\"><thead><tr>" +
             string.Concat(headers.Select(h => $"<th style=\"padding:7px;text-align:left;background:#EEF3F8\">{H(h)}</th>")) + "</tr></thead><tbody>" +
-            RenderRows(rows, groupBySerial) + "</tbody></table>";
+            RenderRows(rows, groupBySerial, statusColumn) + "</tbody></table>";
         return Section(title, table);
     }
-    private static string RenderRows(List<string[]> rows, bool grouped)
+    private static string RenderRows(List<string[]> rows, bool grouped, int statusColumn)
     {
         var html = new StringBuilder();
         int group = -1;
@@ -159,13 +159,24 @@ public static class CalibrationCompletionEmail
                       (column == 0 ? "border-left:2px solid #8198B2;font-weight:600;" : "") +
                       (column == row.Length - 1 ? "border-right:2px solid #8198B2;" : "")
                     : "border-bottom:1px solid #E5EBF2;";
-                html.Append($"<td bgcolor=\"{background}\" style=\"padding:9px 7px;vertical-align:top;background:{background};{borders}\">{H(row[column])}</td>");
+                html.Append($"<td bgcolor=\"{background}\" style=\"padding:9px 7px;vertical-align:top;background:{background};{borders}\">{(column == statusColumn ? StatusBadge(row[column]) : H(row[column]))}</td>");
             }
             html.Append("</tr>");
         }
         return html.ToString();
     }
     private static string Section(string title, string content) => $"<tr><td style=\"padding:12px 24px 20px;color:#182A40\"><h2 style=\"font-size:17px\">{H(title)}</h2>{content}</td></tr>";
+    private static string StatusBadge(string status)
+    {
+        var (background, foreground, border) = status switch
+        {
+            "PASS" => ("#DCFCE7", "#166534", "#86EFAC"),
+            "FAIL" => ("#FEE2E2", "#991B1B", "#FCA5A5"),
+            "WARNING" => ("#FEF3C7", "#92400E", "#FCD34D"),
+            _ => ("#E2E8F0", "#334155", "#CBD5E1"),
+        };
+        return $"<span style=\"display:inline-block;padding:4px 10px;border:1px solid {border};border-radius:6px;background-color:{background};color:{foreground};font-size:12px;font-weight:700;line-height:18px;white-space:nowrap\">{H(status)}</span>";
+    }
     private static string N(double? value) => value is double n && double.IsFinite(n) ? n.ToString("0.000", Sk) : "N/A";
     private static string H(string value) => WebUtility.HtmlEncode(value);
 }
