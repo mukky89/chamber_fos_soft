@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.391] – 2026-09-11
+
+### Opravené
+
+- Typ FBG z API je oddelený od nového stĺpca Vyhodnotenie SN/WL s podrobnosťami porovnania. Nesúlad aktuálnej WL už neprepíše overený typ T/S. Nepriradený alebo chýbajúci typ sa zobrazuje pomlčkou, nie výsledkom kontroly.
+
+
 ## [1.76.390] – 2026-09-11
 
 ### Opravené

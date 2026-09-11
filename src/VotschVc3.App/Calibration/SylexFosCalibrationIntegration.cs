@@ -179,7 +179,6 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                     string.Equals(p.PeakLoggerDeviceSerialNumber, row.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(p.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)).ToArray();
                 var resolvedTypes = FbgWavelengthComparison.ResolveTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
-                var types = FbgWavelengthComparison.ExplainTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
                 for (int i = 0; i < sensorRows.Length; i++)
                 {
                     var target = sensorRows[i];
@@ -188,12 +187,23 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                     if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) target.ProductDescription = metadata.ProductDescription;
                     if (!string.IsNullOrWhiteSpace(metadata.Order)) target.Order = metadata.Order;
                     if (!string.IsNullOrWhiteSpace(metadata.CustomerName)) target.Customer = metadata.CustomerName;
-                    SylexFosRowMetadataStore.SetApiMetadata(target, metadata.SylexSerialNumber ?? serialNumber,
-                        metadata.Fbg is { Count: > 0 } ? types[i].Label :
-                            string.IsNullOrWhiteSpace(metadata.FbgType) ? "Typ v API chýba" : metadata.FbgType);
-                    target.ApiMetadata.FbgTypeDetail = $"SN {serialNumber} · kanál {target.Channel} · {target.PeakId}\n" +
-                        (metadata.Fbg is { Count: > 0 } || string.IsNullOrWhiteSpace(metadata.FbgType)
-                            ? types[i].Detail : "Typ prevzatý z výrobného záznamu API.");
+                    string? apiType = metadata.Fbg is { Count: > 0 } ? resolvedTypes[i] : metadata.FbgType;
+                    // A live wavelength mismatch must not replace an already verified production type.
+                    string productionType = apiType is "T" or "S" ? apiType :
+                        target.ApiMetadata.FbgType is "T" or "S" ? target.ApiMetadata.FbgType : "—";
+                    SylexFosRowMetadataStore.SetApiMetadata(target, metadata.SylexSerialNumber ?? serialNumber, productionType);
+                    target.ApiMetadata.FbgTypeDetail = productionType == "—"
+                        ? "Typ z API zatiaľ nie je jednoznačne priradený k tomuto peaku."
+                        : "Výrobný typ z API. Aktuálna kontrola vlnových dĺžok je v stĺpci Vyhodnotenie SN/WL.";
+                    var comparison = FbgWavelengthComparison.Evaluate(sensorRows.Select(p => (p.PeakId, p.CurrentWavelengthNm)), metadata.Fbg);
+                    target.ApiMetadata.WavelengthEvaluation = comparison.Passed switch
+                    {
+                        true => "Zhoda SN/WL",
+                        false => sensorRows.Length != metadata.Fbg?.Count ? "Nesúlad počtu" : "Nesúlad SN/WL",
+                        _ => "Nevyhodnotené"
+                    };
+                    target.ApiMetadata.WavelengthEvaluationDetail = comparison.Detail +
+                        "\nOrientačné porovnanie s výrobnou WL bez teplotnej korekcie; posun teplotou môže spôsobiť nesúlad.";
                     _pendingMetadata.Remove(target);
                 }
                 applied = sensorRows.Length > 0;

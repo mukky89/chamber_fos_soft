@@ -10,12 +10,16 @@ public sealed class SylexFosDisplayMetadata : INotifyPropertyChanged
     private string _sensorName = string.Empty;
     private string _sylexSerialNumber = string.Empty;
     private string _fbgType = string.Empty;
+    private string _wavelengthEvaluation = "Nevyhodnotené";
+    private string _wavelengthEvaluationDetail = string.Empty;
+    public string WavelengthEvaluation { get => _wavelengthEvaluation; set => Set(ref _wavelengthEvaluation, value); }
+    public string WavelengthEvaluationDetail { get => _wavelengthEvaluationDetail; set => Set(ref _wavelengthEvaluationDetail, value); }
     private string _fbgTypeDetail = string.Empty;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public string SensorName { get => _sensorName; set => Set(ref _sensorName, value); }
     public string SylexSerialNumber { get => _sylexSerialNumber; set => Set(ref _sylexSerialNumber, value); }
-    public string FbgType { get => _fbgType; set => Set(ref _fbgType, value); }
+    public string FbgType { get => _fbgType; set => Set(ref _fbgType, value is "T" or "S" or "" ? value : "—"); }
     public string FbgTypeDetail { get => _fbgTypeDetail; set => Set(ref _fbgTypeDetail, value); }
 
     public void Restore(CalibrationSensorMapping? mapping)
@@ -36,6 +40,8 @@ public sealed class SylexFosDisplayMetadata : INotifyPropertyChanged
         SylexSerialNumber = string.Empty;
         FbgType = string.Empty;
         FbgTypeDetail = string.Empty;
+        WavelengthEvaluation = "Nevyhodnotené";
+        WavelengthEvaluationDetail = string.Empty;
     }
 
     private void Set(ref string field, string value, [CallerMemberName] string? propertyName = null)

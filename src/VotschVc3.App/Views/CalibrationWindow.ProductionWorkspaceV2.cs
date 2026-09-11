@@ -135,6 +135,16 @@ public partial class CalibrationWindow
             }
         }
 
+        if (!_wiringGrid.Columns.Any(c => HeaderText(c.Header) == "Vyhodnotenie SN/WL"))
+        {
+            var evaluationStyle = new Style(typeof(TextBlock));
+            evaluationStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, new Binding("ApiMetadata.WavelengthEvaluationDetail")));
+            _wiringGrid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Vyhodnotenie SN/WL", Binding = new Binding("ApiMetadata.WavelengthEvaluation"),
+                IsReadOnly = true, Width = 155, MinWidth = 130, ElementStyle = evaluationStyle
+            });
+        }
         if (!_wiringGrid.Columns.Any(c => HeaderText(c.Header) == "Sylex SN"))
         {
             var sylexColumn = new DataGridTextColumn
@@ -157,7 +167,7 @@ public partial class CalibrationWindow
         string[] columnOrder =
         {
             "Kalibrovať", "Kanál", "Peak ID", "FBG index", "Aktuálna λ [nm]", "Intenzita",
-            "Typ FBG", "Sylex SN", "Otvoriť", "FBG sensor SN (kanál)", "FBG sensor SN CHAIN",
+            "Typ FBG", "Vyhodnotenie SN/WL", "Sylex SN", "Otvoriť", "FBG sensor SN (kanál)", "FBG sensor SN CHAIN",
             "Zákazka", "Názov snímača", "Popis výrobku", "Poznámky",
         };
         for (int displayIndex = 0; displayIndex < columnOrder.Length; displayIndex++)
