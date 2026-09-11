@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.356] – 2026-09-11
+
+### Zmenené
+
+- Tlačidlo vytvorenia zapojenia FBG zobrazuje kláves Enter ako kompaktný zaoblený štítok s ostrou vektorovou šípkou namiesto textového symbolu.
+
 ## [1.76.355] – 2026-09-11
 
 ### Zmenené
