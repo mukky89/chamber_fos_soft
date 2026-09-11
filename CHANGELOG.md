@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.370] – 2026-09-11
+
+### Pridané
+
+- Voliteľné externé meranie Testo 645 pre každú komoru: samostatná vlhkosť a teplota, COM pripojenie, interval, stav a živé grafy. Používa spoločnú ochranu COM portov a nemení reguláciu ani kalibračné podmienky.
+- Spoločný TXT záznam s voliteľnými peakmi z konkrétneho PeakLogger API, výber viacerých portov a peakov, nové relácie pri pripisovaní, samostatné časy prijatia, vek údajov a označenie chýbajúcich hodnôt. Nastavenia sa ukladajú podľa komory.
+- Testo údaje v profilovom CSV pri zapnutej funkcii. Parser používa overené offsety referenčného kódu; záporné teploty, chybové kódy a checksum ostávajú neoverené. Fyzické Testo nebolo v tejto úprave testované.
+
 ## [1.76.369] – 2026-09-11
 
 ### Pridané

@@ -94,6 +94,7 @@
                     </Button>
                 </StackPanel>
 
+                <Button Content="Testo 645" Command="{Binding ExternalHumidity.OpenCommand}" Style="{StaticResource GhostButton}" Margin="0,0,8,0" />
                 <!-- Run controls, visually one block. -->
                 <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1" CornerRadius="10" Padding="5,4">

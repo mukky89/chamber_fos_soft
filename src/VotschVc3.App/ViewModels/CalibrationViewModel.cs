@@ -287,6 +287,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     }
 
     private CalibrationChamberOption? _selectedChamber;
+    public ExternalHumidityViewModel ExternalHumidity => ExternalHumidityRegistry.Get(SelectedChamber?.Config.Id ?? _workspaceChamberId, SelectedChamber?.Config.Name);
     public CalibrationChamberOption? SelectedChamber
     {
         get => _selectedChamber;
@@ -294,6 +295,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         {
             if (SetProperty(ref _selectedChamber, value))
             {
+                OnPropertyChanged(nameof(ExternalHumidity));
                 // Vötsch profiles (ramp + plateau) and SIKA profiles (setpoint + dwell)
                 // must not get mixed up, so the profile list follows the chosen device.
                 RefreshProfiles();

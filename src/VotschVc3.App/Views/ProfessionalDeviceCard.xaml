@@ -79,6 +79,9 @@
                 </Button>
             </DockPanel>
 
+            <Button Command="{Binding ExternalHumidity.OpenCommand}" Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left" Margin="0,6,0,0">
+                <TextBlock Text="{Binding ExternalHumidity.Summary}" TextWrapping="Wrap" />
+            </Button>
             <!-- Badges: kind, run state, control mode, alarm -->
             <WrapPanel Margin="0,7,0,0">
                 <Border Style="{StaticResource ProBadge}">

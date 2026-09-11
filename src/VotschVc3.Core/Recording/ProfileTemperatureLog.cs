@@ -20,9 +20,10 @@ public sealed class ProfileTemperatureLog : IDisposable
     /// Creates the log file <c>yyyyMMdd_HHmmss_&lt;profil&gt;.csv</c> in <paramref name="directory"/>
     /// and writes the header. On any I/O error the instance stays usable but inert.
     /// </summary>
-    public ProfileTemperatureLog(string directory, string profileName, string chamberName, bool humidity, DateTime start)
+    public ProfileTemperatureLog(string directory, string profileName, string chamberName, bool humidity, DateTime start, bool externalHumidity = false)
     {
         Humidity = humidity;
+        ExternalHumidity = externalHumidity;
         try
         {
             Directory.CreateDirectory(directory);
@@ -33,9 +34,10 @@ public sealed class ProfileTemperatureLog : IDisposable
             _writer.WriteLine($"# Profil: {profileName}");
             _writer.WriteLine($"# Zariadenie: {chamberName}");
             _writer.WriteLine($"# Spustené: {start:yyyy-MM-dd HH:mm:ss}");
-            _writer.WriteLine(humidity
+            _writer.WriteLine((humidity
                 ? "Čas;Setpoint °C;Teplota komory °C;Setpoint %;Vlhkosť %"
-                : "Čas;Setpoint °C;Teplota komory °C");
+                : "Čas;Setpoint °C;Teplota komory °C") + (externalHumidity
+                    ? ";Testo vlhkosť %RH;Testo teplota °C;Testo prijaté ISO8601;Testo stav" : ""));
         }
         catch
         {
@@ -48,6 +50,7 @@ public sealed class ProfileTemperatureLog : IDisposable
 
     /// <summary>Whether humidity columns are logged.</summary>
     public bool Humidity { get; }
+    public bool ExternalHumidity { get; }
 
     /// <summary>Rows written so far.</summary>
     public long RowCount { get; private set; }
@@ -61,7 +64,7 @@ public sealed class ProfileTemperatureLog : IDisposable
     }
 
     /// <summary>Appends one timestamped row with the set point and measured values.</summary>
-    public void Log(DateTime timestamp, double setpoint, double? measured, double? humiditySetpoint = null, double? measuredHumidity = null)
+    public void Log(DateTime timestamp, double setpoint, double? measured, double? humiditySetpoint = null, double? measuredHumidity = null, ExternalHumidityObservation? external = null)
     {
         if (_writer is null)
         {
@@ -76,12 +79,17 @@ public sealed class ProfileTemperatureLog : IDisposable
                 timestamp.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
                 Fmt(setpoint), Fmt(measured));
 
+        if (ExternalHumidity)
+            row += ";" + string.Join(';', Fmt(external?.HumidityPercent), Fmt(external?.TemperatureC),
+                external?.ReceivedAt?.ToString("O", CultureInfo.InvariantCulture) ?? "NA",
+                (external?.Status ?? "NA").Replace(';', ',').Replace('\r', ' ').Replace('\n', ' '));
+
         try
         {
             lock (_sync)
             {
                 _writer.WriteLine(row);
-                _samples.Add(new ProfileTemperatureSample(timestamp, setpoint, measured, humiditySetpoint, measuredHumidity));
+                _samples.Add(new ProfileTemperatureSample(timestamp, setpoint, measured, humiditySetpoint, measuredHumidity) { ExternalHumidity = external });
                 RowCount++;
             }
         }
@@ -126,4 +134,9 @@ public sealed class ProfileTemperatureLog : IDisposable
 
 public sealed record ProfileTemperatureSample(
     DateTime Timestamp, double Setpoint, double? Measured,
-    double? HumiditySetpoint, double? MeasuredHumidity);
+    double? HumiditySetpoint, double? MeasuredHumidity)
+{
+    public ExternalHumidityObservation? ExternalHumidity { get; init; }
+}
+
+public sealed record ExternalHumidityObservation(DateTimeOffset? ReceivedAt, double? HumidityPercent, double? TemperatureC, string Status);

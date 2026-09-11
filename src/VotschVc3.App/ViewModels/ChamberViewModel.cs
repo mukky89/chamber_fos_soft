@@ -25,6 +25,7 @@ namespace VotschVc3.App.ViewModels;
 /// </summary>
 public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
 {
+    public ExternalHumidityViewModel ExternalHumidity => ExternalHumidityRegistry.Get(Id, Name);
     private const int MaxTerminalLines = 1000;
     public static int PolEkoManualProgramId { get; set; } = 11;
 
@@ -1825,7 +1826,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
             _profileTempLog?.Dispose();
             _lastProfileLogWrite = null; // always write the first sample of a new run
             _profileTempLog = new ProfileTemperatureLog(
-                ProfileLogDirectory, profileName, Name, SupportsHumidity, DateTime.Now);
+                ProfileLogDirectory, profileName, Name, SupportsHumidity, DateTime.Now, ExternalHumidity.Enabled);
             AppLog.Info(Name, $"Log teplôt profilu: {_profileTempLog.FilePath}");
         }
         catch (Exception ex)
@@ -2834,7 +2835,8 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
                 {
                     _lastProfileLogWrite = nowLog;
                     profileLog.Log(nowLog, e.TemperatureSetpoint, MeasuredTemperature,
-                        e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null);
+                        e.HumiditySetpoint, SupportsHumidity ? MeasuredHumidity : null,
+                        profileLog.ExternalHumidity ? ExternalHumidity.Observation() : null);
                 }
             }
 
@@ -4938,6 +4940,7 @@ public sealed class ChamberViewModel : ObservableObject, IAsyncDisposable
         _safetyClient.SafetyTripped -= OnTemperatureSafetyTripped;
         _temperatureSafety.Configured -= OnTemperatureSafetyConfigured;
         await _client.DisposeAsync();
+        await ExternalHumidityRegistry.ReleaseAsync(Id);
     }
 
     #endregion

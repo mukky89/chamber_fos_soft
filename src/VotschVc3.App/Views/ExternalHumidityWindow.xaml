@@ -1,0 +1,82 @@
+<Window x:Class="VotschVc3.App.Views.ExternalHumidityWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:VotschVc3.App.Views"
+        Title="Externá vlhkosť – Testo 645" Width="1050" Height="880" MinWidth="760" MinHeight="580"
+        Background="{StaticResource BackgroundBrush}" Foreground="{StaticResource TextBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20">
+            <TextBlock Text="Externá vlhkosť – Testo 645" Style="{StaticResource Heading}" />
+            <TextBlock x:Name="ChamberLabel" Style="{StaticResource Caption}" Margin="0,5,0,10" />
+            <TextBlock Text="Doplnkové meranie. Regulácia, vlhkosť komory a kalibračné kritériá zostávajú samostatné." TextWrapping="Wrap" Style="{StaticResource Caption}" />
+            <CheckBox Content="Povoliť externé meranie Testo 645" IsChecked="{Binding Enabled}" IsEnabled="{Binding CanConfigure}" Margin="0,14" />
+            <StackPanel Visibility="{Binding Enabled, Converter={StaticResource BoolToVisibility}}">
+                <WrapPanel IsEnabled="{Binding CanConfigure}">
+                    <StackPanel Margin="0,0,12,8"><TextBlock Text="COM port" Style="{StaticResource Label}" />
+                        <ComboBox Width="130" IsEditable="True" ItemsSource="{Binding Ports}" Text="{Binding Port, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                    <Button Content="Obnoviť porty" Command="{Binding RefreshPortsCommand}" Margin="0,18,12,8" />
+                    <StackPanel Margin="0,0,12,8"><TextBlock Text="Interval merania [s]" Style="{StaticResource Label}" />
+                        <TextBox Width="125" Text="{Binding IntervalSeconds, ValidatesOnExceptions=True}" /></StackPanel>
+                    <StackPanel Margin="0,0,12,8"><TextBlock Text="Max. vek / odstup [s]" Style="{StaticResource Label}" />
+                        <TextBox Width="145" Text="{Binding MaxAgeSeconds, ValidatesOnExceptions=True}" /></StackPanel>
+                </WrapPanel>
+                <WrapPanel Margin="0,4,0,12">
+                    <Button Content="Pripojiť" Command="{Binding ConnectCommand}" Style="{StaticResource AccentButton}" Margin="0,0,8,0" />
+                    <Button Content="Odpojiť" Command="{Binding DisconnectCommand}" Margin="0,0,8,0" />
+                </WrapPanel>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,30,8"><TextBlock Text="Testo – externá vlhkosť" Style="{StaticResource Caption}" />
+                                <TextBlock Text="{Binding HumidityText}" Style="{StaticResource MetricSmall}" Foreground="{StaticResource HumidityBrush}" /></StackPanel>
+                            <StackPanel Margin="0,0,30,8"><TextBlock Text="Testo – teplota" Style="{StaticResource Caption}" />
+                                <TextBlock Text="{Binding TemperatureText}" Style="{StaticResource MetricSmall}" Foreground="{StaticResource TemperatureBrush}" /></StackPanel>
+                            <StackPanel><TextBlock Text="Posledná platná vzorka" Style="{StaticResource Caption}" /><TextBlock Text="{Binding LastValidText}" /></StackPanel>
+                        </WrapPanel>
+                        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Expander Header="PeakLogger – voliteľné peaky do spoločného záznamu" IsExpanded="True" Margin="0,12">
+                    <StackPanel IsEnabled="{Binding CanConfigure}" Margin="0,10">
+                        <CheckBox Content="Pridať vybrané peaky" IsChecked="{Binding UsePeaks}" Margin="0,0,0,8" />
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,10,8"><TextBlock Text="Host API" /><TextBox Width="200" Text="{Binding ApiHost}" /></StackPanel>
+                            <StackPanel Margin="0,0,10,8"><TextBlock Text="Port API" /><TextBox Width="90" Text="{Binding ApiPort, ValidatesOnExceptions=True}" /></StackPanel>
+                            <Button Content="Vyhľadať API" Command="{Binding DiscoverApisCommand}" Margin="0,17,8,8" />
+                            <Button Content="Načítať kanály / peaky" Command="{Binding LoadPeaksCommand}" Margin="0,17,0,8" />
+                        </WrapPanel>
+                        <ComboBox ItemsSource="{Binding Apis}" SelectedItem="{Binding SelectedApi}" DisplayMemberPath="Display" Margin="0,0,0,8" ToolTip="Vyberte konkrétnu adresu a port; výber automaticky nenačítava peaky." />
+                        <ListBox ItemsSource="{Binding Peaks}" Height="110" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate><DataTemplate><CheckBox Content="{Binding Display}" IsChecked="{Binding Selected}" /></DataTemplate></ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="Identita = SN interrogátora / kanál / index. Pred zmenou zdrojov odpojte meranie." Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                    </StackPanel>
+                </Expander>
+                <Border Style="{StaticResource Card}"><StackPanel>
+                    <TextBlock Text="Spoločný TXT záznam" Style="{StaticResource Label}" />
+                    <WrapPanel Margin="0,8">
+                        <Button Content="Priečinok a nový TXT…" Click="NewFile_Click" IsEnabled="{Binding CanChooseFile}" Margin="0,0,8,8" />
+                        <Button Content="Pripisovať do TXT…" Click="AppendFile_Click" IsEnabled="{Binding CanChooseFile}" Margin="0,0,8,8" />
+                        <Button Content="Spustiť záznam" Command="{Binding StartLogCommand}" Style="{StaticResource AccentButton}" Margin="0,0,8,8" />
+                        <Button Content="Zastaviť záznam" Command="{Binding StopLogCommand}" Margin="0,0,0,8" />
+                    </WrapPanel>
+                    <TextBox Text="{Binding OutputPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding FileModeText}" Style="{StaticResource Caption}" Margin="0,5" />
+                    <TextBlock Text="{Binding LogStatus}" TextWrapping="Wrap" />
+                    <TextBlock Text="Časy sú časy prijatia v PC; zdrojové časy zariadení nie sú dostupné. Riadky nie sú hardvérovo synchronizované. NA = chýbajúca, neplatná alebo stará hodnota." Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                </StackPanel></Border>
+                <Expander Header="Živé grafy Testo" IsExpanded="True" Margin="0,12">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ChartCaption}" Style="{StaticResource Caption}" Margin="0,8" />
+                        <views:ChartView Height="230" Series="{Binding HumiditySeries}" Unit="%RH" ChartTitle="Testo – externá vlhkosť" EmptyText="Zatiaľ bez merania Testo" />
+                        <views:ChartView Height="230" Series="{Binding TemperatureSeries}" Unit="°C" ChartTitle="Testo – teplota" EmptyText="Zatiaľ bez merania Testo" />
+                    </StackPanel>
+                </Expander>
+                <TextBlock Text="Protokol: overené iba kladné hodnoty z referenčného kódu. Softvérový rozsah 0–100 %RH a 0–200 °C; ostatné hodnoty sú nepodporované. Záporné teploty, chybové kódy a checksum nie sú overené." Style="{StaticResource Caption}" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Content="Uložiť nastavenia" Command="{Binding SaveCommand}" HorizontalAlignment="Left" Margin="0,14" />
+            <TextBlock Text="Pripojenie uloží nastavenia automaticky. Po zmene povolenia použite Uložiť nastavenia. Zatvorenie okna ponechá meranie a zápis spustené; ukončíte ich tlačidlom Odpojiť." TextWrapping="Wrap" Style="{StaticResource Caption}" />
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</Window>

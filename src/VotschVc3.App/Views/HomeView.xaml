@@ -418,6 +418,9 @@
                                     </Button>
                                 </DockPanel>
 
+                                <Button Command="{Binding ExternalHumidity.OpenCommand}" Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left" Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding ExternalHumidity.Summary}" TextWrapping="Wrap" />
+                                </Button>
                                 <!-- Inline unlock prompt (kept outside the disabled body). It only appears
                                      while the operator is actually unlocking: that the device is locked is
                                      already said by the lock badge and the red padlock in this very row, so a

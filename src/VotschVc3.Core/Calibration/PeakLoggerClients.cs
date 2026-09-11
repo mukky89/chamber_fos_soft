@@ -189,6 +189,8 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
     private string _peaksPath = "api/v1/peaks";
 
     public string PeaksPath => _peaksPath;
+    /// <summary>Supplementary logging must not synthesize an interrogator identity for an incomplete API row.</summary>
+    public bool RequireStableIdentity { get; init; }
 
     public PeakLoggerApiClient(HttpClient? httpClient = null)
     {
@@ -252,7 +254,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
         IReadOnlyList<PeakLoggerApiPeakDto> peaks = await FetchPeaksAsync(cancellationToken).ConfigureAwait(false);
 
         return peaks
-            .Where(IsUsablePeak)
+            .Where(p => IsUsablePeak(p) && (!RequireStableIdentity || HasStableIdentity(p)))
             .GroupBy(p => new { Serial = GetDeviceSerial(p), p.Channel })
             .OrderBy(g => g.Key.Serial, StringComparer.OrdinalIgnoreCase)
             .ThenBy(g => g.Key.Channel, StringComparer.OrdinalIgnoreCase)
@@ -278,7 +280,7 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
         PeakLoggerMeasurement[] measurements = peaks
-            .Where(IsUsablePeak)
+            .Where(p => IsUsablePeak(p) && (!RequireStableIdentity || HasStableIdentity(p)))
             .OrderBy(p => GetDeviceSerial(p), StringComparer.OrdinalIgnoreCase)
             .ThenBy(p => p.Channel, StringComparer.OrdinalIgnoreCase)
             .ThenBy(p => p.Index)
@@ -379,6 +381,9 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
     private static bool IsUsablePeak(PeakLoggerApiPeakDto peak) =>
         peak.Index >= 0 && !string.IsNullOrWhiteSpace(peak.Channel) && double.IsFinite(peak.Wavelength);
+
+    private static bool HasStableIdentity(PeakLoggerApiPeakDto peak) =>
+        peak.HasIndex && !string.IsNullOrWhiteSpace(peak.Device?.DeviceSN) && peak.Wavelength > 0;
 
     private static string PeakId(int index) => $"P{index}";
 
@@ -508,8 +513,10 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
     private sealed class PeakLoggerApiPeakDto
     {
+        private int _index;
+        [JsonIgnore] public bool HasIndex { get; private set; }
         [JsonPropertyName("index")]
-        public int Index { get; set; }
+        public int Index { get => _index; set { _index = value; HasIndex = true; } }
 
         [JsonPropertyName("channel")]
         public string Channel { get; set; } = string.Empty;
@@ -562,7 +569,8 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
 
     public sealed record DiscoveredInstance(string Host, int Port, string ApiPath, int PeakCount, int DeviceCount)
     {
-        public string Display => $"{Host}:{Port} · {DeviceCount} interrogátorov · {PeakCount} peakov · /{ApiPath.TrimEnd('?')}";
+        public string DeviceIdentities { get; init; } = "";
+        public string Display => $"{Host}:{Port} · {DeviceIdentities} · {DeviceCount} interrogátorov · {PeakCount} peakov · /{ApiPath.TrimEnd('?')}";
     }
 
     public sealed record DiscoveryReport(IReadOnlyList<DiscoveredInstance> Instances, int ScannedPortCount);
@@ -580,7 +588,8 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
     {
         string normalizedHost = string.IsNullOrWhiteSpace(host) ? "localhost" : host.Trim();
         int start = firstPort > 0 ? firstPort : DefaultPort;
-        int count = Math.Clamp(portCount, 1, 512);
+        if (start > 65535) throw new ArgumentOutOfRangeException(nameof(firstPort));
+        int count = Math.Min(Math.Clamp(portCount, 1, 512), 65536 - start);
         using var http = new HttpClient { Timeout = TimeSpan.FromMilliseconds(900) };
 
         var candidatePorts = new HashSet<int>(Enumerable.Range(start, count));
@@ -641,8 +650,9 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
                         devices.Add(serial.GetString()!);
                     }
                 }
-                return new DiscoveredInstance(host, port, path, peaks, devices.Count);
+                return new DiscoveredInstance(host, port, path, peaks, devices.Count) { DeviceIdentities = string.Join(", ", devices.OrderBy(x => x)) };
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
             {
                 // Closed/non-PeakLogger port: continue with the next candidate.
