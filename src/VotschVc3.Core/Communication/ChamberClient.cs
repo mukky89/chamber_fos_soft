@@ -25,9 +25,7 @@ public sealed class ChamberClient : IChamberDevice
 
     /// <summary>Creates a client that opens TCP transports for the given settings.</summary>
     public ChamberClient()
-        : this(static s => new TcpTransport(
-            s.Host, s.Port, s.ConnectTimeout, s.ReadTimeout,
-            responseTerminator: s.Terminator.Length > 0 ? s.Terminator[^1] : '\r'))
+        : this(static s => new SharedChamberTransport(s))
     {
     }
 

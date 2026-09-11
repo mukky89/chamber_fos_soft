@@ -6,8 +6,8 @@ namespace VotschVc3.Core.Communication;
 /// <summary>
 /// Ethernet (TCP/IP) transport for the ASCII-2 interface. Keeps a single
 /// persistent socket open and performs one request / response exchange at a
-/// time. The chamber accepts at most five simultaneous connections, so reusing
-/// one socket is the friendly behaviour.
+/// time. Some controllers answer only one active connection; production chamber
+/// clients therefore use SharedChamberTransport to share this socket.
 /// </summary>
 public sealed class TcpTransport : ITransport
 {

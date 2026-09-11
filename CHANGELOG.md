@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.380] – 2026-09-11
+
+### Opravené
+
+- Manuálne ovládanie a FBG kalibrácia zdieľajú jedno TCP spojenie ku komore Vötsch. Riadiaca jednotka, ktorá odpovedá iba prvému spojeniu, už nespôsobí timeout druhého klienta. Príkazy sa vykonávajú postupne; zatvorenie FBG neodpojí hlavný panel. Po chybe sa spojenie bezpečne obnoví pred ďalším príkazom bez automatického opakovania neúspešného zápisu.
+
 ## [1.76.379] – 2026-09-11
 
 ### Opravené
