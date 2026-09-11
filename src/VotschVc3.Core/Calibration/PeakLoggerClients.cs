@@ -567,10 +567,10 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
         public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
-    public sealed record DiscoveredInstance(string Host, int Port, string ApiPath, int PeakCount, int DeviceCount)
+    public sealed record DiscoveredInstance(string Host, int Port, string ApiPath, int PeakCount, int ChannelCount)
     {
         public string DeviceIdentities { get; init; } = "";
-        public string Display => $"{Host}:{Port} · {DeviceIdentities} · {DeviceCount} interrogátorov · {PeakCount} peakov · /{ApiPath.TrimEnd('?')}";
+        public string Display => $"{Host}:{Port} · {DeviceIdentities} · {ChannelCount} aktívnych kanálov · {PeakCount} peakov · /{ApiPath.TrimEnd('?')}";
     }
 
     public sealed record DiscoveryReport(IReadOnlyList<DiscoveredInstance> Instances, int ScannedPortCount);
@@ -650,7 +650,11 @@ public sealed class PeakLoggerApiClient : IPeakLoggerClient
                         devices.Add(serial.GetString()!);
                     }
                 }
-                return new DiscoveredInstance(host, port, path, peaks, devices.Count) { DeviceIdentities = string.Join(", ", devices.OrderBy(x => x)) };
+                var activeChannels = (json.RootElement.Deserialize<List<PeakLoggerApiPeakDto>>() ?? [])
+                    .Where(IsUsablePeak)
+                    .Select(p => $"{GetDeviceSerial(p)}|{p.Channel}")
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                return new DiscoveredInstance(host, port, path, peaks, activeChannels) { DeviceIdentities = string.Join(", ", devices.OrderBy(x => x)) };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)

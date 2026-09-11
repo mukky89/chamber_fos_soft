@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.376] – 2026-09-11
+
+### Opravené
+
+- Výber a stav PeakLogger zobrazujú počet aktívnych kanálov namiesto nesprávneho označenia počtu interrogátorov. Vyhľadanie API počíta jednotlivé kanály, nie sériové čísla zariadení.
+
 ## [1.76.375] – 2026-09-11
 
 ### Opravené

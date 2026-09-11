@@ -989,7 +989,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         foreach (PeakLoggerApiClient.DiscoveredInstance instance in found) PeakLoggerInstances.Add(instance);
         SelectedPeakLoggerInstance = found.FirstOrDefault(x => x.Port == PeakLoggerPort) ?? found.FirstOrDefault();
 
-        int interrogators = found.Sum(x => x.DeviceCount);
+        int activeChannels = found.Sum(x => x.ChannelCount);
         int peaks = found.Sum(x => x.PeakCount);
         int localProcessCount = IsLocalPeakLoggerHost(PeakLoggerHost)
             ? GetLocalPeakLoggerProcessCount()
@@ -999,8 +999,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             : localProcessCount > found.Count
                 ? $"Nájdené API: {found.Count}, ale bežia procesy PeakLogger: {localProcessCount}. " +
                   $"Ďalšia inštancia nemá vlastný REST port (43122 môže držať iba jedna). " +
-                  $"Dostupné interrogátory: {interrogators} · peaky: {peaks}."
-                : $"Nájdené API: {found.Count} · interrogátory/inštancie: {interrogators} · peaky: {peaks} · skontrolované porty: {report.ScannedPortCount}";
+                  $"Aktívne kanály: {activeChannels} · peaky: {peaks}."
+                : $"Nájdené API: {found.Count} · aktívne kanály: {activeChannels} · peaky: {peaks} · skontrolované porty: {report.ScannedPortCount}";
         StatusMessage = PeakLoggerDiscoverySummary;
     }
 
@@ -1131,7 +1131,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         int livePeakCount = sensors.Where(s => !IsPeakLoggerChannelIgnored(s.Channel)).Sum(sensor => sensor.Peaks.Count);
         PeakLoggerStatus = livePeakCount == 0
             ? $"API pripojené · {PeakLoggerHost}:{PeakLoggerPort} · bez peakov"
-            : $"Pripojený · {sensors.Count} zdrojov/kanálov · {livePeakCount} peakov";
+            : $"Pripojený · {sensors.Count(s => !IsPeakLoggerChannelIgnored(s.Channel))} aktívnych kanálov · {livePeakCount} peakov";
         if (_peakLogger is PeakLoggerApiClient api)
         {
             var connected = new PeakLoggerApiClient.DiscoveredInstance(PeakLoggerHost, PeakLoggerPort, api.PeaksPath, livePeakCount, sensors.Count);
@@ -1453,11 +1453,11 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
         if (added > 0)
         {
-            int sources = Peaks
+            int sources = Peaks.Where(row => !row.IsDisconnected)
                 .Select(row => $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}")
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
-            PeakLoggerStatus = $"Pripojený · {sources} zdrojov/kanálov · {Peaks.Count} peakov";
+            PeakLoggerStatus = $"Pripojený · {sources} aktívnych kanálov · {Peaks.Count(row => !row.IsDisconnected)} peakov";
             StatusMessage = added == 1
                 ? "Pribudol nový peak. Červený riadok čaká na zadanie FBG sensor SN."
                 : $"Pribudli nové peaky ({added}). Červené riadky čakajú na zadanie FBG sensor SN.";
