@@ -7,6 +7,20 @@ namespace VotschVc3.Core.Tests;
 public class FbgWavelengthComparisonTests
 {
     [Fact]
+    public void Large_wavelength_mismatch_explains_why_types_cannot_be_assigned()
+    {
+        var values = FbgWavelengthComparison.ExplainTypes([1511.926, 1512.948], [new(1586,1586,null,"S"),new(1587.4,1585,2.4,"T")]);
+        Assert.All(values, value => { Assert.Equal("Nesúlad SN/WL", value.Label); Assert.Contains("API", value.Detail); Assert.Contains("1585", value.Detail); Assert.Contains("1511", value.Detail); });
+    }
+    [Fact]
+    public void Valid_types_missing_data_and_count_mismatch_are_distinguished()
+    {
+        Assert.Equal(new[]{"T","S"}, FbgWavelengthComparison.ExplainTypes([1530.574,1531.67], [new(1531.9,1531.9,null,"S"),new(1533.3,1530.9,2.4,"T")]).Select(x => x.Label));
+        Assert.Equal("Typ v API chýba", Assert.Single(FbgWavelengthComparison.ExplainTypes([1530], null)).Label);
+        Assert.Equal("Nesúlad počtu", Assert.Single(FbgWavelengthComparison.ExplainTypes([1530], [new(1530,1530,null,"T"),new(1532,1532,null,"S")])).Label);
+        Assert.Equal("Chýbajú WL", Assert.Single(FbgWavelengthComparison.ExplainTypes([1530], [new(null,null,null,"T")])).Label);
+    }
+    [Fact]
     public void Types_follow_dropped_wavelength_not_api_order()
     {
         SylexFbgWavelength[] api = [new(1531.9,1531.9,null,"S"), new(1533.3,1530.9,2.4,"T")];

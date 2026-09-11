@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.372] – 2026-09-11
+
+### Opravené
+
+- Typ FBG už pri nezhode údajov nezobrazuje iba „Neurčený“. Rozlišuje nesúlad SN/vlnových dĺžok, počtu peakov, chýbajúce údaje API a nejednoznačné priradenie; vysvetlenie v bunke uvádza namerané a očakávané WL a ďalší postup. T/S sa pri nezhode nepriraďuje odhadom podľa poradia.
+
 ## [1.76.371] – 2026-09-11
 
 ### Vylepšené

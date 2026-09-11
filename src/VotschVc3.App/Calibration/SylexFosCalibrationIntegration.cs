@@ -170,7 +170,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                     string.Equals(p.Channel, row.Channel, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(p.PeakLoggerDeviceSerialNumber, row.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(p.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)).ToArray();
-                var types = FbgWavelengthComparison.ResolveTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
+                var types = FbgWavelengthComparison.ExplainTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
                 for (int i = 0; i < sensorRows.Length; i++)
                 {
                     var target = sensorRows[i];
@@ -179,7 +179,11 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                     if (!string.IsNullOrWhiteSpace(metadata.Order)) target.Order = metadata.Order;
                     if (!string.IsNullOrWhiteSpace(metadata.CustomerName)) target.Customer = metadata.CustomerName;
                     SylexFosRowMetadataStore.SetApiMetadata(target, metadata.SylexSerialNumber ?? serialNumber,
-                        metadata.Fbg is { Count: > 0 } ? types[i] ?? "Neurčený" : metadata.FbgType);
+                        metadata.Fbg is { Count: > 0 } ? types[i].Label :
+                            string.IsNullOrWhiteSpace(metadata.FbgType) ? "Typ v API chýba" : metadata.FbgType);
+                    target.ApiMetadata.FbgTypeDetail = $"SN {serialNumber} · kanál {target.Channel} · {target.PeakId}\n" +
+                        (metadata.Fbg is { Count: > 0 } || string.IsNullOrWhiteSpace(metadata.FbgType)
+                            ? types[i].Detail : "Typ prevzatý z výrobného záznamu API.");
                 }
             });
 

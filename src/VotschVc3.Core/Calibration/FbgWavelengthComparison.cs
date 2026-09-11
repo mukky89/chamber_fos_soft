@@ -9,6 +9,29 @@ public sealed record FbgWavelengthComparison(bool? Passed, string Detail)
 {
     public const double ToleranceNm = 0.5;
 
+    public static FbgTypeExplanation[] ExplainTypes(IReadOnlyList<double> measured, IReadOnlyList<SylexFbgWavelength>? expected)
+    {
+        var types = ResolveTypes(measured, expected);
+        var comparison = Evaluate(measured.Select(v => ("Nameraná WL", v)), expected);
+        bool ambiguous = measured.Distinct().Count() != measured.Count ||
+            expected is not null && expected.Select(p => p.ExpectedNm).Distinct().Count() != expected.Count;
+        return types.Select(type =>
+        {
+            if (!string.IsNullOrWhiteSpace(type)) return new FbgTypeExplanation(type,
+                "Typ podľa údajov API a jednoznačnej zhody vlnových dĺžok.\n" + comparison.Detail);
+            string label = expected is null || expected.Count == 0 ? "Typ v API chýba" :
+                comparison.Passed is null ? "Chýbajú WL" :
+                measured.Count != expected.Count ? "Nesúlad počtu" :
+                comparison.Passed == false ? "Nesúlad SN/WL" :
+                ambiguous ? "Nejednoznačný" : "Typ v API chýba";
+            string reason = comparison.Passed == false
+                ? "Zadané SN a namerané peaky sa nezhodujú s údajmi API. Skontrolujte SN na fyzickom snímači, kanál a výrobný záznam. T/S nemožno bezpečne priradiť iba podľa poradia peakov."
+                : ambiguous ? "Rovnaké vlnové dĺžky neumožňujú jednoznačne určiť typ jednotlivého peaku."
+                : "API neposkytuje úplné údaje potrebné na určenie typu tohto peaku.";
+            return new FbgTypeExplanation(label, reason + "\n" + comparison.Detail);
+        }).ToArray();
+    }
+
     public static string?[] ResolveTypes(IReadOnlyList<double> measured, IReadOnlyList<SylexFbgWavelength>? expected)
     {
         var result = new string?[measured.Count];
@@ -47,3 +70,5 @@ public sealed record FbgWavelengthComparison(bool? Passed, string Detail)
         return new(pass, string.Join("\n", lines));
     }
 }
+
+public sealed record FbgTypeExplanation(string Label, string Detail);

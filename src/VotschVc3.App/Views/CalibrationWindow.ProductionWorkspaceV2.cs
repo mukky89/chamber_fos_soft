@@ -126,6 +126,13 @@ public partial class CalibrationWindow
         {
             fbgBound.Binding = new Binding("ApiMetadata.FbgType") { Mode = BindingMode.OneWay };
             fbgBound.IsReadOnly = true;
+            fbgBound.MinWidth = 120;
+            if (fbgBound is DataGridTextColumn textColumn)
+            {
+                var typeStyle = new Style(typeof(TextBlock), textColumn.ElementStyle);
+                typeStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, new Binding("ApiMetadata.FbgTypeDetail")));
+                textColumn.ElementStyle = typeStyle;
+            }
         }
 
         if (!_wiringGrid.Columns.Any(c => HeaderText(c.Header) == "Sylex SN"))
