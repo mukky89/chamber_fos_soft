@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.368] – 2026-09-11
+
+### Opravené
+
+- Ručné zadanie SN kanála sa opäť prenáša na všetky jeho peaky v rovnakom interrogátore. API následne vyhodnotí kompletnú skupinu wavelength a doplní typy FBG; samostatné SN CHAIN a ostatné kanály zostávajú zachované. Pri otvorení sa doplnia aj prázdne peaky staršieho neúplného zapojenia, ak má kanál jediné jednoznačné SN.
+
 ## [1.76.367] – 2026-09-11
 
 ### Opravené

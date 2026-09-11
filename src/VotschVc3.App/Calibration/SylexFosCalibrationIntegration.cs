@@ -167,7 +167,8 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                 if (cancellationToken.IsCancellationRequested || !_attachedRows.Contains(row) ||
                         !string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)) return;
                 var sensorRows = _viewModel.Peaks.Where(p => !p.IsDisconnected &&
-                    p.Channel == row.Channel && p.PeakLoggerDeviceSerialNumber == row.PeakLoggerDeviceSerialNumber &&
+                    string.Equals(p.Channel, row.Channel, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(p.PeakLoggerDeviceSerialNumber, row.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(p.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)).ToArray();
                 var types = FbgWavelengthComparison.ResolveTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
                 for (int i = 0; i < sensorRows.Length; i++)

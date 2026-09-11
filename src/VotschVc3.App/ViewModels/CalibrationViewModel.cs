@@ -790,6 +790,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             row.MarkDisconnected();
             Peaks.Add(row);
         }
+        RestoreSharedChannelSerialNumbers();
         _calibrationDefaultsStore.ApplyAcquisitionInterval(_setup.Settings, preserveRunSettings: HasResumableCalibration || IsRunning);
         RefreshSettingsBindings();
         RefreshDashboardPlan();
@@ -1155,7 +1156,35 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         return row;
     }
 
-    private void PropagateChannelSerialNumber(CalibrationPeakRowViewModel source) { }
+    private void RestoreSharedChannelSerialNumbers()
+    {
+        // Repair partial channel assignments saved by the former no-op propagation.
+        // Conflicting nonempty channel SNs remain unchanged for operator review.
+        foreach (var channel in Peaks.GroupBy(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}", StringComparer.OrdinalIgnoreCase))
+        {
+            var serials = channel.Select(p => p.ChannelSerialNumber).Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (serials.Length != 1) continue;
+            foreach (var peer in channel.Where(p => string.IsNullOrWhiteSpace(p.ChannelSerialNumber)))
+                peer.ChannelSerialNumber = serials[0];
+        }
+    }
+
+    private void PropagateChannelSerialNumber(CalibrationPeakRowViewModel source)
+    {
+        if (_propagatingChannelSerialNumber || _applyingRecoveredMappings || _restoringWiring) return;
+        _propagatingChannelSerialNumber = true;
+        try
+        {
+            foreach (var peer in Peaks.Where(p => !ReferenceEquals(p, source) &&
+                string.Equals(p.PeakLoggerDeviceSerialNumber, source.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(p.Channel, source.Channel, StringComparison.OrdinalIgnoreCase)))
+                peer.ChannelSerialNumber = source.ChannelSerialNumber;
+            // Each peer raises SerialNumber after this assignment; API enrichment therefore
+            // resolves all channel wavelengths together. CHAIN overrides remain untouched.
+        }
+        finally { _propagatingChannelSerialNumber = false; }
+    }
 
     private void ValidateSerialNumbers()
     {
