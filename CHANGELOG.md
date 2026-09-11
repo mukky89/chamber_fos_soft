@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.382] – 2026-09-11
+
+### Opravené
+
+- Stav PeakLoggera už pri živom obnovovaní nepreblikáva medzi „Pripojený“ a počtom aktívnych kanálov. Úvodné načítanie aj živé dáta používajú rovnaký formát; počty sa aktualizujú aj pri úbytku peakov. Stavový text má pevnú výšku a úplné znenie v tooltipe, takže zmena stavu neposúva kartu.
+
 ## [1.76.381] – 2026-09-11
 
 ### Pridané

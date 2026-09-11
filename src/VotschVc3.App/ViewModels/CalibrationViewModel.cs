@@ -1129,9 +1129,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
         foreach (var ignored in Peaks.Where(p => IsPeakLoggerChannelIgnored(p.Channel)).ToArray()) Peaks.Remove(ignored);
         int livePeakCount = sensors.Where(s => !IsPeakLoggerChannelIgnored(s.Channel)).Sum(sensor => sensor.Peaks.Count);
-        PeakLoggerStatus = livePeakCount == 0
-            ? $"API pripojené · {PeakLoggerHost}:{PeakLoggerPort} · bez peakov"
-            : $"Pripojený · {sensors.Count(s => !IsPeakLoggerChannelIgnored(s.Channel))} aktívnych kanálov · {livePeakCount} peakov";
+        UpdateConnectedPeakLoggerStatus(sensors.Where(s => !IsPeakLoggerChannelIgnored(s.Channel) && s.Peaks.Count > 0)
+            .Select(s => $"{s.SerialNumber}|{s.Channel}").Distinct(StringComparer.OrdinalIgnoreCase).Count(), livePeakCount);
         if (_peakLogger is PeakLoggerApiClient api)
         {
             var connected = new PeakLoggerApiClient.DiscoveredInstance(PeakLoggerHost, PeakLoggerPort, api.PeaksPath, livePeakCount, sensors.Count);
@@ -1344,7 +1343,6 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                     {
                         if (token.IsCancellationRequested || !ReferenceEquals(client, _peakLogger)) return;
                         PeakLoggerConnected = true;
-                        PeakLoggerStatus = UseSimulator ? $"Pripojený · simulátor ({SimulatorScenario})" : "Pripojený";
                         ApplyLivePeakMeasurements(measurements);
                     });
 
@@ -1420,12 +1418,23 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
     }
 
+    private void UpdateConnectedPeakLoggerStatus(int channelCount, int peakCount)
+    {
+        string connection = UseSimulator ? $"Pripojený · simulátor ({SimulatorScenario})" : "Pripojený";
+        PeakLoggerStatus = peakCount == 0
+            ? $"{connection} · bez peakov"
+            : $"{connection} · {channelCount} aktívnych kanálov · {peakCount} peakov";
+    }
+
     private void ApplyLivePeakMeasurements(IReadOnlyList<PeakLoggerMeasurement> measurements)
     {
         Dictionary<string, PeakLoggerMeasurement> bySource = measurements
             .Where(m => !IsPeakLoggerChannelIgnored(m.Channel))
             .GroupBy(m => $"{m.SerialNumber}|{m.Channel}|{m.PeakId}", StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
+
+        UpdateConnectedPeakLoggerStatus(bySource.Values.Select(m => $"{m.SerialNumber}|{m.Channel}")
+            .Distinct(StringComparer.OrdinalIgnoreCase).Count(), bySource.Count);
 
         var knownSources = new HashSet<string>(
             Peaks.Select(row => $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}|{row.PeakId}"),
@@ -1467,11 +1476,6 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
         if (added > 0)
         {
-            int sources = Peaks.Where(row => !row.IsDisconnected)
-                .Select(row => $"{row.PeakLoggerDeviceSerialNumber}|{row.Channel}")
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Count();
-            PeakLoggerStatus = $"Pripojený · {sources} aktívnych kanálov · {Peaks.Count(row => !row.IsDisconnected)} peakov";
             StatusMessage = added == 1
                 ? "Pribudol nový peak. Červený riadok čaká na zadanie FBG sensor SN."
                 : $"Pribudli nové peaky ({added}). Červené riadky čakajú na zadanie FBG sensor SN.";
