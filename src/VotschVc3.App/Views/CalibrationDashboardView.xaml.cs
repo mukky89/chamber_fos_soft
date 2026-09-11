@@ -29,25 +29,42 @@ public sealed class FbgStabilitySeriesConverter : IValueConverter
         Binding.DoNothing;
 }
 
-public sealed class ChamberTemperatureSeriesConverter : IValueConverter
+public sealed class ChamberTemperatureSeriesConverter : IMultiValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
     {
-        if (value is not IReadOnlyList<DashboardTemperatureSample> samples || samples.Count == 0)
+        if (values[0] is not IReadOnlyList<DashboardTemperatureSample> samples || samples.Count == 0)
             return Array.Empty<ChartSeries>();
         DateTimeOffset origin = samples[0].Timestamp;
-        IReadOnlyList<DashboardTemperatureSample> visible = TimeSeriesEnvelopeReducer.Reduce(
-            samples, sample => sample.TemperatureC, 240);
-        return new[]
+        var phases = new List<(DateTimeOffset Start, string Label, Brush Color)>
         {
-            new ChartSeries("Komora", Brushes.DodgerBlue, visible
-                .Select(sample => new Point((sample.Timestamp - origin).TotalMinutes, sample.TemperatureC))
-                .ToArray(), strokeThickness: 1.8),
+            (origin, "Komora – stabilizácia", Brushes.DodgerBlue)
         };
+        if (values[1] is DateTimeOffset reference)
+            phases.Add((reference < origin ? origin : reference, "WIKA – stabilizácia", Brushes.DeepSkyBlue));
+        if (values[2] is DateTimeOffset fbg)
+            phases.Add((fbg, "FBG – stabilizácia", Brushes.Orange));
+        if (values[3] is DateTimeOffset measurement)
+            phases.Add((measurement, "FBG – odber vzoriek", Brushes.MediumSeaGreen));
+        var series = new List<ChartSeries>();
+        for (int i = 0; i < phases.Count; i++)
+        {
+            var phase = phases[i];
+            var end = i + 1 < phases.Count ? phases[i + 1].Start : samples[^1].Timestamp;
+            var points = samples.Where(p => p.Timestamp >= phase.Start && p.Timestamp <= end)
+                .Select(p => new Point((p.Timestamp - origin).TotalMinutes, p.TemperatureC)).ToList();
+            var preceding = samples.LastOrDefault(p => p.Timestamp < phase.Start);
+            if (points.Count > 0 && preceding is not null)
+                points.Insert(0, new Point((preceding.Timestamp - origin).TotalMinutes, preceding.TemperatureC));
+            if (points.Count > 0)
+                series.Add(new ChartSeries(phase.Label, phase.Color,
+                    TimeSeriesEnvelopeReducer.Reduce(points, p => p.Y, 240), strokeThickness: 2.2));
+        }
+        return series;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
-        Binding.DoNothing;
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture) =>
+        targetTypes.Select(_ => Binding.DoNothing).ToArray();
 }
 
 public sealed class WikaStabilityScoreSeriesConverter : IValueConverter

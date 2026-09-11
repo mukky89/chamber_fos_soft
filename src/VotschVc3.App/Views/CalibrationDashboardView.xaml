@@ -245,7 +245,19 @@
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ChamberRangeTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ChamberRangeLabel}" FontSize="11.5" TextWrapping="Wrap" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ChamberRangeHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ChamberDriftTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ChamberDriftLabel}" FontSize="11.5" TextWrapping="Wrap" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ChamberDriftHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
       <Border Style="{StaticResource CriterionPill}" Tag="{Binding ChamberTimeTone}"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ChamberTimeLabel}" FontSize="11.5" TextWrapping="Wrap" VerticalAlignment="Center"/><Button Grid.Column="1" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding ChamberTimeHelp}" Margin="8,0,0,0" Click="HelpButton_Click"/></Grid></Border>
-      <Border Style="{StaticResource ChartFrame}"><views:ChartView Series="{Binding ChamberTemperatureTrace, Converter={StaticResource ChamberTemperatureSeriesConverter}}" Height="125" Unit="°C" MinimumYDecimals="2" ShowControls="False" AllowZoom="False" ChartTitle="Teplota komory" EmptyText="Čaká sa na dáta komory..."/></Border>
+      <Border Style="{StaticResource ChartFrame}">
+       <views:ChartView Height="190" Unit="°C" MinimumYDecimals="2" ShowControls="False" AllowZoom="False" ChartTitle="Teplota komory počas celého plata" EmptyText="Čaká sa na dáta komory...">
+        <views:ChartView.Series>
+         <MultiBinding Converter="{StaticResource ChamberTemperatureSeriesConverter}">
+          <Binding Path="ChamberTemperatureTrace"/>
+          <Binding Path="ReferenceStabilityStartedAt"/>
+          <Binding Path="FbgStabilityStartedAt"/>
+          <Binding Path="FbgMeasurementStartedAt"/>
+         </MultiBinding>
+        </views:ChartView.Series>
+       </views:ChartView>
+      </Border>
+      <TextBlock Text="{Binding ChamberTraceSamplesLabel}" Style="{StaticResource Muted}" Margin="0,6,0,0" ToolTip="Farby označujú fázy kalibrácie. Celá krivka zobrazuje nameranú teplotu komory aj po splnení vstupnej kontroly. Zelená fáza začína prvou finálnou vzorkou FBG; ostatné peaky sa môžu ešte stabilizovať."/>
      </StackPanel></Border>
     <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="0,0,10,14">
      <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#17263A"/><GradientStop Color="#112A30" Offset="1"/></LinearGradientBrush></Border.Background>

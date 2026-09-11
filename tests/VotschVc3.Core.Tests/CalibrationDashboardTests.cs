@@ -590,6 +590,29 @@ public sealed class CalibrationDashboardTests
         }, sampleAt.AddMinutes(6));
         Assert.Equal(sampleAt.AddMinutes(-12), m.CurrentPlateauTraceStart);
     }
+    [Fact] public void ChamberTraceContinuesDuringFbgAndRejectsInvalidSamples()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 0) with
+        {
+            ActualTemperatureC = 20.1,
+        }, Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0) with
+        {
+            ActualTemperatureC = 20.2,
+            ReferenceEvaluationStartedAt = Start.AddSeconds(1),
+        }, Start.AddSeconds(2));
+        m.ReportChamberTemperature(20.3, Start.AddSeconds(3));
+        m.ReportChamberTemperature(double.NaN, Start.AddSeconds(4));
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0) with
+        {
+            ActualTemperatureC = double.NaN,
+        }, Start.AddSeconds(5));
+        Assert.Equal(3, m.ChamberTemperatureTrace.Count);
+        Assert.Equal(20.3, m.ChamberTemperatureTrace[^1].TemperatureC);
+        Assert.Equal(Start.AddSeconds(2), m.FbgStabilityStartedAt);
+        Assert.Contains("Vzorky komory: 3", m.ChamberTraceSamplesLabel);
+    }
     [Fact] public void DashboardResetsAllLiveChartDataWhenTargetChangesToNewPlateau()
     {
         var m = Model();

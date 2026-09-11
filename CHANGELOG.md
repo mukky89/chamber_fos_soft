@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.384] – 2026-09-11
+
+### Opravené
+
+- Graf komory rozlišuje stabilizáciu komory, WIKA, FBG a finálny odber rovnakými farbami ako graf referencie. Má rovnakú väčšiu výšku a zobrazuje počet vzoriek s časom poslednej aktualizácie aj po splnení vstupnej kontroly. Neplatné teploty nevstupujú do grafu.
+
+
 ## [1.76.383] – 2026-09-11
 
 ### Opravené

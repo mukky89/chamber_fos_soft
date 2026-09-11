@@ -84,6 +84,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public double? TargetTemperatureC => _snapshot?.TargetTemperatureC;
     public double? ActualTemperature => _snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
     public IReadOnlyList<DashboardTemperatureSample> ChamberTemperatureTrace => _chamberTemperatureTrace.ToArray();
+    public string ChamberTraceSamplesLabel => _chamberTemperatureTrace.Count == 0
+        ? "Čaká sa na vzorky komory."
+        : $"Vzorky komory: {_chamberTemperatureTrace.Count} · posledná: {_chamberTemperatureTrace[^1].Timestamp.ToLocalTime():HH:mm:ss}";
     public IReadOnlyList<DashboardStabilityScoreSample> WikaStabilityScoreTrace => _wikaStabilityScoreTrace.ToArray();
     public string Actual => ActualTemperature is { } t ? $"{t:F2} °C" : "—";
     public string Reference => _snapshot?.ReferenceTemperatureC is { } t ? $"{t:F3} °C" : "—";
@@ -594,6 +597,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 
     private void AddChamberTraceSample(DateTimeOffset timestamp, double temperature)
     {
+        if (!double.IsFinite(temperature)) return;
         if (_chamberTemperatureTrace.Count > 0 && timestamp <= _chamberTemperatureTrace[^1].Timestamp) return;
         _chamberTemperatureTrace.Add(new DashboardTemperatureSample(timestamp, temperature));
     }
