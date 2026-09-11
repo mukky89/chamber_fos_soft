@@ -5,6 +5,21 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationCompletionEmailTests
 {
+    [Theory]
+    [InlineData(0.3906556, 20.81438, 59.87994, "1 % kalibračného rozsahu")]
+    [InlineData(1.0, 20, 60, "2,5 % kalibračného rozsahu")]
+    [InlineData(0.1, 20, 20, "% rozsahu: N/A")]
+    public void FailureShowsPercentageFromEachModelsSavedTolerance(double tolerance, double min, double max, string expected)
+    {
+        var model = Model("ABC", "FAIL");
+        model.ErrorToleranceC = tolerance;
+        model.MinimumTemperatureC = min;
+        model.MaximumTemperatureC = max;
+        var message = CalibrationCompletionEmail.Create(new() { CalibrationResults = [model] }, null);
+        Assert.Contains(expected, message.Text);
+        Assert.Contains(expected, WebUtility.HtmlDecode(message.Html));
+    }
+
     [Fact]
     public void MissingServerPathNeverFallsBackToLocalFiles()
     {

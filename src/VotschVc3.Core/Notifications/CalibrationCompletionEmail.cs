@@ -52,7 +52,7 @@ public static class CalibrationCompletionEmail
             if (failed.Length > 0) failedPeaks++;
             else if (unknown.Length > 0 || peakModels.Length == 0) unknownPeaks++;
             foreach (var item in failed)
-                failures.Add([sn, source, item.CalibrationType, $"Max. chyba {N(item.MaxErrorC)} °C; limit {N(item.ErrorToleranceC)} °C. {item.StabilityProblem}".Trim()]);
+                failures.Add([sn, source, item.CalibrationType, $"Max. chyba {N(item.MaxErrorC)} °C; limit {N(item.ErrorToleranceC)} °C ({LimitPercent(item)}). {item.StabilityProblem}".Trim()]);
             foreach (var item in unknown)
                 failures.Add([sn, source, item.CalibrationType, $"N/A – {item.StabilityProblem ?? "Model sa nedá vyhodnotiť."}"]);
             if (peakModels.Length == 0)
@@ -117,6 +117,15 @@ public static class CalibrationCompletionEmail
                 ? LabControlEmailTemplate.EmailTone.Warning : LabControlEmailTemplate.EmailTone.Success;
         // Only basic data enters the shared template parser; detail tables occur once.
         return new(subject, plain.ToString(), LabControlEmailTemplate.Create(subject, summary, tone, details, contentWidth: 1600), []);
+    }
+
+    private static string LimitPercent(TemperatureCalibrationResult result)
+    {
+        double range = result.MaximumTemperatureC - result.MinimumTemperatureC;
+        double percent = result.ErrorToleranceC / range * 100d;
+        return range > 0 && double.IsFinite(range) && double.IsFinite(percent) && percent >= 0
+            ? $"{percent.ToString("0.###", Sk)} % kalibračného rozsahu"
+            : "% rozsahu: N/A";
     }
 
     private static string Render(string title, string[] headers, List<string[]> rows, string empty, StringBuilder plain, bool groupBySerial = false)

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.350] – 2026-09-11
+
+### Zmenené
+
+- E-mail s výsledkami kalibrácie pri nevyhovujúcich modeloch uvádza limit v °C aj v percentách kalibračného rozsahu. Percento sa počíta zo skutočného uloženého limitu a rozsahu každého modelu, aby správne zobrazovalo aj odlišné tolerancie snímačov; pri chýbajúcom rozsahu uvádza N/A.
+
 ## [1.76.349] – 2026-09-11
 
 ### Opravené
