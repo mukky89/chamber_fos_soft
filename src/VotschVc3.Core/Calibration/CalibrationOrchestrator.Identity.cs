@@ -54,8 +54,8 @@ public sealed partial class CalibrationOrchestrator
             var channel = run.PeakIdentityChannels.FirstOrDefault(c =>
                 PeakIdentityGuard.Same(c.Device, tracker.Mapping.SourceDeviceSerialNumber) &&
                 PeakIdentityGuard.Same(c.Channel, tracker.Mapping.Channel));
-            if (channel is null) continue;
-            string? problem = channel.Problem;
+            if (channel is null || channel.CommunicationGap) continue;
+            string? problem = channel.Problem ?? channel.Tracks.FirstOrDefault(t => t.OriginalPeakId == tracker.Mapping.PeakId)?.Problem;
             if (problem is null && !channel.Tracks.Any(t => t.OriginalPeakId == tracker.Mapping.PeakId))
                 problem = "Pre vybraný FBG neexistuje overená počiatočná stopa.";
             if (problem is null) continue;
@@ -64,8 +64,8 @@ public sealed partial class CalibrationOrchestrator
                 Code = "FBG_POINT_SKIPPED_IDENTITY", PlateauIndex = plateauIndex,
                 SerialNumber = tracker.Mapping.SerialNumber, PeakId = tracker.Mapping.PeakId,
                 Message = $"FBG SN {tracker.Mapping.SerialNumber}, kanál {tracker.Mapping.Channel}, peak {tracker.Mapping.PeakId}: " +
-                    $"bod automaticky vynechaný – neistá identita. {problem} " +
-                    "Vzorky sa nepoužijú na kalibráciu. Ostatné kanály pokračujú; po ich dokončení nasleduje ďalší bod bez zásahu operátora.",
+                    $"meranie tohto snímača v bode vynechané – neistá identita. {problem} " +
+                    "Vzorky sa nepoužijú na kalibráciu. Ostatné overené peaky pokračujú v tomto bode; na ďalší bod sa prejde až po ich dokončení bez zásahu operátora.",
             });
             tracker.SkipIdentity(warning.Message);
             writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);

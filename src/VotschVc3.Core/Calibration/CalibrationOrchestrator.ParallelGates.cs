@@ -167,6 +167,7 @@ public sealed partial class CalibrationOrchestrator
             StringComparer.OrdinalIgnoreCase);
         StabilityConfiguration activeStabilityConfiguration = StabilityConfiguration.From(settings);
 
+        DateTimeOffset? opticalDataMissingSince = null;
         double actualTemperature = double.NaN;
         double? referenceTemperature = null;
         StabilityMetrics? temperatureMetrics = null;
@@ -374,6 +375,32 @@ public sealed partial class CalibrationOrchestrator
 
             var identityBatch = await ObserveIdentityAsync(run, setup, writer, cancellationToken).ConfigureAwait(false);
             SkipUncertainTargets(run, plateauIndex, trackers.Values, writer);
+            if (identityBatch.Count == 0 && trackers.Values.Any(t => !t.IsTerminal))
+            {
+                if (opticalDataMissingSince is null)
+                    writer.WriteDiagnostic("WARNING", "FBG_DATA_WAIT", "Chýbajú optické dáta. Bod zostáva otvorený; funkčné snímače sa nevyraďujú.");
+                opticalDataMissingSince ??= DateTimeOffset.UtcNow;
+                if (DateTimeOffset.UtcNow - opticalDataMissingSince > TimeSpan.FromMinutes(30))
+                    throw new TimeoutException("PeakLogger neposkytol overené dáta do 30 minút. Bod nebol preskočený; beh zostáva uložený na pokračovanie.");
+                foreach (var tracker in trackers.Values.Where(t => !t.IsTerminal)) tracker.ResetForTemperatureLoss();
+                referenceDetector.Reset();
+                chamberDetector.Reset();
+                referenceEntryReady = false;
+                referenceEvaluationStartedAt = null;
+                temperatureGateOpen = false;
+                progress?.Invoke(new CalibrationProgressSnapshot(CalibrationRunState.WaitingForChamberStability,
+                    plateauIndex, plateauCount, targetTemperatureC, actualTemperature, referenceTemperature,
+                    trackers.Values.Count(t => t.IsCompletedStable), selected.Count, plateauClock.Elapsed,
+                    trackers.Values.Select(t => t.ToProgress(settings)).ToArray(),
+                    "Čakám na dáta PeakLoggera · kalibračný bod zostáva otvorený. Po návrate dát začne nové overenie stability."));
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+            if (opticalDataMissingSince is not null)
+            {
+                writer.WriteDiagnostic("INFO", "FBG_DATA_RETURNED", "Optické dáta sa obnovili; pokračuje ten istý kalibračný bod s novou stabilizáciou.");
+                opticalDataMissingSince = null;
+            }
             if (trackers.Values.All(t => t.IsTerminal) && plateauIndex >= 0) continue;
 
             // If WIKA is configured, a missing WIKA reading is NOT silently replaced by the chamber

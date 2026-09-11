@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.392] – 2026-09-11
+
+### Opravené
+
+- Prázdny rámec PeakLoggera už nevyraďuje všetky kanály. Kalibrácia čaká v tom istom bode na návrat dát, potom začne nové okno stability; po 30 minútach bez dát skončí čakanie chybou s uloženým behom, nie preskočením bodu.
+- Pri čiastočnej strate peakov pokračujú jednoznačne oddelené peaky rovnakého kanála. Vyradenie sa eviduje na konkrétnej stope snímača, zachováva sa po uložení a neprepisuje platné merania ostatných. Chýbajúce peaky zostávajú možnými konkurentmi pri kontrole identity; nejednoznačné prekrytie sa neakceptuje. Text upozornenia výslovne uvádza vynechanie snímača, nie celého bodu.
+
+
 ## [1.76.391] – 2026-09-11
 
 ### Opravené

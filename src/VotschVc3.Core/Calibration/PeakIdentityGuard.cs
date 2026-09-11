@@ -14,6 +14,8 @@ public sealed class PeakIdentityChannel
 
 public sealed class PeakIdentityTrack
 {
+    public string? Problem { get; set; }
+    public DateTimeOffset? LastObservedAt { get; set; }
     public Guid PhysicalFbgId { get; set; }
     public string OriginalPeakId { get; set; } = "";
     public int OriginalPeakIndex { get; set; }
@@ -60,6 +62,9 @@ public static class PeakIdentityGuard
         DateTimeOffset now, Action<PeakIdentityEvent> audit)
     {
         var accepted = new List<PeakLoggerMeasurement>();
+        // An empty transport frame is not evidence that every physical sensor disappeared.
+        // Leave identity untouched; the orchestrator waits in the same plateau for fresh data.
+        if (batch.Count == 0) return accepted;
         foreach (var channel in channels)
         {
             if (channel.Problem is not null && !channel.CommunicationGap) continue;
@@ -75,6 +80,12 @@ public static class PeakIdentityGuard
                 problem = "Neplatné limity sledovania identity.";
             else if (elapsed < 0)
                 problem = "Prerušená časová kontinuita sledovania; identitu nemožno potvrdiť.";
+            else if (channel.Problem is null && observations.Length > 0 && observations.Length <= channel.Tracks.Count &&
+                     (observations.Length < channel.Tracks.Count || channel.Tracks.Any(t => t.Problem is not null)))
+            {
+                ObserveRemainingPeaks(channel, observations, settings, now, accepted, audit);
+                continue;
+            }
             else if (observations.Length != channel.Tracks.Count || observations.Length == 0)
                 problem = $"Počet peakov sa zmenil z {channel.Tracks.Count} na {observations.Length}; možné prekrytie, výpadok alebo nový peak.";
             else if (observations.Any(p => !double.IsFinite(p.WavelengthNm) || p.WavelengthNm <= 0 ||
@@ -141,6 +152,7 @@ public static class PeakIdentityGuard
                 track.ApiPeakId = observation.PeakId;
                 track.WavelengthNm = observation.WavelengthNm;
                 track.LastSourceTimestamp = observation.Timestamp;
+                track.LastObservedAt = now;
                 // Downstream joins retain the original binding. The unmodified API frame is logged separately.
                 accepted.Add(observation with { PeakId = track.OriginalPeakId, PeakIndex = track.OriginalPeakIndex });
             }
@@ -149,6 +161,57 @@ public static class PeakIdentityGuard
         return accepted;
     }
 
+    private static void ObserveRemainingPeaks(PeakIdentityChannel channel, PeakLoggerMeasurement[] observations,
+        CalibrationProfileSettings settings, DateTimeOffset now, List<PeakLoggerMeasurement> accepted,
+        Action<PeakIdentityEvent> audit)
+    {
+        // Keep missing tracks as possible competitors. Never let their disappearance make
+        // an ambiguous surviving detection look unique or renumber the physical bindings.
+        var bounds = channel.Tracks.Select(t => settings.IdentityBaseToleranceNm +
+            settings.IdentityMaximumMotionNmPerMinute * Math.Max(0, (now - (t.LastObservedAt ?? channel.LastObservedAt)).TotalMinutes)).ToArray();
+        var candidates = channel.Tracks.Select((t, i) => observations.Select((p, j) => (p, j))
+            .Where(x => Math.Abs(x.p.WavelengthNm - t.WavelengthNm) <= bounds[i]).Select(x => x.j).ToArray()).ToArray();
+        var updates = new List<(PeakIdentityTrack Track, PeakLoggerMeasurement Observation)>();
+        for (int i = 0; i < channel.Tracks.Count; i++)
+        {
+            var track = channel.Tracks[i];
+            if (track.Problem is not null) continue;
+            bool isolated = candidates[i].Length == 1;
+            var observation = isolated ? observations[candidates[i][0]] : null;
+            if (observation is not null)
+            {
+                isolated &= double.IsFinite(observation.WavelengthNm) && observation.WavelengthNm > 0 &&
+                    observation.Timestamp <= now.AddSeconds(5) && now - observation.Timestamp <= TimeSpan.FromSeconds(10) &&
+                    (track.LastSourceTimestamp is null || observation.Timestamp > track.LastSourceTimestamp) &&
+                    observations.Count(p => p.PeakId == observation.PeakId) == 1;
+                for (int other = 0; other < channel.Tracks.Count; other++)
+                    if (other != i && Math.Abs(track.WavelengthNm - channel.Tracks[other].WavelengthNm) <=
+                        bounds[i] + bounds[other] + settings.IdentityMinimumSeparationNm) isolated = false;
+                if (observations.Any(p => !ReferenceEquals(p, observation) &&
+                    Math.Abs(p.WavelengthNm - observation.WavelengthNm) < settings.IdentityMinimumSeparationNm)) isolated = false;
+            }
+            if (!isolated)
+            {
+                track.Problem = "Peak chýba alebo sa jeho identita nedá jednoznačne odlíšiť; ostatné overené peaky pokračujú.";
+                audit(new PeakIdentityEvent { Timestamp = now, Device = channel.Device, Channel = channel.Channel,
+                    PhysicalFbgId = track.PhysicalFbgId, PreviousApiPeakId = track.ApiPeakId, Reason = track.Problem });
+            }
+            else updates.Add((track, observation!));
+        }
+        foreach (var (track, observation) in updates)
+        {
+            if (track.ApiPeakId != observation.PeakId)
+                audit(new PeakIdentityEvent { Timestamp = now, Device = channel.Device, Channel = channel.Channel,
+                    PhysicalFbgId = track.PhysicalFbgId, PreviousApiPeakId = track.ApiPeakId,
+                    CurrentApiPeakId = observation.PeakId, Reason = "Jednoznačné priradenie zostávajúceho peaku po čiastočnom výpadku." });
+            track.ApiPeakId = observation.PeakId;
+            track.WavelengthNm = observation.WavelengthNm;
+            track.LastSourceTimestamp = observation.Timestamp;
+            track.LastObservedAt = now;
+            accepted.Add(observation with { PeakId = track.OriginalPeakId, PeakIndex = track.OriginalPeakIndex });
+        }
+        // Channel timestamp stays at the last complete frame, preserving missing-track evidence.
+    }
     private static bool TooClose(IEnumerable<double> values, double separation)
     {
         var sorted = values.OrderBy(v => v).ToArray();

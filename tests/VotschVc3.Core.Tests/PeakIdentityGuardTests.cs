@@ -42,6 +42,68 @@ public sealed class PeakIdentityGuardTests
     }
 
     [Fact]
+    public async Task EmptyFrameKeepsSamePlateauOpenAndWorkingSensorCompletes()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "fbg-empty-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var setup = new CalibrationSetup { Settings = new() { ChamberStableDuration = TimeSpan.Zero,
+                RequiredStableSamples = 2, RequiredMeasurementSamples = 2, SampleAcquisitionIntervalSeconds = 1,
+                MaxWavelengthDriftPmPerMinute = 0 }, Mappings = new() {
+                new() { SerialNumber = "123456/0001", PeakLoggerDeviceSerialNumber = "DEVICE", Channel = "1.2", PeakId = "P1", PeakIndex = 1, Selected = true }
+            } };
+            var run = new CalibrationRunRecord();
+            await using var writer = new CalibrationStore(root).CreateRunWriter(run);
+            await using var logger = new SequenceLogger { EmptyFirstFrame = true, KeepAllPeaks = true };
+            var orchestrator = new CalibrationOrchestrator(logger);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var point = await orchestrator.WaitForPlateauAsync(run, setup, 0, 2, 20,
+                _ => Task.FromResult(20d), null, writer, cancellationToken: timeout.Token);
+            Assert.Equal(CalibrationTargetState.Stable, Assert.Single(point.Targets).Status);
+            Assert.DoesNotContain(run.Warnings, w => w.Code == "FBG_POINT_SKIPPED_IDENTITY");
+            Assert.All(run.PeakIdentityChannels, c => Assert.Null(c.Problem));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+    [Fact]
+    public void EmptyTransportFrameDoesNotDeclareEverySensorBroken()
+    {
+        var channels = Channels();
+        Assert.Empty(PeakIdentityGuard.Observe(Array.Empty<PeakLoggerMeasurement>(), channels, new(), Start.AddSeconds(1), _ => throw new Exception("No identity loss evidence")));
+        Assert.Null(channels[0].Problem);
+        Assert.All(channels[0].Tracks, t => Assert.Null(t.Problem));
+        var time = Start.AddSeconds(2);
+        Assert.Equal(2, PeakIdentityGuard.Observe(new[] { Peak("P1", 1510, time), Peak("P2", 1511, time) }, channels, new(), time, _ => { }).Count);
+    }
+    [Fact]
+    public void MissingPeakDoesNotExcludeIsolatedWorkingPeakOnSameChannel()
+    {
+        var channels = Channels();
+        var events = new List<PeakIdentityEvent>();
+        var time = Start.AddSeconds(1);
+        var result = PeakIdentityGuard.Observe(new[] { Peak("P9", 1511.001, time) }, channels, new(), time, events.Add);
+        Assert.Single(result);
+        Assert.Equal("P2", result[0].PeakId);
+        Assert.NotNull(channels[0].Tracks[0].Problem);
+        Assert.Null(channels[0].Tracks[1].Problem);
+        Assert.Null(channels[0].Problem);
+        channels = JsonSerializer.Deserialize<List<PeakIdentityChannel>>(JsonSerializer.Serialize(channels))!;
+        time = time.AddSeconds(1);
+        result = PeakIdentityGuard.Observe(new[] { Peak("P9", 1511.002, time), Peak("P8", 1510, time) }, channels, new(), time, events.Add);
+        Assert.Single(result); // Returning failed track does not silently regain validity.
+        Assert.Equal("P2", result[0].PeakId);
+    }
+
+    [Fact]
+    public void MergedDetectionCannotBeClaimedByOneOfItsPossibleSources()
+    {
+        var channels = Channels();
+        channels[0].Tracks[1].WavelengthNm = 1510.02;
+        var time = Start.AddSeconds(1);
+        Assert.Empty(PeakIdentityGuard.Observe(new[] { Peak("P1", 1510.01, time) }, channels, new(), time, _ => { }));
+        Assert.All(channels[0].Tracks, t => Assert.NotNull(t.Problem));
+    }
+    [Fact]
     public void RecoveryCannotAcceptRepeatedSourceFrames()
     {
         var channels = Channels();
@@ -81,7 +143,6 @@ public sealed class PeakIdentityGuardTests
     }
 
     [Theory]
-    [InlineData("merge")]
     [InlineData("extra")]
     [InlineData("duplicate")]
     [InlineData("close")]
@@ -252,6 +313,8 @@ public sealed class PeakIdentityGuardTests
 
     private sealed class SequenceLogger : IPeakLoggerClient
     {
+        public bool EmptyFirstFrame { get; init; }
+        public bool KeepAllPeaks { get; init; }
         public bool MergeImmediately { get; init; }
         private int _reads;
         public bool IsConnected => true;
@@ -265,7 +328,8 @@ public sealed class PeakIdentityGuardTests
         public Task<IReadOnlyList<PeakLoggerMeasurement>> ReadMeasurementsAsync(CancellationToken cancellationToken = default)
         {
             var now = DateTimeOffset.UtcNow;
-            IReadOnlyList<PeakLoggerMeasurement> batch = ++_reads < 4 && !MergeImmediately ? new[] { Peak("P1", 1510, now), Peak("P2", 1511, now) } : new[] { Peak("P1", 1510.5, now) };
+            if (EmptyFirstFrame && _reads == 0) { _reads++; return Task.FromResult<IReadOnlyList<PeakLoggerMeasurement>>(Array.Empty<PeakLoggerMeasurement>()); }
+            IReadOnlyList<PeakLoggerMeasurement> batch = (++_reads < 4 || KeepAllPeaks) && !MergeImmediately ? new[] { Peak("P1", 1510, now), Peak("P2", 1511, now) } : new[] { Peak("P1", 1510.5, now) };
             return Task.FromResult(batch);
         }
     }
