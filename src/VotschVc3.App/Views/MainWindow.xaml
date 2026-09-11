@@ -12,6 +12,7 @@
         UseLayoutRounding="True">
 
     <Window.Resources>
+        <DataTemplate DataType="{x:Type vm:SensorsViewModel}"><views:SensorsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ChamberViewModel}"><views:ChamberView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ThermometersViewModel}"><views:ThermometersView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:FbgCalibrationHistoryViewModel}"><views:FbgCalibrationHistoryView /></DataTemplate>

@@ -122,7 +122,9 @@ public sealed partial class CalibrationOrchestrator
         CalibrationRunWriter writer,
         Action<CalibrationProgressSnapshot>? progress = null,
         CancellationToken cancellationToken = default,
-        bool deferOnTemperatureTimeout = false)
+        bool deferOnTemperatureTimeout = false,
+        double? transitionFromTemperatureC = null,
+        SensorSettlingAttempt? settlingAttempt = null)
     {
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(setup);
@@ -138,6 +140,9 @@ public sealed partial class CalibrationOrchestrator
         DateTimeOffset plateauStarted = DateTimeOffset.Now;
         Stopwatch plateauClock = Stopwatch.StartNew();
         bool hasExternalReference = readReferenceTemperatureAsync is not null;
+        using var settling = new SensorSettlingRecorder(run, setup, plateauIndex, targetTemperatureC,
+            hasExternalReference, DateTimeOffset.UtcNow, writer.SaveSettlingProgress, settlingAttempt);
+        settling.Attempt.FromTemperatureC = transitionFromTemperatureC;
         var chamberEntry = new ChamberEntryGate();
         var publishProgress = progress;
         progress = snapshot => publishProgress?.Invoke(snapshot with { ChamberEntry = chamberEntry.Status });
@@ -254,9 +259,15 @@ public sealed partial class CalibrationOrchestrator
             }
         }
 
+        try
+        {
         while (true)
         {
+            foreach (var item in trackers.Values)
+                settling.Peak(DateTimeOffset.UtcNow, item.Mapping.Identity, item.HasStarted,
+                    item.IsMeasuring, item.IsForcedMeasurement, item.IsTerminal, item.State);
             cancellationToken.ThrowIfCancellationRequested();
+            settling.Flush();
             DateTimeOffset loopAt = DateTimeOffset.UtcNow;
 
             StabilityConfiguration requestedStabilityConfiguration = StabilityConfiguration.From(settings);
@@ -320,6 +331,8 @@ public sealed partial class CalibrationOrchestrator
                 });
                 writer.WriteDiagnostic("WARNING", warning.Code, warning.Message);
                 tracker.BeginForcedMeasurement(warning.Message);
+                settling.Peak(DateTimeOffset.UtcNow, tracker.Mapping.Identity, tracker.HasStarted,
+                    true, true, tracker.IsTerminal, tracker.State);
             }
             if (trackers.Values.All(t => t.IsTerminal))
             {
@@ -383,6 +396,9 @@ public sealed partial class CalibrationOrchestrator
             bool minimumElapsed = plateauClock.Elapsed >= minimumPlateauDuration;
             bool temperatureStable = chamberEntryReady && (temperatureMetrics?.IsStable == true || temperatureGateForced);
             bool shouldOpenTemperatureGate = minimumElapsed && temperatureStable;
+            settling.Gates(DateTimeOffset.UtcNow, actualTemperature, chamberEntryReady,
+                shouldOpenTemperatureGate, temperatureGateForced, settings);
+            settling.Flush();
 
             if (!shouldOpenTemperatureGate)
             {
@@ -498,7 +514,11 @@ public sealed partial class CalibrationOrchestrator
                 temperatureRecoveryStartedAt = null;
                 manualTemperatureDeadline = null;
                 foreach (TargetTracker tracker in trackers.Values.Where(t => !t.IsTerminal))
+                {
                     tracker.BeginSensorPhase();
+                    settling.Peak(DateTimeOffset.UtcNow, tracker.Mapping.Identity, true,
+                        tracker.IsMeasuring, tracker.IsForcedMeasurement, tracker.IsTerminal, tracker.State);
+                }
             }
 
             run.State = CalibrationRunState.StabilizingSensors;
@@ -598,6 +618,8 @@ public sealed partial class CalibrationOrchestrator
                 rawToWrite.Add(raw);
 
                 string? resetMessage = tracker.ProcessStableTemperatureSample(raw, settings);
+                settling.Peak(DateTimeOffset.UtcNow, tracker.Mapping.Identity, tracker.HasStarted,
+                    tracker.IsMeasuring, tracker.IsForcedMeasurement, tracker.IsTerminal, tracker.State);
                 if (resetMessage is not null)
                 {
                     writer.WriteDiagnostic("WARNING", "FBG_MEASUREMENT_RESET", resetMessage);
@@ -606,7 +628,10 @@ public sealed partial class CalibrationOrchestrator
             }
 
             if (rawToWrite.Count > 0)
+            {
+                settling.Flush();
                 await writer.AppendAsync(rawToWrite, cancellationToken).ConfigureAwait(false);
+            }
 
             if (operatorIssues.Count > 0)
             {
@@ -669,7 +694,18 @@ public sealed partial class CalibrationOrchestrator
             Targets = trackers.Values.Select(t => t.Result ?? t.CreateFallbackResult()).ToList(),
         };
         run.State = CalibrationRunState.PlateauCompleted;
+        foreach (var item in trackers.Values)
+            settling.Peak(DateTimeOffset.UtcNow, item.Mapping.Identity, item.HasStarted,
+                item.IsMeasuring, item.IsForcedMeasurement, item.IsTerminal, item.State);
+        settling.Finish(DateTimeOffset.UtcNow, "Dokončené");
         return result;
+        }
+        catch (Exception ex)
+        {
+            settling.Finish(DateTimeOffset.UtcNow, cancellationToken.IsCancellationRequested ? "Prerušené" :
+                ex is TimeoutException or CalibrationPlateauDeferredException || ex.GetType().Name.Contains("Timeout", StringComparison.Ordinal) ? "Timeout" : "Chyba");
+            throw;
+        }
     }
 
     public bool ValidateTemperatureResponse(

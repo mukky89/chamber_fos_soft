@@ -197,6 +197,12 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.True(observed.ChamberEntry!.Enabled);
             Assert.False(observed.ChamberEntry.IsOpen);
             Assert.Equal(2, observed.ChamberEntry.DeviationC);
+            var history = Assert.Single(run.SensorSettlingAttempts);
+            Assert.Equal("Prerušené", history.Status);
+            Assert.NotNull(history.Chamber.DurationSeconds);
+            Assert.Null(history.Wika.DurationSeconds);
+            Assert.All(history.Peaks, p => Assert.Null(p.Fbg.DurationSeconds));
+            Assert.Single(store.LoadRun(run.RunId)!.SensorSettlingAttempts);
         }
         finally { Directory.Delete(root, true); }
     }
@@ -319,6 +325,12 @@ public sealed class CalibrationWorkflowRegressionTests
             Assert.Single(result.Targets);
             Assert.Equal(CalibrationTargetState.Stable, result.Targets[0].Status);
             Assert.Contains(run.Warnings, warning => warning.Code == "STABILITY_SETTINGS_CHANGED" && warning.Message.Contains("100 → 2"));
+            var history = Assert.Single(run.SensorSettlingAttempts);
+            Assert.True(history.CriteriaChanged);
+            Assert.Equal("Dokončené", history.Status);
+            Assert.Null(history.Wika.DurationSeconds);
+            Assert.Equal("Úspešné", Assert.Single(history.Peaks).Fbg.Status);
+            Assert.True(history.Peaks[0].Fbg.Seconds < result.Targets[0].StabilizationTime.TotalSeconds);
         }
         finally
         {

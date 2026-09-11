@@ -90,6 +90,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
         Thermometers = new ThermometersViewModel();
         FbgCalibrations = new FbgCalibrationHistoryViewModel();
+        Sensors = new SensorsViewModel();
+        OpenSensorsCommand = new RelayCommand(() => { CurrentView = Sensors; Sensors.RefreshCommand.Execute(null); }, () => IsLoggedIn);
         Admin = new AdminViewModel(this);
         QuickProfile = new QuickProfileViewModel(_store);
         Chambers = new ObservableCollection<ChamberViewModel>();
@@ -462,6 +464,8 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>ASL F100 thermometers manager (USB).</summary>
     public ThermometersViewModel Thermometers { get; }
+    public SensorsViewModel Sensors { get; }
+    public RelayCommand OpenSensorsCommand { get; }
     public FbgCalibrationHistoryViewModel FbgCalibrations { get; }
 
     /// <summary>Viewer for saved CSV recordings (analysis).</summary>
@@ -1058,6 +1062,7 @@ public sealed class ShellViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(CurrentUserName));
         OnPropertyChanged(nameof(CurrentRoleLabel));
         OnPropertyChanged(nameof(IsLoggedIn));
+        OpenSensorsCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsAdmin));
         OnPropertyChanged(nameof(IsReorderAllowed));
     }

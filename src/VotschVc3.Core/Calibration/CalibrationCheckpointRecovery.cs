@@ -163,6 +163,7 @@ public static class CalibrationCheckpointRecovery
         Core1 = mapping.Core1,
         Core2 = mapping.Core2,
         SerialNumber = mapping.SerialNumber,
+        SensorName = mapping.SensorName,
         ChannelSerialNumber = mapping.ChannelSerialNumber,
         ChainSerialNumber = mapping.ChainSerialNumber,
         PeakLoggerDeviceSerialNumber = mapping.PeakLoggerDeviceSerialNumber,

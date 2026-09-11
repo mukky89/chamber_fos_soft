@@ -2944,6 +2944,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     {
         PeakLoggerDeviceSerialNumber = sensor.SerialNumber;
         _chainSerialNumber = saved?.ChainSerialNumber ?? string.Empty;
+        ApiMetadata.SensorName = saved?.SensorName ?? string.Empty;
+        ApiMetadata.SylexSerialNumber = VotschVc3.App.Calibration.SylexFosRowMetadataStore.ParseSerialNumber(saved?.SerialNumber);
         _channelSerialNumber = saved?.ChannelSerialNumber
             ?? (string.IsNullOrWhiteSpace(_chainSerialNumber) ? saved?.SerialNumber : string.Empty)
             ?? string.Empty;
@@ -3101,6 +3103,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         Core1 = Core1,
         Core2 = Core2,
         SerialNumber = SerialNumber,
+        SensorName = ApiMetadata.SensorName,
         ChannelSerialNumber = ChannelSerialNumber,
         ChainSerialNumber = ChainSerialNumber,
         PeakLoggerDeviceSerialNumber = PeakLoggerDeviceSerialNumber,

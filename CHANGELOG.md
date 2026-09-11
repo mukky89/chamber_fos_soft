@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.366] – 2026-09-11
+
+### Pridané
+
+- Menu Snímače s históriou skutočných časov ustálenia komory, WIKA a jednotlivých FBG peakov, filtrovaním, priemermi úspešných meraní a odkazmi na pôvodné kalibrácie. Časy sa zaznamenávajú oddelene od finálneho odberu vzoriek a ukladajú spolu s nastaveniami a stavom každého pokusu.
+
 ## [1.76.365] – 2026-09-11
 
 ### Pridané

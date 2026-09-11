@@ -159,6 +159,7 @@ public sealed class CalibrationSensorMapping
     public string SerialNumber { get; set; } = string.Empty;
 
     /// <summary>SN shared by every peak on one PeakLogger channel (normal wiring).</summary>
+    public string SensorName { get; set; } = string.Empty;
     public string ChannelSerialNumber { get; set; } = string.Empty;
 
     /// <summary>Optional per-peak SN override for CHAIN wiring; wins over channel SN.</summary>
@@ -312,6 +313,7 @@ public sealed class CalibrationWarning
 public sealed class CalibrationRunRecord
 {
     public bool OperatorSupervisionEnabled { get; set; }
+    public List<SensorSettlingAttempt> SensorSettlingAttempts { get; set; } = new();
     public List<CalibrationPlateauResult> SupersededPlateaus { get; set; } = new();
     public string? LocalRunDirectory { get; set; }
     public string? ReplicaRunDirectory { get; set; }

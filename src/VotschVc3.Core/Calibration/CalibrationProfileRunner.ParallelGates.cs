@@ -137,6 +137,11 @@ public sealed class CalibrationProfileRunner
                 run.State = CalibrationRunState.MovingToPlateau;
 
                 double? targetHumidity = step.Segment.TargetHumidity ?? previousHumidity;
+                double transitionFromTemperature = previousCommandedTemperature;
+                var settlingAttempt = SensorSettlingRecorder.CreatePending(run, setup, currentPlateau,
+                    step.Segment.TargetTemperature, DateTimeOffset.UtcNow);
+                settlingAttempt.FromTemperatureC = transitionFromTemperature;
+                SensorSettlingRecorder.TrySave(writer.SaveSettlingProgress);
                 await MoveSetpointToPlateauAsync(
                     setup.Settings,
                     currentPlateau,
@@ -181,7 +186,9 @@ public sealed class CalibrationProfileRunner
                         writer,
                         snapshot => Progress?.Invoke(snapshot),
                         cancellationToken,
-                        deferOnTemperatureTimeout: !workItem.IsRetry && workPosition < workItems.Count - 1).ConfigureAwait(false);
+                        deferOnTemperatureTimeout: !workItem.IsRetry && workPosition < workItems.Count - 1,
+                        transitionFromTemperatureC: transitionFromTemperature,
+                        settlingAttempt: settlingAttempt).ConfigureAwait(false);
                 }
                 catch (CalibrationPlateauDeferredException deferred)
                 {
@@ -588,6 +595,7 @@ public sealed class CalibrationProfileRunner
         Core1 = m.Core1,
         Core2 = m.Core2,
         SerialNumber = m.SerialNumber,
+        SensorName = m.SensorName,
         ChannelSerialNumber = m.ChannelSerialNumber,
         ChainSerialNumber = m.ChainSerialNumber,
         PeakLoggerDeviceSerialNumber = m.PeakLoggerDeviceSerialNumber,

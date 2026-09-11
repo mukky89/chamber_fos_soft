@@ -243,6 +243,7 @@
                             <TextBlock Text="Teplomery WIKA CTH7000" Style="{StaticResource IconLabel}" />
                         </StackPanel>
                     </Button>
+                    <Button Style="{StaticResource NavButton}" Command="{Binding OpenSensorsCommand}" Content="Snímače" />
                     <Button Style="{StaticResource NavButton}" Command="{Binding OpenFbgCalibrationsCommand}">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource IconPath}" Data="{StaticResource Icon.Chart}" />

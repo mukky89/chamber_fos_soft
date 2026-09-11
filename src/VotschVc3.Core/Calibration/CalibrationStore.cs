@@ -152,6 +152,14 @@ public sealed class CalibrationStore
         return ReadRecoveryFile<CalibrationRunRecord>(Path.Combine(GetRunDirectory(runId), "summary.json"));
     }
 
+    internal void SaveSettlingProgress(CalibrationRunRecord run)
+    {
+        string dir = GetRunDirectory(run);
+        Directory.CreateDirectory(dir);
+        WriteRecoveryFile(Path.Combine(dir, "summary.json"), JsonSerializer.Serialize(run, JsonOptions));
+        RequestReplication(run);
+    }
+
     public void SaveRun(CalibrationRunRecord run)
     {
         ArgumentNullException.ThrowIfNull(run);
@@ -491,6 +499,7 @@ public sealed class CalibrationRunWriter : IAsyncDisposable
     }
 
     public void SaveSummary() => _store.SaveRun(_run);
+    public void SaveSettlingProgress() => _store.SaveSettlingProgress(_run);
 
     private static string F(double value) => value.ToString("G17", SlovakCulture);
     private static string E(string value) => value.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
