@@ -295,7 +295,26 @@ public partial class ChartView : UserControl
             ? WavelengthPadLeft
             : PadLeft;
 
-        List<ChartSeries> series = Series?.Where(s => s.Points.Count > 0).ToList() ?? new List<ChartSeries>();
+        // Missing values are gaps, not zeroes or drawable coordinates. Split the curve
+        // so neither axis calculations nor WPF Line coordinates receive NaN/infinity.
+        var series = new List<ChartSeries>();
+        foreach (var source in Series ?? Array.Empty<ChartSeries>())
+        {
+            var segment = new List<Point>();
+            void FlushSegment()
+            {
+                if (segment.Count == 0) return;
+                series.Add(new ChartSeries(source.Name, source.Stroke, segment.ToArray(),
+                    source.Dashed, source.PointLabel, source.StrokeThickness, source.UseSecondaryAxis));
+                segment.Clear();
+            }
+            foreach (var point in source.Points)
+            {
+                if (double.IsFinite(point.X) && double.IsFinite(point.Y)) segment.Add(point);
+                else FlushSegment();
+            }
+            FlushSegment();
+        }
         if (series.Count == 0)
         {
             AddText(EmptyText, width / 2 - 40, height / 2 - 10, MutedBrush, 12);

@@ -5,6 +5,22 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void SkippedPointWithInvalidTemperatureDoesNotPolluteLiveTemperatureOrTrace()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 0) with { ActualTemperatureC = 20.1 }, Start);
+        var timestamp = m.LastTemperatureSampleAt;
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0) with
+        {
+            ActualTemperatureC = double.NaN,
+            ReferenceTemperatureC = double.PositiveInfinity,
+        }, Start.AddSeconds(1));
+        Assert.Equal(20.1, m.ActualTemperature);
+        Assert.Equal(timestamp, m.LastTemperatureSampleAt);
+        Assert.Single(m.ChamberTemperatureTrace);
+        Assert.DoesNotContain("NaN", m.Delta);
+        Assert.DoesNotContain("Infinity", m.Reference);
+    }
     [Fact] public void TemperaturePhasesPreserveWikaReturnAndRestartFbgAtActualTime()
     {
         var m = Model();

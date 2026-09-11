@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.390] – 2026-09-11
+
+### Opravené
+
+- Grafy ignorujú neplatné súradnice NaN/Infinity a prerušia v nich krivku, aby nevznikla chyba WPF Y1 ani spojenie cez chýbajúce údaje. Dashboard neprepisuje poslednú platnú teplotu ani čas jej prijatia neplatnou hodnotou z vynechaného bodu.
+
+
 ## [1.76.389] – 2026-09-11
 
 ### Opravené

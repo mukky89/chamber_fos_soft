@@ -458,6 +458,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void ResetPlan() { _started = null; _planSignature = ""; }
     public void Apply(CalibrationProgressSnapshot snapshot, DateTimeOffset now)
     {
+        snapshot = snapshot with
+        {
+            ActualTemperatureC = snapshot.ActualTemperatureC is { } actual && double.IsFinite(actual) ? actual : null,
+            ReferenceTemperatureC = snapshot.ReferenceTemperatureC is { } validReference && double.IsFinite(validReference) ? validReference : null,
+        };
         var previous = _snapshot;
         if (previous is not null && previous.PlateauIndex == snapshot.PlateauIndex &&
             Math.Abs(previous.TargetTemperatureC - snapshot.TargetTemperatureC) < 0.001 &&
