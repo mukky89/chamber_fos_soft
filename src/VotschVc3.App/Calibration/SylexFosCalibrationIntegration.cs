@@ -145,7 +145,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         {
             await Task.Delay(250, cancellationToken).ConfigureAwait(false);
             ProductionMetadata? metadata = await _metadataProvider.FindAsync(serialNumber, row.Channel, cancellationToken).ConfigureAwait(false);
-            if (cancellationToken.IsCancellationRequested || !_attachedRows.Contains(row)) return;
+            if (cancellationToken.IsCancellationRequested) return;
 
             if (metadata is null)
             {
@@ -198,11 +198,14 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         }
         finally
         {
-            if (_lookups.TryGetValue(row, out CancellationTokenSource? current) && current.Token == cancellationToken)
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                _lookups.Remove(row);
-                current.Dispose();
-            }
+                if (_lookups.TryGetValue(row, out CancellationTokenSource? current) && current.Token == cancellationToken)
+                {
+                    _lookups.Remove(row);
+                    current.Dispose();
+                }
+            });
         }
     }
 

@@ -20,4 +20,5 @@ public sealed record ProductionMetadata(
     string? CustomerName = null,
     string? Notes = null,
     string? SylexSerialNumber = null,
-    string? FbgType = null);
+    string? FbgType = null,
+    IReadOnlyList<SylexFbgWavelength>? Fbg = null);

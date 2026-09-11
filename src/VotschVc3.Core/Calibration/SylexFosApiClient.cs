@@ -36,7 +36,8 @@ public sealed record SylexFbgCalibrationContext(
     string? OrderNumber,
     string Source,
     DateTimeOffset RetrievedAtUtc,
-    string? FbgType = null);
+    string? FbgType = null,
+    IReadOnlyList<SylexFbgWavelength>? Fbg = null);
 
 public interface ISylexFosApiClient
 {
@@ -159,7 +160,7 @@ public sealed class SylexFosApiProductionMetadataProvider : IProductionMetadataP
             context.CustomerName,
             $"Sylex FOS API · {context.Source}",
             context.SerialNumber,
-            context.FbgType);
+            context.FbgType, context.Fbg);
         lock (_cacheSync) _cache[key] = metadata;
         return metadata;
     }

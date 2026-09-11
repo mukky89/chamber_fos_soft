@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.357] – 2026-09-11
+
+### Zmenené
+
+- Pri zapájaní FBG sa porovnajú živé WL s výslednými WL z iSys API, s rozdielom každého peaku a farebným PASS/FAIL pri tolerancii ±0,5 nm. Chýbajúce údaje zostávajú nevyhodnotené.
+- Opravený súbežný prístup k evidencii API požiadaviek pri dopĺňaní údajov snímačov.
+
 ## [1.76.356] – 2026-09-11
 
 ### Zmenené

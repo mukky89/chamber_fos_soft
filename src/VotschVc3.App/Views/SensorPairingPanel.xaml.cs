@@ -17,6 +17,15 @@ public partial class SensorPairingPanel : UserControl
         Waiting.Visibility = stage == 2 ? Visibility.Visible : Visibility.Collapsed;
         PendingSerial.Text = serial ?? string.Empty;
     }
+    public void ShowWavelengthComparison(VotschVc3.Core.Calibration.FbgWavelengthComparison result)
+    {
+        WavelengthCard.Visibility = Visibility.Visible;
+        var color = (Color)ColorConverter.ConvertFromString(result.Passed switch { true => "#5BE0AF", false => "#FF8585", null => "#EAB947" });
+        WavelengthCard.BorderBrush = WavelengthTitle.Foreground = new SolidColorBrush(color);
+        WavelengthCard.Background = new SolidColorBrush(Color.FromArgb(20, color.R, color.G, color.B));
+        WavelengthTitle.Text = result.Passed switch { true => "✓ PASS · WL zodpovedá API", false => "✕ FAIL · Skontroluj WL / snímač", null => "ⓘ WL · Nevyhodnotené" };
+        WavelengthDetail.Text = result.Detail;
+    }
     public void ShowResult(string serial, string channel, bool apiVerified)
     {
         Result.Text = $"{serial} → Kanál {channel}";

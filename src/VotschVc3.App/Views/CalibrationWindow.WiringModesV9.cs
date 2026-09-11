@@ -197,6 +197,7 @@ public partial class CalibrationWindow
             return;
         }
         _pairingApiVerified = false;
+        _pairingMetadata = null;
         if (_pairingSteps is not null) _pairingSteps.Text = "✓ 1 SN pripravené     ● 2 Pripoj snímač     ○ 3 Priradenie";
         _pendingNote = _pairingPanel?.NoteInput.Text ?? string.Empty;
         _candidateSignature = string.Empty;
@@ -215,6 +216,8 @@ public partial class CalibrationWindow
                 await _sylexFosIntegration.PreviewAsync(sn, lookup.Token);
             if (!IsCurrent()) return;
             _pairingApiVerified = metadata is not null;
+            _pairingMetadata = metadata;
+            RefreshPairingCandidates();
             _sequentialStatus!.Text = metadata is null
                 ? $"SN {sn} je pripravené. Pripoj snímač.\nBez overenia API – produkčné údaje zatiaľ nie sú dostupné."
                 : $"SN {sn} je pripravené. Pripoj snímač.\nAPI overené · {metadata.SensorName}\n{metadata.ProductDescription}";
@@ -226,6 +229,7 @@ public partial class CalibrationWindow
             AppLog.Warn("FBG zapojenie", $"Voliteľné API overenie SN zlyhalo: {ex.Message}");
         }
     }
+    private ProductionMetadata? _pairingMetadata;
     private string _pendingNote = string.Empty;
     private string _candidateSignature = string.Empty;
     private DateTime _candidateSince;
@@ -236,6 +240,8 @@ public partial class CalibrationWindow
     {
         if (_pairingPanel is null || _sequentialPendingSn is null) return;
         var rows = PendingCandidates();
+        _pairingPanel.ShowWavelengthComparison(FbgWavelengthComparison.Evaluate(
+            rows.Select(p => ($"{p.Channel} / {p.PeakId}", p.CurrentWavelengthNm)), _pairingMetadata?.Fbg));
         string signature = string.Join(";", rows.Select(PeakIdentity).OrderBy(x => x));
         if (signature != _candidateSignature) { _candidateSignature = signature; _candidateSince = DateTime.UtcNow; }
         bool missing = _viewModel.Peaks.Any(p => _sequentialBaseline.Contains(PeakIdentity(p)) && p.IsDisconnected);
