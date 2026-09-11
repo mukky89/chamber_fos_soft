@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.364] – 2026-09-11
+
+### Opravené
+
+- Typ FBG a názov snímača pri obnove zapojenia nepreblikávajú: opätovne použité riadky si zachovajú API údaje počas načítavania aj dočasného výpadku API. Zmena priradeného SN naďalej odstráni údaje predchádzajúceho snímača.
+
 ## [1.76.362] – 2026-09-11
 
 ### Opravené

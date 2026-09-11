@@ -61,6 +61,8 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
     private void OnPeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (e.Action == NotifyCollectionChangedAction.Move) return;
+
         // Reset is special: ObservableCollection does not guarantee OldItems, therefore detach
         // from our own tracked set first. This also makes sensor discovery/clear idempotent and
         // prevents stale row subscriptions from surviving a complete PeakLogger refresh.
@@ -103,8 +105,9 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         if (row is null) return;
         _attachedRows.Remove(row);
         row.PropertyChanged -= OnRowPropertyChanged;
-        SylexFosSensorNameStore.Remove(row);
-        SylexFosRowMetadataStore.Remove(row);
+        // Discovery reuses these same row instances after Peaks.Clear(). Detaching only
+        // ends subscriptions/lookups; keep their metadata visible during reattachment
+        // and API retries. SetParsedSerial clears it when the assigned SN changes.
         if (_lookups.Remove(row, out CancellationTokenSource? cts))
         {
             cts.Cancel();
