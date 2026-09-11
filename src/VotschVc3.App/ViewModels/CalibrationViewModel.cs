@@ -1133,7 +1133,13 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             .Select(s => $"{s.SerialNumber}|{s.Channel}").Distinct(StringComparer.OrdinalIgnoreCase).Count(), livePeakCount);
         if (_peakLogger is PeakLoggerApiClient api)
         {
-            var connected = new PeakLoggerApiClient.DiscoveredInstance(PeakLoggerHost, PeakLoggerPort, api.PeaksPath, livePeakCount, sensors.Count);
+            var connected = new PeakLoggerApiClient.DiscoveredInstance(PeakLoggerHost, PeakLoggerPort, api.PeaksPath, livePeakCount,
+                sensors.Where(s => s.Peaks.Count > 0 && !IsPeakLoggerChannelIgnored(s.Channel))
+                    .Select(s => $"{s.SerialNumber}|{s.Channel}").Distinct(StringComparer.OrdinalIgnoreCase).Count())
+            {
+                DeviceIdentities = string.Join(", ", sensors.Select(s => s.SerialNumber)
+                    .Where(sn => !string.IsNullOrWhiteSpace(sn)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(sn => sn))
+            };
             var previous = PeakLoggerInstances.FirstOrDefault(x => x.Host == PeakLoggerHost && x.Port == PeakLoggerPort);
             if (previous != connected)
             {

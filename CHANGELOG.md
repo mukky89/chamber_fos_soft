@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.393] – 2026-09-11
+
+### Opravené
+
+- Obnovenie zoznamu senzorov zachováva SN interrogátora v položke pripojeného PeakLogger API. Počet aktívnych kanálov zodpovedá prítomným neignorovaným kanálom.
+
+
 ## [1.76.392] – 2026-09-11
 
 ### Opravené
