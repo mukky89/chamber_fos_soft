@@ -1062,6 +1062,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private Task DiscoverSensorsAsync() => LoadDeviceDataAsync(DiscoverSensorsAsyncCore);
 
+    public Task RefreshSensorsInBackgroundAsync() => IsRunning || IsLoadingDeviceData || !PeakLoggerConnected
+        ? Task.CompletedTask : LoadDeviceDataAsync(DiscoverSensorsAsyncCore, showLoading: false);
+
     private async Task DiscoverSensorsAsyncCore()
     {
         if (_peakLogger is null || SelectedProfile is null) return;
@@ -1106,9 +1109,12 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         {
             var connected = new PeakLoggerApiClient.DiscoveredInstance(PeakLoggerHost, PeakLoggerPort, api.PeaksPath, livePeakCount, sensors.Count);
             var previous = PeakLoggerInstances.FirstOrDefault(x => x.Host == PeakLoggerHost && x.Port == PeakLoggerPort);
-            if (previous is not null) PeakLoggerInstances.Remove(previous);
-            PeakLoggerInstances.Add(connected);
-            SelectedPeakLoggerInstance = connected;
+            if (previous != connected)
+            {
+                if (previous is not null) PeakLoggerInstances.Remove(previous);
+                PeakLoggerInstances.Add(connected);
+                SelectedPeakLoggerInstance = connected;
+            }
             PeakLoggerDiscoverySummary = livePeakCount == 0
                 ? "Uložené API odpovedá bez peakov. Skontroluj pripojenie snímačov alebo vyber správnu API inštanciu."
                 : "Uložený PeakLogger bol pripojený a načítaný.";
@@ -1804,21 +1810,31 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     }
 
     private int _deviceLoadCount;
+    private int _visibleDeviceLoadCount;
     public bool IsLoadingDeviceData => _deviceLoadCount > 0;
+    public bool IsShowingDeviceLoad => _visibleDeviceLoadCount > 0;
 
-    private async Task LoadDeviceDataAsync(Func<Task> load)
+    private async Task LoadDeviceDataAsync(Func<Task> load, bool showLoading = true)
     {
         _deviceLoadCount++;
-        OnPropertyChanged(nameof(IsLoadingDeviceData));
-        RefreshCommands();
-        DiscoverPeakLoggerApisCommand.RaiseCanExecuteChanged();
+        if (showLoading)
+        {
+            _visibleDeviceLoadCount++;
+            OnPropertyChanged(nameof(IsLoadingDeviceData));
+            OnPropertyChanged(nameof(IsShowingDeviceLoad));
+            RefreshCommands();
+        }
         try { await load(); }
         finally
         {
             _deviceLoadCount--;
-            OnPropertyChanged(nameof(IsLoadingDeviceData));
+            if (showLoading)
+            {
+                _visibleDeviceLoadCount--;
+                OnPropertyChanged(nameof(IsLoadingDeviceData));
+                OnPropertyChanged(nameof(IsShowingDeviceLoad));
+            }
             RefreshCommands();
-            DiscoverPeakLoggerApisCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -2934,6 +2950,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     {
         OnPropertyChanged(nameof(CanImportWiring));
         ConnectPeakLoggerCommand.RaiseCanExecuteChanged();
+        DiscoverPeakLoggerApisCommand.RaiseCanExecuteChanged();
         RefreshSensorsCommand.RaiseCanExecuteChanged();
         StartCalibrationCommand.RaiseCanExecuteChanged();
         ResumeCalibrationCommand.RaiseCanExecuteChanged();

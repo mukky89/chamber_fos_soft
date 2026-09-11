@@ -604,7 +604,7 @@ public partial class CalibrationWindow
 
             if (_viewModel.SaveSetupCommand.CanExecute(null)) _viewModel.SaveSetupCommand.Execute(null);
             ShowProductionInfo("PeakLogger hlási zmenu zapojenia – aktualizujem tabuľku…");
-            if (_viewModel.RefreshSensorsCommand.CanExecute(null)) _viewModel.RefreshSensorsCommand.Execute(null);
+            await _viewModel.RefreshSensorsInBackgroundAsync();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)

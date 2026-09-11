@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.374] – 2026-09-11
+
+### Opravené
+
+- Automatická obnova PeakLogger už nezobrazuje načítavací panel ani nezosivuje celú zostavu zariadení. Ručné načítanie má indikátor v pevnej hlavičke, takže neposúva karty. Nezmenená API inštancia sa neodstraňuje a znova nepridáva do výberu. Stav uloženia má pevnú šírku, aby neposúval horné ovládacie tlačidlá.
+
 ## [1.76.373] – 2026-09-11
 
 ### Vylepšené

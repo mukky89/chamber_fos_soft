@@ -273,8 +273,7 @@ public partial class CalibrationWindow
 
             if (_viewModel.SaveSetupCommand.CanExecute(null)) _viewModel.SaveSetupCommand.Execute(null);
             ShowProductionInfo("PeakLogger hlási zmenu zapojenia – po ukončení editácie aktualizujem tabuľku…");
-            if (!IsWiringGridEditingV3() && _viewModel.RefreshSensorsCommand.CanExecute(null))
-                _viewModel.RefreshSensorsCommand.Execute(null);
+            if (!IsWiringGridEditingV3()) await _viewModel.RefreshSensorsInBackgroundAsync();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
