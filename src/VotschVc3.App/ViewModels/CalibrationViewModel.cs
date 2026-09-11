@@ -2109,9 +2109,13 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             ChamberConnectionSettings connection = ToConnectionSettings(SelectedChamber.Config);
             StatusMessage = $"Pripájam komoru {SelectedChamber.Config.Name}…";
             Dashboard.ReportStartup(StatusMessage);
-            await _chamber.ConnectAsync(connection, _runCts.Token);
-            Dashboard.ReportStartup("Komora je pripojená. Čaká sa na prvú nameranú teplotu komory.");
-            var initialReading = await _chamber.ReadAsync(_runCts.Token);
+            var initialReading = await CalibrationChamberStartupRecovery.ConnectAndReadAsync(
+                _chamber, connection, message => Application.Current.Dispatcher.Invoke(() =>
+                {
+                    StatusMessage = message;
+                    Dashboard.ReportStartup(message);
+                    AppLog.Info("FBG kalibrácia", message);
+                }), _runCts.Token);
             double startTemperature = initialReading.Temperature
                 ?? throw new InvalidOperationException("Komora neposkytla platnú nameranú teplotu pred začiatkom kalibrácie.");
             _lastChamberTemperatureC = startTemperature;

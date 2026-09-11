@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.378] – 2026-09-11
+
+### Opravené
+
+- Spustenie aj pokračovanie FBG kalibrácie po dočasnom výpadku komory opakuje pripojenie a úvodné čítanie teploty v 5-sekundových intervaloch, najviac 30 minút. Jediný TCP timeout už neukončí úvodnú kontrolu. Obnova používa nové spojenie, čaká na platnú teplotu, rešpektuje Stop a nemení uložený checkpoint ani setpointy komory.
+
 ## [1.76.377] – 2026-09-11
 
 ### Opravené

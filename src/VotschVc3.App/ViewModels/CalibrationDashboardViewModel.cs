@@ -791,7 +791,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         string[] names = { "Príprava", "Nastavenie cieľa", "Teplota komory", "WIKA referencia", "Stabilita FBG", "Meranie samples", "Vyhodnotenie", "Ďalšie plato", "Temperovanie 25 °C", "Dokončenie" };
         string[] tips =
         {
-            "Skontroluje vybraný profil, zapojenie, SN, dostupnosť komory, WIKA a PeakLoggera. Krok nemá pevný čas; pri chybe čaká na opravu alebo zásah operátora.",
+            "Skontroluje vybraný profil, zapojenie, SN, dostupnosť komory, WIKA a PeakLoggera. Pri dočasnom výpadku komory opakuje pripojenie a úvodné čítanie po 5 sekundách, najviac 30 minút. Pokračuje až po platnej teplote, počas obnovy nemení setpointy ani checkpoint. Stop obnovu zruší; po vyčerpaní limitu vyžaduje zásah operátora.",
             _enableSetpointRamp
                 ? $"Aplikácia posúva setpoint plynulo najviac {_setpointRampCPerMinute:F2} °C/min. Komora sa naďalej reguluje vlastným interným snímačom; WIKA iba overí stabilitu po dosiahnutí cieľa. Profilové hold časy neurčujú dĺžku FBG kalibrácie."
                 : "Plynulý nábeh je vypnutý a aplikácia nastaví cieľ plata priamo. Komora sa reguluje vlastným interným snímačom; WIKA iba overuje stabilitu.",
