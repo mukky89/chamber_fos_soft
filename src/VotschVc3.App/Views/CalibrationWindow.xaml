@@ -205,6 +205,7 @@
                             <StackPanel Style="{StaticResource FieldStack}" Margin="0,8,0,9">
                                 <TextBlock Text="Kalibračný profil" Style="{StaticResource Label}" />
                                 <views:ProfilePicker ItemsSource="{Binding Profiles}"
+                                                     DropDownOpening="CalibrationProfilePicker_Opening"
                                                      SelectedProfile="{Binding SelectedProfile, Mode=TwoWay}"
                                                      Placeholder="Vyber kalibračný profil"
                                                      ToolTip="Vyber teplotný profil – v náhľade uvidíš graf, rozsah, celkový čas a podrobný prehľad plat. Kalibračné body sú jeho plata." />

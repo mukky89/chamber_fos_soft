@@ -19,6 +19,7 @@ namespace VotschVc3.App.Views;
 public partial class ProfilePicker : UserControl
 {
     public ProfilePicker() => InitializeComponent();
+    public event EventHandler? DropDownOpening;
 
     /// <summary>Grouped tree nodes shown in the popup (rebuilt on open / search / source change).</summary>
     public ObservableCollection<ProfileTreeGroupViewModel> Groups { get; } = new();
@@ -227,6 +228,7 @@ public partial class ProfilePicker : UserControl
 
     private void OnToggleChecked(object sender, RoutedEventArgs e)
     {
+        DropDownOpening?.Invoke(this, EventArgs.Empty);
         SearchBox.Clear();
         RebuildTree();
         UpdatePreview(SelectedProfile ?? ItemsSource?.OrderByDescending(p => p.LastChangedAt).FirstOrDefault());

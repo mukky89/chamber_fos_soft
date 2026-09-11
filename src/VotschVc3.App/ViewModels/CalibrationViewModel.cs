@@ -356,6 +356,33 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             ?? Profiles.FirstOrDefault();
     }
 
+    private bool _refreshingProfileLibrary;
+    public async Task RefreshProfileLibraryAsync()
+    {
+        if (IsRunning || _refreshingProfileLibrary) return;
+        _refreshingProfileLibrary = true;
+        var chamber = SelectedChamber;
+        var deviceKind = chamber?.Config.Protocol.ToDeviceKind() ?? ProfileDeviceKind.Any;
+        try
+        {
+            var profiles = await Task.Run(() => _profileStore.LoadActive()
+                .Where(p => p.DeviceKind.CanRunOn(deviceKind)).ToArray());
+            if (IsRunning || !ReferenceEquals(chamber, SelectedChamber)) return;
+            // Keep the selected object and its wiring intact. Selection is an operator action,
+            // not a side effect of reloading the library after Quick Profile saves a new file.
+            foreach (var stale in Profiles.Where(p => !ReferenceEquals(p, SelectedProfile) &&
+                !profiles.Any(current => current.Id == p.Id)).ToArray()) Profiles.Remove(stale);
+            foreach (var profile in profiles)
+            {
+                var existing = Profiles.FirstOrDefault(p => p.Id == profile.Id);
+                if (existing is null) Profiles.Add(profile);
+                else if (!ReferenceEquals(existing, SelectedProfile) && !ReferenceEquals(existing, profile))
+                    Profiles[Profiles.IndexOf(existing)] = profile;
+            }
+        }
+        finally { _refreshingProfileLibrary = false; }
+    }
+
     private CalibrationRunRecord? _selectedHistoryRun;
     public CalibrationRunRecord? SelectedHistoryRun
     {

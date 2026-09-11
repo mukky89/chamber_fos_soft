@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.375] – 2026-09-11
+
+### Opravené
+
+- Výber profilu vo FBG kalibrácii pri otvorení načíta aktuálnu knižnicu. Nový profil uložený cez Rýchly profil je dostupný aj v už otvorenom kalibračnom okne bez reštartu. Obnova zachováva aktuálny profil, zapojenie a filtrovanie podľa zariadenia; počas behu nemení knižnicu.
+
 ## [1.76.374] – 2026-09-11
 
 ### Opravené

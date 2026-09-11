@@ -15,6 +15,15 @@ namespace VotschVc3.App.Views;
 
 public partial class CalibrationWindow : Window
 {
+    private async void CalibrationProfilePicker_Opening(object? sender, EventArgs e)
+    {
+        try { await _viewModel.RefreshProfileLibraryAsync(); }
+        catch (Exception ex)
+        {
+            AppLog.Warn("FBG profily", ex.Message);
+            ShowProductionInfo("Zoznam profilov sa nepodarilo obnoviť. Skús výber otvoriť znova.");
+        }
+    }
     /// <summary>Each chamber owns one independent, reusable calibration workspace.</summary>
     private static readonly Dictionary<Guid, CalibrationWindow> Instances = new();
 
