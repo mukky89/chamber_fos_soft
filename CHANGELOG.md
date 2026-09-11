@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.385] – 2026-09-11
+
+### Opravené
+
+- Ku kritériám rozsahu a smerodajnej odchýlky σ v karte WIKA pribudli otázniky s vysvetlením významu, aktuálnej hodnoty a limitu. Pomoc používa rovnaké rozbaľovacie okno ako ostatné kritériá.
+
+
 ## [1.76.384] – 2026-09-11
 
 ### Opravené

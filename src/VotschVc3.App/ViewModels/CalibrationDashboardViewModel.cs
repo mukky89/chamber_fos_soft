@@ -124,6 +124,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ReferenceTimeLabel => WaitingForChamber ? "Stabilný čas · začne po ustálení komory" : $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
     public string ReferenceRangeLabel => ReferenceMetricLabel("Rozsah", _snapshot?.ReferenceMetrics?.Range, _snapshot?.ReferenceRangeLimit);
     public string ReferenceStdDevLabel => ReferenceMetricLabel("σ", _snapshot?.ReferenceMetrics?.StandardDeviation, _snapshot?.ReferenceStdDevLimit);
+    public string ReferenceRangeHelp =>
+        "Rozsah je rozdiel medzi najvyššou a najnižšou teplotou WIKA vo vyhodnocovanom okne vzoriek. Menší rozsah znamená menšie kolísanie teploty. " +
+        ReferenceMetricLabel("Aktuálny rozsah", _snapshot?.ReferenceMetrics?.Range, _snapshot?.ReferenceRangeLimit) + ". " +
+        "Pri vypnutom limite rozsah neblokuje stabilitu. Pred splnením vstupnej kontroly komory sa stabilita WIKA nevyhodnocuje.";
+    public string ReferenceStdDevHelp =>
+        "σ (sigma) je smerodajná odchýlka teplôt WIKA vo vyhodnocovanom okne vzoriek. Vyjadruje rozptýlenie teplôt okolo ich priemeru; menšia hodnota znamená pokojnejší priebeh. Nie je to odchýlka od cieľovej teploty ani neistota teplomera. " +
+        ReferenceMetricLabel("Aktuálna σ", _snapshot?.ReferenceMetrics?.StandardDeviation, _snapshot?.ReferenceStdDevLimit) + ". " +
+        "Pri vypnutom limite σ neblokuje stabilitu. Samotné splnenie σ nestačí: musia vyhovieť aj ostatné zapnuté kritériá a požadovaný stabilný čas.";
     private string ReferenceMetricLabel(string name, double? value, double? limit) =>
         WaitingForChamber ? $"{name} · čaká na komoru" : value is null ? $"{name} · čaká na vzorky" : limit <= 0 ? $"{name} {value:F4} °C · limit vypnutý" : $"{name} {value:F4} / ≤ {limit:F4} °C";
     public string ReferenceRangeTone => WaitingForChamber ? "Pending" : _snapshot?.ReferenceMetrics is { } metrics &&
