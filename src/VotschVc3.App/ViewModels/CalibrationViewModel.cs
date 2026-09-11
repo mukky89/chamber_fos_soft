@@ -1328,31 +1328,45 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     /// </summary>
     private async Task MonitorPeakLoggerAsync(CancellationToken token)
     {
+        var client = _peakLogger;
+        var settings = _peakLoggerSettings;
+        if (client is null) return;
         while (!token.IsCancellationRequested && _peakLogger is not null)
         {
+            bool failed = false;
             try
             {
                 if (!(UseSimulator && IsRunning))
                 {
-                    IReadOnlyList<PeakLoggerMeasurement> measurements = await _peakLogger.ReadMeasurementsAsync(token);
-                    await Application.Current.Dispatcher.InvokeAsync(() => ApplyLivePeakMeasurements(measurements));
+                    IReadOnlyList<PeakLoggerMeasurement> measurements = await PeakLoggerLiveRecovery.ReadAsync(client, settings, token);
+                    token.ThrowIfCancellationRequested();
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        if (token.IsCancellationRequested || !ReferenceEquals(client, _peakLogger)) return;
+                        PeakLoggerConnected = true;
+                        PeakLoggerStatus = UseSimulator ? $"Pripojený · simulátor ({SimulatorScenario})" : "Pripojený";
+                        ApplyLivePeakMeasurements(measurements);
+                    });
 
                     await AppendCompatibleWlLogAsync(measurements, token);
                     await AppendWavelengthTraceIfDueAsync(measurements, force: false, token);
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
                 break;
             }
             catch (Exception ex)
             {
-                PeakLoggerStatus = $"Live monitor: {ex.Message}";
+                if (token.IsCancellationRequested || !ReferenceEquals(client, _peakLogger)) break;
+                failed = true;
+                PeakLoggerConnected = client.IsConnected;
+                PeakLoggerStatus = $"Live monitor: {ex.Message} · automatický pokus o obnovu o 5 s";
             }
 
             try
             {
-                await Task.Delay(_peakLoggerSettings.PollingInterval, token);
+                await Task.Delay(failed ? TimeSpan.FromSeconds(5) : settings.PollingInterval, token);
             }
             catch (OperationCanceledException)
             {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.377] – 2026-09-11
+
+### Opravené
+
+- Live monitor FBG po výpadku PeakLoggera automaticky obnovuje spojenie s pôvodným API aj počas kalibrácie. Neúspešný pokus opakuje po 5 sekundách, časový limit nezastaví monitor a návrat dát obnoví stav pripojenia bez zmeny zapojenia a SN. Zastavenie monitora zruší ďalšie pokusy; bezpečnostné pravidlá a rozhodnutia kalibračného behu ostávajú zachované.
+
 ## [1.76.376] – 2026-09-11
 
 ### Opravené
