@@ -31,6 +31,7 @@ public sealed partial class CalibrationOrchestrator
     }
 
     public event Action<CalibrationWarning>? WarningRaised;
+    public Func<IReadOnlyList<PeakLoggerMeasurement>, double?, DateTimeOffset, CancellationToken, Task>? MeasurementBatchObserved { get; set; }
     public Func<CancellationToken, Task>? ReconnectChamberAsync { get; set; }
     public Func<CancellationToken, Task>? ReconnectPeakLoggerAsync { get; set; }
 
@@ -329,12 +330,14 @@ public sealed partial class CalibrationOrchestrator
                     "FBG fáza ukončená · neúspešné peaky sú označené · ukladám plato."));
                 break;
             }
+            DateTimeOffset referenceSampleAt;
             try
             {
                 actualTemperature = await readChamberTemperatureAsync(cancellationToken).ConfigureAwait(false);
                 referenceTemperature = hasExternalReference
                     ? await readReferenceTemperatureAsync!(cancellationToken).ConfigureAwait(false)
                     : null;
+                referenceSampleAt = DateTimeOffset.UtcNow;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is IOException or TimeoutException or System.Net.Sockets.SocketException or HttpRequestException)
             {
@@ -503,6 +506,8 @@ public sealed partial class CalibrationOrchestrator
             try
             {
                 batch = await _peakLogger.ReadMeasurementsAsync(cancellationToken).ConfigureAwait(false);
+                if (MeasurementBatchObserved is { } observed)
+                    await observed(batch, referenceTemperature, referenceSampleAt, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ReconnectChamberAsync is not null &&
                 !settings.OperatorSupervisionEnabled && (ex is IOException or TimeoutException or HttpRequestException or OperationCanceledException ||

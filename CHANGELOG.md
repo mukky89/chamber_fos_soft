@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.354] – 2026-09-11
+
+### Pridané
+
+- Každý FBG beh automaticky ukladá kompatibilný kontinuálny `_WL.txt` log s WIKA referenciou, 16 kanálmi, produkčnými SN a vybranými peakmi. Zachováva tabulátory vrátane koncových, CRLF, timestamp na päť desatinných miest sekundy, desatinnú čiarku, teplotu na tri a wavelength na päť miest.
+- Log využíva existujúce merania v intervale akvizície behu aj počas nábehov a stabilizácie, nezávisle od voliteľného CSV trace. Overuje čerstvosť referencie a pevné mapovanie; neúplné merania preskočí s diagnostikou. Pokračovanie overí hlavičku a identity, nezduplikuje údaje a zachová neúplný koniec po páde v samostatnom súbore. Log sa replikuje s výsledkami na server.
+
 ## [1.76.353] – 2026-09-11
 
 ### Zmenené

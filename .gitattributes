@@ -13,3 +13,6 @@
 *.yaml text eol=lf
 *.json text eol=lf
 *.xml text eol=lf
+
+# Byte-exact legacy WLN fixtures must retain their original tabs and CRLF.
+tests/VotschVc3.Core.Tests/Fixtures/Wl/*.txt -text

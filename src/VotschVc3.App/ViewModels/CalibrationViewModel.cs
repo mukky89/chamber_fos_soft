@@ -74,6 +74,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     private CalibrationRunWriter? _activeWriter;
     private readonly SemaphoreSlim _wavelengthTraceGate = new(1, 1);
     private DateTimeOffset _nextWavelengthTraceAt = DateTimeOffset.MinValue;
+    private CalibrationWlLog? _activeWlLog;
     private CalibrationSetup _setup = new();
     private bool _stopRequested;
     private bool _temperatureGateOverridePending;
@@ -1205,6 +1206,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                     IReadOnlyList<PeakLoggerMeasurement> measurements = await _peakLogger.ReadMeasurementsAsync(token);
                     await Application.Current.Dispatcher.InvokeAsync(() => ApplyLivePeakMeasurements(measurements));
 
+                    await AppendCompatibleWlLogAsync(measurements, token);
                     await AppendWavelengthTraceIfDueAsync(measurements, force: false, token);
                 }
             }
@@ -1226,6 +1228,24 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 break;
             }
         }
+    }
+
+    private async Task AppendCompatibleWlLogAsync(IReadOnlyList<PeakLoggerMeasurement> measurements, CancellationToken token)
+    {
+        CalibrationWlLog? log = _activeWlLog;
+        if (log is null || !IsRunning) return;
+        var reference = await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var device = SelectedF100;
+            bool assigned = device is { IsConnected: true } &&
+                string.Equals(device.PortName, _activeRun?.ReferenceThermometerPort, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(device.SerialNumber, _activeRun?.ReferenceThermometerSerialNumber, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(device.SelectedChannel, _activeRun?.ReferenceThermometerChannel, StringComparison.OrdinalIgnoreCase);
+            return (Temperature: assigned ? device!.Temperature : null, At: assigned ? device!.LastUpdate : null);
+        });
+        await log.AppendAsync(measurements, reference.Temperature,
+            reference.At, _setup.Settings.SampleAcquisitionIntervalSeconds, token);
+        if (_activeRun is { } run) _calibrationStore.RequestReplication(run);
     }
 
     private async Task AppendWavelengthTraceIfDueAsync(
@@ -1962,6 +1982,12 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             _nextWavelengthTraceAt = DateTimeOffset.MaxValue;
             await using CalibrationRunWriter writer = await Task.Run(() => _calibrationStore.CreateRunWriter(_activeRun, append: resume is not null));
             _activeWriter = writer;
+            await using CalibrationWlLog wlLog = await Task.Run(() => new CalibrationWlLog(
+                _calibrationStore.GetRunDirectory(_activeRun), _activeRun, _setup,
+                message => writer.WriteDiagnostic("WARNING", "WLN_LOG", message)));
+            _activeWlLog = wlLog;
+            writer.WriteDiagnostic("INFO", "WLN_LOG_CREATED",
+                $"files={string.Join(';', wlLog.Paths)}; intervalSeconds={_setup.Settings.SampleAcquisitionIntervalSeconds}; referenceMaxAgeSeconds=10");
             CalibrationTerminalLines.Clear();
             CalibrationTerminalLines.Add($"{DateTimeOffset.Now:HH:mm:ss.fff}  RUN  {_activeRun.DisplayRunId}  {writer.DiagnosticFilePath}");
             writer.DiagnosticWritten += line => _ = Application.Current.Dispatcher.InvokeAsync(() =>
@@ -2001,6 +2027,12 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             var runPeakLoggerSettings = _peakLoggerSettings;
             var orchestrator = new CalibrationOrchestrator(runPeakLogger)
             {
+                MeasurementBatchObserved = async (batch, reference, referenceAt, token) =>
+                {
+                    // Use the actual WIKA reading timestamp and verify its original assignment,
+                    // just as the live monitor does; never substitute a chamber/simulator value.
+                    await AppendCompatibleWlLogAsync(batch, token);
+                },
                 ReconnectPeakLoggerAsync = token => runPeakLogger.ConnectAsync(runPeakLoggerSettings, token),
                 ReconnectChamberAsync = async token =>
                 {
@@ -2108,6 +2140,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             Dashboard.End(Enum.TryParse<CalibrationRunState>(RunState, out var finalState) ? finalState : CalibrationRunState.Failed,
                 StatusMessage, DateTimeOffset.Now);
             _activeWriter = null;
+            _activeWlLog = null;
             _runner = null;
             if (_freshStartPending && _chamber is null)
             {
