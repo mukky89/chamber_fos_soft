@@ -43,7 +43,15 @@ public sealed class CalibrationCompletionEmailTests
         Assert.Contains("Kalibrácia: FAIL", message.Text);
         Assert.Contains("Záverečné overenie: WARNING", message.Text);
         Assert.Contains("DOKONČENÁ S UPOZORNENIAMI", message.Text);
-        Assert.Contains("Max. chyba 0,500 °C; limit 0,100 °C", html);
+        Assert.Contains("Tolerancia [°C]", html);
+        Assert.Contains("Tolerancia [% rozsahu]", html);
+        Assert.Contains("0,500", html);
+        Assert.Contains("0,100", html);
+        Assert.Contains("background-color:#DCFCE7;color:#166534", html);
+        Assert.Contains("background-color:#FEE2E2;color:#991B1B", html);
+        string calibrationTable = html[html.IndexOf("<h2 style=\"font-size:17px\">Výsledky kalibrácie a tolerancie")..html.IndexOf("<h2 style=\"font-size:17px\">Podmienky záverečného overenia")];
+        Assert.Contains(">PASS</span>", calibrationTable);
+        Assert.Contains(">FAIL</span>", calibrationTable);
         Assert.Equal(4, html.Split("Nestabilná WIKA").Length - 1);
         Assert.Contains("Teplota z koef. [°C]", html);
         Assert.Contains("WIKA [°C]", html);

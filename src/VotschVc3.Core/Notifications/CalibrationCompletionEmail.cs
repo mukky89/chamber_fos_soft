@@ -32,7 +32,7 @@ public static class CalibrationCompletionEmail
         var models = results.GroupBy(Key).ToDictionary(g => g.Key, g => g.ToArray());
         var measurements = run.Plateaus.SelectMany(p => p.Targets).GroupBy(Key).ToDictionary(g => g.Key, g => g.ToArray());
         var keys = models.Keys.Union(measurements.Keys).OrderBy(k => k, StringComparer.Ordinal).ToArray();
-        var failures = new List<string[]>();
+        var calibrationRows = new List<string[]>();
         var warnings = new List<string[]>();
         var verification = new List<string[]>();
         int failedPeaks = 0, unknownPeaks = 0, warningPeaks = 0;
@@ -51,12 +51,18 @@ public static class CalibrationCompletionEmail
             var unknown = peakModels.Where(r => r.Result != "PASS" && r.Result != "FAIL").ToArray();
             if (failed.Length > 0) failedPeaks++;
             else if (unknown.Length > 0 || peakModels.Length == 0) unknownPeaks++;
-            foreach (var item in failed)
-                failures.Add([sn, source, item.CalibrationType, $"Max. chyba {N(item.MaxErrorC)} °C; limit {N(item.ErrorToleranceC)} °C ({LimitPercent(item)}). {item.StabilityProblem}".Trim()]);
-            foreach (var item in unknown)
-                failures.Add([sn, source, item.CalibrationType, $"N/A – {item.StabilityProblem ?? "Model sa nedá vyhodnotiť."}"]);
+            foreach (var item in peakModels)
+            {
+                bool evaluated = item.Result is "PASS" or "FAIL";
+                calibrationRows.Add([sn, source, item.CalibrationType,
+                    evaluated ? N(item.MaxErrorC) : "N/A",
+                    evaluated ? N(item.ErrorToleranceC) : "N/A",
+                    evaluated ? LimitPercent(item) : "N/A",
+                    item.Result,
+                    item.StabilityProblem ?? (evaluated ? "—" : "Model sa nedá vyhodnotiť.")]);
+            }
             if (peakModels.Length == 0)
-                failures.Add([sn, source, "N/A", "Chýbajú kalibračné modely. " + string.Join("; ", samples.Select(s => s.Problem).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct())]);
+                calibrationRows.Add([sn, source, "N/A", "N/A", "N/A", "N/A", "N/A", "Chýbajú kalibračné modely. " + string.Join("; ", samples.Select(s => s.Problem).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct())]);
             string[] problems = samples.Where(s => s.Status != CalibrationTargetState.Stable)
                 .Select(s => s.Problem ?? s.Status.ToString())
                 .Concat(peakModels.Select(r => r.StabilityProblem ?? ""))
@@ -101,8 +107,8 @@ public static class CalibrationCompletionEmail
             $"<a href=\"{H(new Uri(serverRunDirectory.TrimEnd('\\', '/') + '/').AbsoluteUri)}\" style=\"display:inline-block;background:#1769AA;color:white;padding:14px 18px;text-decoration:none;border-radius:6px\">Otvoriť výsledky kalibrácie na serveri</a><p style=\"word-break:break-all\">{H(serverPath)}</p>";
         var plain = new StringBuilder(summary + "\n\nServerový priečinok: " + serverPath);
         string details = Section("Súbory kalibrácie", link);
-        details += Render("Peaky, ktoré neprešli kalibráciou / nevyhodnotené", ["SN", "Kanál / peak", "Model", "Dôvod"], failures,
-            keys.Length == 0 ? "Nie sú dostupné výsledky peakov." : "Žiadny peak nemá výsledok FAIL ani N/A.", plain);
+        details += Render("Výsledky kalibrácie a tolerancie", ["SN", "Kanál / peak", "Model", "Max. chyba [°C]", "Tolerancia [°C]", "Tolerancia [% rozsahu]", "Výsledok", "Dôvod / poznámka"], calibrationRows,
+            "Nie sú dostupné výsledky peakov.", plain, groupBySerial: true, statusColumn: 6);
         if (warnings.Count > 0)
             details += Render("Upozornenia kalibrácie", ["SN", "Kanál / peak", "Upozornenie"], warnings, "", plain);
         string reference = "WIKA pri kontrolnom odbere: " + string.Join("; ", results.Select(r => N(r.FinalReferenceTemperatureC)).Distinct()) + " °C.";

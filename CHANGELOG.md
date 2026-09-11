@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.353] – 2026-09-11
+
+### Zmenené
+
+- Kalibračný e-mail zobrazuje všetky modely v tabuľke Výsledky kalibrácie a tolerancie. Maximálna chyba, tolerancia v °C a percento rozsahu majú samostatné stĺpce; výsledky PASS/FAIL sú zvýraznené zeleným/červeným štítkom a nevyhodnotené modely uvádzajú N/A.
+
 ## [1.76.352] – 2026-09-11
 
 ### Zmenené
