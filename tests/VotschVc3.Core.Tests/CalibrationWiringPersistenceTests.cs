@@ -9,6 +9,7 @@ public sealed class CalibrationWiringPersistenceTests
     {
         PeakLoggerDeviceSerialNumber = "LOGGER", Channel = channel, PeakId = "P1", SerialNumber = sn,
         ChannelSerialNumber = sn, SensorName = "SC-01/T", Selected = true, Notes = "Keep", Order = "Order",
+        ProductionFbgType = "T", ProductionFbgTypeDetail = "API peak P1",
         StabilizationTimeoutOverride = TimeSpan.FromMinutes(42)
     };
     [Fact]
@@ -69,6 +70,8 @@ public sealed class CalibrationWiringPersistenceTests
             File.WriteAllText(path, "{broken");
             var restored = new CalibrationStore(root).LoadSetup(setup.ProfileId, setup.ChamberId)!;
             Assert.Equal("291877/0001", Assert.Single(restored.Mappings).SerialNumber);
+            Assert.Equal("T", restored.Mappings[0].ProductionFbgType);
+            Assert.Equal("API peak P1", restored.Mappings[0].ProductionFbgTypeDetail);
             Assert.Null(store.LoadSetup(setup.ProfileId, Guid.NewGuid()));
             restored.Mappings = CalibrationWiringPersistence.MergeVisibleMappings(restored.Mappings, []);
             store.SaveSetup(restored);

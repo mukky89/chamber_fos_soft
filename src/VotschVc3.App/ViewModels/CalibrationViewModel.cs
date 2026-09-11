@@ -3089,8 +3089,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     {
         PeakLoggerDeviceSerialNumber = sensor.SerialNumber;
         _chainSerialNumber = saved?.ChainSerialNumber ?? string.Empty;
-        ApiMetadata.SensorName = saved?.SensorName ?? string.Empty;
-        ApiMetadata.SylexSerialNumber = VotschVc3.App.Calibration.SylexFosRowMetadataStore.ParseSerialNumber(saved?.SerialNumber);
+        ApiMetadata.Restore(saved);
         _channelSerialNumber = CalibrationWiringPersistence.ChannelSerial(saved);
         Channel = sensor.Channel;
         PeakId = peak.PeakId;
@@ -3109,6 +3108,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         _customer = saved?.Customer ?? string.Empty;
         _order = saved?.Order ?? string.Empty;
         _timeoutMinutes = saved?.StabilizationTimeoutOverride?.TotalMinutes ?? 0;
+        ApiMetadata.PropertyChanged += (_, _) => OnPropertyChanged(nameof(ApiMetadata));
     }
 
     public string PeakLoggerDeviceSerialNumber { get; }
@@ -3237,6 +3237,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
     {
         ChannelSerialNumber = CalibrationWiringPersistence.ChannelSerial(mapping);
         ChainSerialNumber = mapping.ChainSerialNumber ?? string.Empty;
+        ApiMetadata.Restore(mapping);
         Core1 = mapping.Core1;
         Core2 = mapping.Core2;
         Selected = mapping.Selected;
@@ -3260,6 +3261,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         Core2 = Core2,
         SerialNumber = SerialNumber,
         SensorName = ApiMetadata.SensorName,
+        ProductionFbgType = ApiMetadata.FbgType,
+        ProductionFbgTypeDetail = ApiMetadata.FbgTypeDetail,
         ChannelSerialNumber = ChannelSerialNumber,
         ChainSerialNumber = ChainSerialNumber,
         PeakLoggerDeviceSerialNumber = PeakLoggerDeviceSerialNumber,

@@ -160,6 +160,8 @@ public sealed class CalibrationSensorMapping
 
     /// <summary>SN shared by every peak on one PeakLogger channel (normal wiring).</summary>
     public string SensorName { get; set; } = string.Empty;
+    public string ProductionFbgType { get; set; } = string.Empty;
+    public string ProductionFbgTypeDetail { get; set; } = string.Empty;
     public string ChannelSerialNumber { get; set; } = string.Empty;
 
     /// <summary>Optional per-peak SN override for CHAIN wiring; wins over channel SN.</summary>

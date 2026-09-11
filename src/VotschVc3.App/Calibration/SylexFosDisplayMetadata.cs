@@ -1,9 +1,10 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using VotschVc3.Core.Calibration;
 
 namespace VotschVc3.App.Calibration;
 
-/// <summary>Transient API fields with cell-level notifications, independent of live peak samples.</summary>
+/// <summary>Saved production metadata with cell-level notifications, independent of live peak samples.</summary>
 public sealed class SylexFosDisplayMetadata : INotifyPropertyChanged
 {
     private string _sensorName = string.Empty;
@@ -16,6 +17,18 @@ public sealed class SylexFosDisplayMetadata : INotifyPropertyChanged
     public string SylexSerialNumber { get => _sylexSerialNumber; set => Set(ref _sylexSerialNumber, value); }
     public string FbgType { get => _fbgType; set => Set(ref _fbgType, value); }
     public string FbgTypeDetail { get => _fbgTypeDetail; set => Set(ref _fbgTypeDetail, value); }
+
+    public void Restore(CalibrationSensorMapping? mapping)
+    {
+        if (mapping is null) return;
+        string serial = FbgSerialParser.Parse(mapping.SerialNumber);
+        if (!string.Equals(SylexSerialNumber, serial, StringComparison.OrdinalIgnoreCase)) Clear();
+        SylexSerialNumber = serial;
+        if (string.IsNullOrWhiteSpace(serial)) return;
+        if (!string.IsNullOrWhiteSpace(mapping.SensorName)) SensorName = mapping.SensorName;
+        if (!string.IsNullOrWhiteSpace(mapping.ProductionFbgType)) FbgType = mapping.ProductionFbgType;
+        if (!string.IsNullOrWhiteSpace(mapping.ProductionFbgTypeDetail)) FbgTypeDetail = mapping.ProductionFbgTypeDetail;
+    }
 
     public void Clear()
     {

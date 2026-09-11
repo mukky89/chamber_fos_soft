@@ -20,6 +20,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private readonly SylexFosApiProductionMetadataProvider _metadataProvider;
     private readonly Dictionary<CalibrationPeakRowViewModel, CancellationTokenSource> _lookups = new();
     private readonly HashSet<CalibrationPeakRowViewModel> _attachedRows = new();
+    private readonly HashSet<CalibrationPeakRowViewModel> _pendingMetadata = new();
     private bool _disposed;
     private bool _configurationWarningLogged;
     private int _apiAvailable;
@@ -37,6 +38,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
         _viewModel.Peaks.CollectionChanged += OnPeaksChanged;
         foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks) AttachRow(row);
+        _ = RetryMetadataAsync();
     }
 
     public async Task InitializeAsync()
@@ -104,6 +106,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
         // finishing. Treat detach as null-safe/idempotent instead of allowing a UI refresh to crash.
         if (row is null) return;
         _attachedRows.Remove(row);
+        _pendingMetadata.Remove(row);
         row.PropertyChanged -= OnRowPropertyChanged;
         // Discovery reuses these same row instances after Peaks.Clear(). Detaching only
         // ends subscriptions/lookups; keep their metadata visible during reattachment
@@ -132,7 +135,8 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
 
         SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
         string serialNumber = SylexFosRowMetadataStore.GetSerialNumber(row);
-        if (string.IsNullOrWhiteSpace(serialNumber)) return;
+        if (string.IsNullOrWhiteSpace(serialNumber)) { _pendingMetadata.Remove(row); return; }
+        _pendingMetadata.Add(row);
 
         var cts = new CancellationTokenSource();
         _lookups[row] = cts;
@@ -154,6 +158,8 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                 {
                     if (cancellationToken.IsCancellationRequested || !_attachedRows.Contains(row) ||
                         !string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)) return;
+                    if (IsEditingWiring()) return;
+                    _pendingMetadata.Remove(row); // An authoritative not-found is not a transport failure.
                     RowValidationFailed?.Invoke(this, new SylexFosRowValidationIssue(
                         row,
                         serialNumber,
@@ -162,10 +168,12 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                 return;
             }
 
+            bool applied = false;
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (cancellationToken.IsCancellationRequested || !_attachedRows.Contains(row) ||
                         !string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)) return;
+                if (IsEditingWiring()) return;
                 var sensorRows = _viewModel.Peaks.Where(p => !p.IsDisconnected &&
                     string.Equals(p.Channel, row.Channel, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(p.PeakLoggerDeviceSerialNumber, row.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
@@ -186,8 +194,11 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                     target.ApiMetadata.FbgTypeDetail = $"SN {serialNumber} · kanál {target.Channel} · {target.PeakId}\n" +
                         (metadata.Fbg is { Count: > 0 } || string.IsNullOrWhiteSpace(metadata.FbgType)
                             ? types[i].Detail : "Typ prevzatý z výrobného záznamu API.");
+                    _pendingMetadata.Remove(target);
                 }
+                applied = sensorRows.Length > 0;
             });
+            if (!applied) return;
 
             AppLog.Info(
                 "Sylex FOS API",
@@ -221,6 +232,30 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                 }
             });
         }
+    }
+
+    private bool IsEditingWiring() =>
+        _viewModel.PeaksView is System.ComponentModel.IEditableCollectionView editable &&
+            (editable.IsAddingNew || editable.IsEditingItem) ||
+        System.Windows.Input.Keyboard.FocusedElement is System.Windows.Controls.TextBox;
+
+    private async Task RetryMetadataAsync()
+    {
+        try
+        {
+            while (!_disposed)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), _healthLifetime.Token).ConfigureAwait(false);
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (_disposed || IsEditingWiring()) return;
+                    foreach (var row in _pendingMetadata.ToArray())
+                        if (_attachedRows.Contains(row) && !_lookups.ContainsKey(row) && !row.IsDisconnected)
+                            ScheduleLookup(row);
+                });
+            }
+        }
+        catch (OperationCanceledException) when (_healthLifetime.IsCancellationRequested) { }
     }
 
     private async Task CheckApiAsync()

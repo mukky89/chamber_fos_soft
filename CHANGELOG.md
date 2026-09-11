@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.379] – 2026-09-11
+
+### Opravené
+
+- Typ FBG a jeho vysvetlenie sa ukladajú so zapojením a obnovia sa aj bez dostupného výrobného API. Aktualizácia metadát spustí automatické uloženie. Neúspešné načítanie API sa opakuje po 30 sekundách bez prestavby tabuľky a mimo editácie; zmena SN odstráni údaje predchádzajúceho snímača.
+
 ## [1.76.378] – 2026-09-11
 
 ### Opravené
