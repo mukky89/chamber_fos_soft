@@ -1,10 +1,51 @@
 using VotschVc3.Core.Calibration;
 using Xunit;
+using ClosedXML.Excel;
 
 namespace VotschVc3.Core.Tests;
 
 public sealed class TemperatureCalibrationAnalysisTests
 {
+    [Fact]
+    public void WorkbookLimitPercentageUsesRowToleranceAndPreservesResultColumns()
+    {
+        var run = new CalibrationRunRecord();
+        foreach (double temperature in new[] { 20d, 30d, 40d, 50d, 60d })
+            run.Plateaus.Add(new CalibrationPlateauResult
+            {
+                ReferenceTemperatureC = temperature,
+                Targets = [new CalibrationMeasurementResult
+                {
+                    SerialNumber = "SN", Channel = "1", PeakId = "P1", SampleCount = 50,
+                    Status = CalibrationTargetState.Stable, MeanWavelengthNm = 1550 + temperature * 0.01,
+                }],
+            });
+        string directory = Path.Combine(Path.GetTempPath(), "calibration-limit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            TemperatureCalibrationAnalyzer.Export(run, directory);
+            using var book = new XLWorkbook(Path.Combine(directory, "calibration-coefficients.xlsx"));
+            var sheet = book.Worksheet("Koeficienty");
+            Assert.Equal("Limit [°C]", sheet.Cell("T4").GetString());
+            Assert.Equal("Limit [% rozsahu]", sheet.Cell("U4").GetString());
+            Assert.Equal(0.01, sheet.Cell("U5").GetDouble(), 8);
+            Assert.Equal("0.###%", sheet.Cell("U5").Style.NumberFormat.Format);
+            Assert.Equal("Výsledok", sheet.Cell("W4").GetString());
+            Assert.Equal(run.CalibrationResults[0].Result, sheet.Cell("W5").GetString());
+            Assert.Equal(34, sheet.AutoFilter.Range.ColumnCount());
+            sheet.Cell("T5").Value = 1;
+            book.RecalculateAllFormulas();
+            Assert.Equal(0.025, sheet.Cell("U5").GetDouble(), 8);
+            sheet.Cell("I5").Value = sheet.Cell("H5").Value;
+            book.RecalculateAllFormulas();
+            Assert.Equal("N/A", sheet.Cell("U5").GetString());
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }
+
     [Fact]
     public void LinearSensorProducesPaliCompatibleReferenceSensitivityAndPassResult()
     {

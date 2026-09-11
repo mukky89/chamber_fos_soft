@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.351] – 2026-09-11
+
+### Zmenené
+
+- Excel s kalibračnými koeficientmi zobrazuje vedľa limitu v °C aj limit v percentách nameraného rozsahu každého modelu. Vzorec vychádza z jeho limitu a teplôt Min/Max; vysvetlenie uvádza platnosť aj pre záverečné overenie a pri nepoužiteľnom rozsahu sa zobrazí N/A.
+
 ## [1.76.350] – 2026-09-11
 
 ### Zmenené

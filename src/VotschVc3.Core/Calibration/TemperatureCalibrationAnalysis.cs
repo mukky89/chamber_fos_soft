@@ -251,6 +251,22 @@ public static partial class TemperatureCalibrationAnalyzer
         sheet.SheetView.FreezeRows(4);
         sheet.RangeUsed()?.SetAutoFilter();
         sheet.Columns().AdjustToContents(8, 26);
+        // Insert after styling the existing columns to preserve their established indices.
+        sheet.Column(20).InsertColumnsAfter(1);
+        sheet.Cell(4, 21).Value = "Limit [% rozsahu]";
+        sheet.Column(21).Width = 22;
+        for (int resultRow = 5; resultRow < row; resultRow++)
+        {
+            // Use the saved tolerance and measured range of this model, never a fixed 1%.
+            sheet.Cell(resultRow, 21).FormulaA1 = $"IF(AND(I{resultRow}>H{resultRow},T{resultRow}>=0),T{resultRow}/(I{resultRow}-H{resultRow}),\"N/A\")";
+            sheet.Cell(resultRow, 21).Style.NumberFormat.Format = "0.###%";
+        }
+        sheet.Range("A3:AH3").Merge();
+        sheet.Cell("A3").Value = "Limit [% rozsahu] = limit [°C] / (Max − Min). Rovnaký limit platí pre maximálnu chybu modelu aj záverečnú kontrolu. N/A = nepoužiteľný rozsah.";
+        sheet.Cell("A3").Style.Alignment.WrapText = true;
+        sheet.Row(3).Height = 30;
+        sheet.Range(4, 1, Math.Max(4, row - 1), headers.Length + 1).SetAutoFilter();
+        workbook.RecalculateAllFormulas();
         workbook.SaveAs(path);
     }
 
