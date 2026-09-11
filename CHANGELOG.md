@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.386] – 2026-09-11
+
+### Opravené
+
+- Stabilita teploty toleruje iba numerický šum pri porovnaní odchýlky, rozsahu, σ a driftu s limitmi (1e-10). Rozsah medzi −19,523 a −19,553 °C tak neresetuje stabilný čas pri limite 0,030 °C. Skutočné prekročenia zostávajú nevyhovujúce; nastavenia limitov sa nemenia. Karta WIKA a diagnostický text používajú rovnaké porovnanie ako detektor.
+
+
 ## [1.76.385] – 2026-09-11
 
 ### Opravené

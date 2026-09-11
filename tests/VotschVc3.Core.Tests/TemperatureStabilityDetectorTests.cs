@@ -5,6 +5,34 @@ namespace VotschVc3.Core.Tests;
 
 public sealed class TemperatureStabilityDetectorTests
 {
+    [Theory]
+    [InlineData(-19.553, true)]
+    [InlineData(-19.5531, false)]
+    [InlineData(-19.557, false)]
+    public void RecordedRangeBoundaryAcceptsEqualityButRejectsRealExcess(double minimum, bool accepted)
+    {
+        var detector = new TemperatureStabilityDetector(TimeSpan.FromSeconds(600), 1, 0.03, 0.03, 0.01);
+        var start = DateTimeOffset.Parse("2026-09-11T18:00:00+02:00");
+        detector.Add(start, -19.523, -20);
+        for (int second = 1; second < 600; second++)
+            detector.Add(start.AddSeconds(second), -19.523 - 0.015 * second / 599, -20);
+        var result = detector.Add(start.AddSeconds(600), minimum, -20);
+        Assert.Equal(accepted, result.IsStable);
+        Assert.Equal(accepted ? 600 : 0, detector.StableScoreSeconds);
+        if (accepted) Assert.Null(detector.LastResetReason);
+        else Assert.Contains("rozsah", detector.LastResetReason);
+    }
+
+    [Theory]
+    [InlineData(0.030000000000001137, 0.03, true)]
+    [InlineData(0.010000000000001, 0.01, true)]
+    [InlineData(0.0300001, 0.03, false)]
+    [InlineData(double.NaN, 0.03, false)]
+    [InlineData(double.PositiveInfinity, 0.03, false)]
+    public void NumericalSlackOnlyAcceptsFiniteRoundingNoise(double value, double limit, bool expected)
+    {
+        Assert.Equal(expected, TemperatureStabilityDetector.IsWithinLimit(value, limit));
+    }
     [Fact]
     public void ResetReasonSurvivesFreshSamplesUntilExplicitReset()
     {

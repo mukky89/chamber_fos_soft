@@ -112,7 +112,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         "Ak je odchýlka väčšia, stabilný čas sa nezbiera a FBG stabilizácia sa ešte nespustí. " +
         "Komora sa reguluje vlastným interným regulátorom; WIKA slúži iba ako autoritatívna referencia stability.";
     public string ReferenceToleranceTone => WaitingForChamber ? "Pending" : _snapshot?.ReferenceTemperatureC is { } reference &&
-        Math.Abs(reference - _snapshot.TargetTemperatureC) <= StabilityToleranceC ? "Done" : "Waiting";
+        TemperatureStabilityDetector.IsWithinLimit(Math.Abs(reference - _snapshot.TargetTemperatureC), StabilityToleranceC) ? "Done" : "Waiting";
     public string ReferenceDriftLabel => WaitingForChamber ? "Drift · čaká na komoru" : _snapshot?.TemperatureDriftCPerMinute is not { } drift
         ? "Drift · čaká na blok 5 vzoriek"
         : $"Drift {Math.Abs(drift):F3} / ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min";
@@ -120,7 +120,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         $"Drift vyjadruje lineárnu rýchlosť zmeny WIKA teploty podľa skutočných časov vzoriek. " +
         $"Blok vyhovuje, iba ak prísnejší drift z celého okna alebo posledných 120 sekúnd neprekročí {_stabilityMaxDriftCPerMinute:F3} °C/min a posledná vzorka je v tolerancii cieľa.";
     public string ReferenceDriftTone => WaitingForChamber ? "Pending" : _snapshot?.TemperatureDriftCPerMinute is { } drift &&
-        (_stabilityMaxDriftCPerMinute <= 0 || Math.Abs(drift) <= _stabilityMaxDriftCPerMinute) ? "Done" : "Waiting";
+        (_stabilityMaxDriftCPerMinute <= 0 || TemperatureStabilityDetector.IsWithinLimit(Math.Abs(drift), _stabilityMaxDriftCPerMinute)) ? "Done" : "Waiting";
     public string ReferenceTimeLabel => WaitingForChamber ? "Stabilný čas · začne po ustálení komory" : $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
     public string ReferenceRangeLabel => ReferenceMetricLabel("Rozsah", _snapshot?.ReferenceMetrics?.Range, _snapshot?.ReferenceRangeLimit);
     public string ReferenceStdDevLabel => ReferenceMetricLabel("σ", _snapshot?.ReferenceMetrics?.StandardDeviation, _snapshot?.ReferenceStdDevLimit);
@@ -135,9 +135,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private string ReferenceMetricLabel(string name, double? value, double? limit) =>
         WaitingForChamber ? $"{name} · čaká na komoru" : value is null ? $"{name} · čaká na vzorky" : limit <= 0 ? $"{name} {value:F4} °C · limit vypnutý" : $"{name} {value:F4} / ≤ {limit:F4} °C";
     public string ReferenceRangeTone => WaitingForChamber ? "Pending" : _snapshot?.ReferenceMetrics is { } metrics &&
-        (_snapshot.ReferenceRangeLimit <= 0 || metrics.Range <= _snapshot.ReferenceRangeLimit) ? "Done" : "Waiting";
+        (_snapshot.ReferenceRangeLimit <= 0 || TemperatureStabilityDetector.IsWithinLimit(metrics.Range, _snapshot.ReferenceRangeLimit)) ? "Done" : "Waiting";
     public string ReferenceStdDevTone => WaitingForChamber ? "Pending" : _snapshot?.ReferenceMetrics is { } metrics &&
-        (_snapshot.ReferenceStdDevLimit <= 0 || metrics.StandardDeviation <= _snapshot.ReferenceStdDevLimit) ? "Done" : "Waiting";
+        (_snapshot.ReferenceStdDevLimit <= 0 || TemperatureStabilityDetector.IsWithinLimit(metrics.StandardDeviation, _snapshot.ReferenceStdDevLimit)) ? "Done" : "Waiting";
     public string ReferenceResetLabel => WaitingForChamber ? "Vyhodnocovanie začne po ustálení komory. WIKA sa zatiaľ iba meria a zaznamenáva." : _snapshot?.ReferenceResetReason is { } reason ? $"Posledný reset: {reason}" : "Čas stability zatiaľ nebol resetovaný.";
     public string ReferenceTimeHelp =>
         $"Všetky vzorky musia súvisle počas {Duration(_stableDuration)} spĺňať toleranciu ±{StabilityToleranceC:F3} °C, rozsah, σ a drift. " +

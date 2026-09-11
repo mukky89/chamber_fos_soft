@@ -882,11 +882,11 @@ public sealed partial class CalibrationOrchestrator
 
         double measured = referenceTemperature ?? chamberTemperature;
         double error = measured - targetTemperature;
-        bool toleranceOk = Math.Abs(error) <= settings.ChamberToleranceC;
+        bool toleranceOk = TemperatureStabilityDetector.IsWithinLimit(Math.Abs(error), settings.ChamberToleranceC);
         bool durationOk = metrics.WindowDuration >= settings.ChamberStableDuration;
-        bool driftOk = settings.MaxChamberDriftCPerMinute <= 0 || Math.Abs(metrics.SlopePerMinute) <= settings.MaxChamberDriftCPerMinute;
-        bool rangeOk = settings.MaxChamberRangeC <= 0 || metrics.Range <= settings.MaxChamberRangeC;
-        bool stdDevOk = settings.MaxChamberStdDevC <= 0 || metrics.StandardDeviation <= settings.MaxChamberStdDevC;
+        bool driftOk = settings.MaxChamberDriftCPerMinute <= 0 || TemperatureStabilityDetector.IsWithinLimit(Math.Abs(metrics.SlopePerMinute), settings.MaxChamberDriftCPerMinute);
+        bool rangeOk = settings.MaxChamberRangeC <= 0 || TemperatureStabilityDetector.IsWithinLimit(metrics.Range, settings.MaxChamberRangeC);
+        bool stdDevOk = settings.MaxChamberStdDevC <= 0 || TemperatureStabilityDetector.IsWithinLimit(metrics.StandardDeviation, settings.MaxChamberStdDevC);
         return $"{source} {measured:F3} °C · Δ {error:+0.000;-0.000;0.000} / ±{settings.ChamberToleranceC:F3} {(toleranceOk ? "✓" : "×")} · " +
                $"stabilný čas {FormatTime(metrics.WindowDuration)}/{FormatTime(settings.ChamberStableDuration)} {(durationOk ? "✓" : "(NESPLNENÉ – treba dlhšie súvislé stabilné meranie)")} · " +
                $"rozsah {metrics.Range:F3}/{settings.MaxChamberRangeC:F3} °C {(rangeOk ? "✓" : "×")} · " +

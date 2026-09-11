@@ -133,6 +133,11 @@ public sealed class RollingStabilityDetector
 /// </summary>
 public sealed class TemperatureStabilityDetector
 {
+    // Arithmetic slack only: ten million times smaller than a 0.001 °C reading.
+    // Prevent subtraction/regression rounding from rejecting an inclusive limit.
+    public static bool IsWithinLimit(double value, double limit) =>
+        double.IsFinite(value) && double.IsFinite(limit) && value <= limit + 1e-10;
+
     private static readonly TimeSpan ShortTermDriftWindow = TimeSpan.FromMinutes(2);
     private readonly TimeSpan _requiredDuration;
     private readonly double _toleranceC;
@@ -180,7 +185,7 @@ public sealed class TemperatureStabilityDetector
 
     public StabilityMetrics Add(DateTimeOffset timestamp, double value, double target)
     {
-        bool toleranceOk = Math.Abs(value - target) <= _toleranceC;
+        bool toleranceOk = IsWithinLimit(Math.Abs(value - target), _toleranceC);
         if (!toleranceOk || !double.IsFinite(value))
         {
             ResetWindow();
@@ -199,9 +204,9 @@ public sealed class TemperatureStabilityDetector
             _window.RemoveAt(0);
         }
         StabilityMetrics candidate = BuildMetrics(_window, false);
-        bool rangeOk = _maxRangeC <= 0 || candidate.Range <= _maxRangeC;
-        bool stdDevOk = _maxStdDevC <= 0 || candidate.StandardDeviation <= _maxStdDevC;
-        bool driftOk = _maxDriftCPerMinute <= 0 || Math.Abs(candidate.SlopePerMinute) <= _maxDriftCPerMinute;
+        bool rangeOk = _maxRangeC <= 0 || IsWithinLimit(candidate.Range, _maxRangeC);
+        bool stdDevOk = _maxStdDevC <= 0 || IsWithinLimit(candidate.StandardDeviation, _maxStdDevC);
+        bool driftOk = _maxDriftCPerMinute <= 0 || IsWithinLimit(Math.Abs(candidate.SlopePerMinute), _maxDriftCPerMinute);
 
         if (!rangeOk || !stdDevOk || !driftOk)
         {
