@@ -6,6 +6,19 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationPeakTopologyPolicyTests
 {
     [Theory]
+    [InlineData(true, true, "logger|2.2", false)]
+    [InlineData(true, true, "logger|3.1", true)]
+    [InlineData(false, true, "logger|3.1", false)]
+    [InlineData(true, false, "logger|3.1", false)]
+    [InlineData(true, true, "other-logger|3.1", false)]
+    public void PairingOnlyBlocksForPreviouslyPresentAssignedPeaksOnCandidateChannel(
+        bool presentAtStart, bool requiresReconnect, string previousChannel, bool expected)
+    {
+        Assert.Equal(expected, CalibrationPeakTopologyPolicy.BlocksPairing(
+            presentAtStart, requiresReconnect, previousChannel, new[] { "LOGGER|3.1" }));
+    }
+
+    [Theory]
     [InlineData(true, false, "", false, true, false)]
     [InlineData(true, false, "291877/0001", false, false, true)]
     [InlineData(true, true, "", false, false, true)]

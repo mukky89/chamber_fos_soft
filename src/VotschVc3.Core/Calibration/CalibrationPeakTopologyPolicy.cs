@@ -6,6 +6,11 @@ namespace VotschVc3.Core.Calibration;
 /// </summary>
 public static class CalibrationPeakTopologyPolicy
 {
+    public static bool BlocksPairing(bool wasPresentAtStart, bool requiresReconnect,
+        string previousSourceChannel, IEnumerable<string> candidateSourceChannels) =>
+        wasPresentAtStart && requiresReconnect &&
+        candidateSourceChannels.Contains(previousSourceChannel, StringComparer.OrdinalIgnoreCase);
+
     public static bool RequiresReconnect(bool disconnected, bool selected, string? serialNumber) =>
         disconnected && (selected || !string.IsNullOrWhiteSpace(serialNumber));
 

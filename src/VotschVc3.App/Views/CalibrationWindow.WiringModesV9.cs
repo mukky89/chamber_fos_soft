@@ -223,7 +223,7 @@ public partial class CalibrationWindow
         _candidateSince = DateTime.UtcNow;
         _sequentialPendingSn = sn;
         _pairingPanel?.SetStage(2, sn);
-        _sequentialBaseline = CurrentPeakIdentities();
+        _sequentialBaseline = _viewModel.Peaks.Where(p => !p.IsDisconnected).Select(PeakIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase);
         _sequentialSnBox.IsEnabled = false;
         _sequentialArmButton.IsEnabled = false;
         _sequentialStatus.Text = $"SN {sn} je pripravené. Pripoj snímač.\nÚdaje z API sa načítavajú na pozadí…";
@@ -263,10 +263,14 @@ public partial class CalibrationWindow
             rows.Select(p => ($"{p.Channel} / {p.PeakId}", p.CurrentWavelengthNm)), _pairingMetadata?.Fbg));
         string signature = string.Join(";", rows.Select(PeakIdentity).OrderBy(x => x));
         if (signature != _candidateSignature) { _candidateSignature = signature; _candidateSince = DateTime.UtcNow; }
-        bool missing = _viewModel.Peaks.Any(p => _sequentialBaseline.Contains(PeakIdentity(p)) && p.RequiresReconnect);
-        bool singleChannel = rows.Select(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}").Distinct().Count() == 1;
+        string[] candidateChannels = rows.Select(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}")
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        bool missing = _viewModel.Peaks.Any(p => CalibrationPeakTopologyPolicy.BlocksPairing(
+            _sequentialBaseline.Contains(PeakIdentity(p)), p.RequiresReconnect,
+            $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}", candidateChannels));
+        bool singleChannel = candidateChannels.Length == 1;
         _pairingPanel.ConfirmPeaks.IsEnabled = rows.Count > 0 && singleChannel && !missing && (DateTime.UtcNow - _candidateSince).TotalSeconds >= 3;
-        _pairingPanel.Candidates.Text = missing ? "Pôvodné peaky chýbajú. Skontroluj pripojenie pred potvrdením." :
+        _pairingPanel.Candidates.Text = missing ? "Na párovanom kanáli chýbajú pôvodné priradené peaky. Skontroluj jeho pripojenie." :
             rows.Count == 0 ? "Čakám na nové peaky…" :
             $"Nové peaky: {rows.Count}\n" + string.Join(", ", rows.Select(p => $"{p.Channel} / {p.PeakId} · {p.CurrentWavelengthNm:F3} nm")) +
             (singleChannel ? "\nSkontroluj počet peakov snímača a potvrď priradenie." : "\nPribudlo viac kanálov. Pripájaj iba jeden snímač naraz.");

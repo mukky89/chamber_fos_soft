@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.362] – 2026-09-11
+
+### Opravené
+
+- Priradenie nového FBG snímača neblokujú chýbajúce peaky na inom kanáli ani riadky neprítomné už pri začatí párovania. Kontrola straty pôvodných priradených peakov ostáva aktívna na párovanom kanáli.
+
 ## [1.76.361] – 2026-09-11
 
 ### Opravené
