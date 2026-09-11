@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.349] – 2026-09-11
+
+### Opravené
+
+- Dokončovacie e-maily FBG kalibrácie cez Brevo už neposielajú prázdne pole príloh, ktoré služba odmietala chybou „attachment is missing“. Správy bez príloh vynechávajú voliteľné pole; skutočné prílohy zostávajú zachované. Regresné testy overujú dokončovaciu správu, prázdne aj nenastavené prílohy a prenos súboru.
+
 ## [1.76.348] – 2026-09-10
 
 ### Opravené

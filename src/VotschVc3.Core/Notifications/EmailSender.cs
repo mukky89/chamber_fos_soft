@@ -3,6 +3,8 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Net.Mime;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace VotschVc3.Core.Notifications;
 
@@ -104,6 +106,10 @@ public sealed class SmtpEmailSender : IEmailSender
 /// <summary>Sends transactional e-mail using the same Brevo HTTPS API as FOS Dashboard.</summary>
 public sealed class BrevoEmailSender : IEmailSender
 {
+    private static readonly JsonSerializerOptions PayloadOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
     private static readonly HttpClient SharedClient = new() { Timeout = TimeSpan.FromSeconds(20) };
     private readonly EmailSettings _settings;
     private readonly HttpClient _http;
@@ -141,18 +147,19 @@ public sealed class BrevoEmailSender : IEmailSender
             subject = message.Subject,
             textContent = message.Body,
             htmlContent = message.HtmlBody,
-            attachment = message.Attachments?.Select(a => new
+            attachment = message.Attachments is { Count: > 0 } ? message.Attachments.Select(a => new
             {
                 name = a.FileName,
                 content = Convert.ToBase64String(a.Content),
-            }).ToArray(),
+            }).ToArray() : null,
         };
         if (payload.to.Length == 0)
         {
             throw new InvalidOperationException("Chýba platný adresát.");
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = JsonContent.Create(payload) };
+        // Brevo rejects an empty attachment array; omit absent optional fields entirely.
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = JsonContent.Create(payload, options: PayloadOptions) };
         request.Headers.TryAddWithoutValidation("api-key", apiKey);
         request.Headers.TryAddWithoutValidation("accept", "application/json");
         using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
