@@ -36,16 +36,11 @@ public sealed class ChamberTemperatureSeriesConverter : IMultiValueConverter
         if (values[0] is not IReadOnlyList<DashboardTemperatureSample> samples || samples.Count == 0)
             return Array.Empty<ChartSeries>();
         DateTimeOffset origin = samples[0].Timestamp;
-        var phases = new List<(DateTimeOffset Start, string Label, Brush Color)>
-        {
-            (origin, "Komora – stabilizácia", Brushes.DodgerBlue)
-        };
-        if (values[1] is DateTimeOffset reference)
-            phases.Add((reference < origin ? origin : reference, "WIKA – stabilizácia", Brushes.DeepSkyBlue));
-        if (values[2] is DateTimeOffset fbg)
-            phases.Add((fbg, "FBG – stabilizácia", Brushes.Orange));
-        if (values[3] is DateTimeOffset measurement)
-            phases.Add((measurement, "FBG – odber vzoriek", Brushes.MediumSeaGreen));
+        var phases = values[1] is IReadOnlyList<DashboardTemperaturePhase> history
+            ? history.Select(p => (p.Start, p.Label, Color: (Brush)new BrushConverter().ConvertFromInvariantString(p.Color)!)).ToList()
+            : new List<(DateTimeOffset Start, string Label, Brush Color)>();
+        if (phases.Count == 0 || phases[0].Start > origin)
+            phases.Insert(0, (origin, "Priebežná teplota komory", Brushes.SlateGray));
         var series = new List<ChartSeries>();
         for (int i = 0; i < phases.Count; i++)
         {
@@ -359,16 +354,10 @@ public partial class CalibrationDashboardView : UserControl
 
         ReferenceTraceChart.Series = series;
         var combinedSeries = new List<ChartSeries>();
-        var phases = new List<(DateTimeOffset Start, string Label, Brush Color)>
-        {
-            (origin, "Priebežná teplota WIKA", Brushes.SlateGray)
-        };
-        if (vm.ReferenceStabilityStartedAt is { } referenceStart)
-            phases.Add((referenceStart < origin ? origin : referenceStart, "WIKA – stabilizácia", Brushes.DeepSkyBlue));
-        if (vm.FbgStabilityStartedAt is { } fbgStart)
-            phases.Add((fbgStart, "FBG – stabilizácia", Brushes.Orange));
-        if (vm.FbgMeasurementStartedAt is { } measurementStart)
-            phases.Add((measurementStart, "FBG – odber vzoriek", Brushes.MediumSeaGreen));
+        var phases = vm.TemperaturePhases.Select(p =>
+            (p.Start, p.Label, Color: (Brush)new BrushConverter().ConvertFromInvariantString(p.Color)!)).ToList();
+        if (phases.Count == 0 || phases[0].Start > origin)
+            phases.Insert(0, (origin, "Priebežná teplota WIKA", Brushes.SlateGray));
         for (int i = 0; i < phases.Count; i++)
         {
             var phase = phases[i];

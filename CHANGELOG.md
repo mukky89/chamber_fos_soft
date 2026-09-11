@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.387] – 2026-09-11
+
+### Opravené
+
+- Grafy WIKA a komory uchovávajú jednotlivé prechody medzi stabilizáciou WIKA, stabilizáciou FBG a odberom. Návrat k WIKA ukončí oranžový úsek; nové spustenie FBG začína nový úsek v skutočnom čase. Predchádzajúce úseky zostávajú zachované a ďalšie plato začína novú históriu.
+
+
 ## [1.76.386] – 2026-09-11
 
 ### Opravené

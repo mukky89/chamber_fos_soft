@@ -5,6 +5,25 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void TemperaturePhasesPreserveWikaReturnAndRestartFbgAtActualTime()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 0), Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0), Start.AddMinutes(10));
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0), Start.AddMinutes(11));
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 0), Start.AddMinutes(12));
+        Assert.Null(m.FbgStabilityStartedAt);
+        Assert.Null(m.FbgMeasurementStartedAt);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0), Start.AddMinutes(22));
+        Assert.Equal(Start.AddMinutes(22), m.FbgStabilityStartedAt);
+        Assert.Equal(new[] { "WIKA – stabilizácia", "FBG – stabilizácia", "WIKA – stabilizácia", "FBG – stabilizácia" },
+            m.TemperaturePhases.Select(p => p.Label));
+        Assert.Equal(new[] { Start, Start.AddMinutes(10), Start.AddMinutes(12), Start.AddMinutes(22) },
+            m.TemperaturePhases.Select(p => p.Start));
+        m.Apply(Snapshot(CalibrationRunState.MovingToPlateau, 1) with { TargetTemperatureC = 30 }, Start.AddMinutes(30));
+        Assert.Single(m.TemperaturePhases);
+        Assert.Equal(Start.AddMinutes(30), m.TemperaturePhases[0].Start);
+    }
     [Fact] public void ReferenceCriteriaAreNeutralUntilChamberOpens()
     {
         var model = Model();

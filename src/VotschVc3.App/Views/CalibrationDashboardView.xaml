@@ -250,9 +250,7 @@
         <views:ChartView.Series>
          <MultiBinding Converter="{StaticResource ChamberTemperatureSeriesConverter}">
           <Binding Path="ChamberTemperatureTrace"/>
-          <Binding Path="ReferenceStabilityStartedAt"/>
-          <Binding Path="FbgStabilityStartedAt"/>
-          <Binding Path="FbgMeasurementStartedAt"/>
+          <Binding Path="TemperaturePhases"/>
          </MultiBinding>
         </views:ChartView.Series>
        </views:ChartView>

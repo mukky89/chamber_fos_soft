@@ -297,6 +297,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string PhaseElapsed { get; private set; } = "—";
     public string PointElapsed => _snapshot is null ? "—" : Duration(_snapshot.PlateauElapsed);
     public DateTimeOffset? CurrentPlateauTraceStart { get; private set; }
+    private readonly List<DashboardTemperaturePhase> _temperaturePhases = new();
+    public IReadOnlyList<DashboardTemperaturePhase> TemperaturePhases => _temperaturePhases.ToArray();
     public DateTimeOffset? FbgStabilityStartedAt { get; private set; }
     public DateTimeOffset? FbgMeasurementStartedAt { get; private set; }
     public string Eta { get; private set; } = "Po prvom bode";
@@ -410,6 +412,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         _started = _phaseStarted = now; _ended = null; _snapshot = null; _lastSnapshotAt = null; _observedCycleSeconds = null;
         _latestChamberTemperature = null; LastTemperatureSampleAt = null; RunId = "Pripravuje sa…";
         CurrentPlateauTraceStart = null;
+        _temperaturePhases.Clear();
         FbgStabilityStartedAt = null;
         FbgMeasurementStartedAt = null;
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
@@ -514,6 +517,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (plateauChanged)
         {
             _lastFbgSampleAt = null;
+            _temperaturePhases.Clear();
             FbgStabilityStartedAt = null;
             FbgMeasurementStartedAt = null;
             _chamberTemperatureTrace.Clear();
@@ -522,10 +526,36 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             FbgStabilityCharts.Clear();
             AddEvent(now, "INFO", $"Začal sa bod {snapshot.PlateauIndex + 1} / {snapshot.PlateauCount} na {Target}.");
         }
+        if (snapshot.State == CalibrationRunState.WaitingForChamberStability)
+        {
+            FbgStabilityStartedAt = null;
+            FbgMeasurementStartedAt = null;
+        }
         if (snapshot.State == CalibrationRunState.StabilizingSensors)
+        {
             FbgStabilityStartedAt ??= now;
-        if (snapshot.Targets.Any(t => t.MeasurementSamples > 0))
-            FbgMeasurementStartedAt ??= now;
+            if (snapshot.Targets.Any(t => t.MeasurementSamples > 0))
+                FbgMeasurementStartedAt ??= now;
+        }
+        string? phaseLabel = snapshot.State switch
+        {
+            CalibrationRunState.WaitingForChamberStability => WaitingForChamber ? "Komora – stabilizácia" : "WIKA – stabilizácia",
+            CalibrationRunState.StabilizingSensors => FbgMeasurementStartedAt is not null ? "FBG – odber vzoriek" : "FBG – stabilizácia",
+            CalibrationRunState.MovingToPlateau => "Priebežná teplota",
+            _ => null
+        };
+        if (phaseLabel is not null && (_temperaturePhases.Count == 0 || _temperaturePhases[^1].Label != phaseLabel))
+        {
+            string color = phaseLabel switch
+            {
+                "Komora – stabilizácia" => "DodgerBlue",
+                "WIKA – stabilizácia" => "DeepSkyBlue",
+                "FBG – stabilizácia" => "Orange",
+                "FBG – odber vzoriek" => "MediumSeaGreen",
+                _ => "SlateGray"
+            };
+            _temperaturePhases.Add(new DashboardTemperaturePhase(now, phaseLabel, color));
+        }
         int stableScoreSeconds = TemperatureStableScoreSeconds;
         int requiredStableScoreSeconds = snapshot.RequiredTemperatureScoreSeconds ?? 0;
         bool stableTimeStarted = snapshot.State == CalibrationRunState.WaitingForChamberStability && stableScoreSeconds > 0 &&
@@ -1039,3 +1069,5 @@ public sealed record FbgStabilitySample(double Minutes, double WavelengthNm);
 public sealed record DashboardEvent(string Time, string Level, string Plateau, string Temperatures, string Message);
 
 public sealed record PlateauDiagnosticGraph(string Title, string Unit, List<DashboardTemperatureSample> Samples);
+
+public sealed record DashboardTemperaturePhase(DateTimeOffset Start, string Label, string Color);
