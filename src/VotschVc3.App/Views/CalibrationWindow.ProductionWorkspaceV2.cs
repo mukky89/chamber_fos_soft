@@ -149,10 +149,11 @@ public partial class CalibrationWindow
         // Keep one deterministic left-to-right table composition on every window size.
         // The check box is followed by 14 data fields; production metadata never moves
         // into a secondary panel or changes position when runtime enrichments load.
+        AddSensorLinksColumn();
         string[] columnOrder =
         {
             "Kalibrovať", "Kanál", "Peak ID", "FBG index", "Aktuálna λ [nm]", "Intenzita",
-            "Typ FBG", "Sylex SN", "FBG sensor SN (kanál)", "FBG sensor SN CHAIN",
+            "Typ FBG", "Sylex SN", "Otvoriť", "FBG sensor SN (kanál)", "FBG sensor SN CHAIN",
             "Zákazka", "Názov snímača", "Popis výrobku", "Poznámky",
         };
         for (int displayIndex = 0; displayIndex < columnOrder.Length; displayIndex++)

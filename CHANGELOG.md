@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.359] – 2026-09-11
+
+### Pridané
+
+- Tabuľka zapojenia FBG obsahuje ikony ISYS a DBFOS na otvorenie záznamu v prehliadači podľa šesťmiestneho čísla pred lomkou v SN snímača.
+
 ## [1.76.358] – 2026-09-11
 
 ### Opravené
