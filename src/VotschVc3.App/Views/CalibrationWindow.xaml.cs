@@ -142,9 +142,8 @@ public partial class CalibrationWindow : Window
                 Header = "Názov snímača",
                 IsReadOnly = true,
                 Width = new DataGridLength(0.85, DataGridLengthUnitType.Star),
-                Binding = new Binding
+                Binding = new Binding("ApiMetadata.SensorName")
                 {
-                    Converter = new SylexFosSensorNameConverter(),
                     Mode = BindingMode.OneWay,
                 },
             };

@@ -26,7 +26,6 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     private readonly CancellationTokenSource _healthLifetime = new();
 
     public event EventHandler<SylexFosLookupStatus>? LookupStatusChanged;
-    public event EventHandler<CalibrationPeakRowViewModel>? MetadataApplied;
     public event EventHandler<SylexFosRowValidationIssue>? RowValidationFailed;
 
     public SylexFosCalibrationIntegration(CalibrationViewModel viewModel)
@@ -86,7 +85,6 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
             {
                 if (item is not CalibrationPeakRowViewModel row) continue;
                 AttachRow(row);
-                if (!string.IsNullOrWhiteSpace(row.SerialNumber)) ScheduleLookup(row);
             }
         }
     }
@@ -95,7 +93,7 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
     {
         if (row is null || _disposed || !_attachedRows.Add(row)) return;
         row.PropertyChanged += OnRowPropertyChanged;
-        SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
+        ScheduleLookup(row);
     }
 
     private void DetachRow(CalibrationPeakRowViewModel? row)
@@ -129,7 +127,6 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
             previous.Dispose();
         }
 
-        SylexFosSensorNameStore.Remove(row);
         SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
         string serialNumber = SylexFosRowMetadataStore.GetSerialNumber(row);
         if (string.IsNullOrWhiteSpace(serialNumber)) return;
@@ -152,36 +149,34 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                 AppLog.Info("Sylex FOS API", $"FBG SN {serialNumber}: záznam nebol nájdený alebo sa nezhoduje kanál/sonda.");
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (!_attachedRows.Contains(row)) return;
+                    if (cancellationToken.IsCancellationRequested || !_attachedRows.Contains(row) ||
+                        !string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)) return;
                     RowValidationFailed?.Invoke(this, new SylexFosRowValidationIssue(
                         row,
                         serialNumber,
                         $"Sylex FOS: SN {serialNumber} sa nenašlo pre kanál {row.Channel} alebo sa sonda nezhoduje."));
-                    MetadataApplied?.Invoke(this, row);
                 });
                 return;
             }
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                if (!_attachedRows.Contains(row)) return;
-                string currentParsed = SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber);
-                if (!string.Equals(currentParsed, serialNumber, StringComparison.OrdinalIgnoreCase)) return;
-                if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) row.ProductDescription = metadata.ProductDescription;
-                SylexFosSensorNameStore.Set(row, metadata.SensorName);
+                if (cancellationToken.IsCancellationRequested || !_attachedRows.Contains(row) ||
+                        !string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(row.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)) return;
                 var sensorRows = _viewModel.Peaks.Where(p => !p.IsDisconnected &&
                     p.Channel == row.Channel && p.PeakLoggerDeviceSerialNumber == row.PeakLoggerDeviceSerialNumber &&
-                    SylexFosRowMetadataStore.ParseSerialNumber(p.SerialNumber) == serialNumber).ToArray();
+                    string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(p.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)).ToArray();
                 var types = FbgWavelengthComparison.ResolveTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
                 for (int i = 0; i < sensorRows.Length; i++)
                 {
-                    SylexFosRowMetadataStore.SetApiMetadata(sensorRows[i], metadata.SylexSerialNumber ?? serialNumber,
+                    var target = sensorRows[i];
+                    SylexFosSensorNameStore.Set(target, metadata.SensorName);
+                    if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) target.ProductDescription = metadata.ProductDescription;
+                    if (!string.IsNullOrWhiteSpace(metadata.Order)) target.Order = metadata.Order;
+                    if (!string.IsNullOrWhiteSpace(metadata.CustomerName)) target.Customer = metadata.CustomerName;
+                    SylexFosRowMetadataStore.SetApiMetadata(target, metadata.SylexSerialNumber ?? serialNumber,
                         metadata.Fbg is { Count: > 0 } ? types[i] ?? "Neurčený" : metadata.FbgType);
-                    if (!ReferenceEquals(sensorRows[i], row)) MetadataApplied?.Invoke(this, sensorRows[i]);
                 }
-                if (!string.IsNullOrWhiteSpace(metadata.Order)) row.Order = metadata.Order;
-                if (!string.IsNullOrWhiteSpace(metadata.CustomerName)) row.Customer = metadata.CustomerName;
-                MetadataApplied?.Invoke(this, row);
             });
 
             AppLog.Info(

@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Data;
 using VotschVc3.App.ViewModels;
@@ -13,23 +12,10 @@ namespace VotschVc3.App.Calibration;
 /// </summary>
 public static class SylexFosSensorNameStore
 {
-    private sealed class Holder
-    {
-        public string Value { get; set; } = string.Empty;
-    }
-
-    private static readonly ConditionalWeakTable<CalibrationPeakRowViewModel, Holder> Values = new();
-
-    public static void Set(CalibrationPeakRowViewModel row, string? sensorName)
-    {
-        Holder holder = Values.GetOrCreateValue(row);
-        holder.Value = sensorName?.Trim() ?? string.Empty;
-    }
-
-    public static string Get(CalibrationPeakRowViewModel? row) =>
-        row is not null && Values.TryGetValue(row, out Holder? holder) ? holder.Value : string.Empty;
-
-    public static void Remove(CalibrationPeakRowViewModel row) => Values.Remove(row);
+    public static void Set(CalibrationPeakRowViewModel row, string? sensorName) =>
+        row.ApiMetadata.SensorName = sensorName?.Trim() ?? string.Empty;
+    public static string Get(CalibrationPeakRowViewModel? row) => row?.ApiMetadata.SensorName ?? string.Empty;
+    public static void Remove(CalibrationPeakRowViewModel row) => row.ApiMetadata.SensorName = string.Empty;
 }
 
 public sealed class SylexFosSensorNameConverter : IValueConverter

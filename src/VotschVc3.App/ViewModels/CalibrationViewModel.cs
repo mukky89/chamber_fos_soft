@@ -2902,6 +2902,7 @@ public sealed record CalibrationChamberOption(ChamberConfig Config)
 
 public sealed class CalibrationPeakRowViewModel : ObservableObject
 {
+    public VotschVc3.App.Calibration.SylexFosDisplayMetadata ApiMetadata { get; } = new();
     private bool _selected;
     private string _channelSerialNumber;
     private string _chainSerialNumber;

@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Data;
@@ -13,14 +12,6 @@ namespace VotschVc3.App.Calibration;
 /// </summary>
 public static partial class SylexFosRowMetadataStore
 {
-    private sealed class Holder
-    {
-        public string SylexSerialNumber { get; set; } = string.Empty;
-        public string FbgType { get; set; } = string.Empty;
-    }
-
-    private static readonly ConditionalWeakTable<CalibrationPeakRowViewModel, Holder> Values = new();
-
     [GeneratedRegex(@"(?<![A-Za-z0-9])[A-Za-z0-9]{6}/[A-Za-z0-9]{4}(?![A-Za-z0-9])", RegexOptions.IgnoreCase)]
     private static partial Regex SylexSerialRegex();
 
@@ -28,24 +19,27 @@ public static partial class SylexFosRowMetadataStore
 
     public static void SetParsedSerial(CalibrationPeakRowViewModel row, string? raw)
     {
-        Values.GetOrCreateValue(row).SylexSerialNumber = ParseSerialNumber(raw);
+        string parsed = ParseSerialNumber(raw);
+        if (!string.Equals(row.ApiMetadata.SylexSerialNumber, parsed, StringComparison.OrdinalIgnoreCase))
+            row.ApiMetadata.Clear();
+        row.ApiMetadata.SylexSerialNumber = parsed;
     }
 
     public static void SetApiMetadata(CalibrationPeakRowViewModel row, string? serialNumber, string? fbgType)
     {
-        Holder holder = Values.GetOrCreateValue(row);
+        SylexFosDisplayMetadata holder = row.ApiMetadata;
         if (!string.IsNullOrWhiteSpace(serialNumber))
             holder.SylexSerialNumber = ParseSerialNumber(serialNumber);
         holder.FbgType = fbgType?.Trim() ?? string.Empty;
     }
 
     public static string GetSerialNumber(CalibrationPeakRowViewModel? row) =>
-        row is not null && Values.TryGetValue(row, out Holder? holder) ? holder.SylexSerialNumber : string.Empty;
+        row?.ApiMetadata.SylexSerialNumber ?? string.Empty;
 
     public static string GetFbgType(CalibrationPeakRowViewModel? row) =>
-        row is not null && Values.TryGetValue(row, out Holder? holder) ? holder.FbgType : string.Empty;
+        row?.ApiMetadata.FbgType ?? string.Empty;
 
-    public static void Remove(CalibrationPeakRowViewModel row) => Values.Remove(row);
+    public static void Remove(CalibrationPeakRowViewModel row) => row.ApiMetadata.Clear();
 }
 
 public sealed class SylexFosSerialNumberConverter : IValueConverter

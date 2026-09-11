@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.360] – 2026-09-11
+
+### Opravené
+
+- Názov snímača a spoločné produkčné údaje sa doplnia ku všetkým peakom rovnakého SN na kanáli. API údaje aktualizujú jednotlivé bunky bez obnovovania celej tabuľky a preblikávania; zrušené odpovede už neprepíšu nové priradenie.
+
 ## [1.76.359] – 2026-09-11
 
 ### Pridané

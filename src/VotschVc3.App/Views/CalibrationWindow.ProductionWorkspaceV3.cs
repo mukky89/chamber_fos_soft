@@ -41,8 +41,6 @@ public partial class CalibrationWindow
 {
     private bool _productionWorkspaceV3Initialized;
     private bool _wiringEditActive;
-    private bool _pendingWiringRefresh;
-    private bool _wiringRefreshScheduled;
     private CancellationTokenSource? _silentReferenceReadCts;
     private TextBlock? _productionPlanText;
     private TextBlock? _productionStepText;
@@ -66,12 +64,6 @@ public partial class CalibrationWindow
             row.PropertyChanged += OnProductionRowPropertyChangedV3;
         }
         _viewModel.Peaks.CollectionChanged += OnProductionPeaksCollectionChangedV3;
-
-        if (_sylexFosIntegration is not null)
-        {
-            _sylexFosIntegration.MetadataApplied -= OnSylexMetadataApplied;
-            _sylexFosIntegration.MetadataApplied += OnSylexMetadataAppliedV3;
-        }
 
         // Reuse the existing timers but replace their handlers. The 5 s WIKA refresh now reads
         // directly in the background instead of executing the UI-bound "Načítať teplotu" command.
@@ -150,11 +142,10 @@ public partial class CalibrationWindow
     private void WiringGrid_CellEditEndingV3(object? sender, DataGridCellEditEndingEventArgs e)
     {
         // CellEditEnding fires before WPF leaves the CollectionView edit transaction. Do not
-        // refresh here. Return to the dispatcher first, then flush any deferred visual update.
+        // refresh here. Return to the dispatcher first, then release the edit guard.
         _ = Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
         {
             _wiringEditActive = false;
-            if (_pendingWiringRefresh) RequestWiringGridRefreshV3();
 
             // The VM already autosaves with a short debounce on every SN change. This final save
             // on commit is an additional persistence point and never runs while the cell is editing.
@@ -169,7 +160,6 @@ public partial class CalibrationWindow
         {
             if (_wiringGrid?.IsKeyboardFocusWithin == true) return;
             _wiringEditActive = false;
-            if (_pendingWiringRefresh) RequestWiringGridRefreshV3();
         }));
     }
 
@@ -184,33 +174,6 @@ public partial class CalibrationWindow
 
         return _wiringGrid.IsKeyboardFocusWithin &&
                FindProductionDescendants<TextBox>(_wiringGrid).Any(box => box.IsKeyboardFocused || box.IsKeyboardFocusWithin);
-    }
-
-    private void RequestWiringGridRefreshV3()
-    {
-        _pendingWiringRefresh = true;
-        if (_wiringRefreshScheduled || _wiringGrid is null) return;
-        _wiringRefreshScheduled = true;
-
-        _ = Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
-        {
-            _wiringRefreshScheduled = false;
-            if (_wiringGrid is null) return;
-            if (IsWiringGridEditingV3()) return; // leave pending=true; edit-end will retry
-
-            try
-            {
-                _wiringGrid.Items.Refresh();
-                _pendingWiringRefresh = false;
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Defensive guard for a CollectionView transaction that began between the check
-                // and Refresh(). Never surface this to the operator; retry after the edit ends.
-                _pendingWiringRefresh = true;
-                AppLog.Info("FBG zapojenie", $"Refresh odložený do ukončenia editácie: {ex.Message}");
-            }
-        }));
     }
 
     private void OnProductionPeaksCollectionChangedV3(object? sender, NotifyCollectionChangedEventArgs e)
@@ -244,23 +207,13 @@ public partial class CalibrationWindow
             or nameof(CalibrationPeakRowViewModel.SerialNumber))
         {
             SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
-            RequestWiringGridRefreshV3();
+            // Parsed metadata notifies its own cell bindings.
         }
 
         if (e.PropertyName is nameof(CalibrationPeakRowViewModel.Selected)
             or nameof(CalibrationPeakRowViewModel.ChannelSerialNumber)
             or nameof(CalibrationPeakRowViewModel.ChainSerialNumber))
             UpdateProductionPlanAndStepV3();
-    }
-
-    private void OnSylexMetadataAppliedV3(object? sender, CalibrationPeakRowViewModel row)
-    {
-        if (!Dispatcher.CheckAccess())
-        {
-            _ = Dispatcher.BeginInvoke(new Action(() => OnSylexMetadataAppliedV3(sender, row)));
-            return;
-        }
-        RequestWiringGridRefreshV3();
     }
 
     private async void ReferenceFiveSecondTimer_TickV3(object? sender, EventArgs e)
@@ -501,7 +454,6 @@ public partial class CalibrationWindow
             point.PropertyChanged -= OnCalibrationPointPropertyChangedV3;
         foreach (CalibrationPeakRowViewModel row in _productionObservedRows.ToArray())
             row.PropertyChanged -= OnProductionRowPropertyChangedV3;
-        if (_sylexFosIntegration is not null) _sylexFosIntegration.MetadataApplied -= OnSylexMetadataAppliedV3;
         if (_referenceFiveSecondTimer is not null) _referenceFiveSecondTimer.Tick -= ReferenceFiveSecondTimer_TickV3;
         if (_topologyTimer is not null) _topologyTimer.Tick -= TopologyTimer_TickV3;
         _silentReferenceReadCts?.Cancel();

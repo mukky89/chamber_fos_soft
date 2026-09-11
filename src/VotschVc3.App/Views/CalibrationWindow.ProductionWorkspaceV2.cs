@@ -80,9 +80,6 @@ public partial class CalibrationWindow
         foreach (CalibrationPeakRowViewModel row in _viewModel.Peaks) AttachProductionRow(row);
         _lastProfileSelection = _viewModel.SelectedProfile?.Id;
 
-        if (_sylexFosIntegration is not null)
-            _sylexFosIntegration.MetadataApplied += OnSylexMetadataApplied;
-
         Closed += OnProductionWorkspaceClosed;
 
         _ = Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
@@ -127,7 +124,7 @@ public partial class CalibrationWindow
         DataGridColumn? fbgTypeColumn = _wiringGrid.Columns.FirstOrDefault(c => HeaderText(c.Header) == "Typ FBG");
         if (fbgTypeColumn is DataGridBoundColumn fbgBound)
         {
-            fbgBound.Binding = new Binding(".") { Converter = new SylexFosFbgTypeConverter(), Mode = BindingMode.OneWay };
+            fbgBound.Binding = new Binding("ApiMetadata.FbgType") { Mode = BindingMode.OneWay };
             fbgBound.IsReadOnly = true;
         }
 
@@ -136,7 +133,7 @@ public partial class CalibrationWindow
             var sylexColumn = new DataGridTextColumn
             {
                 Header = "Sylex SN",
-                Binding = new Binding(".") { Converter = new SylexFosSerialNumberConverter(), Mode = BindingMode.OneWay },
+                Binding = new Binding("ApiMetadata.SylexSerialNumber") { Mode = BindingMode.OneWay },
                 IsReadOnly = true,
                 Width = new DataGridLength(118),
                 MinWidth = 105,
@@ -420,7 +417,7 @@ public partial class CalibrationWindow
             or nameof(CalibrationPeakRowViewModel.SerialNumber))
         {
             SylexFosRowMetadataStore.SetParsedSerial(row, row.SerialNumber);
-            _wiringGrid?.Items.Refresh();
+            // Metadata bindings update individual cells without rebuilding row containers.
             // Existing VM has a 350 ms debounce; this explicit save adds a second safety net so
             // every completed SN field is already on disk before the operator moves to the next row.
             _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
@@ -429,16 +426,6 @@ public partial class CalibrationWindow
                     _viewModel.SaveSetupCommand.Execute(null);
             }));
         }
-    }
-
-    private void OnSylexMetadataApplied(object? sender, CalibrationPeakRowViewModel row)
-    {
-        if (!Dispatcher.CheckAccess())
-        {
-            _ = Dispatcher.BeginInvoke(new Action(() => OnSylexMetadataApplied(sender, row)));
-            return;
-        }
-        _wiringGrid?.Items.Refresh();
     }
 
     private void SchedulePeakIdentityReconcile()
@@ -723,7 +710,6 @@ public partial class CalibrationWindow
         _viewModel.PropertyChanged -= OnProductionWorkspacePropertyChanged;
         _viewModel.Peaks.CollectionChanged -= OnProductionPeaksCollectionChanged;
         foreach (CalibrationPeakRowViewModel row in _productionObservedRows.ToArray()) DetachProductionRow(row);
-        if (_sylexFosIntegration is not null) _sylexFosIntegration.MetadataApplied -= OnSylexMetadataApplied;
         _referenceFiveSecondTimer?.Stop();
         _topologyTimer?.Stop();
         _rowReconcileCts?.Cancel();
