@@ -144,8 +144,11 @@ public sealed partial class CalibrationOrchestrator
             hasExternalReference, DateTimeOffset.UtcNow, writer.SaveSettlingProgress, settlingAttempt);
         settling.Attempt.FromTemperatureC = transitionFromTemperatureC;
         var chamberEntry = new ChamberEntryGate();
+        bool referenceEntryReady = false;
+        DateTimeOffset? referenceEvaluationStartedAt = null;
         var publishProgress = progress;
-        progress = snapshot => publishProgress?.Invoke(snapshot with { ChamberEntry = chamberEntry.Status });
+        progress = snapshot => publishProgress?.Invoke(snapshot with
+        { ChamberEntry = chamberEntry.Status, ReferenceEvaluationStartedAt = referenceEvaluationStartedAt });
         var referenceDetector = new TemperatureStabilityDetector(
             settings.ChamberStableDuration,
             settings.ChamberToleranceC,
@@ -373,7 +376,11 @@ public sealed partial class CalibrationOrchestrator
             // If WIKA is configured, a missing WIKA reading is NOT silently replaced by the chamber
             // probe. The chamber probe is used only when no external reference is configured.
             bool chamberEntryReady = !hasExternalReference || chamberEntry.Add(loopAt, actualTemperature, targetTemperatureC, settings);
-            if (!chamberEntryReady) referenceDetector.Reset();
+            // Stage 2 starts from a fresh window; pre-entry reference readings remain monitoring only.
+            if (!chamberEntryReady || !referenceEntryReady) referenceDetector.Reset();
+            if (!chamberEntryReady) referenceEvaluationStartedAt = null;
+            else if (!referenceEntryReady) referenceEvaluationStartedAt = loopAt;
+            referenceEntryReady = chamberEntryReady;
             temperatureMetrics = !chamberEntryReady ? null : hasExternalReference
                 ? (referenceTemperature is { } reference
                     ? referenceDetector.Add(loopAt, reference, targetTemperatureC)

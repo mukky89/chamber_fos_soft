@@ -5,6 +5,30 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void ReferenceCriteriaAreNeutralUntilChamberOpens()
+    {
+        var model = Model();
+        var entry = new ChamberEntryStatus(true, false, 0.1, 0.01, 0.01, 17, 120, 0.5, 0.5, 0.1, Start);
+        var snapshot = Snapshot(CalibrationRunState.WaitingForChamberStability, 0) with
+        {
+            ChamberEntry = entry, ReferenceTemperatureC = -40,
+            TemperatureStableScoreSeconds = 100, RequiredTemperatureScoreSeconds = 600,
+            ReferenceEvaluationStartedAt = Start.AddMinutes(-1),
+        };
+        model.Apply(snapshot, Start);
+        Assert.All(new[] { model.ReferenceToleranceTone, model.ReferenceRangeTone, model.ReferenceStdDevTone,
+            model.ReferenceDriftTone, model.ReferenceTimeTone, model.ReferenceCardTone }, tone => Assert.Equal("Pending", tone));
+        Assert.Equal(0, model.TemperatureStableScoreSeconds);
+        Assert.Equal(0, model.TemperatureProgress);
+        Assert.Null(model.ReferenceStabilityStartedAt);
+        Assert.Contains("po ustálení komory", model.ReferenceResetLabel);
+        model.Apply(snapshot with { ChamberEntry = entry with { IsOpen = true },
+            ReferenceEvaluationStartedAt = Start.AddSeconds(120), TemperatureStableScoreSeconds = 0 }, Start.AddSeconds(120));
+        Assert.Equal("Done", model.ReferenceToleranceTone);
+        Assert.Equal("Waiting", model.ReferenceTimeTone);
+        Assert.Equal(Start.AddSeconds(120), model.ReferenceStabilityStartedAt);
+    }
+
     [Fact] public void AllStableTargetsFinishStabilityStepAndHideItsCountdown()
     {
         var m = Model();

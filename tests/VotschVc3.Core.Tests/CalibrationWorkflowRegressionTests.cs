@@ -9,6 +9,55 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationWorkflowRegressionTests
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WikaStartsWithFreshSamplesOnlyAfterChamberEntry(bool entryEnabled)
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var logger = new FakePeakLoggerClient();
+            await logger.ConnectAsync(new PeakLoggerSettings());
+            var setup = StableSetup(Guid.NewGuid());
+            setup.Settings.ChamberEntryEnabled = entryEnabled;
+            setup.Settings.ChamberEntryStableSeconds = 1;
+            setup.Settings.ChamberStableDuration = TimeSpan.FromMinutes(10);
+            var run = new CalibrationRunRecord();
+            await using var writer = new CalibrationStore(root).CreateRunWriter(run);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            int reads = 0, waitingSnapshots = 0;
+            bool opened = false;
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                new CalibrationOrchestrator(logger).WaitForPlateauAsync(run, setup, 0, 1, 20,
+                    _ => Task.FromResult(20d),
+                    _ => Task.FromResult<double?>(entryEnabled && ++reads == 1 ? 20.3 : 20), writer,
+                    snapshot =>
+                    {
+                        if (snapshot.ChamberEntry is { Enabled: true, IsOpen: false })
+                        {
+                            waitingSnapshots++;
+                            Assert.Null(snapshot.ReferenceMetrics);
+                            Assert.Null(snapshot.ReferenceEvaluationStartedAt);
+                            Assert.Equal(0, snapshot.TemperatureStableScoreSeconds);
+                            Assert.False(snapshot.TemperatureGateOpen);
+                        }
+                        else if (snapshot.ReferenceEvaluationStartedAt is not null)
+                        {
+                            opened = true;
+                            Assert.Equal(1, snapshot.ReferenceMetrics!.Count);
+                            Assert.Equal(20, snapshot.ReferenceMetrics.Mean);
+                            Assert.Equal(0, snapshot.ReferenceMetrics.Range);
+                            Assert.Equal(0, snapshot.TemperatureStableScoreSeconds);
+                            timeout.Cancel();
+                        }
+                    }, timeout.Token));
+            Assert.True(opened);
+            Assert.Equal(entryEnabled, waitingSnapshots > 0);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RecoveryReconnectsDisconnectedPeakLoggerAndRetriesFailedHandshake(bool failFirstHandshake)

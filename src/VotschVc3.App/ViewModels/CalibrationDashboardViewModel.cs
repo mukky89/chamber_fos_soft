@@ -100,41 +100,43 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         "Počas kalibrácie sa pravidelne obnovuje a používa sa na výpočet odchýlky od cieľa aj driftu. " +
         "Jedna vzorka sama osebe nepotvrdzuje stabilitu — aplikácia vyhodnocuje po sebe idúce bloky vzoriek a stabilný čas začne pribúdať iba vtedy, keď súčasne vyhovuje odchýlka aj drift. " +
         "Ak sa novú vzorku nepodarí načítať, zobrazí sa čakanie na WIKA a FBG stabilizácia sa nespustí.";
-    public string ReferenceToleranceLabel => _snapshot?.ReferenceTemperatureC is not { } reference
+    public string ReferenceToleranceLabel => WaitingForChamber ? "Odchýlka · čaká na komoru" : _snapshot?.ReferenceTemperatureC is not { } reference
         ? "Odchýlka od cieľa · čaká na vzorku"
         : $"Odchýlka |Δ| {Math.Abs(reference - _snapshot.TargetTemperatureC):F3} / ≤ {StabilityToleranceC:F3} °C";
     public string ReferenceToleranceHelp =>
+        "Pri zapnutej vstupnej kontrole začne vyhodnocovanie až po splnení všetkých podmienok komory. Predchádzajúce vzorky WIKA sa do stability nezapočítajú. " +
         $"WIKA musí byť pri cieľovej teplote {Target} v povolenej odchýlke ±{StabilityToleranceC:F3} °C. " +
         "Ak je odchýlka väčšia, stabilný čas sa nezbiera a FBG stabilizácia sa ešte nespustí. " +
         "Komora sa reguluje vlastným interným regulátorom; WIKA slúži iba ako autoritatívna referencia stability.";
-    public string ReferenceToleranceTone => _snapshot?.ReferenceTemperatureC is { } reference &&
+    public string ReferenceToleranceTone => WaitingForChamber ? "Pending" : _snapshot?.ReferenceTemperatureC is { } reference &&
         Math.Abs(reference - _snapshot.TargetTemperatureC) <= StabilityToleranceC ? "Done" : "Waiting";
-    public string ReferenceDriftLabel => _snapshot?.TemperatureDriftCPerMinute is not { } drift
+    public string ReferenceDriftLabel => WaitingForChamber ? "Drift · čaká na komoru" : _snapshot?.TemperatureDriftCPerMinute is not { } drift
         ? "Drift · čaká na blok 5 vzoriek"
         : $"Drift {Math.Abs(drift):F3} / ≤ {_stabilityMaxDriftCPerMinute:F3} °C/min";
     public string ReferenceDriftHelp =>
         $"Drift vyjadruje lineárnu rýchlosť zmeny WIKA teploty podľa skutočných časov vzoriek. " +
         $"Blok vyhovuje, iba ak prísnejší drift z celého okna alebo posledných 120 sekúnd neprekročí {_stabilityMaxDriftCPerMinute:F3} °C/min a posledná vzorka je v tolerancii cieľa.";
-    public string ReferenceDriftTone => _snapshot?.TemperatureDriftCPerMinute is { } drift &&
+    public string ReferenceDriftTone => WaitingForChamber ? "Pending" : _snapshot?.TemperatureDriftCPerMinute is { } drift &&
         (_stabilityMaxDriftCPerMinute <= 0 || Math.Abs(drift) <= _stabilityMaxDriftCPerMinute) ? "Done" : "Waiting";
-    public string ReferenceTimeLabel => $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
+    public string ReferenceTimeLabel => WaitingForChamber ? "Stabilný čas · začne po ustálení komory" : $"Stabilný čas {TemperatureStableScoreSeconds} / {_snapshot?.RequiredTemperatureScoreSeconds ?? 0} s";
     public string ReferenceRangeLabel => ReferenceMetricLabel("Rozsah", _snapshot?.ReferenceMetrics?.Range, _snapshot?.ReferenceRangeLimit);
     public string ReferenceStdDevLabel => ReferenceMetricLabel("σ", _snapshot?.ReferenceMetrics?.StandardDeviation, _snapshot?.ReferenceStdDevLimit);
-    private static string ReferenceMetricLabel(string name, double? value, double? limit) =>
-        value is null ? $"{name} · čaká na vzorky" : limit <= 0 ? $"{name} {value:F4} °C · limit vypnutý" : $"{name} {value:F4} / ≤ {limit:F4} °C";
-    public string ReferenceRangeTone => _snapshot?.ReferenceMetrics is { } metrics &&
+    private string ReferenceMetricLabel(string name, double? value, double? limit) =>
+        WaitingForChamber ? $"{name} · čaká na komoru" : value is null ? $"{name} · čaká na vzorky" : limit <= 0 ? $"{name} {value:F4} °C · limit vypnutý" : $"{name} {value:F4} / ≤ {limit:F4} °C";
+    public string ReferenceRangeTone => WaitingForChamber ? "Pending" : _snapshot?.ReferenceMetrics is { } metrics &&
         (_snapshot.ReferenceRangeLimit <= 0 || metrics.Range <= _snapshot.ReferenceRangeLimit) ? "Done" : "Waiting";
-    public string ReferenceStdDevTone => _snapshot?.ReferenceMetrics is { } metrics &&
+    public string ReferenceStdDevTone => WaitingForChamber ? "Pending" : _snapshot?.ReferenceMetrics is { } metrics &&
         (_snapshot.ReferenceStdDevLimit <= 0 || metrics.StandardDeviation <= _snapshot.ReferenceStdDevLimit) ? "Done" : "Waiting";
-    public string ReferenceResetLabel => _snapshot?.ReferenceResetReason is { } reason ? $"Posledný reset: {reason}" : "Čas stability zatiaľ nebol resetovaný.";
+    public string ReferenceResetLabel => WaitingForChamber ? "Vyhodnocovanie začne po ustálení komory. WIKA sa zatiaľ iba meria a zaznamenáva." : _snapshot?.ReferenceResetReason is { } reason ? $"Posledný reset: {reason}" : "Čas stability zatiaľ nebol resetovaný.";
     public string ReferenceTimeHelp =>
         $"Všetky vzorky musia súvisle počas {Duration(_stableDuration)} spĺňať toleranciu ±{StabilityToleranceC:F3} °C, rozsah, σ a drift. " +
         "Prekročenie ktorejkoľvek podmienky vynuluje celý čas; posledná platná vzorka začne nové okno. Dôvod posledného resetu zostáva na karte. " +
         $"Základný limit čakania je {Duration(_stabilityTimeout)}, nejde o povinnú výdrž. Pri platných dátach sa predlžuje po {Duration(_stabilityExtensionStep)}, najviac o {Duration(_maxAutomaticStabilityExtension)}. " +
         "Operátorský dohľad vyžaduje rozhodnutie. Po vyčerpaní limitu sa bod odloží na jeden neskorší pokus; druhý neúspech zastaví automatický postup; nevyhovujúci bod sa nikdy automaticky neprijme.";
-    public string ReferenceTimeTone => _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
-    public double TemperatureProgress => _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
-    public int TemperatureStableScoreSeconds => _snapshot?.TemperatureStableScoreSeconds ?? 0;
+    public string ReferenceTimeTone => WaitingForChamber ? "Pending" : _snapshot?.TemperatureGateOpen == true ? "Done" : "Waiting";
+    public double TemperatureProgress => WaitingForChamber ? 0 : _snapshot?.RequiredTemperatureScoreSeconds is > 0 ? Math.Clamp(100d * (_snapshot.TemperatureStableScoreSeconds ?? 0) / _snapshot.RequiredTemperatureScoreSeconds.Value, 0, 100) : 0;
+    public int TemperatureStableScoreSeconds => WaitingForChamber ? 0 : _snapshot?.TemperatureStableScoreSeconds ?? 0;
+    public DateTimeOffset? ReferenceStabilityStartedAt => WaitingForChamber ? null : _snapshot?.ReferenceEvaluationStartedAt;
     private TimeSpan TemperatureSettlingBaseLimit => _snapshot?.TemperatureSettlingBaseLimit ?? _stabilityTimeout;
     private TimeSpan AutomaticTemperatureExtensionUsed => _snapshot?.AutomaticTemperatureExtensionUsed ?? TimeSpan.Zero;
     private TimeSpan MaximumAutomaticTemperatureExtension => _snapshot?.MaximumAutomaticTemperatureExtension ?? _maxAutomaticStabilityExtension;
@@ -238,7 +240,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ChamberDriftHelp => "Absolútna rýchlosť zmeny teploty vypočítaná lineárnou regresiou zo vzoriek v okne, v °C/min. Jedna vzorka nestačí.";
     public string ChamberTimeHelp => "Dĺžka zozbieraného okna v tolerancii. Výpadok vzoriek okno resetuje. Po splnení času, rozsahu a driftu sa vstupná kontrola pre toto plato potvrdí a začne nové okno WIKA. Zobrazené hodnoty sa potom uchovajú ako doklad potvrdenia.";
     public string ReferenceCardState => WaitingForChamber ? "○ ČAKÁ NA KOMORU" : RunStoppedWithError ? "! ZASTAVENÉ" : !HasReference ? "— NEDOSTUPNÉ" : _snapshot?.TemperatureGateOpen == true || _state is CalibrationRunState.StabilizingSensors or CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau or CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings ? "✓ SPLNENÉ" : _state == CalibrationRunState.WaitingForChamberStability ? "Ⅱ ČAKÁ" : "○ ČAKÁ";
-    public string ReferenceCardTone => RunStoppedWithError ? "Error" : !HasReference ? "Pending" : ReferenceCardState.Contains("SPLNENÉ", StringComparison.Ordinal) ? "Done" : _state == CalibrationRunState.WaitingForChamberStability ? "Waiting" : "Pending";
+    public string ReferenceCardTone => RunStoppedWithError ? "Error" : WaitingForChamber || !HasReference ? "Pending" : ReferenceCardState.Contains("SPLNENÉ", StringComparison.Ordinal) ? "Done" : _state == CalibrationRunState.WaitingForChamberStability ? "Waiting" : "Pending";
     private bool UnconfirmedPoint => PointFinished && (TotalTargets == 0 || _snapshot!.Targets.Any(t => t.State != CalibrationTargetState.Stable));
     public string PeakCardState => RunStoppedWithError ? "! ZASTAVENÉ" : UnconfirmedPoint ? "! STABILITA NEPOTVRDENÁ" : TotalTargets > 0 && StableCount >= TotalTargets ? "✓ SPLNENÉ" : _state == CalibrationRunState.StabilizingSensors ? "● PREBIEHA" : PointFinished ? "✓ SPLNENÉ" : "○ ČAKÁ";
     public string PeakCardTone => RunStoppedWithError ? "Error" : UnconfirmedPoint ? "Waiting" : PeakCardState.Contains("SPLNENÉ", StringComparison.Ordinal) ? "Done" : PeakCardState.Contains("PREBIEHA", StringComparison.Ordinal) ? "Active" : "Pending";
@@ -443,6 +445,14 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void Apply(CalibrationProgressSnapshot snapshot, DateTimeOffset now)
     {
         var previous = _snapshot;
+        if (previous is not null && previous.PlateauIndex == snapshot.PlateauIndex &&
+            Math.Abs(previous.TargetTemperatureC - snapshot.TargetTemperatureC) < 0.001 &&
+            snapshot.State is CalibrationRunState.PlateauCompleted or CalibrationRunState.MovingToNextPlateau)
+            snapshot = snapshot with
+            {
+                ReferenceEvaluationStartedAt = snapshot.ReferenceEvaluationStartedAt ?? previous.ReferenceEvaluationStartedAt,
+                ChamberEntry = snapshot.ChamberEntry ?? previous.ChamberEntry,
+            };
         if (snapshot.State == CalibrationRunState.StabilizingSensors && snapshot.Targets.Any(t =>
             t.StabilitySamples > (previous?.Targets.FirstOrDefault(p => p.SerialNumber == t.SerialNumber && p.Channel == t.Channel && p.PeakId == t.PeakId)?.StabilitySamples ?? 0) ||
             t.MeasurementSamples > (previous?.Targets.FirstOrDefault(p => p.SerialNumber == t.SerialNumber && p.Channel == t.Channel && p.PeakId == t.PeakId)?.MeasurementSamples ?? 0)))
@@ -505,7 +515,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             FbgStabilityStartedAt ??= now;
         if (snapshot.Targets.Any(t => t.MeasurementSamples > 0))
             FbgMeasurementStartedAt ??= now;
-        int stableScoreSeconds = snapshot.TemperatureStableScoreSeconds ?? 0;
+        int stableScoreSeconds = TemperatureStableScoreSeconds;
         int requiredStableScoreSeconds = snapshot.RequiredTemperatureScoreSeconds ?? 0;
         bool stableTimeStarted = snapshot.State == CalibrationRunState.WaitingForChamberStability && stableScoreSeconds > 0 &&
             (previous?.PlateauIndex != snapshot.PlateauIndex || (previous?.TemperatureStableScoreSeconds ?? 0) <= 0);
@@ -519,7 +529,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         if (snapshot.ActualTemperatureC is { } chamberTemperature)
             AddChamberTraceSample(now, chamberTemperature);
         if (snapshot.TemperatureStableScoreSeconds is { } score && snapshot.RequiredTemperatureScoreSeconds is { } required && required > 0)
-            AddWikaStabilityScoreSample(now, score, required);
+            AddWikaStabilityScoreSample(now, WaitingForChamber ? 0 : score, required);
         if (snapshot.PlateauIndex >= 0 && snapshot.PlateauIndex < Points.Count)
         {
             var point = Points[snapshot.PlateauIndex];

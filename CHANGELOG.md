@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.383] – 2026-09-11
+
+### Opravené
+
+- Krok WIKA pred splnením vstupnej stability komory zobrazuje iba priebežnú teplotu a neutrálne čakajúce kritériá. Pri otvorení brány začne nové vyhodnocovacie okno a stabilný čas od nuly; skoršie vzorky zostávajú v histórii, ale nevstupujú do stability. Graf odlišuje priebežné meranie od stabilizácie WIKA a zoznam stabilizačných vzoriek začína až otvorením brány. Vypnutá vstupná kontrola umožňuje priamy štart WIKA; po otvorení brány ďalej rozhoduje WIKA.
+
 ## [1.76.382] – 2026-09-11
 
 ### Opravené

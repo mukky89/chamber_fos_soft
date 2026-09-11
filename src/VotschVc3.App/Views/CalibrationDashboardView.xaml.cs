@@ -284,6 +284,8 @@ public partial class CalibrationDashboardView : UserControl
         if (trace.Count == 0)
         {
             ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
+            CompactReferenceChart.Series = Array.Empty<ChartSeries>();
+            ReferencePhaseTimeline.Text = string.Empty;
             StabilitySamplesChart.Series = Array.Empty<ChartSeries>();
             StabilitySamplesList.ItemsSource = null;
             return;
@@ -342,8 +344,10 @@ public partial class CalibrationDashboardView : UserControl
         var combinedSeries = new List<ChartSeries>();
         var phases = new List<(DateTimeOffset Start, string Label, Brush Color)>
         {
-            (origin, "WIKA – stabilizácia", Brushes.DeepSkyBlue)
+            (origin, "Priebežná teplota WIKA", Brushes.SlateGray)
         };
+        if (vm.ReferenceStabilityStartedAt is { } referenceStart)
+            phases.Add((referenceStart < origin ? origin : referenceStart, "WIKA – stabilizácia", Brushes.DeepSkyBlue));
         if (vm.FbgStabilityStartedAt is { } fbgStart)
             phases.Add((fbgStart, "FBG – stabilizácia", Brushes.Orange));
         if (vm.FbgMeasurementStartedAt is { } measurementStart)
@@ -356,7 +360,8 @@ public partial class CalibrationDashboardView : UserControl
                 .Select(point => new Point((point.Timestamp - origin).TotalMinutes, point.TemperatureC)).ToList();
             // Include the preceding observation so phase changes do not leave gaps in the curve.
             var preceding = trace.LastOrDefault(point => point.Timestamp < phase.Start);
-            if (points.Count > 0 && preceding is not null)
+            if (points.Count > 0 && preceding is not null &&
+                (vm.ReferenceStabilityStartedAt is not { } openedAt || phase.Start != openedAt))
                 points.Insert(0, new Point((preceding.Timestamp - origin).TotalMinutes, preceding.TemperatureC));
             if (points.Count > 0)
                 combinedSeries.Add(new ChartSeries(phase.Label, phase.Color,
@@ -366,7 +371,9 @@ public partial class CalibrationDashboardView : UserControl
         ReferencePhaseTimeline.Text = string.Join("  →  ", phases.Select(phase =>
             $"{phase.Label}: {Math.Max(0, (phase.Start - origin).TotalMinutes):0.#} min"));
         ReferencePhaseTimeline.ToolTip = "Čas od začiatku zobrazeného plata. Odber začína prvou finálnou vzorkou; ostatné peaky sa môžu ešte stabilizovať. Celá krivka zobrazuje nameranú teplotu WIKA.";
-        RefreshStabilitySamples(trace, vm.TargetTemperatureC, vm.StabilityToleranceC);
+        RefreshStabilitySamples(vm.ReferenceStabilityStartedAt is { } evaluationStart
+            ? trace.Where(point => point.Timestamp >= evaluationStart).ToArray()
+            : Array.Empty<CalibrationReferenceTracePoint>(), vm.TargetTemperatureC, vm.StabilityToleranceC);
     }
 
     private void RefreshStabilitySamples(
