@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.76.373] – 2026-09-11
+
+### Vylepšené
+
+- Prepracované okno priradenia FBG snímača zachováva pôvodné ikony a po zadaní SN zobrazuje zákazníka, zákazku a vlnové dĺžky. Obsahuje prehľad peakov s typom FBG a ručne upraviteľným výberom kalibrácie, výraznejší animovaný indikátor načítavania, chybný formát SN a duplicitu s prechodom na existujúci riadok.
+- Jednoznačne overené peaky typu T sa pri novom priradení SN označia na kalibráciu; ručný a uložený výber sa pri ďalšom načítaní API zachováva. Neznámy typ sa neodhaduje podľa poradia peakov.
+
+### Opravené
+
+- Obnovenie PeakLogger aktualizuje existujúce riadky bez vymazania celej kolekcie, takže označený riadok zostáva vybraný. Doplnkové obnovenie zobrazenia zachováva výber a aktuálnu bunku.
+- Pôvodný stav pred úpravou je zachovaný vetvou `codex/before-pairing-redesign-20260911`; postup návratu je v `docs/PAIRING_REDESIGN_ROLLBACK.md`.
+
 ## [1.76.372] – 2026-09-11
 
 ### Opravené

@@ -498,7 +498,8 @@ public partial class CalibrationWindow
             if (row is not null)
             {
                 ShowProductionInfo($"PeakLogger: pribudol nový riadok {row.Channel} / {row.PeakId}. Zadaj FBG sensor SN.");
-                FocusNewPeakRow(row);
+                // A newly detected peak must not steal the operator's existing row selection.
+                if (_wiringGrid?.SelectedItem is null) FocusNewPeakRow(row);
             }
         }
     }

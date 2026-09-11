@@ -171,7 +171,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     public string PeakSearchText
     {
         get => _peakSearchText;
-        set { if (SetProperty(ref _peakSearchText, value ?? string.Empty)) PeaksView.Refresh(); }
+        set { if (SetProperty(ref _peakSearchText, value ?? string.Empty)) RefreshPeakViewWhenSafe(); }
     }
     public bool PeakFilterAll { get => _peakFilterMode == "All"; set { if (value) SetPeakFilter("All"); } }
     public bool PeakFilterSelected { get => _peakFilterMode == "Selected"; set { if (value) SetPeakFilter("Selected"); } }
@@ -196,6 +196,23 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         OnPropertyChanged(nameof(PeakFilterAll));
         OnPropertyChanged(nameof(PeakFilterSelected));
         OnPropertyChanged(nameof(PeakFilterErrors));
+        RefreshPeakViewWhenSafe();
+    }
+
+    private System.Windows.Threading.DispatcherTimer? _peakViewRefreshTimer;
+    private void RefreshPeakViewWhenSafe()
+    {
+        if (PeaksView is IEditableCollectionView editable && (editable.IsAddingNew || editable.IsEditingItem))
+        {
+            if (_peakViewRefreshTimer is null)
+            {
+                _peakViewRefreshTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+                _peakViewRefreshTimer.Tick += (_, _) => RefreshPeakViewWhenSafe();
+            }
+            _peakViewRefreshTimer.Start();
+            return;
+        }
+        _peakViewRefreshTimer?.Stop();
         PeaksView.Refresh();
     }
 
@@ -1060,7 +1077,6 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var previousRows = Peaks.ToDictionary(p => $"{p.PeakLoggerDeviceSerialNumber}|{p.Channel}|{p.PeakId}", StringComparer.OrdinalIgnoreCase);
-        Peaks.Clear();
         foreach (PeakLoggerSensor sensor in sensors.Where(s => !IsPeakLoggerChannelIgnored(s.Channel)))
         {
             foreach (PeakLoggerPeak peak in sensor.Peaks)
@@ -1071,7 +1087,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 {
                     existing.MinimumIntensityDbm = new CalibrationDefaultsStore(Path.Combine(AppPaths.SettingsDir, "fbg-calibration-defaults.json")).Load().MinimumPeakIntensityDbm;
                     existing.UpdateLive(peak.WavelengthNm, peak.Intensity, DateTimeOffset.Now);
-                    Peaks.Add(existing);
+                    // Keep the same collection item: clearing/re-adding resets DataGrid selection.
                 }
                 else Peaks.Add(CreatePeakRow(sensor, peak, mapping));
             }
@@ -1080,8 +1096,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         foreach (CalibrationPeakRowViewModel missing in previousRows.Values.Where(p => !IsPeakLoggerChannelIgnored(p.Channel)))
         {
             missing.MarkDisconnected();
-            Peaks.Add(missing);
         }
+        foreach (var ignored in Peaks.Where(p => IsPeakLoggerChannelIgnored(p.Channel)).ToArray()) Peaks.Remove(ignored);
         int livePeakCount = sensors.Where(s => !IsPeakLoggerChannelIgnored(s.Channel)).Sum(sensor => sensor.Peaks.Count);
         PeakLoggerStatus = livePeakCount == 0
             ? $"API pripojené · {PeakLoggerHost}:{PeakLoggerPort} · bez peakov"
@@ -1133,7 +1149,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 StartCalibrationCommand.RaiseCanExecuteChanged();
                 NotifyPeakCounts();
                 if (_peakFilterMode == "Selected" && e.PropertyName == nameof(CalibrationPeakRowViewModel.Selected))
-                    PeaksView.Refresh();
+                    RefreshPeakViewWhenSafe();
             }
 
             if (e.PropertyName == nameof(CalibrationPeakRowViewModel.IsDisconnected)) NotifyPeakCounts();
@@ -2938,6 +2954,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     public async ValueTask DisposeAsync()
     {
+        _peakViewRefreshTimer?.Stop();
         ObserveResumeReference(null);
         _setupAutosaveCts?.Cancel();
         _setupAutosaveCts?.Dispose();
@@ -2992,6 +3009,8 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
 {
     public VotschVc3.App.Calibration.SylexFosDisplayMetadata ApiMetadata { get; } = new();
     private bool _selected;
+    private string? _automaticSelectionSerial;
+    private bool _applyingAutomaticSelection;
     private string _channelSerialNumber;
     private string _chainSerialNumber;
     private string _serialNumberWarning = string.Empty;
@@ -3019,6 +3038,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         _currentWavelengthNm = peak.WavelengthNm;
         _intensity = peak.Intensity;
         _selected = saved?.Selected ?? false;
+        _automaticSelectionSerial = saved is null ? null : SerialNumber;
         WasSavedSelected = _selected;
         Core1 = saved?.Core1;
         Core2 = saved?.Core2;
@@ -3037,6 +3057,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         {
             if (SetProperty(ref _channelSerialNumber, NormalizeBarcode(value)))
             {
+                if (!string.Equals(_automaticSelectionSerial, SerialNumber, StringComparison.OrdinalIgnoreCase)) _automaticSelectionSerial = null;
                 OnPropertyChanged(nameof(SerialNumber));
                 OnPropertyChanged(nameof(NeedsSensorSerialNumber));
                 OnPropertyChanged(nameof(RequiresReconnect));
@@ -3052,6 +3073,7 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         {
             if (SetProperty(ref _chainSerialNumber, NormalizeBarcode(value)))
             {
+                if (!string.Equals(_automaticSelectionSerial, SerialNumber, StringComparison.OrdinalIgnoreCase)) _automaticSelectionSerial = null;
                 OnPropertyChanged(nameof(SerialNumber));
                 OnPropertyChanged(nameof(NeedsSensorSerialNumber));
                 OnPropertyChanged(nameof(RequiresReconnect));
@@ -3110,11 +3132,23 @@ public sealed class CalibrationPeakRowViewModel : ObservableObject
         get => _selected;
         set
         {
+            if (!_applyingAutomaticSelection) _automaticSelectionSerial = SerialNumber;
             if (!SetProperty(ref _selected, value)) return;
             OnPropertyChanged(nameof(NeedsSensorSerialNumber));
             OnPropertyChanged(nameof(RequiresReconnect));
             OnPropertyChanged(nameof(ConnectionWarning));
         }
+    }
+    // Apply once per assignment. Restored and manually edited choices remain authoritative.
+    public void ApplyCalibrationTypeDefault(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(SerialNumber) ||
+            string.Equals(_automaticSelectionSerial, SerialNumber, StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(type)) return;
+        _automaticSelectionSerial = SerialNumber;
+        _applyingAutomaticSelection = true;
+        try { Selected = string.Equals(type.Trim(), "T", StringComparison.OrdinalIgnoreCase); }
+        finally { _applyingAutomaticSelection = false; }
     }
     public string Notes { get => _notes; set => SetProperty(ref _notes, value); }
     public string ProductDescription { get => _productDescription; set => SetProperty(ref _productDescription, value); }

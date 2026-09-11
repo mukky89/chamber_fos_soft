@@ -170,10 +170,12 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                     string.Equals(p.Channel, row.Channel, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(p.PeakLoggerDeviceSerialNumber, row.PeakLoggerDeviceSerialNumber, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(SylexFosRowMetadataStore.ParseSerialNumber(p.SerialNumber), serialNumber, StringComparison.OrdinalIgnoreCase)).ToArray();
+                var resolvedTypes = FbgWavelengthComparison.ResolveTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
                 var types = FbgWavelengthComparison.ExplainTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
                 for (int i = 0; i < sensorRows.Length; i++)
                 {
                     var target = sensorRows[i];
+                    if (!_viewModel.IsRunning) target.ApplyCalibrationTypeDefault(metadata.Fbg is { Count: > 0 } ? resolvedTypes[i] : metadata.FbgType);
                     SylexFosSensorNameStore.Set(target, metadata.SensorName);
                     if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) target.ProductDescription = metadata.ProductDescription;
                     if (!string.IsNullOrWhiteSpace(metadata.Order)) target.Order = metadata.Order;

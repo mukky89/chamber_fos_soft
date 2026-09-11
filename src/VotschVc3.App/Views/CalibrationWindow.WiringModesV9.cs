@@ -160,22 +160,45 @@ public partial class CalibrationWindow
             { e.Handled = true; await ArmSequentialSerialV9Async(); }
         };
         panel.CloseAction.Click += (_, _) => _sequentialWiringWindow?.Close();
+        panel.CloseHeader.Click += (_, _) => _sequentialWiringWindow?.Close();
         panel.ChangeSerial.Click += (_, _) =>
         {
             _sequentialPendingSn = null;
             _sequentialLookupCts?.Cancel();
-            panel.SerialInput.IsEnabled = true;
-            panel.Prepare.IsEnabled = true;
+            _sequentialLookupCts = null;
+            panel.SerialInput.IsEnabled = panel.Prepare.IsEnabled = true;
             panel.SetStage(1);
             panel.Status.Text = "Po potvrdení SN pripoj snímač do voľného kanála.";
             panel.SerialInput.Focus();
             panel.SerialInput.SelectAll();
         };
+        panel.CancelLookup.Click += (_, _) =>
+        {
+            _sequentialLookupCts?.Cancel();
+            _sequentialLookupCts = null;
+            panel.ShowMetadata(null);
+            panel.Status.Text = "Pokračuješ bez API. Pripoj snímač a skontroluj peaky; typy zatiaľ nie sú overené.";
+        };
+        panel.ShowDuplicate.Click += (_, _) =>
+        {
+            string serial = SylexFosRowMetadataStore.ParseSerialNumber(panel.SerialInput.Text);
+            var duplicate = FindAssignedSerial(serial);
+            if (duplicate is null) { panel.ClearIssue(); return; }
+            _sequentialWiringWindow?.Close();
+            _viewModel.PeakSearchText = string.Empty;
+            _viewModel.PeakFilterAll = true;
+            if (_wiringGrid is not null)
+            {
+                _wiringGrid.SelectedItem = duplicate;
+                _wiringGrid.ScrollIntoView(duplicate);
+                _wiringGrid.Focus();
+            }
+        };
         var card = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             MaxHeight = SystemParameters.WorkArea.Height - 100 };        _sequentialWiringWindow = new Window
         {
             Owner = this, Title = "Priradenie FBG SN", Content = card,
-            SizeToContent = SizeToContent.Height, Width = 700,
+            SizeToContent = SizeToContent.Height, Width = Math.Min(940, SystemParameters.WorkArea.Width - 60),
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
             Background = background, Foreground = text,
         };
@@ -183,7 +206,7 @@ public partial class CalibrationWindow
         _sequentialWiringWindow.Closed += (_, _) =>
         {
             _sequentialWiringWindow = null; _sequentialSnBox = null; _sequentialStatus = null; _sequentialArmButton = null;
-            _sequentialPendingSn = null; _sequentialLookupCts?.Cancel();
+            _sequentialPendingSn = null; _sequentialLookupCts?.Cancel(); _sequentialLookupCts = null; _pairingPanel = null;
         };
         _sequentialWiringWindow.Loaded += (_, _) => _sequentialSnBox?.Focus();
         _sequentialWiringWindow.ShowDialog();
@@ -201,33 +224,47 @@ public partial class CalibrationWindow
     [DllImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute")]
     private static extern int DwmSetWindowAttributeV9(IntPtr window, int attribute, ref int value, int valueSize);
 
+    private CalibrationPeakRowViewModel? FindAssignedSerial(string sn) => _viewModel.Peaks.FirstOrDefault(p =>
+        string.Equals(p.SerialNumber, sn, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(p.ChannelSerialNumber, sn, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(p.ChainSerialNumber, sn, StringComparison.OrdinalIgnoreCase));
+
     private async Task ArmSequentialSerialV9Async()
     {
-        if (_sequentialSnBox is null || _sequentialStatus is null || _sequentialArmButton is null || _viewModel.IsRunning) return;
-        string sn = SylexFosRowMetadataStore.ParseSerialNumber(_sequentialSnBox.Text);
-        if (string.IsNullOrWhiteSpace(sn)) { _sequentialStatus.Text = "Zadaj SN snímača."; _sequentialSnBox.Focus(); return; }
-        _sequentialLookupCts?.Cancel();
-        var lookup = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-        _sequentialLookupCts = lookup;
-        // Arm before the optional lookup so a slow/offline API cannot block pairing.
-        if (_viewModel.Peaks.Any(p => string.Equals(p.ChannelSerialNumber, sn, StringComparison.OrdinalIgnoreCase)))
+        var panel = _pairingPanel;
+        if (panel is null || !panel.Prepare.IsEnabled || _viewModel.IsRunning) return;
+        string sn = SylexFosRowMetadataStore.ParseSerialNumber(panel.SerialInput.Text);
+        panel.ClearIssue();
+        if (!FbgSerialParser.IsProductionSerial(sn))
         {
-            _sequentialStatus.Text = "Toto SN už je priradené. Skontroluj zapojenie alebo zadaj iné SN.";
+            panel.ShowIssue("Neplatný formát SN", "Použi číslice vo formáte 291875/0002 alebo naskenuj výrobný kód. Skontroluj zámeny O/0 a I/1.");
+            panel.SerialInput.Focus();
             return;
         }
+        panel.SerialInput.Text = sn;
+        var duplicate = FindAssignedSerial(sn);
+        if (duplicate is not null)
+        {
+            panel.ShowIssue("Tento snímač už je priradený", $"SN {sn} sa už nachádza v zapojení.\nKanál {duplicate.Channel} · zdroj {duplicate.PeakLoggerDeviceSerialNumber}", duplicate: true);
+            panel.Status.Text = "Zobraz existujúci riadok alebo zadaj iné SN.";
+            return;
+        }
+        _sequentialLookupCts?.Cancel();
+        using var lookup = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        _sequentialLookupCts = lookup;
         _pairingApiVerified = false;
         _pairingMetadata = null;
-        if (_pairingSteps is not null) _pairingSteps.Text = "✓ 1 SN pripravené     ● 2 Pripoj snímač     ○ 3 Priradenie";
-        _pendingNote = _pairingPanel?.NoteInput.Text ?? string.Empty;
+        _pendingNote = panel.NoteInput.Text;
         _candidateSignature = string.Empty;
         _candidateSince = DateTime.UtcNow;
         _sequentialPendingSn = sn;
-        _pairingPanel?.SetStage(2, sn);
         _sequentialBaseline = _viewModel.Peaks.Where(p => !p.IsDisconnected).Select(PeakIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        _sequentialSnBox.IsEnabled = false;
-        _sequentialArmButton.IsEnabled = false;
-        _sequentialStatus.Text = $"SN {sn} je pripravené. Pripoj snímač.\nÚdaje z API sa načítavajú na pozadí…";
-        bool IsCurrent() => _sequentialWiringWindow is not null &&
+        panel.SetStage(2, sn);
+        panel.SetLoading(true);
+        panel.SerialInput.IsEnabled = panel.Prepare.IsEnabled = false;
+        panel.Status.Text = "Údaje načítavam na pozadí. Snímač môžeš pripojiť už teraz.";
+        RefreshPairingCandidates();
+        bool IsCurrent() => ReferenceEquals(_pairingPanel, panel) &&
             ReferenceEquals(_sequentialLookupCts, lookup) && _sequentialPendingSn == sn;
         try
         {
@@ -236,16 +273,22 @@ public partial class CalibrationWindow
             if (!IsCurrent()) return;
             _pairingApiVerified = metadata is not null;
             _pairingMetadata = metadata;
+            panel.ShowMetadata(metadata);
             RefreshPairingCandidates();
-            _sequentialStatus!.Text = metadata is null
-                ? $"SN {sn} je pripravené. Pripoj snímač.\nBez overenia API – produkčné údaje zatiaľ nie sú dostupné."
-                : $"SN {sn} je pripravené. Pripoj snímač.\nAPI overené · {metadata.SensorName}\n{metadata.ProductDescription}";
+            panel.Status.Text = metadata is null
+                ? "API nenašlo údaje snímača. Skontroluj SN; párovanie je možné aj bez API."
+                : "Údaje API sú načítané. Skontroluj snímač, počet peakov a výber kalibrácie.";
         }
         catch (Exception ex)
         {
             if (!IsCurrent()) return;
-            _sequentialStatus!.Text = $"SN {sn} je pripravené. Pripoj snímač.\nAPI neodpovedá – párovanie pokračuje bez overenia.";
+            panel.ShowMetadata(null);
+            panel.Status.Text = "API neodpovedá – párovanie pokračuje bez overenia. Údaje možno doplniť neskôr.";
             AppLog.Warn("FBG zapojenie", $"Voliteľné API overenie SN zlyhalo: {ex.Message}");
+        }
+        finally
+        {
+            if (ReferenceEquals(_sequentialLookupCts, lookup)) _sequentialLookupCts = null;
         }
     }
     private ProductionMetadata? _pairingMetadata;
@@ -259,6 +302,7 @@ public partial class CalibrationWindow
     {
         if (_pairingPanel is null || _sequentialPendingSn is null) return;
         var rows = PendingCandidates();
+        _pairingPanel.UpdateCandidates(rows, _pairingMetadata);
         _pairingPanel.ShowWavelengthComparison(FbgWavelengthComparison.Evaluate(
             rows.Select(p => ($"{p.Channel} / {p.PeakId}", p.CurrentWavelengthNm)), _pairingMetadata?.Fbg));
         string signature = string.Join(";", rows.Select(PeakIdentity).OrderBy(x => x));
@@ -272,7 +316,7 @@ public partial class CalibrationWindow
         _pairingPanel.ConfirmPeaks.IsEnabled = rows.Count > 0 && singleChannel && !missing && (DateTime.UtcNow - _candidateSince).TotalSeconds >= 3;
         _pairingPanel.Candidates.Text = missing ? "Na párovanom kanáli chýbajú pôvodné priradené peaky. Skontroluj jeho pripojenie." :
             rows.Count == 0 ? "Čakám na nové peaky…" :
-            $"Nové peaky: {rows.Count}\n" + string.Join(", ", rows.Select(p => $"{p.Channel} / {p.PeakId} · {p.CurrentWavelengthNm:F3} nm")) +
+             $"Nové peaky: {rows.Count}" +
             (singleChannel ? "\nSkontroluj počet peakov snímača a potvrď priradenie." : "\nPribudlo viac kanálov. Pripájaj iba jeden snímač naraz.");
     }
     private void ConfirmSequentialPeaks()
@@ -282,7 +326,8 @@ public partial class CalibrationWindow
         var rows = PendingCandidates();
         var row = rows[0];
         string sn = _sequentialPendingSn;
-        foreach (var peak in rows) { peak.ChannelSerialNumber = sn; peak.Notes = _pendingNote; }
+        if (_viewModel.IsRunning || FindAssignedSerial(sn) is not null) { _pairingPanel.Status.Text = "SN už je priradené alebo sa začala kalibrácia. Zmeň SN / skontroluj zapojenie."; return; }
+        foreach (var peak in rows) { peak.ChannelSerialNumber = sn; peak.Notes = _pendingNote; _pairingPanel.ApplyPreviewSelection(peak); }
         _pairingPanel.NoteInput.Clear();        _sequentialPendingSn = null;
         _sequentialLookupCts?.Cancel();
         _pairingPanel?.ShowResult(sn, row.Channel, _pairingApiVerified);

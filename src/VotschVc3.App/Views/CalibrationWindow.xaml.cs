@@ -343,7 +343,12 @@ public partial class CalibrationWindow : Window
 
         try
         {
+            var selected = grid.SelectedItems.Cast<object>().ToArray();
+            var current = grid.CurrentCell;
             grid.Items.Refresh();
+            foreach (var item in selected)
+                if (grid.Items.Contains(item) && !grid.SelectedItems.Contains(item)) grid.SelectedItems.Add(item);
+            if (current.IsValid && grid.Items.Contains(current.Item)) grid.CurrentCell = current;
         }
         catch (InvalidOperationException ex)
         {
