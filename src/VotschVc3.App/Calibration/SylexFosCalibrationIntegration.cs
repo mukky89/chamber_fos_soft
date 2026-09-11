@@ -169,7 +169,16 @@ public sealed class SylexFosCalibrationIntegration : IAsyncDisposable
                 if (!string.Equals(currentParsed, serialNumber, StringComparison.OrdinalIgnoreCase)) return;
                 if (!string.IsNullOrWhiteSpace(metadata.ProductDescription)) row.ProductDescription = metadata.ProductDescription;
                 SylexFosSensorNameStore.Set(row, metadata.SensorName);
-                SylexFosRowMetadataStore.SetApiMetadata(row, metadata.SylexSerialNumber ?? serialNumber, metadata.FbgType);
+                var sensorRows = _viewModel.Peaks.Where(p => !p.IsDisconnected &&
+                    p.Channel == row.Channel && p.PeakLoggerDeviceSerialNumber == row.PeakLoggerDeviceSerialNumber &&
+                    SylexFosRowMetadataStore.ParseSerialNumber(p.SerialNumber) == serialNumber).ToArray();
+                var types = FbgWavelengthComparison.ResolveTypes(sensorRows.Select(p => p.CurrentWavelengthNm).ToArray(), metadata.Fbg);
+                for (int i = 0; i < sensorRows.Length; i++)
+                {
+                    SylexFosRowMetadataStore.SetApiMetadata(sensorRows[i], metadata.SylexSerialNumber ?? serialNumber,
+                        metadata.Fbg is { Count: > 0 } ? types[i] ?? "Neurčený" : metadata.FbgType);
+                    if (!ReferenceEquals(sensorRows[i], row)) MetadataApplied?.Invoke(this, sensorRows[i]);
+                }
                 if (!string.IsNullOrWhiteSpace(metadata.Order)) row.Order = metadata.Order;
                 if (!string.IsNullOrWhiteSpace(metadata.CustomerName)) row.Customer = metadata.CustomerName;
                 MetadataApplied?.Invoke(this, row);

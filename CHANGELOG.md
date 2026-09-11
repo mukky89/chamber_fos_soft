@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.358] – 2026-09-11
+
+### Opravené
+
+- Typ FBG sa načítava z jednotlivých položiek poľa fbg v iSys API a priraďuje k peakom podľa porovnania výsledných WL v tolerancii ±0,5 nm. Nezhodné alebo nejednoznačné údaje sú označené ako neurčené.
+
 ## [1.76.357] – 2026-09-11
 
 ### Zmenené

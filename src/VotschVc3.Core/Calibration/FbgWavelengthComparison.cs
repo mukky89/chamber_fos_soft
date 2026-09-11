@@ -8,6 +8,20 @@ public sealed record SylexFbgWavelength(double? Wl, double? WlDropped, double? W
 public sealed record FbgWavelengthComparison(bool? Passed, string Detail)
 {
     public const double ToleranceNm = 0.5;
+
+    public static string?[] ResolveTypes(IReadOnlyList<double> measured, IReadOnlyList<SylexFbgWavelength>? expected)
+    {
+        var result = new string?[measured.Count];
+        if (Evaluate(measured.Select((v, i) => (i.ToString(), v)), expected).Passed != true) return result;
+        var actual = measured.Select((v, i) => (Value: v, Index: i)).OrderBy(p => p.Value).ToArray();
+        var nominal = expected!.OrderBy(p => p.ExpectedNm).ToArray();
+        // Equal wavelengths cannot unambiguously identify different grating types.
+        if (actual.Select(p => p.Value).Distinct().Count() != actual.Length ||
+            nominal.Select(p => p.ExpectedNm).Distinct().Count() != nominal.Length) return result;
+        for (int i = 0; i < actual.Length; i++) result[actual[i].Index] = nominal[i].FbgType;
+        return result;
+    }
+
     public static FbgWavelengthComparison Evaluate(IEnumerable<(string Label, double Value)> measured,
         IReadOnlyList<SylexFbgWavelength>? expected)
     {

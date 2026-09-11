@@ -7,6 +7,15 @@ namespace VotschVc3.Core.Tests;
 public class FbgWavelengthComparisonTests
 {
     [Fact]
+    public void Types_follow_dropped_wavelength_not_api_order()
+    {
+        SylexFbgWavelength[] api = [new(1531.9,1531.9,null,"S"), new(1533.3,1530.9,2.4,"T")];
+        Assert.Equal(new string?[] { "T", "S" }, FbgWavelengthComparison.ResolveTypes([1530.574,1531.670], api));
+        Assert.All(FbgWavelengthComparison.ResolveTypes([1500,1531.670], api), value => Assert.Null(value));
+        Assert.All(FbgWavelengthComparison.ResolveTypes([1531,1531], api), value => Assert.Null(value));
+    }
+
+    [Fact]
     public void Uses_dropped_wavelength_and_matches_reversed_api_order()
     {
         var expected = JsonSerializer.Deserialize<SylexFbgWavelength[]>("""
