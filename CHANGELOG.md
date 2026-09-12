@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.427] – 2026-09-13
+
+### Upravené
+- Informačné podmienky v časti „Meranie vzoriek“ používajú rovnaký zelený
+  rámček ako podmienky stability pri WIKA.
+
 ## [1.76.426] – 2026-09-13
 
 ### Upravené
