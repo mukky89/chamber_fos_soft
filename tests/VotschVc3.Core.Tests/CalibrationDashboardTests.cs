@@ -162,6 +162,24 @@ public sealed class CalibrationDashboardTests
         Assert.Equal(100d / 3, m.OverallProgress, 5); Assert.StartsWith("≈", m.Eta);
         Assert.Equal("Warning", m.Points[0].State); Assert.Contains("NEPOTVRDENÉ", m.Points[0].Badge); Assert.Equal("Pending", m.Points[1].State);
     }
+    [Fact] public void OperatorCanMarkOnlyCompletedPlateauForRecalibrationDuringRun()
+    {
+        var m = Model();
+        int requestedIndex = -1;
+        m.SetPlateauRecalibrationHandler(index => { requestedIndex = index; return true; });
+
+        Assert.False(m.TryRequestPlateauRecalibration(m.Points[1]));
+        m.Apply(Snapshot(CalibrationRunState.PlateauCompleted, 0), Start.AddMinutes(10));
+
+        Assert.True(m.Points[0].CanRequestRecalibration);
+        Assert.True(m.TryRequestPlateauRecalibration(m.Points[0]));
+        Assert.Equal(0, requestedIndex);
+        Assert.True(m.Points[0].RecalibrationRequested);
+        Assert.False(m.TryRequestPlateauRecalibration(m.Points[0]));
+
+        m.End(CalibrationRunState.Aborted, "Zastavené", Start.AddMinutes(11));
+        Assert.False(m.Points[0].CanRequestRecalibration);
+    }
     [Fact] public void EtaBecomesUnknownInsteadOfPublishingFalseFinish_WhenCurrentPointExceedsEvidence()
     {
         var m = Model();

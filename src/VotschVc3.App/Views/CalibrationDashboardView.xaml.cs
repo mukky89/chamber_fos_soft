@@ -122,6 +122,13 @@ public partial class CalibrationDashboardView : UserControl
             Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, WindowStartupLocation = WindowStartupLocation.CenterOwner }.Show();
     }
 
+    private void RecalibratePlateau_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: DashboardNode node } &&
+            DataContext is CalibrationDashboardViewModel dashboard)
+            dashboard.TryRequestPlateauRecalibration(node);
+    }
+
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.Tag is not string text || string.IsNullOrWhiteSpace(text)) return;

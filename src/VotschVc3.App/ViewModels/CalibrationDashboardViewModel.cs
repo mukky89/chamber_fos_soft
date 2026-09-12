@@ -41,6 +41,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private double? _observedCycleSeconds;
     private readonly List<DashboardTemperatureSample> _chamberTemperatureTrace = new();
     private readonly List<DashboardStabilityScoreSample> _wikaStabilityScoreTrace = new();
+    private Func<int, bool>? _requestPlateauRecalibration;
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
@@ -401,7 +402,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             .ToDictionary(group => group.Key, group => group.First());
         ReferenceChamberId = referenceChamberId;
         Points.Clear();
-        foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká"));
+        foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká", Points.Count));
         RefreshSteps();
         Notify();
     }
@@ -417,7 +418,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         FbgMeasurementStartedAt = null;
         _running = true; _paused = false; _state = CalibrationRunState.Preflight; _lastWarning = "";
         Alert = "Bez hlásených upozornení"; Trend = "—"; TrendTone = "Steady"; _targetEvents.Clear(); Activity.Clear(); FbgStabilityCharts.Clear();
-        foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; point.Explanation = ""; point.Graphs.Clear(); }
+        foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; point.Explanation = ""; point.Graphs.Clear(); point.SetRecalibrationState(false, false); }
         AddEvent(now, "INFO", "Kalibrácia spustená."); RefreshSteps(); Tick(now);
     }
     public void RestoreCompletedPoints(IEnumerable<CalibrationPlateauResult> completedPlateaus)
@@ -441,6 +442,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                     target.StableSamples.Select(sample => new DashboardTemperatureSample(sample.Timestamp, sample.WavelengthNm)).ToList()));
             point.Duration = duration;
             point.Detail = $"Stabilita {plateau.Targets.Count(t => t.Status == CalibrationTargetState.Stable)}/{plateau.Targets.Count} · {Duration(duration)} · {completedAt}";
+            point.SetRecalibrationState(_running, false);
             AddEvent(plateau.CompletedAt, warning ? "WARNING" : "SUCCESS",
                 $"Obnovený bod {plateau.PlateauIndex + 1} bol dokončený {completedAt}; trvanie {Duration(duration)}.",
                 plateau.PlateauIndex, Points.Count, plateau.TargetTemperatureC,
@@ -586,8 +588,20 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 point.SetCalibrationOutcome(snapshot.Targets.Select(t => t.State), snapshot.TotalTargets);
                 point.Duration = snapshot.PlateauElapsed;
                 point.Detail = $"Stabilita {snapshot.Targets.Count(t => t.State == CalibrationTargetState.Stable)}/{snapshot.TotalTargets} · {Duration(snapshot.PlateauElapsed)}";
+                point.SetRecalibrationState(_running, false);
             }
-            else { point.State = "Active"; point.Detail = Phase; }
+            else
+            {
+                if (point.RecalibrationRequested)
+                {
+                    point.Duration = null;
+                    point.Explanation = "";
+                    point.Graphs.Clear();
+                }
+                point.State = "Active";
+                point.Detail = Phase;
+                point.SetRecalibrationState(false, false);
+            }
         }
         foreach (var t in snapshot.Targets)
         {
@@ -691,6 +705,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void End(CalibrationRunState state, string message, DateTimeOffset now)
     {
         _state = state; _running = false; _paused = false; _ended = now;
+        foreach (DashboardNode point in Points) point.SetRecalibrationState(false, point.RecalibrationRequested);
         if (state != CalibrationRunState.Completed) { Alert = message; _lastWarning = message; }
         if (state is CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.Aborted && _snapshot is not null && _snapshot.PlateauIndex >= 0 && _snapshot.PlateauIndex < Points.Count)
         {
@@ -699,6 +714,21 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         }
         AddEvent(now, state == CalibrationRunState.Completed ? "SUCCESS" : state == CalibrationRunState.Failed ? "ERROR" : "WARNING", message);
         RefreshSteps(); Tick(now);
+    }
+
+    public void SetPlateauRecalibrationHandler(Func<int, bool>? handler) => _requestPlateauRecalibration = handler;
+
+    public bool TryRequestPlateauRecalibration(DashboardNode node)
+    {
+        if (!_running || node.PlateauIndex is not { } plateauIndex || !node.CanRequestRecalibration || node.RecalibrationRequested)
+            return false;
+        if (_requestPlateauRecalibration?.Invoke(plateauIndex) != true)
+            return false;
+
+        node.SetRecalibrationState(false, true);
+        AddEvent(DateTimeOffset.Now, "WARNING", $"Operátor označil plato {plateauIndex + 1} na opakovanú kalibráciu.", plateauIndex);
+        Notify();
+        return true;
     }
     public void Tick(DateTimeOffset now)
     {
@@ -949,10 +979,21 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
 public sealed class DashboardNode : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
-    public DashboardNode(string number, string title, string detail) { Number = number; Title = title; _detail = detail; }
+    public DashboardNode(string number, string title, string detail, int? plateauIndex = null) { Number = number; Title = title; _detail = detail; PlateauIndex = plateauIndex; }
     public string Number { get; }
     public string Title { get; }
+    public int? PlateauIndex { get; }
     private string _state = "Pending", _detail;
+    private bool _canRequestRecalibration, _recalibrationRequested;
+    public bool CanRequestRecalibration => _canRequestRecalibration;
+    public bool RecalibrationRequested => _recalibrationRequested;
+    public string RecalibrationLabel => _recalibrationRequested ? "↻ OZNAČENÉ" : "↻ OPAKOVAŤ";
+    public void SetRecalibrationState(bool canRequest, bool requested)
+    {
+        _canRequestRecalibration = canRequest;
+        _recalibrationRequested = requested;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
     public string State { get => _state; set { _state = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null)); } }
     public string Detail { get => _detail; set { _detail = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Detail))); } }
     public string Explanation { get; set; } = "";

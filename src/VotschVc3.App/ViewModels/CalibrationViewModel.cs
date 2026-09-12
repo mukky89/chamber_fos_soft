@@ -2227,6 +2227,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 // Notify once only when the runner actually stops below.
             };
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
+            Dashboard.SetPlateauRecalibrationHandler(index => _runner?.RequestPlateauRecalibration(index) == true);
             DateTimeOffset nextProgressDiagnosticAt = DateTimeOffset.MinValue;
             string? lastProgressDiagnosticState = null;
             var spectrumSnapshotsIssued = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2333,6 +2334,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         finally
         {
             await StopReferenceTraceAsync();
+            Dashboard.SetPlateauRecalibrationHandler(null);
             Dashboard.End(Enum.TryParse<CalibrationRunState>(RunState, out var finalState) ? finalState : CalibrationRunState.Failed,
                 StatusMessage, DateTimeOffset.Now);
             _activeWriter = null;

@@ -1069,6 +1069,52 @@ public sealed class CalibrationWorkflowRegressionTests
         }
         finally { DeleteTempDirectory(root); }
     }
+
+    [Fact]
+    public async Task OperatorCanQueueCompletedPlateauForRecalibrationBeforeFinalConditioning()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "Manual recalibration", ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments =
+                {
+                    new ProfileSegment { Name = "20 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 20 },
+                    new ProfileSegment { Name = "30 C", IsRamp = false, IsCalibrationPoint = true, TargetTemperature = 30 },
+                },
+            };
+            var setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.AddRange(new[] { 0, 1 });
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ChamberId = Guid.NewGuid() };
+            var store = new CalibrationStore(root);
+            await using var writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+            bool requested = false;
+            runner.Progress += snapshot =>
+            {
+                if (!requested && snapshot.State == CalibrationRunState.PlateauCompleted && snapshot.PlateauIndex == 0)
+                    requested = runner.RequestPlateauRecalibration(0);
+            };
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await runner.RunAsync(profile, setup, run, writer, 20, null, cancellationToken: timeout.Token);
+
+            Assert.True(requested);
+            Assert.Equal(2, run.Plateaus.Count);
+            Assert.Single(run.Plateaus.Where(plateau => plateau.PlateauIndex == 0));
+            Assert.Single(run.SupersededPlateaus.Where(plateau => plateau.PlateauIndex == 0));
+            Assert.Equal(2, chamber.WrittenTemperatures.Count(value => Math.Abs(value - 20) < 0.001));
+            Assert.Equal(25, chamber.WrittenTemperatures[^1], 3);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+
     private sealed class ManualSensorClock : TimeProvider
     {
         private long _timestamp;

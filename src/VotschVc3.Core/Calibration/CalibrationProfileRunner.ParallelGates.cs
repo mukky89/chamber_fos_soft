@@ -18,6 +18,8 @@ public sealed class CalibrationProfileRunner
     private readonly CalibrationStore _store;
     private readonly TimeSpan _updateInterval;
     private readonly ManualResetEventSlim _resume = new(true);
+    private readonly object _manualRecalibrationSync = new();
+    private readonly HashSet<int> _manualRecalibrationRequests = new();
     private int _stopChamberOnCancellation = 1;
 
     public CalibrationProfileRunner(
@@ -49,6 +51,14 @@ public sealed class CalibrationProfileRunner
     }
 
     public void RequestTemperatureGateOverride() => _orchestrator.RequestTemperatureGateOverride();
+
+    /// <summary>Queues an already completed plateau for an operator-requested repeat.</summary>
+    public bool RequestPlateauRecalibration(int plateauIndex)
+    {
+        if (plateauIndex < 0) return false;
+        lock (_manualRecalibrationSync)
+            return _manualRecalibrationRequests.Add(plateauIndex);
+    }
 
     /// <summary>
     /// Selects whether cancellation should send a physical STOP. The default is the safe legacy
@@ -85,6 +95,7 @@ public sealed class CalibrationProfileRunner
             throw new InvalidOperationException("Kalibračný profil nemá označené žiadne kalibračné plato.");
 
         List<PlateauWorkItem> workItems = PrepareResume(run, profile, setup, calibrationSteps.Count, resumeFrom);
+        lock (_manualRecalibrationSync) _manualRecalibrationRequests.Clear();
         int progressPlateau = workItems.Count > 0 ? workItems[0].PlateauIndex : calibrationSteps.Count - 1;
 
         run.OperatorSupervisionEnabled = setup.Settings.OperatorSupervisionEnabled;
@@ -142,7 +153,7 @@ public sealed class CalibrationProfileRunner
             if (snapshot.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings) return;
             if (recoveryClock.Elapsed < TimeSpan.FromSeconds(15) && savedPlateau == snapshot.PlateauIndex && savedState == snapshot.State) return;
             SaveCheckpoint(run, setup, Math.Max(0, snapshot.PlateauIndex), snapshot.TargetTemperatureC,
-                workItems.Where(item => item.IsRetry && !run.Plateaus.Any(p => p.PlateauIndex == item.PlateauIndex)).Select(item => item.PlateauIndex));
+                workItems.Where(item => item.IsRetry && (item.IsManual || !run.Plateaus.Any(p => p.PlateauIndex == item.PlateauIndex))).Select(item => item.PlateauIndex));
             savedPlateau = snapshot.PlateauIndex;
             savedState = snapshot.State;
             recoveryClock.Restart();
@@ -157,6 +168,17 @@ public sealed class CalibrationProfileRunner
                 int currentPlateau = workItem.PlateauIndex;
                 cancellationToken.ThrowIfCancellationRequested();
                 await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
+
+                if (workItem.IsRetry)
+                {
+                    CalibrationPlateauResult? previousAttempt = run.Plateaus.LastOrDefault(p => p.PlateauIndex == currentPlateau);
+                    if (previousAttempt is not null)
+                    {
+                        run.SupersededPlateaus.Add(previousAttempt);
+                        run.Plateaus.Remove(previousAttempt);
+                        writer.SaveSummary();
+                    }
+                }
 
                 ExecutionStep step = calibrationSteps[currentPlateau];
                 run.State = CalibrationRunState.MovingToPlateau;
@@ -299,6 +321,9 @@ public sealed class CalibrationProfileRunner
                         DriftLimitPmPerMinute: setup.Settings.MaxWavelengthDriftPmPerMinute,
                         Phase: "Done", BlockingReason: target.Problem ?? string.Empty)).ToArray(),
                     $"Kalibračný bod {currentPlateau + 1} / {calibrationSteps.Count} je dokončený."));
+
+                AppendManualRecalibrationRequests(workItems, workPosition, calibrationSteps.Count, currentPlateau,
+                    step.Segment.TargetTemperature, run, setup, writer);
             }
 
             if (!responseValidated && run.Plateaus.Count > 1)
@@ -405,13 +430,16 @@ public sealed class CalibrationProfileRunner
         run.Plateaus.AddRange(checkpoint.CompletedPlateaus);
         run.CompletedAt = null;
         HashSet<int> completed = checkpoint.CompletedPlateaus.Select(plateau => plateau.PlateauIndex).ToHashSet();
-        HashSet<int> deferred = checkpoint.DeferredPlateauIndices
-            .Where(index => index >= 0 && index < plateauCount && !completed.Contains(index))
+        HashSet<int> queuedRetries = checkpoint.DeferredPlateauIndices
+            .Where(index => index >= 0 && index < plateauCount)
             .ToHashSet();
+        HashSet<int> deferred = queuedRetries.Where(index => !completed.Contains(index)).ToHashSet();
+        HashSet<int> manualRetries = queuedRetries.Where(completed.Contains).ToHashSet();
         return Enumerable.Range(0, plateauCount)
             .Where(index => !completed.Contains(index) && !deferred.Contains(index))
             .Select(index => new PlateauWorkItem(index, IsRetry: false))
             .Concat(deferred.OrderBy(index => index).Select(index => new PlateauWorkItem(index, IsRetry: true)))
+            .Concat(manualRetries.OrderBy(index => index).Select(index => new PlateauWorkItem(index, IsRetry: true, IsManual: true)))
             .ToList();
     }
 
@@ -439,7 +467,44 @@ public sealed class CalibrationProfileRunner
         });
     }
 
-    private sealed record PlateauWorkItem(int PlateauIndex, bool IsRetry);
+    private void AppendManualRecalibrationRequests(
+        List<PlateauWorkItem> workItems,
+        int workPosition,
+        int plateauCount,
+        int currentPlateau,
+        double currentTargetTemperature,
+        CalibrationRunRecord run,
+        CalibrationSetup setup,
+        CalibrationRunWriter writer)
+    {
+        int[] requested;
+        lock (_manualRecalibrationSync)
+        {
+            requested = _manualRecalibrationRequests.OrderBy(index => index).ToArray();
+            _manualRecalibrationRequests.Clear();
+        }
+
+        bool appended = false;
+        foreach (int plateauIndex in requested)
+        {
+            bool completed = run.Plateaus.Any(plateau => plateau.PlateauIndex == plateauIndex);
+            bool alreadyPending = workItems.Skip(workPosition + 1).Any(item => item.PlateauIndex == plateauIndex);
+            if (!completed || alreadyPending || plateauIndex >= plateauCount)
+                continue;
+
+            workItems.Add(new PlateauWorkItem(plateauIndex, IsRetry: true, IsManual: true));
+            appended = true;
+            writer.WriteDiagnostic("INFO", "PLATEAU_RECALIBRATION_REQUESTED",
+                $"Operátor označil plato {plateauIndex + 1} na opakovanú kalibráciu a vyhodnotenie.");
+        }
+
+        if (!appended) return;
+        SaveCheckpoint(run, setup, currentPlateau, currentTargetTemperature,
+            workItems.Skip(workPosition + 1).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
+        writer.SaveSummary();
+    }
+
+    private sealed record PlateauWorkItem(int PlateauIndex, bool IsRetry, bool IsManual = false);
     private Func<CancellationToken, Task<IReadOnlyList<PeakLoggerMeasurement>>>? _identityObservation;
 
     private static HashSet<int> ResolveCalibrationSegmentIndices(TestProfile profile, CalibrationSetup setup)

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.418] – 2026-09-12
+
+### Pridané
+- Operátor môže počas aktívnej FBG kalibrácie označiť už dokončené plato na
+  opakovanú kalibráciu a vyhodnotenie. Opakovanie sa bezpečne zaradí pred
+  záverečné temperovanie, pôvodný pokus zostane zachovaný v auditnej histórii
+  a nový výsledok ho nahradí vo finálnom vyhodnotení.
+
 ## [1.76.417] – 2026-09-12
 
 ### Zmenené
