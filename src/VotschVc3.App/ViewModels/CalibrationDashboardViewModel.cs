@@ -1134,6 +1134,11 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
     public string StateBrush => _progress?.State == CalibrationTargetState.CompletedWithStabilityWarning || _progress?.Phase == "MeasuringWithStabilityWarning" ? "#E5AA54" : _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
         ? (_progress?.Phase == "Measuring" ? "#58A6FF" : "#45C99A")
         : "#DAA520";
+    public string StabilityIndicator => _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
+        ? "● Stabilita potvrdená"
+        : "○ Stabilita sa zbiera";
+    public string StabilityIndicatorBrush => _progress?.State == CalibrationTargetState.Stable || _progress?.Phase == "Measuring"
+        ? "#45C99A" : "#DAA520";
     public string MeasurementSamples => _progress is null ? "Finálne vzorky —" : $"Finálne vzorky {_progress.MeasurementSamples} / {_progress.RequiredMeasurementSamples}";
     public double MeasurementProgress => _progress?.RequiredMeasurementSamples > 0
         ? Math.Clamp(100d * _progress.MeasurementSamples / _progress.RequiredMeasurementSamples, 0, 100)

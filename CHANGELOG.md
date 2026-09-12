@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.429] – 2026-09-13
+
+### Pridané
+- Každý FBG peak zobrazuje vlastný stav stability: zelený bod po potvrdení
+  jeho vlastného stabilizačného okna, inak priebežné zbieranie jeho vzoriek.
+
 ## [1.76.428] – 2026-09-13
 
 ### Upravené
