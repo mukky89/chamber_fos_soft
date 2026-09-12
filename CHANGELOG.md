@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.398] – 2026-09-12
+
+### Zmenené
+
+- Predvolený maximálny rozsah stability referencie WIKA je zvýšený z 0,03 °C na 0,05 °C, aby malé prirodzené kolísanie zbytočne nevynulovalo desaťminútový stabilný čas.
+
 ## [1.76.397] – 2026-09-12
 
 ### Opravené
