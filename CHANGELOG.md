@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.423] – 2026-09-13
+
+### Opravené
+- Rýchlosť setpointu pri FBG kalibrácii umožňuje nastaviť a uložiť hodnotu
+  od 0,05 °C/min; krok administrátorského ovládača je tiež 0,05 °C/min.
+
 ## [1.76.422] – 2026-09-12
 
 ### Pridané

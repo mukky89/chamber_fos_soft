@@ -106,7 +106,7 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,8,22,8" VerticalAlignment="Center"><CheckBox Content="Plynulo posúvať setpoint" IsChecked="{Binding Admin.CalibrationDefaults.EnableSetpointRamp, Mode=TwoWay}" VerticalAlignment="Center" /><Button Style="{StaticResource CalibrationHelpButton}" AutomationProperties.Name="Vysvetlenie: Plynulo posúvať setpoint" Tag="Zapnuté: aplikácia mení požadovanú teplotu postupne podľa rýchlosti setpointu. Vypnuté: odošle cieľ priamo. V oboch prípadoch sa čaká na stabilitu referencie a FBG; vypnutie rampy neznamená okamžité ustálenie." /></StackPanel>
                                 <StackPanel Style="{StaticResource MiniField}">
                             <DockPanel MinHeight="36"><Button DockPanel.Dock="Right" Style="{StaticResource CalibrationHelpButton}" Tag="Ako rýchlo aplikácia posúva požadovanú teplotu pri zapnutej rampe. Napríklad zmena o 10 °C pri 2 °C/min trvá 5 minút. Skutočné dosiahnutie teploty a ustálenie WIKA môže trvať dlhšie. Komora reguluje podľa vlastného snímača." AutomationProperties.Name="Vysvetlenie: Rýchlosť setpointu [°C/min]" /><TextBlock Text="Rýchlosť setpointu [°C/min]" Style="{StaticResource Label}" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
-                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.SetpointRampCPerMinute, Mode=TwoWay}" Step="0.1" Minimum="0.1" Maximum="50" />
+                            <views:NumericStepper Value="{Binding Admin.CalibrationDefaults.SetpointRampCPerMinute, Mode=TwoWay}" Step="0.05" Minimum="0.05" Maximum="50" />
                         </StackPanel>
                             </WrapPanel>
                         </Grid>

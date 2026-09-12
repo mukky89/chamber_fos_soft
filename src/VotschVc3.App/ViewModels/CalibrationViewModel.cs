@@ -627,7 +627,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         get => _setup.Settings.SetpointRampCPerMinute;
         set
         {
-            _setup.Settings.SetpointRampCPerMinute = double.IsFinite(value) ? Math.Clamp(Math.Abs(value), 0.1, 20.0) : 1.0;
+            _setup.Settings.SetpointRampCPerMinute = double.IsFinite(value) ? Math.Clamp(Math.Abs(value), 0.05, 20.0) : 1.0;
             OnPropertyChanged();
             RefreshDashboardPlan();
         }
