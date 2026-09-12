@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.425] – 2026-09-13
+
+### Pridané
+- V administrácii pribudol export aktuálnych predvolených nastavení FBG do JSON.
+- Predvolené nastavenie posuvu setpointu je 0,5 °C/min a vstupné stabilné okno
+  komory je 300 s pre nové nastavenia.
+
 ## [1.76.424] – 2026-09-13
 
 ### Pridané

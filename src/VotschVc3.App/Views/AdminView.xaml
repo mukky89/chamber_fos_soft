@@ -230,6 +230,7 @@
                     </Border>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Uložiť predvolené nastavenia" Style="{StaticResource AccentButton}" Command="{Binding Admin.SaveCalibrationDefaultsCommand}" />
+                        <Button Content="Export JSON" Style="{StaticResource GhostButton}" Click="ExportCalibrationDefaultsJson_Click" ToolTip="Uloží všetky aktuálne predvolené nastavenia FBG kalibrácie do čitateľného JSON súboru." />
                         <TextBlock Text="{Binding Admin.CalibrationDefaultsStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                 </StackPanel>

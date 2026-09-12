@@ -85,7 +85,7 @@ public sealed class CalibrationProfileSettings
     public bool EnableSetpointRamp { get; set; } = true;
 
     /// <summary>Maximum commanded setpoint change in °C/min while moving between plateaus.</summary>
-    public double SetpointRampCPerMinute { get; set; } = 1.0;
+    public double SetpointRampCPerMinute { get; set; } = 0.5;
 
     public bool EnableWavelengthAveraging { get; set; }
     public int WavelengthAveragingSamples { get; set; } = 1;
@@ -117,7 +117,7 @@ public sealed class CalibrationProfileSettings
     public string? AppliedChamberEntryDefaults { get; set; }
     public bool ChamberEntryEnabled { get; set; }
     public double ChamberEntryToleranceC { get; set; } = 0.5;
-    public double ChamberEntryStableSeconds { get; set; } = 120;
+    public double ChamberEntryStableSeconds { get; set; } = 300;
     public double ChamberEntryRangeC { get; set; } = 0.5;
     public double ChamberEntryDriftCPerMinute { get; set; } = 0.1;
 

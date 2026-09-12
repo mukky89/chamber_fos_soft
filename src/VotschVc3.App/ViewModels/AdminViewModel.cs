@@ -39,6 +39,8 @@ public sealed partial class AdminViewModel : ObservableObject
     public string CalibrationDefaultsStatus { get => _calibrationDefaultsStatus; private set => SetProperty(ref _calibrationDefaultsStatus, value); }
     public RelayCommand SaveCalibrationDefaultsCommand { get; }
 
+    public void SetCalibrationDefaultsStatus(string message) => CalibrationDefaultsStatus = message;
+
     private void SaveCalibrationDefaults()
     {
         _defaultsStore.Save(_calibrationDefaults);

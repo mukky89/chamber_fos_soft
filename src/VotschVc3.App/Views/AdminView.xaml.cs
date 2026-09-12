@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -20,6 +21,25 @@ public partial class AdminView : UserControl
     {
         InitializeComponent();
         Loaded += OnLoaded;
+    }
+
+    private void ExportCalibrationDefaultsJson_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ShellViewModel shell) return;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Exportovať predvolené nastavenia FBG",
+            Filter = "JSON súbor (*.json)|*.json|Všetky súbory (*.*)|*.*",
+            FileName = "fbg-calibration-defaults.json",
+            AddExtension = true,
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        File.WriteAllText(dialog.FileName, JsonSerializer.Serialize(shell.Admin.CalibrationDefaults, options));
+        shell.Admin.SetCalibrationDefaultsStatus($"JSON export uložený {DateTime.Now:HH:mm}: {dialog.FileName}");
     }
 
     private void CalibrationHelp_Opening(object sender, ToolTipEventArgs e)
