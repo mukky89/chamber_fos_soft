@@ -43,6 +43,7 @@ public partial class CalibrationWindow : Window
     private bool _passiveHardwareRefreshStarted;
     private bool _disposing;
     private bool _shutdownRequested;
+    private bool _stopChamberOnShutdown = true;
     private Task? _disposeTask;
 
     public CalibrationWindow(Guid chamberId)
@@ -600,12 +601,15 @@ public partial class CalibrationWindow : Window
     }
 
     /// <summary>Closes the workspace if one is open (called when the app shuts down).</summary>
-    public static async Task CloseIfOpenAsync()
+    public static bool HasActiveCalibration => Instances.Values.Any(window => window._viewModel.IsRunning);
+
+    public static async Task CloseIfOpenAsync(bool stopChamber = true)
     {
         var tasks = new List<Task>();
         foreach (CalibrationWindow window in Instances.Values.ToArray())
         {
             window._shutdownRequested = true;
+            window._stopChamberOnShutdown = stopChamber;
             window.Close();
             if (window._disposeTask is { } task) tasks.Add(task);
         }
@@ -654,7 +658,7 @@ public partial class CalibrationWindow : Window
             }
             _sylexFosIntegration.LookupStatusChanged -= OnSylexFosLookupStatusChanged;
             // Checkpoint and stop the calibration before optional API cleanup.
-            await _viewModel.DisposeAsync();
+            await _viewModel.DisposeAsync(_stopChamberOnShutdown);
             await _sylexFosIntegration.DisposeAsync();
         }
         catch (Exception ex)

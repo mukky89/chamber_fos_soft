@@ -77,6 +77,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
     private CalibrationWlLog? _activeWlLog;
     private CalibrationSetup _setup = new();
     private bool _stopRequested;
+    private bool _stopChamberOnCancellation = true;
     private bool _temperatureGateOverridePending;
     private double? _lastChamberTemperatureC;
     private double? _lastReferenceTemperatureC;
@@ -2098,6 +2099,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         TargetProgress.Clear();
         _runCts = new CancellationTokenSource();
         _stopRequested = false;
+        _stopChamberOnCancellation = true;
         _temperatureGateOverridePending = false;
         _calibrationProgressPercent = 0;
         Dashboard.ResetPlan();
@@ -2323,7 +2325,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             }
             if (_chamber is not null)
             {
-                if (_stopRequested)
+                if (_stopRequested && _stopChamberOnCancellation)
                 {
                     try { await _chamber.StopAsync(); }
                     catch (Exception stopError)
@@ -2365,6 +2367,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             OnPropertyChanged(nameof(OperatorSupervisionEnabled));
             OnPropertyChanged(nameof(OperatorSupervisionLabel));
             _stopRequested = false;
+            _stopChamberOnCancellation = true;
             if (_freshStartPending) CompleteFreshCalibrationReset();
             RefreshResumeCheckpoint();
             _runCts?.Dispose();
@@ -2487,6 +2490,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         {
             _freshStartPending = true;
             TrySaveResumeCheckpoint("OPERATOR_REQUEST_FRESH_RUN");
+            _stopChamberOnCancellation = true;
+            _runner?.SetStopChamberOnCancellation(true);
             _stopRequested = true;
             _runCts?.Cancel();
             StatusMessage = "Zastavujem komoru. Po potvrdení STOP zruším rozpracovaný stav pre nový beh.";
@@ -2540,29 +2545,33 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         string target = Dashboard.TargetTemperatureC is { } targetTemperature
             ? $" pri cieli {targetTemperature:F1} °C"
             : string.Empty;
-        if (!Views.ConfirmDialog.Ask(
-                $"Naozaj chcete ukončiť prebiehajúcu FBG kalibráciu{target}?\n\n" +
-                "Komora sa bezpečne zastaví a uloží sa checkpoint. Dokončené plata zostanú zachované. " +
-                "Rozpracované plato sa po obnovení znovu stabilizuje a zmeria z čerstvých vzoriek.",
-                "Ukončiť kalibráciu?",
-                confirmText: "Ukončiť a uložiť",
-                danger: true,
-                cancelText: "Pokračovať v kalibrácii"))
+        Views.ChamberRunExitChoice choice = Views.ChamberRunExitDialog.Ask(
+            "Ukončiť FBG kalibráciu?",
+            $"Naozaj chcete ukončiť prebiehajúcu FBG kalibráciu{target}?\n\n" +
+            "Checkpoint a dokončené plata zostanú zachované. Rozpracované plato sa po obnovení " +
+            "znovu stabilizuje a zmeria z čerstvých vzoriek. Vyberte, či má komora zostať regulovať aktuálnu teplotu.");
+        if (choice == Views.ChamberRunExitChoice.Cancel)
         {
             StatusMessage = "Ukončenie bolo zrušené. Kalibrácia pokračuje bez zmeny.";
             return;
         }
 
         bool checkpointSaved = TrySaveResumeCheckpoint("OPERATOR_STOP_FOR_RESTART");
+        _stopChamberOnCancellation = choice == Views.ChamberRunExitChoice.StopChamber;
+        _runner?.SetStopChamberOnCancellation(_stopChamberOnCancellation);
         _stopRequested = true;
         _activeWriter?.WriteDiagnostic("WARNING", "OPERATOR_STOP", checkpointSaved
-            ? "Operátor stlačil STOP; checkpoint je uložený pre pokračovanie po reštarte a komora sa bezpečne zastavuje."
-            : "Operátor stlačil STOP; checkpoint sa nepodarilo uložiť a komora sa bezpečne zastavuje.");
-        AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: operátor stlačil STOP.");
+            ? $"Operátor ukončil beh; checkpoint je uložený pre pokračovanie po reštarte; výkon komory: {(_stopChamberOnCancellation ? "STOP" : "PONECHANÝ")}."
+            : $"Operátor ukončil beh; checkpoint sa nepodarilo uložiť; výkon komory: {(_stopChamberOnCancellation ? "STOP" : "PONECHANÝ")}." );
+        AppLog.Warn("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: operátor ukončil beh; stopChamber={_stopChamberOnCancellation}.");
         _runCts?.Cancel();
         StatusMessage = checkpointSaved
-            ? "Checkpoint je uložený. Zastavujem kalibráciu a komoru; po aktualizácii použite Pokračovať v kalibrácii."
-            : "Zastavujem kalibráciu a komoru. Checkpoint sa nepodarilo uložiť; skontrolujte diagnostiku.";
+            ? _stopChamberOnCancellation
+                ? "Checkpoint je uložený. Zastavujem kalibráciu aj komoru; potom použite Pokračovať v kalibrácii."
+                : "Checkpoint je uložený. Kalibráciu ukončujem, komora zostáva regulovať aktuálnu teplotu."
+            : _stopChamberOnCancellation
+                ? "Zastavujem kalibráciu aj komoru. Checkpoint sa nepodarilo uložiť; skontrolujte diagnostiku."
+                : "Kalibráciu ukončujem a komoru ponechávam v chode. Checkpoint sa nepodarilo uložiť; skontrolujte diagnostiku.";
     }
 
     private bool CanStopOrFinalizeCalibration()
@@ -2931,6 +2940,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
 
     private void OnTemperatureSafetyTripped(object? sender, TemperatureSafetyTrippedEventArgs e)
     {
+        _stopChamberOnCancellation = true;
+        _runner?.SetStopChamberOnCancellation(true);
         _stopRequested = true;
         _activeWriter?.WriteDiagnostic("ERROR", "TEMPERATURE_SAFETY_TRIPPED",
             $"actualC={e.ActualC:G17}; minimumC={e.MinimumC:G17}; maximumC={e.MaximumC:G17}; stopSucceeded={e.StopSucceeded}; stopError={e.StopError}");
@@ -3024,7 +3035,9 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         RestoreSelectedRunCommand.RaiseCanExecuteChanged();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => DisposeAsync(stopChamber: true);
+
+    public async ValueTask DisposeAsync(bool stopChamber)
     {
         _peakViewRefreshTimer?.Stop();
         ObserveResumeReference(null);
@@ -3042,6 +3055,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         }
         _activeWriter = null;
         _stopRequested = IsRunning;
+        _stopChamberOnCancellation = stopChamber;
+        _runner?.SetStopChamberOnCancellation(stopChamber);
         _runCts?.Cancel();
         if (_runSessionTask is { } session)
         {
@@ -3052,7 +3067,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         await StopReferenceTraceAsync();
         if (_chamber is not null)
         {
-            if (_stopRequested)
+            if (_stopRequested && _stopChamberOnCancellation)
             {
                 try { await _chamber.StopAsync(); } catch { }
             }

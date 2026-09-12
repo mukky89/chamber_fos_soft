@@ -18,6 +18,7 @@ public sealed class CalibrationProfileRunner
     private readonly CalibrationStore _store;
     private readonly TimeSpan _updateInterval;
     private readonly ManualResetEventSlim _resume = new(true);
+    private int _stopChamberOnCancellation = 1;
 
     public CalibrationProfileRunner(
         IChamberDevice chamber,
@@ -48,6 +49,13 @@ public sealed class CalibrationProfileRunner
     }
 
     public void RequestTemperatureGateOverride() => _orchestrator.RequestTemperatureGateOverride();
+
+    /// <summary>
+    /// Selects whether cancellation should send a physical STOP. The default is the safe legacy
+    /// behaviour; the UI may explicitly keep the controller regulating its last setpoint.
+    /// </summary>
+    public void SetStopChamberOnCancellation(bool stopChamber) =>
+        Volatile.Write(ref _stopChamberOnCancellation, stopChamber ? 1 : 0);
 
     public async Task RunAsync(
         TestProfile profile,
@@ -341,11 +349,11 @@ public sealed class CalibrationProfileRunner
         catch (OperationCanceledException)
         {
             // STOP from the UI cancels the runner token. Do not wait for the outer ViewModel
-            // cleanup before stopping the physical chamber: send a best-effort STOP here
-            // immediately so the chamber is not left running while reference/FBG cleanup finishes.
+            // Apply the operator's selected policy immediately; outer cleanup repeats it as a safety net.
             try
             {
-                await _chamber.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                if (Volatile.Read(ref _stopChamberOnCancellation) == 1)
+                    await _chamber.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
             catch
             {

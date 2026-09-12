@@ -41,8 +41,14 @@
 
             <Border Margin="0,20,0,18" Padding="13,10" CornerRadius="8"
                     Background="#18E2555B" BorderBrush="#70E2555B" BorderThickness="1">
-                <TextBlock Foreground="{StaticResource TextBrush}" TextWrapping="Wrap"
-                           Text="Ak má aplikácia ďalej riadiť komoru, zvoľte Skryť do tray." />
+                <StackPanel>
+                    <TextBlock Foreground="{StaticResource TextBrush}" TextWrapping="Wrap"
+                               Text="Ak má aplikácia ďalej riadiť komoru, zvoľte Skryť do tray." />
+                    <CheckBox x:Name="KeepFbgChamberRunningCheckBox" Margin="0,12,0,0"
+                              IsChecked="True" Foreground="{StaticResource TextBrush}"
+                              Content="Pri ukončení ponechať komoru FBG kalibrácie v chode"
+                              ToolTip="Kalibrácia sa ukončí a uloží, ale regulátor komory zostane na poslednom nastavenom setpointe." />
+                </StackPanel>
             </Border>
 
             <!-- Actions: destructive exit clearly separated from the safe options. -->

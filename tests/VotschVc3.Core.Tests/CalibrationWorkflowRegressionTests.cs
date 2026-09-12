@@ -214,6 +214,47 @@ public sealed class CalibrationWorkflowRegressionTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 0)]
+    public async Task CancellationHonorsOperatorChamberOutputChoice(bool stopChamber, int expectedStops)
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile
+            {
+                Name = "Update restart", ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments = { new ProfileSegment { TargetTemperature = 20, IsCalibrationPoint = true, IsRamp = false } }
+            };
+            var setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.Add(0);
+            setup.Settings.ChamberStableDuration = TimeSpan.FromMinutes(10);
+            var store = new CalibrationStore(root);
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ChamberId = Guid.NewGuid() };
+            await using var writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+            runner.SetStopChamberOnCancellation(stopChamber);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            runner.Progress += snapshot =>
+            {
+                if (snapshot.State == CalibrationRunState.MovingToPlateau && snapshot.PlateauIndex >= 0)
+                    cancellation.Cancel();
+            };
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                runner.RunAsync(profile, setup, run, writer, 20, null,
+                    _ => Task.FromResult<double?>(20), cancellation.Token));
+
+            Assert.Equal(expectedStops, chamber.StopCount);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+
     [Fact]
     public async Task ChamberPrerequisiteKeepsWikaWindowEmptyWhileStillReadingReference()
     {

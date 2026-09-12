@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.400] – 2026-09-12
+
+### Pridané
+
+- Pri ukončení aktívnej FBG kalibrácie si operátor vyberie, či sa má výkon komory zastaviť alebo ponechať na aktuálnom setpointe; zrušenie dialógu nechá kalibráciu pokračovať.
+- Pri ukončení celej aplikácie počas FBG kalibrácie možno ponechať komoru v chode, aby aktualizácia aplikácie neprerušila teplotné ustálenie. Checkpoint sa v oboch prípadoch uloží na pokračovanie.
+
 ## [1.76.399] – 2026-09-12
 
 ### Zmenené

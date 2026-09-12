@@ -80,7 +80,7 @@ public partial class MainWindow : Window
             RestoreFromTray();
         }
 
-        var dialog = new ExitDialog { Owner = this };
+        var dialog = new ExitDialog(CalibrationWindow.HasActiveCalibration) { Owner = this };
         dialog.ShowDialog();
 
         switch (dialog.Choice)
@@ -90,7 +90,7 @@ public partial class MainWindow : Window
                 try
                 {
                     // OnMainWindowClose terminates WPF: all asynchronous saves must finish first.
-                    await CalibrationWindow.CloseIfOpenAsync();
+                    await CalibrationWindow.CloseIfOpenAsync(stopChamber: !dialog.KeepFbgChamberRunning);
                     await _shell.DisposeAsync();
                     _exitConfirmed = true;
                     Close();

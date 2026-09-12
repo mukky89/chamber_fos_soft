@@ -22,10 +22,20 @@ public enum ExitChoice
 /// </summary>
 public partial class ExitDialog : Window
 {
-    public ExitDialog() => InitializeComponent();
+    public ExitDialog(bool hasActiveFbgCalibration)
+    {
+        InitializeComponent();
+        KeepFbgChamberRunningCheckBox.Visibility = hasActiveFbgCalibration
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
 
     /// <summary>The user's choice; valid once <see cref="Window.ShowDialog"/> returns.</summary>
     public ExitChoice Choice { get; private set; } = ExitChoice.Cancel;
+
+    public bool KeepFbgChamberRunning =>
+        KeepFbgChamberRunningCheckBox.Visibility == Visibility.Visible &&
+        KeepFbgChamberRunningCheckBox.IsChecked == true;
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
