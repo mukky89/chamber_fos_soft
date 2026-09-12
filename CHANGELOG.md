@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.412] – 2026-09-12
+
+- História FBG kalibrácií zobrazuje počet uložených spektrálnych snapshotov pri každom behu.
+
 ## [1.76.411] – 2026-09-12
 
 - Excel report kalibračného bodu obsahuje kartu „PeakLogger snapshoty“ so zoznamom uložených spektier a odkazmi na PNG/JSON/CSV.

@@ -109,5 +109,13 @@ public sealed class FbgCalibrationHistoryItem
     public string ProfileDisplay => string.IsNullOrWhiteSpace(Run.ProfileCode)
         ? Run.ProfileName
         : $"{Run.ProfileCode} · {Run.ProfileName}";
-    public string ResultSummary => $"Snímače: {SensorCount} · výsledky: {ResultCount} · PASS: {PassCount} · FAIL: {FailCount}";
+    public int SpectrumSnapshotCount
+    {
+        get
+        {
+            string manifest = Path.Combine(FolderPath, "spectrum-snapshots.csv");
+            return File.Exists(manifest) ? Math.Max(0, File.ReadLines(manifest).Skip(1).Count()) : 0;
+        }
+    }
+    public string ResultSummary => $"Snímače: {SensorCount} · výsledky: {ResultCount} · PASS: {PassCount} · FAIL: {FailCount} · snapshoty: {SpectrumSnapshotCount}";
 }
