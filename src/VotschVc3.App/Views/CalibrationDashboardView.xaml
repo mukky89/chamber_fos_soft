@@ -293,11 +293,11 @@
       <TextBlock Text="{Binding PeakSummary}" FontSize="20" Margin="0,12,0,4"/>
       <ProgressBar Value="{Binding StabilityProgress, Mode=OneWay}"/>
       <TextBlock Text="{Binding PeakDetail}" Style="{StaticResource Muted}"/>
-      <Border Background="#172A3E" BorderBrush="#3D6D9D" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,8,0,0"
+      <Border Style="{StaticResource CriterionPill}" Tag="Done" Margin="0,8,0,0"
               ToolTip="Každý peak musí splniť všetky uvedené podmienky súčasne. Hodnoty zodpovedajú aktuálnym nastaveniam kalibrácie.">
        <StackPanel>
         <Grid>
-         <TextBlock Text="PODMIENKY STABILITY" Foreground="#8BBAFF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+         <TextBlock Text="PODMIENKY STABILITY" Foreground="#63E6B6" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
          <Button HorizontalAlignment="Right" Style="{StaticResource WorkflowHelpButton}" Content="?" Tag="{Binding PeakStabilityCriteriaHelp}" Click="HelpButton_Click"/>
         </Grid>
         <TextBlock Text="{Binding PeakStabilityCriteria}" Foreground="#DCEAFF" FontSize="10.5" TextWrapping="Wrap" Margin="0,3,0,0"/>

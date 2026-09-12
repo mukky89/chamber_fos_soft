@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.426] – 2026-09-13
+
+### Upravené
+- Blok „Podmienky stability“ pri FBG peakov má rovnaký zelený rámček a
+  vizuálnu hierarchiu ako kritériá stability komory/WIKA.
+
 ## [1.76.425] – 2026-09-13
 
 ### Pridané
