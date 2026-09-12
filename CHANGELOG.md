@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.409] – 2026-09-12
+
+- Pri chybovom alebo operátorskom stave sa uloží diagnostický snapshot spektra s dôvodom problému.
+
 ## [1.76.408] – 2026-09-12
 
 - Pridaný súhrnný index `spectrum-snapshots.csv` so zoznamom všetkých spektrálnych snapshotov a odkazmi na JSON/PNG súbory.
