@@ -2230,6 +2230,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             DateTimeOffset nextProgressDiagnosticAt = DateTimeOffset.MinValue;
             string? lastProgressDiagnosticState = null;
             var spectrumSnapshotsIssued = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            Task spectrumSnapshotPipeline = Task.CompletedTask;
             object progressDiagnosticSync = new();
             _runner.Progress += snapshot =>
             {
@@ -2245,13 +2246,17 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                         lastProgressDiagnosticState = diagnosticState;
                     }
                 }
-                if (snapshot.PlateauIndex >= 0 && snapshot.Targets.Count > 0)
+                if (snapshot.PlateauIndex >= 0)
                 {
                     string phase = snapshot.State == CalibrationRunState.MovingToPlateau ? "before" :
                         snapshot.State == CalibrationRunState.PlateauCompleted ? "after" :
                         snapshot.State is CalibrationRunState.AwaitingOperator or CalibrationRunState.Failed ? "error" : string.Empty;
-                    if (phase.Length > 0 && spectrumSnapshotsIssued.Add($"{snapshot.PlateauIndex}:{phase}"))
-                        _ = CapturePlateauSpectraAsync(snapshot, phase, phase == "error" ? snapshot.Message : null);
+                    lock (progressDiagnosticSync)
+                    {
+                        if (phase.Length > 0 && spectrumSnapshotsIssued.Add($"{snapshot.PlateauIndex}:{phase}"))
+                            spectrumSnapshotPipeline = CapturePlateauSpectraAfterAsync(
+                                spectrumSnapshotPipeline, snapshot, phase, phase == "error" ? snapshot.Message : null);
+                    }
                 }
                 _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
             };
@@ -2279,6 +2284,11 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 // Logging here preserves the original device/runner exception.
                 writer.WriteDiagnostic("ERROR", "RUN_FAILED", ex.ToString());
                 throw;
+            }
+            finally
+            {
+                // Reports and replication must see every snapshot requested by the run.
+                await spectrumSnapshotPipeline;
             }
 
             writer.WriteDiagnostic("INFO", "RUN_FINISHED", $"state={_activeRun.State}; plateaus={_activeRun.Plateaus.Count}; warnings={_activeRun.Warnings.Count}");
@@ -2459,14 +2469,19 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         try
         {
             using var api = new PeakLoggerExtendedApiClient();
-            foreach (var target in snapshot.Targets.GroupBy(t => new { t.Channel, t.SerialNumber }))
+            var sources = _setup.Mappings
+                .Where(mapping => mapping.Selected)
+                .Select(mapping => new { mapping.Channel, DeviceSerialNumber = mapping.SourceDeviceSerialNumber })
+                .Distinct()
+                .ToArray();
+            foreach (var source in sources)
             {
                 IReadOnlyList<PeakLoggerSpectrumPoint> points = await api.ReadSpectrumAsync(
-                    PeakLoggerHost, PeakLoggerPort, target.Key.Channel, target.Key.SerialNumber).ConfigureAwait(false);
+                    PeakLoggerHost, PeakLoggerPort, source.Channel, source.DeviceSerialNumber).ConfigureAwait(false);
                 if (points.Count < 2) continue;
                 PeakLoggerSpectrumSnapshotStore.Save(CurrentRunDirectory!, new PeakLoggerSpectrumSnapshotMetadata(
                     run.RunId, "FBG", snapshot.PlateauIndex, phase, DateTimeOffset.Now,
-                    SelectedProfile?.Name, target.Key.Channel, target.Key.SerialNumber,
+                    SelectedProfile?.Name, source.Channel, source.DeviceSerialNumber,
                     snapshot.TargetTemperatureC, snapshot.ActualTemperatureC, snapshot.ReferenceTemperatureC, reason), points);
             }
         }
@@ -2475,6 +2490,16 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             _activeWriter?.WriteDiagnostic("WARNING", "SPECTRUM_SNAPSHOT", $"phase={phase}; plateau={snapshot.PlateauIndex + 1}; {ex.Message}");
             AppLog.Warn("PeakLogger spektrum", $"Snapshot {phase} plateau {snapshot.PlateauIndex + 1}: {ex.Message}");
         }
+    }
+
+    private async Task CapturePlateauSpectraAfterAsync(
+        Task previous,
+        CalibrationProgressSnapshot snapshot,
+        string phase,
+        string? reason)
+    {
+        await previous.ConfigureAwait(false);
+        await CapturePlateauSpectraAsync(snapshot, phase, reason).ConfigureAwait(false);
     }
 
     private static void WriteProgressDiagnostic(CalibrationRunWriter writer, CalibrationProgressSnapshot snapshot)

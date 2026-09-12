@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.416] – 2026-09-12
+
+### Opravené
+- Nejednoznačná identita FBG peaku zostáva zablokovaná do konca behu aj po
+  neskoršom čistom API rámci. Automaticky sa obnovuje iba komunikačný výpadok,
+  pri ktorom možno jednoznačne dokázať kontinuitu peakov.
+- Automatické spektrálne snapshoty používajú správne SN PeakLogger zariadenia,
+  vytvoria sa aj pred platom a pred reportom sa počká na ich bezpečné sekvenčné
+  uloženie.
+
 ## [1.76.415] – 2026-09-12
 
 ### Zmenené
