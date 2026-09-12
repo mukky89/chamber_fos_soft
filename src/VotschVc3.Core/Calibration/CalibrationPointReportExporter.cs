@@ -232,6 +232,21 @@ internal static class CalibrationPointReportExporter
         IXLWorksheet finalSheet = workbook.Worksheets.Add("Finálne vzorky");
         WriteSeriesData(finalSheet, finalSamples);
         IXLWorksheet charts = workbook.Worksheets.Add("Grafy");
+        string? runDirectory = run.LocalRunDirectory;
+        string manifest = string.IsNullOrWhiteSpace(runDirectory) ? string.Empty : Path.Combine(runDirectory, "spectrum-snapshots.csv");
+        if (File.Exists(manifest))
+        {
+            IXLWorksheet snapshots = workbook.Worksheets.Add("PeakLogger snapshoty");
+            snapshots.Cell(1, 1).Value = "Uložené spektrálne snapshoty";
+            int row = 3;
+            foreach (string line in File.ReadLines(manifest).Skip(1))
+            {
+                string[] cells = line.Split(';');
+                for (int column = 0; column < cells.Length; column++) snapshots.Cell(row, column + 1).Value = cells[column];
+                row++;
+            }
+            snapshots.Columns().AdjustToContents();
+        }
         charts.Cell("A1").Value = "Grafy kalibračného bodu";
         charts.Cell("A1").Style.Font.SetBold().Font.SetFontSize(18).Font.SetFontColor(XLColor.FromHtml("#182A40"));
         charts.AddPicture(temperatureChart).MoveTo(charts.Cell("A3")).WithSize(980, 532);
