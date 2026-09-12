@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.420] – 2026-09-12
+
+### Opravené
+- Výber historického kalibračného behu je nad analýzou profilu a má vlastnú
+  výšku. Celá stránka výsledkov sa posúva, takže analýza už neskryje zoznam
+  potrebný na doplnenie merania. Zoznam zobrazuje čitateľné ID behu.
+
 ## [1.76.419] – 2026-09-12
 
 ### Opravené

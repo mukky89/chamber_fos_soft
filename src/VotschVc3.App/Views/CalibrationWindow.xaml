@@ -758,8 +758,9 @@
             </TabItem>
 
             <TabItem Header="História">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Grid Margin="8">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
                         <Button Content="↻ Obnoviť zoznam" Style="{StaticResource GhostButton}" Command="{Binding RefreshHistoryCommand}" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -772,7 +773,22 @@
                             <Button Content="Export summary CSV" Style="{StaticResource AccentButton}" Command="{Binding ExportSelectedRunCommand}" />
                         </StackPanel>
                     </DockPanel>
-                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14,12">
+                    <DataGrid Grid.Row="1" Height="180" Margin="0,8,0,12" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryRun}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Začiatok" Binding="{Binding StartedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
+                            <DataGridTextColumn Header="Koniec" Binding="{Binding CompletedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
+                            <DataGridTextColumn Header="RunId" Binding="{Binding DisplayRunId}" Width="220" />
+                            <DataGridTextColumn Header="Profil" Binding="{Binding ProfileName}" Width="*" />
+                            <DataGridTextColumn Header="Komora" Binding="{Binding ChamberName}" Width="180" />
+                            <DataGridTextColumn Header="CTH7000 port" Binding="{Binding ReferenceThermometerPort}" Width="90" />
+                            <DataGridTextColumn Header="CTH7000 kanál" Binding="{Binding ReferenceThermometerChannel}" Width="100" />
+                            <DataGridTextColumn Header="Stav" Binding="{Binding State}" Width="160" />
+                            <DataGridTextColumn Header="Plata" Binding="{Binding Plateaus.Count}" Width="70" />
+                            <DataGridTextColumn Header="Warnings" Binding="{Binding Warnings.Count}" Width="80" />
+                            <DataGridTextColumn Header="Operátor" Binding="{Binding Operator}" Width="130" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14,12">
                         <StackPanel>
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <StackPanel><TextBlock Text="Analýza vybraného profilu" Style="{StaticResource Heading}"/><TextBlock Text="{Binding ProfileUsageSummary}" Foreground="#CBE2FF"/><TextBlock Text="{Binding ProfileDurationSummary}" Foreground="#66DDB0" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0"/><TextBlock Text="{Binding ProfileDurationRange}" Style="{StaticResource Caption}" Margin="0,3,0,0"/></StackPanel>
@@ -784,7 +800,7 @@
                             </ItemsControl>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,9">
+                    <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,9">
                         <StackPanel>
                             <TextBlock Text="Kalibračné koeficienty vybraného behu" Style="{StaticResource Heading}" Margin="0,0,0,7" />
                             <DataGrid ItemsSource="{Binding SelectedHistoryRun.CalibrationResults}" Height="180"
@@ -820,22 +836,9 @@
                             </DataGrid>
                         </StackPanel>
                     </Border>
-                    <DataGrid Grid.Row="3" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistoryRun}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Začiatok" Binding="{Binding StartedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
-                            <DataGridTextColumn Header="Koniec" Binding="{Binding CompletedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="150" />
-                            <DataGridTextColumn Header="RunId" Binding="{Binding RunId}" Width="220" />
-                            <DataGridTextColumn Header="Profil" Binding="{Binding ProfileName}" Width="*" />
-                            <DataGridTextColumn Header="Komora" Binding="{Binding ChamberName}" Width="180" />
-                            <DataGridTextColumn Header="CTH7000 port" Binding="{Binding ReferenceThermometerPort}" Width="90" />
-                            <DataGridTextColumn Header="CTH7000 kanál" Binding="{Binding ReferenceThermometerChannel}" Width="100" />
-                            <DataGridTextColumn Header="Stav" Binding="{Binding State}" Width="160" />
-                            <DataGridTextColumn Header="Plata" Binding="{Binding Plateaus.Count}" Width="70" />
-                            <DataGridTextColumn Header="Warnings" Binding="{Binding Warnings.Count}" Width="80" />
-                            <DataGridTextColumn Header="Operátor" Binding="{Binding Operator}" Width="130" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+
                 </Grid>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 
