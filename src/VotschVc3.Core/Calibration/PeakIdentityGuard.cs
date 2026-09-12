@@ -67,8 +67,11 @@ public static class PeakIdentityGuard
         if (batch.Count == 0) return accepted;
         foreach (var channel in channels)
         {
-            if (channel.Problem is not null && !channel.CommunicationGap) continue;
             var observations = batch.Where(p => Same(p.SerialNumber, channel.Device) && Same(p.Channel, channel.Channel)).ToArray();
+            // A prior identity warning is recoverable while the run is active. Always
+            // inspect returned observations before deciding whether to skip the channel.
+            bool recoveringLatchedChannel = channel.Problem is not null && !channel.CommunicationGap;
+            if (recoveringLatchedChannel && observations.Length == 0) continue;
             if (observations.Length == 0)
             {
                 if (!channel.CommunicationGap)
@@ -83,7 +86,7 @@ public static class PeakIdentityGuard
             string? problem = null;
             double elapsed = (now - channel.LastObservedAt).TotalSeconds;
             double maxGap = settings.IdentityMaximumGapSeconds;
-            bool recovering = channel.CommunicationGap || elapsed > maxGap;
+            bool recovering = channel.CommunicationGap || recoveringLatchedChannel || elapsed > maxGap;
             double separation = settings.IdentityMinimumSeparationNm;
             double movement = settings.IdentityBaseToleranceNm + settings.IdentityMaximumMotionNmPerMinute * Math.Max(0, elapsed) / 60;
             if (!double.IsFinite(movement) || !double.IsFinite(separation) || !double.IsFinite(maxGap) ||

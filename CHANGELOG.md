@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.396] – 2026-09-12
+
+### Opravené
+
+- Kanál označený ako neistý sa pri každom ďalšom cykle znovu kontroluje, keď sa jeho peaky vrátia. Jednoznačný návrat odblokuje kalibráciu aj v už rozbehnutom behu.
+
 ## [1.76.395] – 2026-09-12
 
 ### Opravené
