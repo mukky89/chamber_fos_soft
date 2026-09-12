@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.404] – 2026-09-12
+
+- Pridané jednotné úložisko surových PeakLogger spektier a metadát podľa RunId, plate a fázy snapshotu v JSON/CSV formáte.
+
 ## [1.76.403] – 2026-09-12
 
 - Živý náhľad spektra podporuje prepínanie celého rozsahu a automatického zoomu na vybraný peak s jeho vyznačením v grafe.
