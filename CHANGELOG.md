@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.76.422] – 2026-09-12
+
+### Pridané
+- Medzi po sebe meranými platami s rovnakou teplotou sa vykoná sivý
+  nekalibračný medzikrok: ochladenie o 10 °C a súvislá výdrž aspoň 30 min
+  v pásme cieľ − 1 °C až cieľ podľa WIKA (bez referencie podľa komory).
+  Potom nasleduje návrat a nová stabilizácia aj meranie. Krok má timeout,
+  rešpektuje STOP/pauzu a po prerušení začne výdrž nanovo.
+- Roadmapa a odhad zohľadňujú ochladenie; medzikrok sa nezapočítava medzi
+  kalibračné body a nevstupuje do koeficientov.
+
 ## [1.76.421] – 2026-09-12
 
 ### Opravené

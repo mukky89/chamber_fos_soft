@@ -11,7 +11,7 @@ namespace VotschVc3.Core.Calibration;
 /// Progression is controlled by the measured WIKA reference stability and then by independent
 /// per-FBG stability/measurement completion.
 /// </summary>
-public sealed class CalibrationProfileRunner
+public sealed partial class CalibrationProfileRunner
 {
     private readonly IChamberDevice _chamber;
     private readonly CalibrationOrchestrator _orchestrator;
@@ -160,6 +160,9 @@ public sealed class CalibrationProfileRunner
         double previousCommandedTemperature = startTemperature;
         CalibrationPlateauResult? validationBaseline = run.Plateaus.FirstOrDefault();
         bool responseValidated = false;
+        double? previousMeasuredTarget = run.Plateaus
+            .Where(p => !workItems.Any(w => w.PlateauIndex == p.PlateauIndex))
+            .OrderBy(p => p.CompletedAt).LastOrDefault()?.TargetTemperatureC;
         var recoveryClock = System.Diagnostics.Stopwatch.StartNew();
         int savedPlateau = -1;
         int activeWorkPosition = 0;
@@ -187,6 +190,14 @@ public sealed class CalibrationProfileRunner
                 await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
 
                 ExecutionStep step = calibrationSteps[currentPlateau];
+                if (InterPlateauCooling.RequiresCooling(previousMeasuredTarget, step.Segment.TargetTemperature) ||
+                    (workPosition == 0 && resumeFrom?.State == CalibrationRunState.InterPlateauCooling))
+                {
+                    await CoolBetweenPlateausAsync(setup, run, writer, currentPlateau, calibrationSteps.Count,
+                        previousCommandedTemperature, step.Segment.TargetTemperature, previousHumidity,
+                        readReferenceTemperatureAsync, cancellationToken).ConfigureAwait(false);
+                    previousCommandedTemperature = step.Segment.TargetTemperature - InterPlateauCooling.DropC;
+                }
                 run.State = CalibrationRunState.MovingToPlateau;
 
                 double? targetHumidity = step.Segment.TargetHumidity ?? previousHumidity;
@@ -307,6 +318,7 @@ public sealed class CalibrationProfileRunner
 
                 SaveCheckpoint(run, setup, currentPlateau, step.Segment.TargetTemperature,
                     workItems.Skip(workPosition + 1).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
+                previousMeasuredTarget = plateau.TargetTemperatureC;
                 run.State = CalibrationRunState.PlateauCompleted;
                 Progress?.Invoke(new CalibrationProgressSnapshot(
                     run.State,

@@ -21,6 +21,7 @@ public enum CalibrationRunState
     CompletedWithWarnings,
     Aborted,
     Failed,
+    InterPlateauCooling,
 }
 
 public enum CalibrationTargetState

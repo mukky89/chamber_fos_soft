@@ -1117,6 +1117,43 @@ public sealed class CalibrationWorkflowRegressionTests
         finally { DeleteTempDirectory(root); }
     }
 
+    [Fact]
+    public async Task EqualPlateausCoolBeforeNextMeasurementAndPreserveCheckpointOnStop()
+    {
+        string root = TempDirectory();
+        try
+        {
+            await using var peakLogger = new FakePeakLoggerClient();
+            await peakLogger.ConnectAsync(new PeakLoggerSettings());
+            await using var chamber = new StableFakeChamber(20);
+            await chamber.ConnectAsync(new ChamberConnectionSettings());
+            var profile = new TestProfile { ExecutionMode = ProfileExecutionMode.TemperatureCalibration,
+                Segments = { new ProfileSegment { TargetTemperature = 20, IsCalibrationPoint = true, IsRamp = false },
+                    new ProfileSegment { TargetTemperature = 20, IsCalibrationPoint = true, IsRamp = false } } };
+            var setup = StableSetup(profile.Id);
+            setup.CalibrationSegmentIndices.AddRange(new[] { 0, 1 });
+            var run = new CalibrationRunRecord { ProfileId = profile.Id, ChamberId = Guid.NewGuid() };
+            var store = new CalibrationStore(root);
+            await using var writer = store.CreateRunWriter(run);
+            var runner = new CalibrationProfileRunner(chamber, new CalibrationOrchestrator(peakLogger), store);
+            using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            runner.Progress += snapshot =>
+            {
+                if (snapshot.State == CalibrationRunState.InterPlateauCooling && snapshot.ActualTemperatureC is not null)
+                    cancel.Cancel();
+            };
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runner.RunAsync(profile, setup, run, writer, 20, null, cancellationToken: cancel.Token));
+            Assert.Single(run.Plateaus);
+            Assert.Equal(new[] { 20d, 10d }, chamber.WrittenTemperatures);
+            var checkpoint = store.LoadCheckpoint(run.ChamberId);
+            Assert.NotNull(checkpoint);
+            Assert.Equal(CalibrationRunState.InterPlateauCooling, checkpoint.State);
+            Assert.Equal(1, checkpoint.CurrentPlateauIndex);
+            Assert.True(chamber.StopCount > 0);
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+
     private sealed class ManualSensorClock : TimeProvider
     {
         private long _timestamp;

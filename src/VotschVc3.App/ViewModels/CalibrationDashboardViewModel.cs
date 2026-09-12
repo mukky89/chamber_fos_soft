@@ -44,6 +44,19 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     private Func<int, bool>? _requestPlateauRecalibration;
     public ObservableCollection<DashboardNode> Steps { get; } = new();
     public ObservableCollection<DashboardNode> Points { get; } = new();
+    public ObservableCollection<DashboardNode> RoadmapPoints { get; } = new();
+    private readonly Dictionary<int, DashboardNode> _coolingNodes = new();
+    private DashboardNode CoolingNode(int index)
+    {
+        if (_coolingNodes.TryGetValue(index, out var existing)) return existing;
+        var node = new DashboardNode("↘", $"{_plannedTemperatures[index] - InterPlateauCooling.DropC:F1} °C", "Ochladenie · výdrž ≥ 30 min · bez kalibrácie")
+        {
+            State = "Cooling", Explanation = "Medzi rovnakými teplotami sa zníži teplota o 10 °C. Po dosiahnutí cieľa nasleduje súvislá 30-minútová výdrž a návrat na kalibračnú teplotu. Tento krok nevstupuje do koeficientov.",
+        };
+        _coolingNodes[index] = node;
+        RoadmapPoints.Insert(RoadmapPoints.IndexOf(Points[index]), node);
+        return node;
+    }
     public ObservableCollection<DashboardEvent> Activity { get; } = new();
     public ObservableCollection<FbgStabilityChartItem> FbgStabilityCharts { get; } = new();
     public string Profile { get; private set; } = "Vyberte kalibračný profil";
@@ -263,6 +276,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string ActivePeak => ActivePeakKey.Length == 0 ? "—" : ActivePeakKey.Replace("|", " · ");
     public string Phase => _paused ? "Pozastavené" : _state switch
     {
+        CalibrationRunState.InterPlateauCooling => "Ochladenie medzi rovnakými platami · bez kalibrácie",
         CalibrationRunState.WaitingForChamberStability => "Stabilita WIKA referencie",
         CalibrationRunState.StabilizingSensors when AllTargetsFinished => "Vyhodnotenie bodu",
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? "Meranie a stabilizácia FBG" : "Stabilizácia FBG",
@@ -281,6 +295,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void ReportStartup(string detail) { _startupDetail = detail; Notify(); }
     public string Now => _paused ? "Kalibrácia je pozastavená. Pokračujte tlačidlom Pauza." : _state switch
     {
+        CalibrationRunState.InterPlateauCooling => _snapshot?.Message ?? "Ochladenie o 10 °C a výdrž 30 min pred ďalším platom.",
         CalibrationRunState.WaitingForChamberStability => $"Čaká sa na stabilitu referencie WIKA pri cieli {Target}. Interná teplota komory je iba informatívna.",
         CalibrationRunState.StabilizingSensors when AllTargetsFinished => "Meranie peakov sa skončilo. Ukladá sa a vyhodnocuje kalibračný bod.",
         CalibrationRunState.StabilizingSensors => MeasuringCount > 0 ? $"Meria {MeasuringCount} peakov. Ostatné peaky pokračujú v stabilizácii. Namerané vzorky: {SampleSummary}." : $"Stabilizuje sa {TotalTargets} peakov. Aktuálne stabilné: {StableCount} / {TotalTargets}.",
@@ -403,6 +418,11 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         ReferenceChamberId = referenceChamberId;
         Points.Clear();
         foreach (double t in plan) Points.Add(new DashboardNode($"{Points.Count + 1:00}", $"{t:F1} °C", "Čaká", Points.Count));
+        RoadmapPoints.Clear();
+        _coolingNodes.Clear();
+        foreach (var point in Points) RoadmapPoints.Add(point);
+        for (int i = 1; i < plan.Length; i++)
+            if (InterPlateauCooling.RequiresCooling(plan[i - 1], plan[i])) CoolingNode(i);
         RefreshSteps();
         Notify();
     }
@@ -469,6 +489,22 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public void ResetPlan() { _started = null; _planSignature = ""; }
     public void Apply(CalibrationProgressSnapshot snapshot, DateTimeOffset now)
     {
+        if (snapshot.State == CalibrationRunState.InterPlateauCooling && snapshot.PlateauIndex >= 0 && snapshot.PlateauIndex < Points.Count)
+        {
+            if (_state != snapshot.State) _phaseStarted = now;
+            _state = snapshot.State;
+            _snapshot = snapshot;
+            _lastSnapshotAt = now;
+            if (snapshot.ActualTemperatureC is { } coolingTemperature && double.IsFinite(coolingTemperature))
+            { _latestChamberTemperature = coolingTemperature; LastTemperatureSampleAt = now; }
+            CoolingNode(snapshot.PlateauIndex).Detail = snapshot.Message;
+            Points[snapshot.PlateauIndex].Detail = "Čaká na dokončenie ochladenia";
+            RefreshSteps(); Tick(now);
+            return;
+        }
+        if (_state == CalibrationRunState.InterPlateauCooling && _snapshot is { } coolingSnapshot &&
+            _coolingNodes.TryGetValue(coolingSnapshot.PlateauIndex, out var finishedCooling))
+            finishedCooling.Detail = "Ochladenie dokončené · výdrž 30 min · bez kalibrácie";
         snapshot = snapshot with
         {
             ActualTemperatureC = snapshot.ActualTemperatureC is { } actual && double.IsFinite(actual) ? actual : null,
@@ -774,6 +810,12 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             return;
         }
         if (!_running || Points.Count == 0) return;
+        if (_state == CalibrationRunState.InterPlateauCooling)
+        {
+            Eta = "Závisí od ochladenia";
+            EtaBasis = "Medzikrok vyžaduje dosiahnutie nižšej teploty a súvislú výdrž 30 min; potom nasledujú zostávajúce kalibračné body.";
+            return;
+        }
 
         if (_state == CalibrationRunState.FinalConditioning)
         {
@@ -858,6 +900,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         }
 
         seconds += EstimateRemainingRampSeconds(remainingIndices, currentIndex, currentIsActive);
+        seconds += remainingIndices.Count(i => i > 0 && i != currentIndex &&
+            InterPlateauCooling.RequiresCooling(_plannedTemperatures[i - 1], _plannedTemperatures[i])) *
+            (InterPlateauCooling.RequiredHold.TotalSeconds + (_enableSetpointRamp ? 20 / _setpointRampCPerMinute * 60 : 0));
         seconds += _stableDuration.TotalSeconds + (_requiredStableSamples + _requiredMeasurementSamples) * _sampleAcquisitionIntervalSeconds;
         if (seconds <= 0)
         {
@@ -1008,7 +1053,7 @@ public sealed class DashboardNode : INotifyPropertyChanged
     public string State { get => _state; set { _state = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null)); } }
     public string Detail { get => _detail; set { _detail = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Detail))); } }
     public string Explanation { get; set; } = "";
-    public string DiagnosticHelp => string.IsNullOrWhiteSpace(Explanation)
+    public string DiagnosticHelp => State == "Cooling" ? Explanation : string.IsNullOrWhiteSpace(Explanation)
         ? (State == "Done" ? "Stabilita všetkých peakov bola potvrdená." : "Podrobný dôvod nie je dostupný. Plato môže ešte čakať na vyhodnotenie.")
         : "Nepotvrdené znamená, že nie všetky peaky majú potvrdenú stabilitu. Neznamená to automaticky, že chýbajú namerané vzorky.\n\n" + Explanation;
     public List<PlateauDiagnosticGraph> Graphs { get; } = new();
@@ -1037,6 +1082,7 @@ public sealed class DashboardNode : INotifyPropertyChanged
     public string Badge => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge : State switch { "Done" => "✓ SPLNENÉ", "Active" => "● PREBIEHA", "Waiting" => "Ⅱ ČAKÁ", "Error" => "! CHYBA", "Warning" => "! UPOZORNENIE", "Skipped" => "— NEDOSTUPNÉ", _ => "○ ČAKÁ" };
     public string ChipLabel => _calibrationBadge is not null && State is "Done" or "Warning" ? _calibrationBadge[2..] : State switch
     {
+        "Cooling" => "BEZ KALIBRÁCIE",
         "Done" => "DOKONČENÉ", "Active" => "PREBIEHA", "Waiting" => "ČAKÁ NA STABILITU",
         "Error" => "CHYBA", "Warning" => "UPOZORNENIE", "Skipped" => "PRESKOČENÉ", _ => "ČAKÁ"
     };
