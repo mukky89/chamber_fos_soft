@@ -581,6 +581,9 @@ public partial class ChartView : UserControl
         // unreadable even though they are painted after the series.
         ChartSeries[] legendSeries = series
             .Where(item => string.IsNullOrWhiteSpace(item.PointLabel))
+            .GroupBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(group => group.First())
+            .Take(8)
             .ToArray();
         if (legendSeries.Length > 0)
         {

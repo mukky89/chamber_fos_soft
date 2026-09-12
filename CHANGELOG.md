@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.395] – 2026-09-12
+
+### Opravené
+
+- Legenda kalibračného grafu zobrazuje každý typ priebehu iba raz a najviac osem položiek, aby nezakrývala graf.
+
 ## [1.76.394] – 2026-09-12
 
 ### Opravené
