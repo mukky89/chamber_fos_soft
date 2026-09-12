@@ -1,11 +1,13 @@
 # Changelog
 
-## [1.76.393] – 2026-09-11
+## [1.76.394] – 2026-09-12
 
 ### Opravené
 
-- Obnovenie zoznamu senzorov zachováva SN interrogátora v položke pripojeného PeakLogger API. Počet aktívnych kanálov zodpovedá prítomným neignorovaným kanálom.
+- Úplný výpadok jednotlivého optického kanála sa vyhodnotí ako prerušenie dát aj vtedy, keď PeakLogger stále vracia iné kanály. Po návrate sa musí znovu potvrdiť jednoznačná kontinuita peakov; nejednoznačné merania zostávajú vyradené. Existujúce uložené vyradenia sa nemenia.
+- Excelový report vynechaného bodu zobrazí chýbajúcu alebo neplatnú teplotu a štatistiku pomlčkou namiesto chyby NaN/Infinity.
 
+- Obnovenie zoznamu senzorov zachováva SN interrogátora v položke pripojeného PeakLogger API. Počet aktívnych kanálov zodpovedá prítomným neignorovaným kanálom.
 
 ## [1.76.392] – 2026-09-11
 

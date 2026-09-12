@@ -69,6 +69,17 @@ public static class PeakIdentityGuard
         {
             if (channel.Problem is not null && !channel.CommunicationGap) continue;
             var observations = batch.Where(p => Same(p.SerialNumber, channel.Device) && Same(p.Channel, channel.Channel)).ToArray();
+            if (observations.Length == 0)
+            {
+                if (!channel.CommunicationGap)
+                {
+                    channel.CommunicationGap = true;
+                    channel.Problem = "Výpadok dát kanála; čaká sa na overenie kontinuity po návrate peakov.";
+                    audit(new PeakIdentityEvent { Timestamp = now, Device = channel.Device,
+                        Channel = channel.Channel, Reason = channel.Problem });
+                }
+                continue;
+            }
             string? problem = null;
             double elapsed = (now - channel.LastObservedAt).TotalSeconds;
             double maxGap = settings.IdentityMaximumGapSeconds;

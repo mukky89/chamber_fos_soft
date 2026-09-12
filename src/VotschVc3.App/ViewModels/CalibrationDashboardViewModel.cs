@@ -183,7 +183,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         "Pevný strop je 90 min od prvého otvorenia FBG fázy na plate. Reset, zmena nastavení ani strata stability WIKA čas nevynuluje. " +
         "Bez pokroku alebo po strope: stabilita nepotvrdená / meranie nedokončené. Po limite nasleduje ohraničený odber finálnych vzoriek bez stabilnej wavelength. Výsledky sa vyhodnotia s problémovým označením. " +
         "Pri neistej identite (prekrytie, výpadok, nejednoznačné priradenie) sa bod dotknutého kanála automaticky vynechá bez finálneho odberu a bez dialógu operátora. " +
-        "Po dokončení ostatných kanálov pokračuje ďalší bod. Identita sa po návrate peakov automaticky nepovažuje za obnovenú; dotknutý kanál zostáva vyradený do konca behu. Komora nedostáva STOP z dôvodu identity.";
+        "Po dokončení ostatných kanálov pokračuje ďalší bod. Úplné chýbanie dát kanála je výpadok aj vtedy, keď iné kanály odpovedajú. Po návrate sa overí jednoznačné priradenie a neprekrývanie možných rozsahov pohybu; samotný návrat nestačí. Potvrdená neistota zostáva vyradená do konca behu. Komora nedostáva STOP z dôvodu identity.";
     public string PeakDetail => $"{MeasuringCount} vo finálnom meraní{(WarningMeasuringCount > 0 ? $" · {WarningMeasuringCount} po timeout-e" : string.Empty)} · {DoneCount} úplne dokončených" +
         (IdentitySkippedCount > 0 ? $" · {IdentitySkippedCount} vynechaných pre neistú identitu" : string.Empty);
     public string PeakStabilityCriteria =>

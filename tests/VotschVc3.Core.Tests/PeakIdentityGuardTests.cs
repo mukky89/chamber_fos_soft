@@ -24,6 +24,27 @@ public sealed class PeakIdentityGuardTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void MissingChannelWithOtherDataWaitsAndRechecksContinuity(bool ambiguous)
+    {
+        var channels = Channels();
+        var events = new List<PeakIdentityEvent>();
+        var settings = new CalibrationProfileSettings();
+        var time = Start.AddSeconds(1);
+        Assert.Empty(PeakIdentityGuard.Observe(new[] { Peak("P1", 1550, time, "9.9") }, channels, settings, time, events.Add));
+        Assert.True(channels[0].CommunicationGap);
+        Assert.Equal(Start, channels[0].LastObservedAt);
+        channels = JsonSerializer.Deserialize<List<PeakIdentityChannel>>(JsonSerializer.Serialize(channels))!;
+        time = Start.AddSeconds(2);
+        var batch = ambiguous ? new[] { Peak("P1", 1510.5, time) } : new[] { Peak("P1", 1510, time), Peak("P2", 1511, time) };
+        var accepted = PeakIdentityGuard.Observe(batch, channels, settings, time, events.Add);
+        Assert.False(channels[0].CommunicationGap);
+        if (ambiguous) { Assert.Empty(accepted); Assert.NotNull(channels[0].Problem); }
+        else { Assert.Equal(2, accepted.Count); Assert.Null(channels[0].Problem); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void DisjointReachableIntervalsRecoverGapWithoutTrustingApiOrder(bool interrupted)
     {
         var channels = Channels();
@@ -41,8 +62,10 @@ public sealed class PeakIdentityGuardTests
         Assert.Contains(events, e => e.Reason.Contains("automaticky potvrdená"));
     }
 
-    [Fact]
-    public async Task EmptyFrameKeepsSamePlateauOpenAndWorkingSensorCompletes()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmptyFrameKeepsSamePlateauOpenAndWorkingSensorCompletes(bool unrelatedData)
     {
         string root = Path.Combine(Path.GetTempPath(), "fbg-empty-" + Guid.NewGuid().ToString("N"));
         try
@@ -54,7 +77,7 @@ public sealed class PeakIdentityGuardTests
             } };
             var run = new CalibrationRunRecord();
             await using var writer = new CalibrationStore(root).CreateRunWriter(run);
-            await using var logger = new SequenceLogger { EmptyFirstFrame = true, KeepAllPeaks = true };
+            await using var logger = new SequenceLogger { EmptyFirstFrame = true, UnrelatedData = unrelatedData, KeepAllPeaks = true };
             var orchestrator = new CalibrationOrchestrator(logger);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             var point = await orchestrator.WaitForPlateauAsync(run, setup, 0, 2, 20,
@@ -314,6 +337,7 @@ public sealed class PeakIdentityGuardTests
     private sealed class SequenceLogger : IPeakLoggerClient
     {
         public bool EmptyFirstFrame { get; init; }
+        public bool UnrelatedData { get; init; }
         public bool KeepAllPeaks { get; init; }
         public bool MergeImmediately { get; init; }
         private int _reads;
@@ -328,7 +352,7 @@ public sealed class PeakIdentityGuardTests
         public Task<IReadOnlyList<PeakLoggerMeasurement>> ReadMeasurementsAsync(CancellationToken cancellationToken = default)
         {
             var now = DateTimeOffset.UtcNow;
-            if (EmptyFirstFrame && _reads == 0) { _reads++; return Task.FromResult<IReadOnlyList<PeakLoggerMeasurement>>(Array.Empty<PeakLoggerMeasurement>()); }
+            if (EmptyFirstFrame && _reads == 0) { _reads++; return Task.FromResult<IReadOnlyList<PeakLoggerMeasurement>>(UnrelatedData ? new[] { Peak("P1", 1550, now, "9.9") } : Array.Empty<PeakLoggerMeasurement>()); }
             IReadOnlyList<PeakLoggerMeasurement> batch = (++_reads < 4 || KeepAllPeaks) && !MergeImmediately ? new[] { Peak("P1", 1510, now), Peak("P2", 1511, now) } : new[] { Peak("P1", 1510.5, now) };
             return Task.FromResult(batch);
         }

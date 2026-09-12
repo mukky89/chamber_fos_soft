@@ -241,6 +241,8 @@ internal static class CalibrationPointReportExporter
         workbook.SaveAs(path);
     }
 
+    private static XLCellValue ReportNumber(double? value) => value is { } number && double.IsFinite(number) ? number : "—";
+
     private static void WriteOverview(IXLWorksheet sheet, CalibrationRunRecord run, CalibrationPlateauResult plateau, CalibrationProfileSettings settings)
     {
         sheet.Cell("A1").Value = "FBG TEPLOTNÁ KALIBRÁCIA – REPORT BODU";
@@ -252,11 +254,12 @@ internal static class CalibrationPointReportExporter
             { "Run ID", run.DisplayRunId, "Profil", $"{run.DisplayProfileId} · {run.ProfileName}" },
             { "Komora", run.ChamberName, "Operátor", run.Operator },
             { "Plato", plateau.PlateauIndex + 1, "Cieľ", plateau.TargetTemperatureC },
-            { "WIKA [°C]", plateau.ReferenceTemperatureC is { } reference ? reference : "—", "Komora [°C]", plateau.ActualTemperatureC },
+            { "WIKA [°C]", plateau.ReferenceTemperatureC is { } reference && double.IsFinite(reference) ? reference : "—", "Komora [°C]", double.IsFinite(plateau.ActualTemperatureC) ? plateau.ActualTemperatureC : "—" },
             { "Začiatok", plateau.StartedAt.LocalDateTime, "Koniec", plateau.CompletedAt.LocalDateTime },
             { "Výsledok", status, "Počet peakov", plateau.Targets.Count },
         };
-        sheet.Cell("A3").InsertData(info);
+        sheet.Cell("A3").InsertData(Enumerable.Range(0, info.GetLength(0))
+            .Select(row => Enumerable.Range(0, info.GetLength(1)).Select(column => info[row, column]).ToArray()));
         sheet.Range("A3:A8").Style.Font.SetBold(); sheet.Range("C3:C8").Style.Font.SetBold();
         sheet.Cell("A10").Value = "Výsledky peakov";
         string[] headers = ["SN", "Kanál", "Peak", "Stav", "Vzorky", "Priemer [nm]", "Range [pm]", "σ [pm]", "Drift [pm/min]", "Čas stabilizácie [s]", "Dôvod / poznámka"];
@@ -266,9 +269,9 @@ internal static class CalibrationPointReportExporter
         {
             sheet.Cell(row, 1).Value = result.SerialNumber; sheet.Cell(row, 2).Value = result.Channel;
             sheet.Cell(row, 3).Value = result.PeakId; sheet.Cell(row, 4).Value = IsPass(result.Status) ? "PASS" : "FAIL";
-            sheet.Cell(row, 5).Value = result.SampleCount; sheet.Cell(row, 6).Value = result.MeanWavelengthNm;
-            sheet.Cell(row, 7).Value = result.RangePm; sheet.Cell(row, 8).Value = result.StandardDeviationPm;
-            sheet.Cell(row, 9).Value = result.DriftPmPerMinute; sheet.Cell(row, 10).Value = result.StabilizationTime.TotalSeconds;
+            sheet.Cell(row, 5).Value = result.SampleCount; sheet.Cell(row, 6).Value = ReportNumber(result.MeanWavelengthNm);
+            sheet.Cell(row, 7).Value = ReportNumber(result.RangePm); sheet.Cell(row, 8).Value = ReportNumber(result.StandardDeviationPm);
+            sheet.Cell(row, 9).Value = ReportNumber(result.DriftPmPerMinute); sheet.Cell(row, 10).Value = result.StabilizationTime.TotalSeconds;
             sheet.Cell(row, 11).Value = result.Problem ?? result.Status.ToString();
             sheet.Cell(row, 4).Style.Font.SetBold().Font.SetFontColor(IsPass(result.Status) ? XLColor.FromHtml("#087F5B") : XLColor.FromHtml("#C92A2A"));
             row++;
@@ -296,8 +299,8 @@ internal static class CalibrationPointReportExporter
             sheet.Cell(row, 1).Value = item.Timestamp.LocalDateTime;
             sheet.Cell(row, 2).Value = (item.Timestamp - origin).TotalMinutes;
             sheet.Cell(row, 3).Value = plateau.TargetTemperatureC;
-            if (!double.IsNaN(item.ReferenceTemperatureC)) sheet.Cell(row, 4).Value = item.ReferenceTemperatureC;
-            if (!double.IsNaN(item.ChamberTemperatureC)) sheet.Cell(row, 5).Value = item.ChamberTemperatureC;
+            if (double.IsFinite(item.ReferenceTemperatureC)) sheet.Cell(row, 4).Value = item.ReferenceTemperatureC;
+            if (double.IsFinite(item.ChamberTemperatureC)) sheet.Cell(row, 5).Value = item.ChamberTemperatureC;
             row++;
         }
         if (row > 2) sheet.Range(2, 2, row - 1, 5).Style.NumberFormat.Format = "0.000";
