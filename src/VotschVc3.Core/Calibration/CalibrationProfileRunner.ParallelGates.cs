@@ -124,14 +124,29 @@ public sealed class CalibrationProfileRunner
         }
         else
         {
-            // An offline interval cannot prove which physical FBG returned at a familiar API index.
             run.PeakIdentityChannels = resumeFrom.PeakIdentityChannels;
+            if (!string.IsNullOrWhiteSpace(resumeFrom.OperatorIdentityConfirmation))
+            {
+                var discovered = await _orchestrator.PreflightAsync(setup, cancellationToken).ConfigureAwait(false);
+                foreach (var channel in run.PeakIdentityChannels)
+                    run.PeakIdentityEvents.Add(new PeakIdentityEvent
+                    {
+                        Timestamp = DateTimeOffset.UtcNow, Device = channel.Device, Channel = channel.Channel,
+                        Reason = "Nový operátorom overený úsek merania: " + resumeFrom.OperatorIdentityConfirmation +
+                            "; predchádzajúci stav: " + System.Text.Json.JsonSerializer.Serialize(channel),
+                    });
+                run.PeakIdentityChannels = PeakIdentityGuard.Initialize(discovered, setup.ActiveMappings, DateTimeOffset.UtcNow);
+                writer.WriteDiagnostic("WARNING", "IDENTITY_CONFIRMED_BY_OPERATOR", resumeFrom.OperatorIdentityConfirmation);
+                resumeFrom.OperatorIdentityConfirmation = null;
+                run.FinalVerification = null;
+            }
             if (run.PeakIdentityChannels.Count == 0)
                 run.PeakIdentityChannels = setup.ActiveMappings.Where(m => m.Selected)
                     .GroupBy(m => (m.SourceDeviceSerialNumber, m.Channel))
                     .Select(g => new PeakIdentityChannel { Device = g.Key.SourceDeviceSerialNumber, Channel = g.Key.Channel }).ToList();
-            foreach (var channel in run.PeakIdentityChannels)
-                channel.Problem ??= "Po obnovení behu chýba súvislý dôkaz identity FBG; body sa automaticky vynechajú.";
+            // Observe performs bounded, unique matching across the offline interval.
+            // Existing ambiguity remains latched unless explicitly revalidated by the operator.
+            await _orchestrator.ObserveIdentityAsync(run, setup, writer, cancellationToken).ConfigureAwait(false);
         }
         _identityObservation = token => _orchestrator.ObserveIdentityAsync(run, setup, writer, token);
         writer.SaveSummary();
@@ -147,13 +162,14 @@ public sealed class CalibrationProfileRunner
         bool responseValidated = false;
         var recoveryClock = System.Diagnostics.Stopwatch.StartNew();
         int savedPlateau = -1;
+        int activeWorkPosition = 0;
         CalibrationRunState? savedState = null;
         void PersistRecovery(CalibrationProgressSnapshot snapshot)
         {
             if (snapshot.State is CalibrationRunState.Completed or CalibrationRunState.CompletedWithWarnings) return;
             if (recoveryClock.Elapsed < TimeSpan.FromSeconds(15) && savedPlateau == snapshot.PlateauIndex && savedState == snapshot.State) return;
             SaveCheckpoint(run, setup, Math.Max(0, snapshot.PlateauIndex), snapshot.TargetTemperatureC,
-                workItems.Where(item => item.IsRetry && (item.IsManual || !run.Plateaus.Any(p => p.PlateauIndex == item.PlateauIndex))).Select(item => item.PlateauIndex));
+                workItems.Skip(activeWorkPosition).Where(item => item.IsRetry).Select(item => item.PlateauIndex));
             savedPlateau = snapshot.PlateauIndex;
             savedState = snapshot.State;
             recoveryClock.Restart();
@@ -164,21 +180,11 @@ public sealed class CalibrationProfileRunner
         {
             for (int workPosition = 0; workPosition < workItems.Count; workPosition++)
             {
+                activeWorkPosition = workPosition;
                 PlateauWorkItem workItem = workItems[workPosition];
                 int currentPlateau = workItem.PlateauIndex;
                 cancellationToken.ThrowIfCancellationRequested();
                 await WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
-
-                if (workItem.IsRetry)
-                {
-                    CalibrationPlateauResult? previousAttempt = run.Plateaus.LastOrDefault(p => p.PlateauIndex == currentPlateau);
-                    if (previousAttempt is not null)
-                    {
-                        run.SupersededPlateaus.Add(previousAttempt);
-                        run.Plateaus.Remove(previousAttempt);
-                        writer.SaveSummary();
-                    }
-                }
 
                 ExecutionStep step = calibrationSteps[currentPlateau];
                 run.State = CalibrationRunState.MovingToPlateau;
@@ -259,6 +265,12 @@ public sealed class CalibrationProfileRunner
                     continue;
                 }
 
+                var previousAttempt = run.Plateaus.LastOrDefault(p => p.PlateauIndex == currentPlateau);
+                if (previousAttempt is not null)
+                {
+                    run.SupersededPlateaus.Add(previousAttempt);
+                    run.Plateaus.Remove(previousAttempt);
+                }
                 run.Plateaus.Add(plateau);
                 writer.SaveSummary();
 

@@ -763,9 +763,9 @@
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
                         <Button Content="↻ Obnoviť zoznam" Style="{StaticResource GhostButton}" Command="{Binding RefreshHistoryCommand}" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button Content="Pokračovať od vybraného behu" Style="{StaticResource AccentOutlineButton}" Margin="0,0,8,0"
+                            <Button Content="Doplniť / pokračovať v meraní" Style="{StaticResource AccentOutlineButton}" Margin="0,0,8,0"
                                     Command="{Binding RestoreSelectedRunCommand}"
-                                    ToolTip="Znovu vytvorí checkpoint z dokončených plat vybraného prerušeného behu. Rozpracované plato sa zmeria nanovo." />
+                                    ToolTip="Zachová úspešné body a pripraví nové meranie chýbajúcich alebo nepotvrdených plat. Pri neistote identity je potrebné fyzické overenie zapojenia." />
                             <Button Content="Export koeficientov" Style="{StaticResource AccentOutlineButton}" Margin="0,0,8,0"
                                     Command="{Binding ExportCalibrationCoefficientsCommand}"
                                     ToolTip="Exportuje λTref, citlivosť, koeficienty, maximálnu chybu, R² a PASS/FAIL vybraného behu." />

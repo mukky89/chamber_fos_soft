@@ -557,7 +557,11 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         : "Definitívne ukončí zastavený beh a odstráni možnosť pokračovať. Dokončené plata a namerané súbory zostanú zachované.";
     public string ResumeCalibrationLabel => _resumeCheckpoint is null
         ? "Pokračovať v kalibrácii"
-        : $"Pokračovať od plata č. {_resumeCheckpoint.CompletedPlateaus.Count + 1}";
+        : $"Pokračovať od plata č. {NextResumePlateau + 1}";
+    private int NextResumePlateau => _resumeCheckpoint is null ? 0 :
+        Enumerable.Range(0, CalibrationPoints.Count(p => p.Selected))
+            .Where(i => !_resumeCheckpoint.CompletedPlateaus.Any(p => p.PlateauIndex == i) && !_resumeCheckpoint.DeferredPlateauIndices.Contains(i))
+            .Concat(_resumeCheckpoint.DeferredPlateauIndices.Order()).DefaultIfEmpty(0).First();
     public string ResumeCalibrationDetail => _resumeCheckpoint is null
         ? string.Empty
         : $"Checkpoint uložený {_resumeCheckpoint.SavedAt.ToLocalTime():dd.MM.yyyy HH:mm:ss}. Obnoví beh s {_resumeCheckpoint.CompletedPlateaus.Count} dokončenými platami. Rozpracované plato sa stabilizuje a zmeria nanovo. {ResumeHardwareStatus}";
@@ -2061,7 +2065,18 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         => await StartCalibrationAsync(resumeFromCheckpoint: false);
 
     private async Task ResumeCalibrationAsync()
-        => await StartCalibrationAsync(resumeFromCheckpoint: true);
+    {
+        if (_resumeCheckpoint is not null && (_resumeCheckpoint.PeakIdentityChannels.Count == 0 ||
+            _resumeCheckpoint.PeakIdentityChannels.Any(c => c.Problem is not null && !c.CommunicationGap || c.Tracks.Count == 0 || c.Tracks.Any(t => t.Problem is not null))))
+        {
+            if (!Views.ConfirmDialog.Ask(
+                "Identita peakov bola zablokovaná. Fyzicky overte zapojenie, SN snímačov a ich aktuálne priradenie ku kanálom/peakom.\n\nPotvrdzujete toto overenie? Vznikne nový auditovaný úsek merania; predchádzajúce vzorky a dôvody vyradenia zostanú zachované.",
+                "Overenie identity FBG", confirmText: "Zapojenie a SN som overil", cancelText: "Zrušiť")) return;
+            _resumeCheckpoint.OperatorIdentityConfirmation = $"Operátor potvrdil fyzické zapojenie a priradenie SN {DateTimeOffset.Now:O}.";
+            _calibrationStore.SaveCheckpoint(_resumeCheckpoint);
+        }
+        await StartCalibrationAsync(resumeFromCheckpoint: true);
+    }
 
     private async Task StartCalibrationAsync(bool resumeFromCheckpoint)
     {
@@ -2819,12 +2834,12 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             return false;
         if (run.ProfileId != SelectedProfile.Id || run.ChamberId != SelectedChamber.Config.Id || run.Plateaus.Count == 0)
             return false;
-        if (run.State is not (CalibrationRunState.Aborted or CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator))
+        if (run.State is not (CalibrationRunState.Aborted or CalibrationRunState.Failed or CalibrationRunState.AwaitingOperator or CalibrationRunState.CompletedWithWarnings))
             return false;
 
         int plannedPlateaus = CalibrationPoints.Count(point => point.Selected);
         int completedPlateaus = run.Plateaus.Select(plateau => plateau.PlateauIndex).Distinct().Count();
-        return plannedPlateaus > completedPlateaus;
+        return plannedPlateaus > completedPlateaus || run.Plateaus.Any(CalibrationCheckpointRecovery.NeedsMeasurement);
     }
 
     private void RestoreSelectedHistoricalRun()
@@ -2836,8 +2851,8 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         int plannedPlateaus = CalibrationPoints.Count(point => point.Selected);
         if (!Views.ConfirmDialog.Ask(
                 $"Obnoviť kalibráciu „{run.DisplayRunId}“ z uložených výsledkov?\n\n" +
-                $"Zachová sa {completedPlateaus} dokončených plat z {plannedPlateaus}. " +
-                $"Pokračovanie začne platom č. {completedPlateaus + 1}; rozpracované plato sa stabilizuje a zmeria nanovo.",
+                $"Zachovajú sa pôvodné výsledky {completedPlateaus} plat z {plannedPlateaus}. " +
+                "Chýbajúce platá sa zmerajú a nepotvrdené alebo nemerané platá sa zopakujú. Nové merania nahradia príslušné výsledky vo vyhodnotení; pôvodné pokusy zostanú v audite.",
                 "Obnoviť historickú kalibráciu?",
                 confirmText: "Obnoviť pokračovanie",
                 cancelText: "Zrušiť"))

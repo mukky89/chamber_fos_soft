@@ -251,32 +251,18 @@ public sealed class PeakIdentityGuardTests
             var orchestrator = new CalibrationOrchestrator(logger);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
             // Three good samples: stable qualification followed by one partial final sample; then merge.
-            var point = await orchestrator.WaitForPlateauAsync(run, setup, 0, 2, 20,
-                _ => Task.FromResult(20d), _ => Task.FromResult<double?>(20d), writer, cancellationToken: timeout.Token);
-            var target = Assert.Single(point.Targets);
-            Assert.Equal(CalibrationTargetState.SkippedIdentityUncertain, target.Status);
-            Assert.Equal(0, target.SampleCount);
-            Assert.Empty(target.StableSamples);
-            Assert.Equal(setup.Mappings[0].PhysicalFbgId, target.PhysicalFbgId);
-            Assert.Contains(run.Warnings, w => w.Code == "FBG_POINT_SKIPPED_IDENTITY" && w.PlateauIndex == 0);
-            // Already ambiguous: even a bad reference must not demand an operator for this skipped target.
-            var next = await orchestrator.WaitForPlateauAsync(run, setup, 1, 2, 40,
-                _ => throw new Exception("A skipped point must not wait on reference acquisition"), null, writer, cancellationToken: timeout.Token);
-            Assert.Equal(CalibrationTargetState.SkippedIdentityUncertain, next.Targets[0].Status);
-            Assert.Contains(run.Warnings, w => w.PlateauIndex == 1);
-            var raw = Directory.GetFiles(root, "peak-observations.jsonl", SearchOption.AllDirectories).Single();
-            using (var reader = new StreamReader(new FileStream(raw, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
-                Assert.Equal(4, reader.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
-            // Even a malformed imported skipped result with finite samples must never enter a fit.
-            target.SampleCount = 50; target.MeanWavelengthNm = 1510;
-            run.Plateaus.Add(point);
-            Assert.All(TemperatureCalibrationAnalyzer.Analyze(run), r => Assert.Equal(0, r.PointCount));
+            var error = await Assert.ThrowsAsync<CalibrationOperatorActionRequiredException>(() =>
+                orchestrator.WaitForPlateauAsync(run, setup, 0, 2, 20,
+                    _ => Task.FromResult(20d), _ => Task.FromResult<double?>(20d), writer, cancellationToken: timeout.Token));
+            Assert.Contains("všetky", error.Message);
+            Assert.Contains(run.Warnings, w => w.Code == "ALL_PEAKS_IDENTITY_BLOCKED");
+            Assert.Empty(run.Plateaus);
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
     [Fact]
-    public async Task RunnerAutonomouslyAdvancesAllSkippedPointsAndOnlyStopsAfterFinalReturn()
+    public async Task RunnerStopsProgressionWhenAllPeaksLoseIdentity()
     {
         string root = Path.Combine(Path.GetTempPath(), "fbg-identity-run-" + Guid.NewGuid().ToString("N"));
         try
@@ -297,16 +283,13 @@ public sealed class PeakIdentityGuardTests
             orchestrator.OperatorAttentionRequired += _ => throw new Exception("Identity must not request an operator");
             var runner = new CalibrationProfileRunner(chamber, orchestrator, store);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await runner.RunAsync(profile, setup, run, writer, 20, null, cancellationToken: timeout.Token);
-            Assert.Equal(new[] { 20d, 40d, 25d }, chamber.Setpoints);
-            Assert.Equal(1, chamber.Stops); // Existing normal completion, never an identity-induced STOP.
-            Assert.Equal(25, chamber.TemperatureAtStop);
-            Assert.Equal(CalibrationRunState.CompletedWithWarnings, run.State);
-            Assert.Equal(2, run.Plateaus.Count);
-            Assert.All(run.Plateaus, p => Assert.Equal(CalibrationTargetState.SkippedIdentityUncertain, p.Targets[0].Status));
-            Assert.Equal(CalibrationTargetState.SkippedIdentityUncertain, run.FinalVerification!.Targets[0].Status);
-            Assert.Equal(3, run.Warnings.Count(w => w.Code == "FBG_POINT_SKIPPED_IDENTITY"));
-            Assert.All(run.CalibrationResults, r => Assert.Equal(0, r.PointCount));
+            await Assert.ThrowsAsync<CalibrationOperatorActionRequiredException>(() =>
+                runner.RunAsync(profile, setup, run, writer, 20, null, cancellationToken: timeout.Token));
+            Assert.Equal(new[] { 20d }, chamber.Setpoints);
+            Assert.Equal(CalibrationRunState.AwaitingOperator, run.State);
+            Assert.Empty(run.Plateaus);
+            Assert.Null(run.FinalVerification);
+            Assert.NotNull(store.LoadCheckpoint(run.ChamberId));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }

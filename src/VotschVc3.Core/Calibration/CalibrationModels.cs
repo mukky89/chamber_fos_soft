@@ -379,6 +379,7 @@ public sealed class CalibrationRunRecord
 
 public sealed class CalibrationCheckpoint
 {
+    public string? OperatorIdentityConfirmation { get; set; }
     public List<PeakIdentityChannel> PeakIdentityChannels { get; set; } = new();
     public Guid RunId { get; set; }
     public Guid ProfileId { get; set; }

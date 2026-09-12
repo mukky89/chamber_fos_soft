@@ -272,6 +272,16 @@ public sealed partial class CalibrationOrchestrator
         {
             cancellationToken.ThrowIfCancellationRequested();
             SkipUncertainTargets(run, plateauIndex, trackers.Values, writer);
+            if (trackers.Count > 0 && trackers.Values.All(t => t.State == CalibrationTargetState.SkippedIdentityUncertain))
+            {
+                var warning = RaiseWarning(run, new CalibrationWarning
+                {
+                    Code = "ALL_PEAKS_IDENTITY_BLOCKED", PlateauIndex = plateauIndex,
+                    Message = "Meranie pozastavené: všetky vybrané peaky majú neistú identitu. Overte fyzické zapojenie a priradenie SN; potom obnovte meranie s potvrdenou identitou. Ďalšie platá sa nepreskočia.",
+                });
+                writer.WriteDiagnostic("ERROR", warning.Code, warning.Message);
+                throw new CalibrationOperatorActionRequiredException(warning.Message, warning);
+            }
             foreach (var item in trackers.Values)
                 settling.Peak(DateTimeOffset.UtcNow, item.Mapping.Identity, item.HasStarted,
                     item.IsMeasuring, item.IsForcedMeasurement, item.IsTerminal, item.State);

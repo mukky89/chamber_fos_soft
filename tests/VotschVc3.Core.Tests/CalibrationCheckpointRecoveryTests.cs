@@ -6,6 +6,24 @@ namespace VotschVc3.Core.Tests;
 public sealed class CalibrationCheckpointRecoveryTests
 {
     [Fact]
+    public void HistoricalRecoveryQueuesUnmeasuredPointsAndPreservesOriginalResults()
+    {
+        var setup = new CalibrationSetup { ProfileId = Guid.NewGuid(), ChamberId = Guid.NewGuid(),
+            Mappings = { new CalibrationSensorMapping { Selected = true, SerialNumber = "123456/0001" } } };
+        var run = new CalibrationRunRecord { ProfileId = setup.ProfileId, ChamberId = setup.ChamberId,
+            State = CalibrationRunState.CompletedWithWarnings };
+        run.Plateaus.Add(new CalibrationPlateauResult { PlateauIndex = 0,
+            Targets = { new CalibrationMeasurementResult { Status = CalibrationTargetState.Stable, SampleCount = 30 } } });
+        run.Plateaus.Add(new CalibrationPlateauResult { PlateauIndex = 5,
+            Targets = { new CalibrationMeasurementResult { Status = CalibrationTargetState.SkippedIdentityUncertain } } });
+        var checkpoint = CalibrationCheckpointRecovery.CreateFromHistoricalRun(run, setup);
+        Assert.Equal(new[] { 5 }, checkpoint.DeferredPlateauIndices);
+        Assert.Equal(2, checkpoint.CompletedPlateaus.Count);
+        Assert.Same(run.Plateaus[1], checkpoint.CompletedPlateaus[1]);
+        Assert.Null(checkpoint.OperatorIdentityConfirmation);
+    }
+
+    [Fact]
     public void CorruptedCheckpointFallsBackAndDeliberateDeleteRemovesBothCopies()
     {
         string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

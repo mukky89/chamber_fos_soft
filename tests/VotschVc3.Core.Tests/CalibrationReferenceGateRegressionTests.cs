@@ -41,6 +41,8 @@ public sealed class CalibrationReferenceGateRegressionTests
                 ProfileId = profile.Id,
                 Settings = new CalibrationProfileSettings
                 {
+                    // The synthetic logger jumps between discovery and later readings.
+                    IdentityBaseToleranceNm = 0.5,
                     EnableSetpointRamp = false,
                     SampleAcquisitionIntervalSeconds = 1,
                     RequiredStableSamples = 2,

@@ -3,6 +3,9 @@ namespace VotschVc3.Core.Calibration;
 /// <summary>Repairs a setup that lost its operator wiring by using the immutable run checkpoint.</summary>
 public static class CalibrationCheckpointRecovery
 {
+    public static bool NeedsMeasurement(CalibrationPlateauResult plateau) =>
+        plateau.Targets.Count == 0 || plateau.Targets.Any(t => t.Status != CalibrationTargetState.Stable || t.SampleCount == 0);
+
     public static CalibrationCheckpoint CreateFromHistoricalRun(
         CalibrationRunRecord run,
         CalibrationSetup setup)
@@ -57,6 +60,7 @@ public static class CalibrationCheckpointRecovery
             CurrentTargetTemperatureC = run.Plateaus.LastOrDefault()?.TargetTemperatureC,
             State = CalibrationRunState.Aborted,
             CompletedPlateaus = run.Plateaus.ToList(),
+            DeferredPlateauIndices = run.Plateaus.Where(NeedsMeasurement).Select(p => p.PlateauIndex).Distinct().Order().ToList(),
             PeakIdentityChannels = run.PeakIdentityChannels,
             Mappings = mappings,
             SettingsSnapshot = CloneSettings(setup.Settings),

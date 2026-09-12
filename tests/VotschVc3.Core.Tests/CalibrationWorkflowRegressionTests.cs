@@ -471,6 +471,7 @@ public sealed class CalibrationWorkflowRegressionTests
                 CurrentTargetTemperatureC = 20,
                 State = CalibrationRunState.PlateauCompleted,
                 CompletedPlateaus = { completed },
+                PeakIdentityChannels = PeakIdentityGuard.Initialize(await peakLogger.DiscoverSensorsAsync(), setup.Mappings, DateTimeOffset.UtcNow),
                 Mappings = setup.Mappings.ToList(),
             };
             var store = new CalibrationStore(root);
@@ -540,6 +541,7 @@ public sealed class CalibrationWorkflowRegressionTests
                 CurrentTargetTemperatureC = 30,
                 State = CalibrationRunState.PlateauCompleted,
                 CompletedPlateaus = { completed },
+                OperatorIdentityConfirmation = "Test: operátor overil zapojenie a SN.",
                 Mappings = setup.Mappings.ToList(),
             };
             var store = new CalibrationStore(root);

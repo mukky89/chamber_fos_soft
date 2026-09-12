@@ -592,7 +592,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             }
             else
             {
-                if (point.RecalibrationRequested)
+                if (point.RecalibrationRequested || point.Duration is not null)
                 {
                     point.Duration = null;
                     point.Explanation = "";
@@ -1012,6 +1012,12 @@ public sealed class DashboardNode : INotifyPropertyChanged
     public void SetCalibrationOutcome(IEnumerable<CalibrationTargetState> states, int expected)
     {
         var results = states.ToArray();
+        if (results.Length > 0 && results.All(s => s == CalibrationTargetState.SkippedIdentityUncertain))
+        {
+            _calibrationBadge = "! NEMERANÉ – IDENTITA";
+            State = "Warning";
+            return;
+        }
         bool success = expected > 0 && results.Length == expected && results.All(s => s == CalibrationTargetState.Stable);
         bool failed = results.Any(s => s is CalibrationTargetState.Failed or CalibrationTargetState.TimedOut or CalibrationTargetState.PeakLost or CalibrationTargetState.Disconnected);
         _calibrationBadge = success ? "✓ ÚSPEŠNÉ" : failed ? "! NEÚSPEŠNÉ" : "! NEPOTVRDENÉ";

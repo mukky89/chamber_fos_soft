@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.76.419] – 2026-09-12
+
+### Opravené
+- Obnovenie FBG behu overuje kontinuitu peakov namiesto plošného vyradenia.
+  Strata identity všetkých peakov preruší postup a vyžiada zásah operátora.
+- História umožňuje doplniť chýbajúce a zopakovať nepotvrdené platá aj po
+  dokončení s upozorneniami. Nový úsek po strate identity vyžaduje potvrdenie
+  fyzického zapojenia a SN; pôvodné výsledky a stav identity zostávajú v audite.
+- Úplne vynechané platá sa označujú „NEMERANÉ – IDENTITA“.
+
 ## [1.76.418] – 2026-09-12
 
 ### Pridané
