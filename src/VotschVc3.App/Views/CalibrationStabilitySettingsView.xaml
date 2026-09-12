@@ -74,14 +74,14 @@
             </Border>
 
             <Border Background="#3A2B16" BorderBrush="#C98B25" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,14">
-                <TextBlock Text="Počas kalibrácie možno meniť označené tolerancie stability. Po potvrdení hodnoty sa rozpracované stabilizačné a finálne meracie okná bezpečne vynulujú, nové limity začnú platiť okamžite a zmena sa zapíše do auditu behu." TextWrapping="Wrap" Foreground="#FFD27A" />
+                <TextBlock Text="Počas kalibrácie možno meniť označené tolerancie stability aj rýchlosť setpointu. Tolerancie bezpečne vynulujú rozpracované stabilizačné a finálne meracie okná; nová rýchlosť sa použije od nasledujúceho kroku nábehu bez resetu merania." TextWrapping="Wrap" Foreground="#FFD27A" />
             </Border>
 
             <TextBlock Text="0 · Plynulý nábeh komory" Style="{StaticResource Heading}" Margin="0,0,0,8" />
             <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Aplikácia obmedzí iba rýchlosť zmeny setpointu. PID komory sa naďalej riadi interným snímačom a WIKA iba overuje výslednú stabilitu; nevytvára sa druhá regulačná slučka." />
-            <WrapPanel IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}">
-                <Border Style="{StaticResource SettingCard}" ToolTip="Odporúčané zapnúť. Namiesto skoku na nový cieľ posúva aplikácia setpoint po malých krokoch. Interný regulátor komory zostáva jediným regulátorom.">
+            <WrapPanel>
+                <Border Style="{StaticResource SettingCard}" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolean}}" ToolTip="Odporúčané zapnúť. Namiesto skoku na nový cieľ posúva aplikácia setpoint po malých krokoch. Interný regulátor komory zostáva jediným regulátorom.">
                     <StackPanel>
                         <TextBlock Text="Riadený nábeh setpointu" Style="{StaticResource SettingName}" />
                         <TextBlock Text="Znižuje riziko prekmitu pri veľkej zmene teploty. WIKA setpoint nekoriguje." Style="{StaticResource SettingHelp}" />

@@ -483,9 +483,7 @@ public sealed class CalibrationProfileRunner
             return;
         }
 
-        double rateCPerMinute = NormalizeSetpointRate(settings.SetpointRampCPerMinute);
         double direction = Math.Sign(targetTemperature - fromTemperature);
-        double stepC = rateCPerMinute * _updateInterval.TotalMinutes;
         double commanded = fromTemperature;
         DateTimeOffset startedAt = DateTimeOffset.UtcNow;
 
@@ -496,6 +494,11 @@ public sealed class CalibrationProfileRunner
 
             if (_identityObservation is not null) await _identityObservation(cancellationToken).ConfigureAwait(false);
 
+            // The operator may tune the ramp speed during an active FBG run. Read the
+            // shared settings for every command step so the new limit applies without
+            // restarting the run or disturbing any stability windows.
+            double rateCPerMinute = NormalizeSetpointRate(settings.SetpointRampCPerMinute);
+            double stepC = rateCPerMinute * _updateInterval.TotalMinutes;
             commanded += direction * Math.Min(stepC, Math.Abs(targetTemperature - commanded));
             await WriteSetpointAsync(commanded, targetHumidity, cancellationToken).ConfigureAwait(false);
 

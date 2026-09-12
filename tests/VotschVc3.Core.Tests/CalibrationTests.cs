@@ -36,7 +36,7 @@ public sealed class CalibrationTests
         var settings = new CalibrationProfileSettings();
 
         Assert.Equal(30, settings.SampleAcquisitionIntervalSeconds);
-        Assert.Equal(2.0, settings.SetpointRampCPerMinute);
+        Assert.Equal(1.0, settings.SetpointRampCPerMinute);
         Assert.Equal(TimeSpan.FromMinutes(10), settings.ChamberStableDuration);
     }
 

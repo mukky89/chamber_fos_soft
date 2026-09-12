@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.415] – 2026-09-12
+
+### Zmenené
+- Rýchlosť riadeného nábehu setpointu možno upraviť aj počas aktívnej FBG
+  kalibrácie; nová hodnota sa použije od nasledujúceho kroku bez resetovania
+  stability. Predvolená rýchlosť nových nastavení je 1 °C/min.
+
 ## [1.76.414] – 2026-09-12
 
 ### Opravené
