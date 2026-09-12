@@ -493,6 +493,21 @@ public sealed class CalibrationDashboardTests
         m.Begin(Start.AddHours(1));
         Assert.Empty(m.FbgStabilityCharts);
     }
+    [Fact] public void FbgPeakListsAreSortedByNumericChannelAndPeakIndex()
+    {
+        var m = Model();
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0,
+            Target("Stabilizing", 0) with { Channel = "3.4", PeakId = "P1", PeakIndex = 1 },
+            Target("Stabilizing", 0) with { Channel = "1.10", PeakId = "P1", PeakIndex = 1 },
+            Target("Stabilizing", 0) with { Channel = "1.2", PeakId = "P2", PeakIndex = 2 },
+            Target("Stabilizing", 0) with { Channel = "1.2", PeakId = "P1", PeakIndex = 1 },
+            Target("Stabilizing", 0) with { Channel = "4.4", PeakId = "P1", PeakIndex = 1 },
+            Target("Stabilizing", 0) with { Channel = "1.1", PeakId = "P1", PeakIndex = 1 }), Start);
+
+        Assert.Equal(
+            new[] { "1.1/P1", "1.2/P1", "1.2/P2", "1.10/P1", "3.4/P1", "4.4/P1" },
+            m.FbgStabilityCharts.Select(item => $"{item.Channel}/{item.PeakId}"));
+    }
     [Fact] public void TemperatureLossRegressesGatesWithoutCompletingPoint()
     {
         var m = Model(); m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, Target("Measuring", 2)), Start);

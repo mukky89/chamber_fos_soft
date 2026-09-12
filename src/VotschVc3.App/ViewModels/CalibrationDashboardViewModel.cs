@@ -596,9 +596,17 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             if (chart is null)
             {
                 chart = new FbgStabilityChartItem(key);
-                FbgStabilityCharts.Add(chart);
+                chart.Update(t, now);
+                int insertAt = 0;
+                while (insertAt < FbgStabilityCharts.Count &&
+                       FbgStabilityChartItem.CompareDisplayOrder(FbgStabilityCharts[insertAt], chart) <= 0)
+                    insertAt++;
+                FbgStabilityCharts.Insert(insertAt, chart);
             }
-            chart.Update(t, now);
+            else
+            {
+                chart.Update(t, now);
+            }
             string state = $"{t.State}|{t.Phase}";
             if (_targetEvents.GetValueOrDefault(key) != state)
             {
@@ -991,6 +999,9 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public string Identity { get; }
+    public string Channel => _progress?.Channel ?? string.Empty;
+    public string PeakId => _progress?.PeakId ?? string.Empty;
+    public int PeakIndex => _progress?.PeakIndex ?? int.MaxValue;
     public string Title => $"SN {_progress?.SerialNumber ?? "—"} · {_progress?.Channel ?? "—"}/{_progress?.PeakId ?? "—"}";
     public string Wavelength => _progress?.CurrentWavelengthNm is { } value ? $"{value:F6} nm" : "—";
     public string Samples => _progress is null ? "Vzorky —" : $"Vzorky {_progress.StabilitySamples} / {_progress.RequiredStabilitySamples}";
@@ -1055,6 +1066,35 @@ public sealed class FbgStabilityChartItem : INotifyPropertyChanged
         }
         _lastMeasurementCount = progress.MeasurementSamples;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
+
+    public static int CompareDisplayOrder(FbgStabilityChartItem left, FbgStabilityChartItem right)
+    {
+        int channel = CompareChannel(left.Channel, right.Channel);
+        if (channel != 0) return channel;
+        int peakIndex = left.PeakIndex.CompareTo(right.PeakIndex);
+        return peakIndex != 0
+            ? peakIndex
+            : StringComparer.OrdinalIgnoreCase.Compare(left.PeakId, right.PeakId);
+    }
+
+    private static int CompareChannel(string left, string right)
+    {
+        string[] leftParts = left.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] rightParts = right.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (leftParts.All(part => int.TryParse(part, out _)) &&
+            rightParts.All(part => int.TryParse(part, out _)))
+        {
+            int common = Math.Min(leftParts.Length, rightParts.Length);
+            for (int index = 0; index < common; index++)
+            {
+                int comparison = int.Parse(leftParts[index]).CompareTo(int.Parse(rightParts[index]));
+                if (comparison != 0) return comparison;
+            }
+            int length = leftParts.Length.CompareTo(rightParts.Length);
+            if (length != 0) return length;
+        }
+        return StringComparer.OrdinalIgnoreCase.Compare(left, right);
     }
 
     private static void AddBounded(List<(DateTimeOffset Time, double Wavelength)> samples, DateTimeOffset now, double wavelength)

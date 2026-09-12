@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.417] – 2026-09-12
+
+### Zmenené
+- Peaky v paneloch stability a finálneho merania sú zoradené numericky podľa
+  kanála od najnižšieho po najvyšší a v rámci kanála podľa indexu peaku.
+
 ## [1.76.416] – 2026-09-12
 
 ### Opravené
