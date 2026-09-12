@@ -96,6 +96,9 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public int CurrentPlateauIndex => _snapshot?.PlateauIndex ?? -1;
     public string Target => _snapshot is null ? "—" : $"{_snapshot.TargetTemperatureC:F1} °C";
     public double? TargetTemperatureC => _snapshot?.TargetTemperatureC;
+    public string SetpointRampLabel => _enableSetpointRamp
+        ? $"Rýchlosť setpointu {_setpointRampCPerMinute:F2} °C/min"
+        : "Rýchlosť setpointu: vypnutá (okamžitý cieľ)";
     public double? ActualTemperature => _snapshot?.ActualTemperatureC ?? _latestChamberTemperature;
     public IReadOnlyList<DashboardTemperatureSample> ChamberTemperatureTrace => _chamberTemperatureTrace.ToArray();
     public string ChamberTraceSamplesLabel => _chamberTemperatureTrace.Count == 0

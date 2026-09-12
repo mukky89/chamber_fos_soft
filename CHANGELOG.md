@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.424] – 2026-09-13
+
+### Pridané
+- Karta komory v živom dashboarde zobrazuje aktívnu rýchlosť posúvania
+  setpointu v °C/min, prípadne jasne uvedie, že rampa je vypnutá.
+
 ## [1.76.423] – 2026-09-13
 
 ### Opravené
