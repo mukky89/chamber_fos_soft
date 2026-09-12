@@ -322,6 +322,25 @@ public sealed class CalibrationDashboardTests
         Assert.Contains(target.SerialNumber, m.Points[0].DiagnosticHelp);
         Assert.Contains(m.Points[0].Graphs, g => g.Unit == "nm" && g.Samples.Count == 2);
     }
+    [Fact] public void PlateauDiagnosticsExcludePreGatePeakValuesFromFbgGraph()
+    {
+        var m = Model();
+        var waiting = Target("Temperature", 0, CalibrationTargetState.WaitingForTemperature) with
+        {
+            CurrentWavelengthNm = 1511.229248
+        };
+        var stabilizing = Target("Stabilizing", 1, CalibrationTargetState.Stabilizing) with
+        {
+            CurrentWavelengthNm = 1511.502685
+        };
+
+        m.Apply(Snapshot(CalibrationRunState.WaitingForChamberStability, 0, waiting), Start);
+        m.Apply(Snapshot(CalibrationRunState.StabilizingSensors, 0, stabilizing), Start.AddMinutes(50));
+
+        PlateauDiagnosticGraph graph = Assert.Single(m.Points[0].Graphs, graph => graph.Unit == "nm");
+        DashboardTemperatureSample sample = Assert.Single(graph.Samples);
+        Assert.Equal(1511.502685, sample.TemperatureC, 6);
+    }
     [Fact] public void SummaryCardsShowGateOrderAndCurrentState()
     {
         var m = Model();

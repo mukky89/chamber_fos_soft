@@ -622,12 +622,17 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 $"SN {t.SerialNumber} · {t.Channel}/{t.PeakId}: {(!string.IsNullOrWhiteSpace(t.Detail) ? t.Detail : !string.IsNullOrWhiteSpace(t.BlockingReason) ? t.BlockingReason : "Stabilita zatiaľ nebola potvrdená; podrobný dôvod nie je dostupný.")}\nStabilizačné vzorky {t.StabilitySamples}/{t.RequiredStabilitySamples} · finálne {t.MeasurementSamples}/{t.RequiredMeasurementSamples}\nRozsah {t.RangePm:F3}/{t.RangeLimitPm:F3} pm · σ {t.StandardDeviationPm:F3}/{t.StdDevLimitPm:F3} pm · drift {t.DriftPmPerMinute:F3}/{t.DriftLimitPmPerMinute:F3} pm/min"));
             if (snapshot.ReferenceTemperatureC is { } reference && double.IsFinite(reference)) node.AddGraphSample("WIKA – priebeh plata", "°C", now, reference);
             foreach (var target in snapshot.Targets)
-                if (target.CurrentWavelengthNm is { } wavelength && double.IsFinite(wavelength))
+                if (IsFbgAcquisitionPhase(target.Phase) &&
+                    target.CurrentWavelengthNm is { } wavelength && double.IsFinite(wavelength))
                     node.AddGraphSample($"SN {target.SerialNumber} · {target.Channel}/{target.PeakId} – priebeh FBG", "nm", now, wavelength);
         }
         if (previous?.State != snapshot.State) AddEvent(now, "INFO", Now);
         RefreshSteps(); Tick(now);
     }
+
+    private static bool IsFbgAcquisitionPhase(string? phase) => phase is
+        "Stabilizing" or "Measuring" or "MeasuringWithStabilityWarning" or "Done";
+
     public void ReportChamberTemperature(double temperature, DateTimeOffset now)
     {
         if (!double.IsFinite(temperature)) return;

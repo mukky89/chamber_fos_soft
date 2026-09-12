@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.414] – 2026-09-12
+
+### Opravené
+- Diagnostický FBG graf plata už nezobrazuje predbežné hodnoty z čakania na
+  stabilitu WIKA, ktoré pri otvorení FBG brány vytvárali zavádzajúci skok.
+
 ## [1.76.413] – 2026-09-12
 
 - História FBG kalibrácií umožňuje otvoriť posledný uložený zoom PNG spektra priamo jedným tlačidlom.
