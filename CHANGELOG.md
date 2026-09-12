@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.401] – 2026-09-12
+
+- Opravené načítanie spektra z reálneho PeakLogger Swagger endpointu `/api/v1/spectrum`, ktorý vracia pole objektov s paralelnými poľami vlnových dĺžok a intenzít.
+
 ## [1.76.400] – 2026-09-12
 
 ### Pridané

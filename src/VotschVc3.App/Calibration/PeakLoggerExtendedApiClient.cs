@@ -136,6 +136,19 @@ public sealed class PeakLoggerExtendedApiClient : IDisposable
         if (TryParallelArrays(root, out List<PeakLoggerSpectrumPoint>? parallel)) return parallel;
         if (TryPointArray(root, out List<PeakLoggerSpectrumPoint>? points)) return points;
 
+        // PeakLogger Swagger /api/v1/spectrum returns an array of Spectrum objects:
+        // [{ channel, wavelengths: [...], intensities: [...], device: {...} }].
+        // Select the requested channel at the caller level; here flatten the first
+        // object that contains a valid wavelength/intensity pair.
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in root.EnumerateArray())
+            {
+                if (TryParallelArrays(item, out parallel)) return parallel;
+                if (TryPointArray(item, out points)) return points;
+            }
+        }
+
         if (root.ValueKind == JsonValueKind.Object)
         {
             foreach (string name in new[] { "spectrum", "data", "points", "samples", "result" })
