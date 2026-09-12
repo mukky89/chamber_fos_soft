@@ -2248,9 +2248,10 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 if (snapshot.PlateauIndex >= 0 && snapshot.Targets.Count > 0)
                 {
                     string phase = snapshot.State == CalibrationRunState.MovingToPlateau ? "before" :
-                        snapshot.State == CalibrationRunState.PlateauCompleted ? "after" : string.Empty;
+                        snapshot.State == CalibrationRunState.PlateauCompleted ? "after" :
+                        snapshot.State is CalibrationRunState.AwaitingOperator or CalibrationRunState.Failed ? "error" : string.Empty;
                     if (phase.Length > 0 && spectrumSnapshotsIssued.Add($"{snapshot.PlateauIndex}:{phase}"))
-                        _ = CapturePlateauSpectraAsync(snapshot, phase);
+                        _ = CapturePlateauSpectraAsync(snapshot, phase, phase == "error" ? snapshot.Message : null);
                 }
                 _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
             };
@@ -2451,7 +2452,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         AppLog.Info("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {StatusMessage}");
     }
 
-    private async Task CapturePlateauSpectraAsync(CalibrationProgressSnapshot snapshot, string phase)
+    private async Task CapturePlateauSpectraAsync(CalibrationProgressSnapshot snapshot, string phase, string? reason = null)
     {
         CalibrationRunRecord? run = _activeRun;
         if (run is null || string.IsNullOrWhiteSpace(CurrentRunDirectory) || UseSimulator || !PeakLoggerConnected) return;
@@ -2466,7 +2467,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                 PeakLoggerSpectrumSnapshotStore.Save(CurrentRunDirectory!, new PeakLoggerSpectrumSnapshotMetadata(
                     run.RunId, "FBG", snapshot.PlateauIndex, phase, DateTimeOffset.Now,
                     SelectedProfile?.Name, target.Key.Channel, target.Key.SerialNumber,
-                    snapshot.TargetTemperatureC, snapshot.ActualTemperatureC, snapshot.ReferenceTemperatureC, null), points);
+                    snapshot.TargetTemperatureC, snapshot.ActualTemperatureC, snapshot.ReferenceTemperatureC, reason), points);
             }
         }
         catch (Exception ex)
