@@ -22,6 +22,7 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
         OpenSelectedSnapshotsCommand = new RelayCommand(
             () => OpenFolder(Path.Combine(SelectedCalibration!.FolderPath, "spectrum-snapshots")),
             () => SelectedCalibration is not null);
+        OpenLatestSpectrumCommand = new RelayCommand(OpenLatestSpectrum, () => SelectedCalibration is not null && SelectedCalibration.LatestZoomPng is not null);
         Refresh();
     }
 
@@ -36,6 +37,7 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
             {
                 OpenSelectedFolderCommand.RaiseCanExecuteChanged();
                 OpenSelectedSnapshotsCommand.RaiseCanExecuteChanged();
+                OpenLatestSpectrumCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(HasSelection));
             }
         }
@@ -48,6 +50,7 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
     public RelayCommand OpenRootFolderCommand { get; }
     public RelayCommand OpenSelectedFolderCommand { get; }
     public RelayCommand OpenSelectedSnapshotsCommand { get; }
+    public RelayCommand OpenLatestSpectrumCommand { get; }
 
     public void Refresh()
     {
@@ -90,6 +93,13 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
             StatusMessage = $"Priečinok sa nepodarilo otvoriť: {ex.Message}";
         }
     }
+
+    private void OpenLatestSpectrum()
+    {
+        if (SelectedCalibration?.LatestZoomPng is not { } path) return;
+        try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
+        catch (Exception ex) { StatusMessage = $"Náhľad spektra sa nepodarilo otvoriť: {ex.Message}"; }
+    }
 }
 
 public sealed class FbgCalibrationHistoryItem
@@ -118,4 +128,7 @@ public sealed class FbgCalibrationHistoryItem
         }
     }
     public string ResultSummary => $"Snímače: {SensorCount} · výsledky: {ResultCount} · PASS: {PassCount} · FAIL: {FailCount} · snapshoty: {SpectrumSnapshotCount}";
+    public string? LatestZoomPng => Directory.Exists(Path.Combine(FolderPath, "spectrum-snapshots"))
+        ? Directory.GetFiles(Path.Combine(FolderPath, "spectrum-snapshots"), "*_zoom.png", SearchOption.AllDirectories).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault()
+        : null;
 }

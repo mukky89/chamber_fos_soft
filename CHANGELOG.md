@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.413] – 2026-09-12
+
+- História FBG kalibrácií umožňuje otvoriť posledný uložený zoom PNG spektra priamo jedným tlačidlom.
+
 ## [1.76.412] – 2026-09-12
 
 - História FBG kalibrácií zobrazuje počet uložených spektrálnych snapshotov pri každom behu.
