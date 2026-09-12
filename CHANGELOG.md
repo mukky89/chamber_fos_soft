@@ -1,4 +1,12 @@
-# Changelog`r`n`r`n## [1.76.405] – 2026-09-12`r`n`r`n- Automatické FBG snapshoty spektra sa ukladajú pri prechode na plato a po jeho dokončení pre každý dostupný kanál.`r`n
+# Changelog
+
+## [1.76.406] – 2026-09-12
+
+- Ku každému uloženému spektrálnemu snapshotu sa generuje PNG celého spektra a automatický zoom na najsilnejší peak.
+
+## [1.76.405] – 2026-09-12
+
+- Automatické FBG snapshoty spektra sa ukladajú pri prechode na plato a po jeho dokončení pre každý dostupný kanál.
 ## [1.76.404] – 2026-09-12
 
 - Pridané jednotné úložisko surových PeakLogger spektier a metadát podľa RunId, plate a fázy snapshotu v JSON/CSV formáte.
