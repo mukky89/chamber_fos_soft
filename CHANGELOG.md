@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.428] – 2026-09-13
+
+### Upravené
+- WIKA diagnostický graf zobrazuje celý monitoring od začiatku kalibrácie,
+  nie iba aktuálne plato. Päťsekundový záznam sa naďalej ukladá do spoločného
+  trace store bez zásahu do stabilizačných brán.
+
 ## [1.76.427] – 2026-09-13
 
 ### Upravené

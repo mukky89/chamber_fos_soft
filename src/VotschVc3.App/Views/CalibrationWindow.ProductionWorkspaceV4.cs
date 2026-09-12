@@ -653,10 +653,8 @@ public partial class CalibrationWindow
                 : new[] { new ChartSeries(BuildFbgTraceLabel(row), GetFbgTraceBrush(row), points, strokeThickness: 1.8) };
         }
 
-        DateTimeOffset activeReferenceStart = _viewModel.Dashboard.CurrentPlateauTraceStart ?? _liveTraceOrigin;
-        IEnumerable<CalibrationReferenceTracePoint> referenceForView = _viewModel.IsRunning
-            ? reference.Where(p => p.Timestamp >= activeReferenceStart)
-            : reference;
+        // This diagnostic chart intentionally shows the complete WIKA trace from run start.
+        IEnumerable<CalibrationReferenceTracePoint> referenceForView = reference;
         Point[] referencePoints = referenceForView
             .Select(p => new Point((p.Timestamp - origin).TotalMinutes, p.TemperatureC))
             .ToArray();

@@ -297,9 +297,8 @@ public partial class CalibrationDashboardView : UserControl
             : "—";
 
         IReadOnlyList<CalibrationReferenceTracePoint> fullTrace = CalibrationReferenceTraceStore.Instance.GetTrace(chamberId);
-        IReadOnlyList<CalibrationReferenceTracePoint> trace = vm.CurrentPlateauTraceStart is { } plateauStart
-            ? fullTrace.Where(point => point.Timestamp >= plateauStart).ToArray()
-            : fullTrace;
+        // Detailed WIKA chart is the audit view for the whole calibration run.
+        IReadOnlyList<CalibrationReferenceTracePoint> trace = fullTrace;
         if (trace.Count == 0)
         {
             ReferenceTraceChart.Series = Array.Empty<ChartSeries>();
