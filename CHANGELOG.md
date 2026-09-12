@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.397] – 2026-09-12
+
+### Opravené
+
+- WLN stabilita toleruje oneskorenie PeakLogger dávky do 15 sekúnd voči súvisiacej WIKA vzorke; skutočne staré WIKA dáta sa naďalej odmietajú.
+
 ## [1.76.396] – 2026-09-12
 
 ### Opravené

@@ -117,7 +117,10 @@ public sealed class CalibrationWlLog : IAsyncDisposable
                 if (timestamp <= file.Last || timestamp - file.Last < TimeSpan.FromSeconds(Math.Clamp(intervalSeconds, 1, 86400))) continue;
                 if (reference is not double temperature || !double.IsFinite(temperature) || referenceAt is null ||
                     referenceAt < _startedAt || referenceAt <= file.LastReference || timestamp < _startedAt ||
-                    (timestamp - referenceAt.Value).Duration() > TimeSpan.FromSeconds(10) ||
+                    // PeakLogger batches may arrive after the reference read in the
+                    // same acquisition cycle. Allow that bounded transport skew;
+                    // the independent absolute-age check below still rejects stale WIKA.
+                    (timestamp - referenceAt.Value).Duration() > TimeSpan.FromSeconds(15) ||
                     DateTimeOffset.UtcNow - timestamp > TimeSpan.FromSeconds(10) || timestamp - DateTimeOffset.UtcNow > TimeSpan.FromSeconds(10) ||
                     ordered.Any(m => timestamp - m.Timestamp > TimeSpan.FromSeconds(1) || !double.IsFinite(m.WavelengthNm) || m.WavelengthNm <= 0) ||
                     ordered.Where((m, i) => m.PeakIndex != file.Indices[i]).Any())
