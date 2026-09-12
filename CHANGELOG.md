@@ -1,4 +1,4 @@
-# Changelog
+# Changelog`r`n`r`n## [1.76.407] – 2026-09-12`r`n`r`n- Pridaná voľba na otvorenie priečinka uložených spektrálnych snapshotov aktuálneho kalibračného behu.
 
 ## [1.76.406] – 2026-09-12
 

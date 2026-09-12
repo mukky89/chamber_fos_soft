@@ -182,6 +182,14 @@ public partial class CalibrationWindow
             var spectrum = new MenuItem { Header = "Zobraziť spektrum kanála" };
             spectrum.Click += ShowSelectedSpectrum_Click;
             menu.Items.Add(spectrum);
+            var snapshots = new MenuItem { Header = "Otvoriť uložené snapshoty spektra" };
+            snapshots.Click += (_, _) =>
+            {
+                string? directory = _viewModel.CurrentRunDirectory;
+                if (!string.IsNullOrWhiteSpace(directory)) OpenFolder(Path.Combine(directory, "spectrum-snapshots"));
+                else ShowProductionInfo("Aktuálny beh zatiaľ nemá uložené snapshoty spektra.");
+            };
+            menu.Items.Add(snapshots);
             _wiringGrid.ContextMenu = menu;
         }
         _wiringGrid.PreviewMouseRightButtonDown -= WiringGrid_PreviewMouseRightButtonDown;
