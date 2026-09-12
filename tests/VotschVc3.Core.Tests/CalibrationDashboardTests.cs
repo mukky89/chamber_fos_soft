@@ -5,6 +5,26 @@ using Xunit;
 namespace VotschVc3.Core.Tests;
 public sealed class CalibrationDashboardTests
 {
+    [Fact] public void RestoredRetryQueueCountsOnlyRetainedResultsAsCompleted()
+    {
+        var model = new CalibrationDashboardViewModel();
+        model.Configure("Resume", "Chamber", Enumerable.Range(0, 17).Select(i => (double)i).ToArray(), true, "");
+        model.Begin(Start);
+        var retained = new[] { 0, 1, 2, 4 };
+        var retry = Enumerable.Range(0, 17).Except(retained).ToArray();
+        model.RestoreCompletedPoints(Enumerable.Range(0, 17).Select(i => new CalibrationPlateauResult
+        {
+            PlateauIndex = i, StartedAt = Start, CompletedAt = Start.AddMinutes(retained.Contains(i) ? 60 : 0),
+            Targets = { new CalibrationMeasurementResult { Status = retained.Contains(i) ? CalibrationTargetState.Stable : CalibrationTargetState.SkippedIdentityUncertain } },
+        }), retry);
+        model.Tick(Start);
+        Assert.Equal(4, model.CompletedPoints);
+        Assert.Equal(13, model.RemainingPoints);
+        Assert.Equal(100d * 4 / 17, model.OverallProgress, 5);
+        Assert.All(retry, i => Assert.Null(model.Points[i].Duration));
+        Assert.True(model.EstimatedFinishAt >= Start.AddHours(13));
+    }
+
     [Fact] public void SkippedPointWithInvalidTemperatureDoesNotPolluteLiveTemperatureOrTrace()
     {
         var m = Model();

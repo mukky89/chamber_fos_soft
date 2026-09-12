@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.421] – 2026-09-12
+
+### Opravené
+- Progress a odhad obnoveného behu počítajú platá zaradené na opakovanie ako
+  čakajúce. Nulové trvania nemeraných pokusov sa nepoužívajú na odhad času.
+
 ## [1.76.420] – 2026-09-12
 
 ### Opravené

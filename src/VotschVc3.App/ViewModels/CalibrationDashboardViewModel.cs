@@ -71,7 +71,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
     public string Tone => _paused || _state is CalibrationRunState.AwaitingOperator or CalibrationRunState.CompletedWithWarnings or CalibrationRunState.Aborted ? "Waiting" :
         _state == CalibrationRunState.Failed ? "Error" : _state == CalibrationRunState.Completed ? "Done" :
         _state == CalibrationRunState.WaitingForChamberStability ? "Waiting" : _running ? "Active" : "Pending";
-    public int CompletedPoints => Points.Count(p => p.State is "Done" or "Warning");
+    public int CompletedPoints => Points.Count(p => !p.RecalibrationRequested && p.State is "Done" or "Warning");
     public int SuccessfulPoints => Points.Count(p => p.State == "Done");
     public int UnconfirmedPoints => Points.Count(p => p.State == "Warning");
     public int RemainingPoints => Math.Max(0, Points.Count - CompletedPoints);
@@ -421,7 +421,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         foreach (var point in Points) { point.State = "Pending"; point.Detail = "Čaká"; point.Duration = null; point.Explanation = ""; point.Graphs.Clear(); point.SetRecalibrationState(false, false); }
         AddEvent(now, "INFO", "Kalibrácia spustená."); RefreshSteps(); Tick(now);
     }
-    public void RestoreCompletedPoints(IEnumerable<CalibrationPlateauResult> completedPlateaus)
+    public void RestoreCompletedPoints(IEnumerable<CalibrationPlateauResult> completedPlateaus, IEnumerable<int>? pendingRetries = null)
     {
         foreach (CalibrationPlateauResult plateau in completedPlateaus.OrderBy(item => item.PlateauIndex))
         {
@@ -449,6 +449,15 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
                 plateau.ReferenceTemperatureC, plateau.ActualTemperatureC);
         }
 
+        foreach (int index in pendingRetries ?? Array.Empty<int>())
+        {
+            if (index < 0 || index >= Points.Count) continue;
+            var point = Points[index];
+            point.Duration = null;
+            point.State = "Pending";
+            point.Detail = "Čaká na nové meranie · pôvodný výsledok v histórii";
+            point.SetRecalibrationState(false, true);
+        }
         RefreshSteps();
         Notify();
     }
@@ -726,6 +735,8 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
             return false;
 
         node.SetRecalibrationState(false, true);
+        node.Duration = null;
+        node.State = "Pending";
         AddEvent(DateTimeOffset.Now, "WARNING", $"Operátor označil plato {plateauIndex + 1} na opakovanú kalibráciu.", plateauIndex);
         Notify();
         return true;
@@ -774,7 +785,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         }
 
         double[] completedDurations = Points
-            .Where(point => point.Duration.HasValue)
+            .Where(point => point.Duration is { } duration && duration > TimeSpan.Zero)
             .Select(point => point.Duration!.Value.TotalSeconds)
             .OrderBy(value => value)
             .ToArray();
@@ -798,7 +809,7 @@ public sealed class CalibrationDashboardViewModel : INotifyPropertyChanged
         {
             double? expected = null;
             double? upperBound = null;
-            if (_historicalPlateaus.TryGetValue(index, out CalibrationPlateauStatistics? history))
+            if (_historicalPlateaus.TryGetValue(index, out CalibrationPlateauStatistics? history) && history.MedianDuration > TimeSpan.Zero)
             {
                 expected = history.MedianDuration.TotalSeconds;
                 upperBound = history.MaximumDuration.TotalSeconds;

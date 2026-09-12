@@ -2123,7 +2123,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         Dashboard.Begin(DateTimeOffset.Now);
         if (resume is not null)
         {
-            Dashboard.RestoreCompletedPoints(resume.CompletedPlateaus);
+            Dashboard.RestoreCompletedPoints(resume.CompletedPlateaus, resume.DeferredPlateauIndices);
         }
         RunState = CalibrationRunState.Preflight.ToString();
         IsRunning = true;
