@@ -19,6 +19,9 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
         OpenSelectedFolderCommand = new RelayCommand(
             () => OpenFolder(SelectedCalibration!.FolderPath),
             () => SelectedCalibration is not null);
+        OpenSelectedSnapshotsCommand = new RelayCommand(
+            () => OpenFolder(Path.Combine(SelectedCalibration!.FolderPath, "spectrum-snapshots")),
+            () => SelectedCalibration is not null);
         Refresh();
     }
 
@@ -32,6 +35,7 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
             if (SetProperty(ref _selectedCalibration, value))
             {
                 OpenSelectedFolderCommand.RaiseCanExecuteChanged();
+                OpenSelectedSnapshotsCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(HasSelection));
             }
         }
@@ -43,6 +47,7 @@ public sealed class FbgCalibrationHistoryViewModel : ObservableObject
     public RelayCommand RefreshCommand { get; }
     public RelayCommand OpenRootFolderCommand { get; }
     public RelayCommand OpenSelectedFolderCommand { get; }
+    public RelayCommand OpenSelectedSnapshotsCommand { get; }
 
     public void Refresh()
     {

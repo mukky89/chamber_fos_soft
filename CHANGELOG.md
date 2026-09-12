@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.410] – 2026-09-12
+
+- História FBG kalibrácií umožňuje priamo otvoriť priečinok uložených spektrálnych snapshotov.
+
 ## [1.76.409] – 2026-09-12
 
 - Pri chybovom alebo operátorskom stave sa uloží diagnostický snapshot spektra s dôvodom problému.
