@@ -16,15 +16,19 @@ public sealed class PeakLoggerSpectrumWindow : Window
     private readonly Func<Task<IReadOnlyList<PeakLoggerSpectrumPoint>>>? _refresh;
     private readonly DispatcherTimer? _timer;
     private readonly TextBlock _status = new() { Opacity = 0.7, Margin = new Thickness(0, 3, 0, 0) };
+    private readonly double? _focusWavelengthNm;
+    private bool _zoomToPeak;
 
     public PeakLoggerSpectrumWindow(
         string channel,
         string? deviceSerialNumber,
         IReadOnlyList<PeakLoggerSpectrumPoint> points,
-        Func<Task<IReadOnlyList<PeakLoggerSpectrumPoint>>>? refresh = null)
+        Func<Task<IReadOnlyList<PeakLoggerSpectrumPoint>>>? refresh = null,
+        double? focusWavelengthNm = null)
     {
         _points = points.OrderBy(p => p.WavelengthNm).ToArray();
         _refresh = refresh;
+        _focusWavelengthNm = focusWavelengthNm;
         Title = $"PeakLogger spektrum · kanál {channel}";
         Width = 920;
         Height = 560;
@@ -45,6 +49,12 @@ public sealed class PeakLoggerSpectrumWindow : Window
         });
         header.Children.Add(_status);
         UpdateStatus("Načítané spektrum");
+        if (_focusWavelengthNm is not null)
+        {
+            var zoom = new Button { Content = "Zoom na peak", Margin = new Thickness(0, 7, 0, 0), Padding = new Thickness(8, 3, 8, 3), HorizontalAlignment = HorizontalAlignment.Left };
+            zoom.Click += (_, _) => { _zoomToPeak = !_zoomToPeak; zoom.Content = _zoomToPeak ? "Celé spektrum" : "Zoom na peak"; Draw(); };
+            header.Children.Add(zoom);
+        }
         Grid.SetRow(header, 0);
         root.Children.Add(header);
 
@@ -106,6 +116,14 @@ public sealed class PeakLoggerSpectrumWindow : Window
 
         double minX = _points.Min(p => p.WavelengthNm);
         double maxX = _points.Max(p => p.WavelengthNm);
+        if (_zoomToPeak && _focusWavelengthNm is { } focus)
+        {
+            double halfWindow = 2.5;
+            minX = Math.Max(minX, focus - halfWindow);
+            maxX = Math.Min(maxX, focus + halfWindow);
+        }
+        var visible = _points.Where(p => p.WavelengthNm >= minX && p.WavelengthNm <= maxX).ToArray();
+        if (visible.Length >= 2) _points = _points.ToArray();
         double minY = _points.Min(p => p.Intensity);
         double maxY = _points.Max(p => p.Intensity);
         if (Math.Abs(maxX - minX) < 1e-12) maxX = minX + 1;
@@ -117,13 +135,19 @@ public sealed class PeakLoggerSpectrumWindow : Window
         _canvas.Children.Add(new Line { X1 = left, X2 = left + width, Y1 = top + height, Y2 = top + height, Stroke = axisBrush, StrokeThickness = 1 });
 
         var polyline = new Polyline { Stroke = curveBrush, StrokeThickness = 1.5 };
-        foreach (PeakLoggerSpectrumPoint point in _points)
+        foreach (PeakLoggerSpectrumPoint point in _points.Where(p => p.WavelengthNm >= minX && p.WavelengthNm <= maxX))
         {
             double x = left + (point.WavelengthNm - minX) / (maxX - minX) * width;
             double y = top + height - (point.Intensity - minY) / (maxY - minY) * height;
             polyline.Points.Add(new Point(x, y));
         }
         _canvas.Children.Add(polyline);
+        if (_focusWavelengthNm is { } marker && marker >= minX && marker <= maxX)
+        {
+            double x = left + (marker - minX) / (maxX - minX) * width;
+            _canvas.Children.Add(new Line { X1 = x, X2 = x, Y1 = top, Y2 = top + height, Stroke = Brushes.OrangeRed, StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 4, 3 } });
+            AddLabel($"peak {marker:F3}", Math.Max(left, x - 30), top + 2, HorizontalAlignment.Left);
+        }
 
         AddLabel(minX.ToString("F3", CultureInfo.InvariantCulture), left, top + height + 5, HorizontalAlignment.Left);
         AddLabel(maxX.ToString("F3", CultureInfo.InvariantCulture), left + width - 55, top + height + 5, HorizontalAlignment.Right);

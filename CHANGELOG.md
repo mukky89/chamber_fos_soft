@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.403] – 2026-09-12
+
+- Živý náhľad spektra podporuje prepínanie celého rozsahu a automatického zoomu na vybraný peak s jeho vyznačením v grafe.
+
 ## [1.76.402] – 2026-09-12
 
 - Náhľad PeakLogger spektra je počas kalibrácie živý a obnovuje sa každé 3 sekundy; okno zobrazuje počet bodov, rozsah a stav posledného načítania.

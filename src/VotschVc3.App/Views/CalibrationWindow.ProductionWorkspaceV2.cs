@@ -651,7 +651,8 @@ public partial class CalibrationWindow
                     _viewModel.PeakLoggerHost,
                     _viewModel.PeakLoggerPort,
                     row.Channel,
-                    row.PeakLoggerDeviceSerialNumber)) { Owner = this };
+                    row.PeakLoggerDeviceSerialNumber),
+                row.CurrentWavelengthNm) { Owner = this };
             window.Show();
             ShowProductionInfo($"Spektrum kanála {row.Channel}: načítaných {points.Count} bodov.");
         }
