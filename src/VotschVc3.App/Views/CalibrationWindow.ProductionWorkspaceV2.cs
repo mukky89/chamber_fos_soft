@@ -646,7 +646,12 @@ public partial class CalibrationWindow
                 _viewModel.PeakLoggerPort,
                 row.Channel,
                 row.PeakLoggerDeviceSerialNumber);
-            var window = new PeakLoggerSpectrumWindow(row.Channel, row.PeakLoggerDeviceSerialNumber, points) { Owner = this };
+            var window = new PeakLoggerSpectrumWindow(row.Channel, row.PeakLoggerDeviceSerialNumber, points,
+                () => _extendedPeakLoggerApi.ReadSpectrumAsync(
+                    _viewModel.PeakLoggerHost,
+                    _viewModel.PeakLoggerPort,
+                    row.Channel,
+                    row.PeakLoggerDeviceSerialNumber)) { Owner = this };
             window.Show();
             ShowProductionInfo($"Spektrum kanála {row.Channel}: načítaných {points.Count} bodov.");
         }

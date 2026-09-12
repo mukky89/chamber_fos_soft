@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.76.402] – 2026-09-12
+
+- Náhľad PeakLogger spektra je počas kalibrácie živý a obnovuje sa každé 3 sekundy; okno zobrazuje počet bodov, rozsah a stav posledného načítania.
+
 ## [1.76.401] – 2026-09-12
 
 - Opravené načítanie spektra z reálneho PeakLogger Swagger endpointu `/api/v1/spectrum`, ktorý vracia pole objektov s paralelnými poľami vlnových dĺžok a intenzít.

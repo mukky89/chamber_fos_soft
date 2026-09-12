@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using VotschVc3.App.Calibration;
 
 namespace VotschVc3.App.Views;
@@ -11,14 +12,19 @@ namespace VotschVc3.App.Views;
 public sealed class PeakLoggerSpectrumWindow : Window
 {
     private readonly Canvas _canvas = new();
-    private readonly IReadOnlyList<PeakLoggerSpectrumPoint> _points;
+    private IReadOnlyList<PeakLoggerSpectrumPoint> _points;
+    private readonly Func<Task<IReadOnlyList<PeakLoggerSpectrumPoint>>>? _refresh;
+    private readonly DispatcherTimer? _timer;
+    private readonly TextBlock _status = new() { Opacity = 0.7, Margin = new Thickness(0, 3, 0, 0) };
 
     public PeakLoggerSpectrumWindow(
         string channel,
         string? deviceSerialNumber,
-        IReadOnlyList<PeakLoggerSpectrumPoint> points)
+        IReadOnlyList<PeakLoggerSpectrumPoint> points,
+        Func<Task<IReadOnlyList<PeakLoggerSpectrumPoint>>>? refresh = null)
     {
         _points = points.OrderBy(p => p.WavelengthNm).ToArray();
+        _refresh = refresh;
         Title = $"PeakLogger spektrum · kanál {channel}";
         Width = 920;
         Height = 560;
@@ -37,12 +43,8 @@ public sealed class PeakLoggerSpectrumWindow : Window
             FontSize = 17,
             FontWeight = FontWeights.SemiBold,
         });
-        header.Children.Add(new TextBlock
-        {
-            Text = $"{_points.Count} bodov · {_points.FirstOrDefault()?.WavelengthNm:F3} – {_points.LastOrDefault()?.WavelengthNm:F3} nm",
-            Opacity = 0.7,
-            Margin = new Thickness(0, 3, 0, 0),
-        });
+        header.Children.Add(_status);
+        UpdateStatus("Načítané spektrum");
         Grid.SetRow(header, 0);
         root.Children.Add(header);
 
@@ -57,9 +59,38 @@ public sealed class PeakLoggerSpectrumWindow : Window
         root.Children.Add(border);
         Content = root;
 
+        if (_refresh is not null)
+        {
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _timer.Tick += async (_, _) => await RefreshAsync();
+            Closed += (_, _) => _timer.Stop();
+            Loaded += async (_, _) => await RefreshAsync();
+            _timer.Start();
+        }
+
         _canvas.SizeChanged += (_, _) => Draw();
         Loaded += (_, _) => Draw();
     }
+
+    private async Task RefreshAsync()
+    {
+        if (_refresh is null) return;
+        try
+        {
+            IReadOnlyList<PeakLoggerSpectrumPoint> points = await _refresh();
+            _points = points.OrderBy(p => p.WavelengthNm).ToArray();
+            UpdateStatus($"Živé spektrum · {_points.Count} bodov · {_points.FirstOrDefault()?.WavelengthNm:F3} – {_points.LastOrDefault()?.WavelengthNm:F3} nm · {DateTime.Now:HH:mm:ss}");
+            Draw();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Chyba načítania spektra: {ex.Message}");
+        }
+    }
+
+    private void UpdateStatus(string prefix) => _status.Text = _points.Count == 0
+        ? prefix
+        : $"{prefix} · {_points.Count} bodov · {_points.First().WavelengthNm:F3} – {_points.Last().WavelengthNm:F3} nm";
 
     private void Draw()
     {
