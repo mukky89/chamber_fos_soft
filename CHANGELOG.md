@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.399] – 2026-09-12
+
+### Zmenené
+
+- Predvolený maximálny rozptyl σ stability referencie WIKA je zvýšený z 0,01 °C na 0,02 °C, aby prirodzené malé kolísanie zbytočne nevynulovalo stabilný čas.
+
 ## [1.76.398] – 2026-09-12
 
 ### Zmenené

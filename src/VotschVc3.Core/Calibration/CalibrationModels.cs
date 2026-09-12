@@ -124,7 +124,7 @@ public sealed class CalibrationProfileSettings
     public TimeSpan ChamberStableDuration { get; set; } = TimeSpan.FromMinutes(10);
     public double MaxChamberDriftCPerMinute { get; set; } = 0.03;
     public double MaxChamberRangeC { get; set; } = 0.05;
-    public double MaxChamberStdDevC { get; set; } = 0.01;
+    public double MaxChamberStdDevC { get; set; } = 0.02;
     public TimeSpan ChamberStabilityTimeout { get; set; } = TimeSpan.FromHours(1);
     /// <summary>One automatic temperature-settling extension step after the base timeout.</summary>
     public TimeSpan ChamberStabilityExtensionStep { get; set; } = TimeSpan.FromMinutes(15);

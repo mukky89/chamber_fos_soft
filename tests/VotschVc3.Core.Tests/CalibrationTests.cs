@@ -54,7 +54,7 @@ public sealed class CalibrationTests
         var settings = new CalibrationProfileSettings();
 
         Assert.Equal(0.05, settings.MaxChamberRangeC);
-        Assert.Equal(0.01, settings.MaxChamberStdDevC);
+        Assert.Equal(0.02, settings.MaxChamberStdDevC);
     }
 
     [Fact]
