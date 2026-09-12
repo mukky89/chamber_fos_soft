@@ -1,4 +1,12 @@
-# Changelog`r`n`r`n## [1.76.407] – 2026-09-12`r`n`r`n- Pridaná voľba na otvorenie priečinka uložených spektrálnych snapshotov aktuálneho kalibračného behu.
+# Changelog
+
+## [1.76.408] – 2026-09-12
+
+- Pridaný súhrnný index `spectrum-snapshots.csv` so zoznamom všetkých spektrálnych snapshotov a odkazmi na JSON/PNG súbory.
+
+## [1.76.407] – 2026-09-12
+
+- Pridaná voľba na otvorenie priečinka uložených spektrálnych snapshotov aktuálneho kalibračného behu.
 
 ## [1.76.406] – 2026-09-12
 

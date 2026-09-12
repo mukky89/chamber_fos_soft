@@ -53,6 +53,20 @@ public static class PeakLoggerSpectrumSnapshotStore
         SavePng(Path.Combine(directory, stem + "_full.png"), points, null);
         double focus = points.OrderByDescending(p => p.Intensity).First().WavelengthNm;
         SavePng(Path.Combine(directory, stem + "_zoom.png"), points, focus);
+        string manifest = Path.Combine(runDirectory, "spectrum-snapshots.csv");
+        bool newManifest = !File.Exists(manifest);
+        using (var writer = new StreamWriter(manifest, append: true, new UTF8Encoding(false)))
+        {
+            if (newManifest) writer.WriteLine("Timestamp;Plateau;Phase;CalibrationType;Channel;DeviceSerialNumber;TargetTemperatureC;ChamberTemperatureC;ReferenceTemperatureC;Reason;Json;FullPng;ZoomPng");
+            writer.WriteLine(string.Join(';',
+                metadata.Timestamp.ToString("O", CultureInfo.InvariantCulture), metadata.PlateauIndex + 1, phase,
+                metadata.CalibrationType, metadata.Channel, metadata.DeviceSerialNumber,
+                metadata.TargetTemperatureC?.ToString("G17", CultureInfo.InvariantCulture),
+                metadata.ChamberTemperatureC?.ToString("G17", CultureInfo.InvariantCulture),
+                metadata.ReferenceTemperatureC?.ToString("G17", CultureInfo.InvariantCulture), metadata.Reason,
+                Path.GetRelativePath(runDirectory, jsonPath), Path.GetRelativePath(runDirectory, Path.Combine(directory, stem + "_full.png")),
+                Path.GetRelativePath(runDirectory, Path.Combine(directory, stem + "_zoom.png"))));
+        }
         return jsonPath;
     }
 
