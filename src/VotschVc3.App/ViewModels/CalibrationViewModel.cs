@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Data;
 using Microsoft.Win32;
 using VotschVc3.App.Mvvm;
+using VotschVc3.App.Calibration;
 using VotschVc3.App.Notifications;
 using VotschVc3.App.Thermometers;
 using VotschVc3.Core.Calibration;
@@ -2228,6 +2229,7 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
             _runner = new CalibrationProfileRunner(_chamber, orchestrator, _calibrationStore);
             DateTimeOffset nextProgressDiagnosticAt = DateTimeOffset.MinValue;
             string? lastProgressDiagnosticState = null;
+            var spectrumSnapshotsIssued = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             object progressDiagnosticSync = new();
             _runner.Progress += snapshot =>
             {
@@ -2242,6 +2244,13 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
                         nextProgressDiagnosticAt = now + ProgressDiagnosticInterval;
                         lastProgressDiagnosticState = diagnosticState;
                     }
+                }
+                if (snapshot.PlateauIndex >= 0 && snapshot.Targets.Count > 0)
+                {
+                    string phase = snapshot.State == CalibrationRunState.MovingToPlateau ? "before" :
+                        snapshot.State == CalibrationRunState.PlateauCompleted ? "after" : string.Empty;
+                    if (phase.Length > 0 && spectrumSnapshotsIssued.Add($"{snapshot.PlateauIndex}:{phase}"))
+                        _ = CapturePlateauSpectraAsync(snapshot, phase);
                 }
                 _ = Application.Current.Dispatcher.InvokeAsync(() => ApplyProgress(snapshot));
             };
@@ -2440,6 +2449,31 @@ public sealed partial class CalibrationViewModel : ObservableObject, IAsyncDispo
         Dashboard.Pause(_runner.IsPaused, DateTimeOffset.Now);
         _activeWriter?.WriteDiagnostic("INFO", _runner.IsPaused ? "OPERATOR_PAUSE" : "OPERATOR_RESUME", StatusMessage);
         AppLog.Info("FBG kalibrácia", $"Run {_activeRun?.DisplayRunId}: {StatusMessage}");
+    }
+
+    private async Task CapturePlateauSpectraAsync(CalibrationProgressSnapshot snapshot, string phase)
+    {
+        CalibrationRunRecord? run = _activeRun;
+        if (run is null || string.IsNullOrWhiteSpace(CurrentRunDirectory) || UseSimulator || !PeakLoggerConnected) return;
+        try
+        {
+            using var api = new PeakLoggerExtendedApiClient();
+            foreach (var target in snapshot.Targets.GroupBy(t => new { t.Channel, t.SerialNumber }))
+            {
+                IReadOnlyList<PeakLoggerSpectrumPoint> points = await api.ReadSpectrumAsync(
+                    PeakLoggerHost, PeakLoggerPort, target.Key.Channel, target.Key.SerialNumber).ConfigureAwait(false);
+                if (points.Count < 2) continue;
+                PeakLoggerSpectrumSnapshotStore.Save(CurrentRunDirectory!, new PeakLoggerSpectrumSnapshotMetadata(
+                    run.RunId, "FBG", snapshot.PlateauIndex, phase, DateTimeOffset.Now,
+                    SelectedProfile?.Name, target.Key.Channel, target.Key.SerialNumber,
+                    snapshot.TargetTemperatureC, snapshot.ActualTemperatureC, snapshot.ReferenceTemperatureC, null), points);
+            }
+        }
+        catch (Exception ex)
+        {
+            _activeWriter?.WriteDiagnostic("WARNING", "SPECTRUM_SNAPSHOT", $"phase={phase}; plateau={snapshot.PlateauIndex + 1}; {ex.Message}");
+            AppLog.Warn("PeakLogger spektrum", $"Snapshot {phase} plateau {snapshot.PlateauIndex + 1}: {ex.Message}");
+        }
     }
 
     private static void WriteProgressDiagnostic(CalibrationRunWriter writer, CalibrationProgressSnapshot snapshot)
